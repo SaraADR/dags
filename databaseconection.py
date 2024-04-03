@@ -18,7 +18,7 @@ def insertar_registro(id_registro):
     engine = create_engine(database_url)
     with engine.connect() as connection:
         connection.execute(f"""
-            INSERT INTO {tabla} (id) VALUES ({id_registro , 'test'})
+            INSERT INTO {tabla} (fid) VALUES ({id_registro , 'test'})
         """)
 
 with DAG(
