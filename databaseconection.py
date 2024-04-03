@@ -1,6 +1,7 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine
+from datetime import datetime, timedelta
 
 # Reemplaza estas variables con tu información de conexión a la base de datos
 database_url = "postgresql+psycopg2://biodb:b10Db@vps-52d8b532.vps.ovh.net:5431/postgres"
@@ -22,6 +23,7 @@ def insertar_registro(id_registro):
 with DAG(
     dag_id="mi_dag",
     schedule_interval="@once",
+    start_date=datetime(2021, 7, 29, 2),
 ) as dag:
 
     t1 = PythonOperator(
