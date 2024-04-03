@@ -22,7 +22,7 @@ def insertar_registro(id_registro):
         """)
 
 with DAG(
-    dag_id="mi_dag",
+    dag_id="databaseconnection",
     schedule_interval="@once",
     start_date=datetime(2021, 7, 29, 2),
 ) as dag:
