@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from datetime import datetime
 
 # Reemplaza estas variables con tu información de conexión a la base de datos
-database_url = "jdbc:postgresql://vps-52d8b534.vps.ovh.net:5431/postgres"
+database_url = "postgresql://biodb:b10Db@vps-52d8b534.vps.ovh.net:5431/postgres"
 
 tabla = "observacion_aerea.aeronave"
 
