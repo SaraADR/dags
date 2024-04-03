@@ -1,10 +1,11 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Reemplaza estas variables con tu información de conexión a la base de datos
-database_url = "postgresql+psycopg2://biodb:b10Db@vps-52d8b532.vps.ovh.net:5431/postgres"
+database_url = "jdbc:postgresql://vps-52d8b534.vps.ovh.net:5431/postgres"
+
 tabla = "observacion_aerea.aeronave"
 
 def buscar_registro(id_registro):
