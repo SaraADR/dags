@@ -36,6 +36,7 @@ def save_json_to_postgres(json_data):
     )
 
 
+
 default_args = {
     'owner': 'sadr',
     'retries': 5,
