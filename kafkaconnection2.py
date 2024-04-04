@@ -1,5 +1,5 @@
 from airflow import DAG
-from airflow.providers.apache.kafka.operators.kafka import KafkaConsumerOperator
+from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from datetime import datetime
 
 default_args = {
@@ -14,7 +14,7 @@ with DAG(
     schedule_interval='@daily'
     ) as dag:
 
-    consume_and_analyze_data = KafkaConsumerOperator(
+    consume_and_analyze_data = ConsumeFromTopicOperator(
         task_id='consume_and_analyze_data',
         topic='test1',
         bootstrap_servers='kafka_broker:9092',
