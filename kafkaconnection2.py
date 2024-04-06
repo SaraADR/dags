@@ -24,6 +24,7 @@ with DAG(
         commit_cadence="end_of_batch",
         max_messages=1,
         max_batch_size=5,
+        bash_command="echo {{ ti.message }}",
     )
 
  # Mostrar el mensaje consumido en la consola
