@@ -24,7 +24,7 @@ with DAG(
         commit_cadence="end_of_batch",
         max_messages=1,
         max_batch_size=5,
-        bash_command="echo {{ ti.message }}",
+        xcom_push=True,
     )
 
  # Mostrar el mensaje consumido en la consola
@@ -36,7 +36,7 @@ with DAG(
 
     print_message_2 = BashOperator(
         task_id='print_message_2',
-        bash_command="echo '{{ ti.xcom_pull(task_ids=\"Consume_topic_test1_kafka\") }}'"
+        bash_command="echo {{ ti.xcom_pull('Consume_topic_test1_kafka')}}"
     )
 
     # Establecer la secuencia de tareas
