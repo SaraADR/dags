@@ -41,14 +41,6 @@ with DAG(
     tags=["Test_DAG"],
 ) as dag:
 
-    t1 = ProduceToTopicOperator(
-        task_id="produce_to_topic",
-        topic="test1",
-        producer_function=producer_function,
-    kafka_config_id="kafka_connection",
-    )
-
-
     t2 = ConsumeFromTopicOperator(
         task_id="consume_from_topic",
         topics=["topictest"],
