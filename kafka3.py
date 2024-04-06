@@ -13,4 +13,5 @@ with  DAG(
     task_id="consumir_mensajes_kafka",
     topics=["test1"],
     dag=dag,
+    kafka_config_id="kafka_connection",
 )
