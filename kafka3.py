@@ -45,7 +45,7 @@ with DAG(
         task_id="produce_to_topic",
         topic="test1",
         producer_function=producer_function,
-        kafka_config={"bootstrap.servers": ":9092"},
+    kafka_config_id="kafka_connection",
     )
 
 
@@ -54,12 +54,7 @@ with DAG(
         topics=["topictest"],
         apply_function=consumer_function,
         apply_function_kwargs={"prefix": "consumed:::"},
-        consumer_config={
-            "bootstrap.servers": ":9092",
-            "group.id": "1",
-            "enable.auto.commit": False,
-            "auto.offset.reset": "earliest",
-        },
+        kafka_config_id="kafka_connection",
         commit_cadence="end_of_batch",
         max_messages=10,
         max_batch_size=2,
