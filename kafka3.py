@@ -16,7 +16,7 @@ default_args = {
 }
 
 
-fruits_test = ["Apple", "Pear", "Peach", "Banana"]
+fruits_test = ["{Apple : 'Apple'}"]
 def producer_function():
     for i in fruits_test:
         yield (json.dumps(i), json.dumps(i + i))
