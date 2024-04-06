@@ -1,5 +1,5 @@
 from airflow import DAG
-from airflow.operators.kafka import KafkaOperator
+from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from datetime import datetime
 
 dag = DAG(
@@ -9,7 +9,7 @@ dag = DAG(
 )
 
 # Crear la tarea para consumir mensajes
-consume_task = KafkaOperator(
+consume_task = ConsumeFromTopicOperator(
     task_id="consumir_mensajes_kafka",
     topic="test1",
     bootstrap_servers="10.96.45.152:9092",
