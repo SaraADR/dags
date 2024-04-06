@@ -27,10 +27,16 @@ with DAG(
     )
 
  # Mostrar el mensaje consumido en la consola
-    print_message = BashOperator(
+
+    print_message_1 = BashOperator(
         task_id='print_message',
-        bash_command="echo '{{ ti.xcom_pull(task_ids=\"consume_from_kafka\") }}'"
+        bash_command="echo 'Esto esta sucediendo de verdad! Pasa por aqui'"
+    )
+
+    print_message_2 = BashOperator(
+        task_id='print_message',
+        bash_command="echo '{{ ti.xcom_pull(task_ids=\"Consume_topic_test1_kafka\") }}'"
     )
 
     # Establecer la secuencia de tareas
-    t2 >> print_message
+    t2 >> print_message_1 >> print_message_2
