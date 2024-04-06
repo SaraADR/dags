@@ -21,10 +21,9 @@ with DAG(
         topics=["test1"],
         #apply_function="example_dag_hello_kafka.consumer_function",
         #apply_function_kwargs={"prefix": "consumed:::"},
-        commit_cadence="end_of_batch",
+        commit_cadence="for_each_message",
         max_messages=1,
-        max_batch_size=5,
-        xcom_push=True,
+        max_batch_size=5
     )
 
  # Mostrar el mensaje consumido en la consola
@@ -36,7 +35,7 @@ with DAG(
 
     print_message_2 = BashOperator(
         task_id='print_message_2',
-        bash_command="echo {{ ti.xcom_pull('Consume_topic_test1_kafka')}}"
+        bash_command="echo Message: {{ ti.xcom_pull(task_ids='Consume_topic_test1_kafka') }}",
     )
 
     # Establecer la secuencia de tareas
