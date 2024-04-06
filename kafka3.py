@@ -1,9 +1,8 @@
 import json
 import logging
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow_provider_kafka.operators.consume_from_topic import ConsumeFromTopicOperator
-from airflow_provider_kafka.operators.produce_to_topic import ProduceToTopicOperator
+from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
+from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from datetime import datetime, timedelta
 
 default_args = {
