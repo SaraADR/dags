@@ -17,7 +17,7 @@ with DAG(
 
     t2 = ConsumeFromTopicOperator(
         kafka_config_id="kafka_connection",
-        task_id="Consume topic test1 kafka",
+        task_id="Consume_topic_test1_kafka",
         topics=["test1"],
         #apply_function="example_dag_hello_kafka.consumer_function",
         #apply_function_kwargs={"prefix": "consumed:::"},
