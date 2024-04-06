@@ -22,7 +22,7 @@ with DAG(
         #apply_function="example_dag_hello_kafka.consumer_function",
         #apply_function_kwargs={"prefix": "consumed:::"},
         commit_cadence="end_of_batch",
-        max_messages=1,
+        max_messages=5,
         max_batch_size=5,
         do_xcom_push=True
     )
