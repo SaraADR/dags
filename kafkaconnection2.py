@@ -21,7 +21,7 @@ with DAG(
         topics=["test1"],
         #apply_function="example_dag_hello_kafka.consumer_function",
         #apply_function_kwargs={"prefix": "consumed:::"},
-        commit_cadence="for_each_message",
+        commit_cadence="end_of_batch",
         max_messages=1,
         max_batch_size=5
     )
