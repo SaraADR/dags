@@ -11,7 +11,7 @@ dag = DAG(
 # Crear la tarea para consumir mensajes
 consume_task = ConsumeFromTopicOperator(
     task_id="consumir_mensajes_kafka",
-    topic="test1",
+    topics=["test1"],
     bootstrap_servers="10.96.45.152:9092",
     group_id="1",
     dag=dag,
