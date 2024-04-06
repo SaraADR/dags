@@ -29,12 +29,12 @@ with DAG(
  # Mostrar el mensaje consumido en la consola
 
     print_message_1 = BashOperator(
-        task_id='print_message',
+        task_id='print_message_1',
         bash_command="echo 'Esto esta sucediendo de verdad! Pasa por aqui'"
     )
 
     print_message_2 = BashOperator(
-        task_id='print_message',
+        task_id='print_message_2',
         bash_command="echo '{{ ti.xcom_pull(task_ids=\"Consume_topic_test1_kafka\") }}'"
     )
 
