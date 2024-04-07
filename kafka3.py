@@ -39,7 +39,7 @@ def buscar_registro(message_json):
             return registro
         else:
             insertar_registro(message_json)
-            insertar_registroMongo(message_json)
+            insertar_registromongo(message_json)
             return 
 
 def insertar_registro(message_json):
