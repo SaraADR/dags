@@ -25,7 +25,10 @@ def producer_function():
 
 consumer_logger = logging.getLogger("airflow")
 def consumer_function(message, prefix=None):
-    consumer_logger.info(f"{message}")
+    consumer_logger.info(f"{prefix}  {message}")
+
+    message_json = json.loads(message.value().decode('utf-8'))
+    consumer_logger.info(f"{prefix}  {message_json}")
     #key = json.loads(message.key())
     #value = json.loads(message.value())
     #consumer_logger.info(f"{prefix} {message.topic()} @ {message.offset()}; {key} : {value}")
