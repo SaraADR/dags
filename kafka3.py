@@ -5,8 +5,8 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from datetime import datetime, timedelta
 from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine
-from pymongo import MongoClient
-
+#from pymongo import MongoClient
+from airflow.providers.mongo.hooks.mongo import MongoHook
 
 database_url = "postgresql://biodb:b10Db@vps-52d8b534.vps.ovh.net:5431/postgres"
 tabla = "observacion_aerea.aeronave"
@@ -39,7 +39,7 @@ def buscar_registro(message_json):
             return registro
         else:
             insertar_registro(message_json)
-            insertar_registromongo(message_json)
+            uploadtomongo(message_json)
             return 
 
 def insertar_registro(message_json):
@@ -49,11 +49,28 @@ def insertar_registro(message_json):
             INSERT INTO {tabla} (fid , matricula) VALUES ({message_json['fid']}, {message_json['matricula']})
         """)
 
-def insertar_registromongo(message_json):
-    client = MongoClient("mongodb://your_admin_username:your_admin_password@10.96.114.149:27017")
-    db = client["Datalake"]
-    collection = db["Datalake"]
-    collection.insert_one(message_json)  
+# def insertar_registromongo(message_json):
+#     client = MongoClient("mongodb://your_admin_username:your_admin_password@10.96.114.149:27017")
+#     db = client["Datalake"]
+#     collection = db["Datalake"]
+#     collection.insert_one(message_json)  
+
+
+
+
+def on_failure_callback():
+    print(f"Task mongo failed.")
+
+def uploadtomongo(message_json):
+    try:
+        hook = MongoHook(mongo_conn_id='mongoid')
+        client = hook.get_conn()
+        db = client.MyDB
+        currency_collection=db.currency_collection
+        print(f"Connected to MongoDB - {client.server_info()}")
+        currency_collection.insert_one(message_json)
+    except Exception as e:
+        print("Error connecting to MongoDB -- {e}")
 
 
 with DAG(
