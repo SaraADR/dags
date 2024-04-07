@@ -49,14 +49,6 @@ def insertar_registro(message_json):
             INSERT INTO {tabla} (fid , matricula) VALUES ({message_json['fid']}, {message_json['matricula']})
         """)
 
-# def insertar_registromongo(message_json):
-#     client = MongoClient("mongodb://your_admin_username:your_admin_password@10.96.114.149:27017")
-#     db = client["Datalake"]
-#     collection = db["Datalake"]
-#     collection.insert_one(message_json)  
-
-
-
 
 def on_failure_callback():
     print(f"Task mongo failed.")
@@ -64,13 +56,14 @@ def on_failure_callback():
 def uploadtomongo(message_json):
     try:
         hook = MongoHook(mongo_conn_id='mongoid')
+        print(f" MongoDB - {hook}")
         client = hook.get_conn()
-        db = client.MyDB
-        currency_collection=db.currency_collection
+        print(f" MongoDB - {client}")
+        currency_collection='Datalake'
         print(f"Connected to MongoDB - {client.server_info()}")
         currency_collection.insert_one(message_json)
     except Exception as e:
-        print("Error connecting to MongoDB -- {e}")
+        print(f"Error connecting to MongoDB -- {e}")
 
 
 with DAG(
