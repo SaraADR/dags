@@ -2,11 +2,10 @@ import json
 import logging
 from airflow import DAG
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from datetime import datetime, timedelta
 from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine
-#import pymongo
+from pymongo import MongoClient
 
 
 database_url = "postgresql://biodb:b10Db@vps-52d8b534.vps.ovh.net:5431/postgres"
@@ -40,7 +39,7 @@ def buscar_registro(message_json):
             return registro
         else:
             insertar_registro(message_json)
-            #insertar_registroMongo(message_json)
+            insertar_registroMongo(message_json)
             return 
 
 def insertar_registro(message_json):
@@ -51,7 +50,7 @@ def insertar_registro(message_json):
         """)
 
 def insertar_registromongo(message_json):
-    client = pymongo.MongoClient("mongodb://your_admin_username:your_admin_password@10.96.114.149:27017")
+    client = MongoClient("mongodb://your_admin_username:your_admin_password@10.96.114.149:27017")
     db = client["Datalake"]
     collection = db["Datalake"]
     collection.insert_one(message_json)  
