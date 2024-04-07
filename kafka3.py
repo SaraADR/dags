@@ -6,6 +6,8 @@ from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOpera
 from datetime import datetime, timedelta
 from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine
+import pymongo
+
 
 database_url = "postgresql://biodb:b10Db@vps-52d8b534.vps.ovh.net:5431/postgres"
 tabla = "observacion_aerea.aeronave"
@@ -26,7 +28,6 @@ def consumer_function(message, prefix=None):
     message_json = json.loads(message.value().decode('utf-8'))
     consumer_logger.info(f"{prefix}  {message_json}")
     buscar_registro(message_json)
-    
     return
 
 def buscar_registro(message_json):
@@ -39,6 +40,7 @@ def buscar_registro(message_json):
             return registro
         else:
             insertar_registro(message_json)
+            insertar_registroMongo(message_json)
             return 
 
 def insertar_registro(message_json):
@@ -47,6 +49,19 @@ def insertar_registro(message_json):
         connection.execute(f"""
             INSERT INTO {tabla} (fid , matricula) VALUES ({message_json['fid']}, {message_json['matricula']})
         """)
+
+def insertar_registroMongo(message_json):
+    #engine = create_engine(database_url)
+    #with engine.connect() as connection:
+    #    connection.execute(f"""
+    #        INSERT INTO {tabla} (fid, matricula) VALUES ({message_json['fid']}, '{message_json['matricula']}')
+    #    """)
+    # Insertar en MongoDB
+    client = pymongo.MongoClient("mongodb://your_admin_username:your_admin_password@10.96.114.149:27017")
+    db = client["Datalake"]
+    collection = db["Datalake"]
+    collection.insert_one(message_json)  
+
 
 with DAG(
     "kafka_DAG",
