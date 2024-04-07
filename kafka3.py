@@ -6,7 +6,7 @@ from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOpera
 from datetime import datetime, timedelta
 from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine
-import pymongo
+#import pymongo
 
 
 database_url = "postgresql://biodb:b10Db@vps-52d8b534.vps.ovh.net:5431/postgres"
