@@ -50,13 +50,7 @@ def insertar_registro(message_json):
             INSERT INTO {tabla} (fid , matricula) VALUES ({message_json['fid']}, {message_json['matricula']})
         """)
 
-def insertar_registroMongo(message_json):
-    #engine = create_engine(database_url)
-    #with engine.connect() as connection:
-    #    connection.execute(f"""
-    #        INSERT INTO {tabla} (fid, matricula) VALUES ({message_json['fid']}, '{message_json['matricula']}')
-    #    """)
-    # Insertar en MongoDB
+def insertar_registromongo(message_json):
     client = pymongo.MongoClient("mongodb://your_admin_username:your_admin_password@10.96.114.149:27017")
     db = client["Datalake"]
     collection = db["Datalake"]
