@@ -39,7 +39,7 @@ def buscar_registro(message_json):
             consumer_logger.info(f"Registro encontrado para FID {message_json['fid']}: {registro}")
             return registro
         else:
-            insertar_registro(message_json)
+            #insertar_registro(message_json)
             insertar_registroMongo(message_json)
             return 
 
