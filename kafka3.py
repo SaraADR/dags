@@ -41,9 +41,10 @@ with DAG(
     tags=["Test_DAG"],
 ) as dag:
 
+
     t2 = ConsumeFromTopicOperator(
         task_id="consume_from_topic",
-        topics=["topictest"],
+        topics=["test1"],
         apply_function=consumer_function,
         apply_function_kwargs={"prefix": "consumed:::"},
         kafka_config_id="kafka_connection",
