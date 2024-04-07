@@ -4,6 +4,11 @@ from airflow import DAG
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from datetime import datetime, timedelta
+from airflow.operators.python import PythonOperator
+from sqlalchemy import create_engine
+
+database_url = "postgresql://biodb:b10Db@vps-52d8b534.vps.ovh.net:5431/postgres"
+tabla = "observacion_aerea.aeronave"
 
 default_args = {
     "owner": "airflow",
@@ -16,24 +21,32 @@ default_args = {
 }
 
 
-fruits_test = ['{"id": 1, "name": "Ejemplo", "age": 25}']
-def producer_function():
-    for i in fruits_test:
-        yield (json.dumps(i), json.dumps(i + i))
-
-
-
 consumer_logger = logging.getLogger("airflow")
 def consumer_function(message, prefix=None):
-    consumer_logger.info(f"{prefix}  {message}")
-
     message_json = json.loads(message.value().decode('utf-8'))
     consumer_logger.info(f"{prefix}  {message_json}")
-    #key = json.loads(message.key())
-    #value = json.loads(message.value())
-    #consumer_logger.info(f"{prefix} {message.topic()} @ {message.offset()}; {key} : {value}")
+    buscar_registro(message_json)
+    
     return
 
+def buscar_registro(message_json):
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        resultado = connection.execute(f"SELECT * FROM {tabla} WHERE fid = {message_json['fid']}")
+        registro = resultado.first()
+        if registro:
+            consumer_logger.info(f"Registro encontrado para FID {message_json['fid']}: {registro}")
+            return registro
+        else:
+            insertar_registro(message_json)
+            return 
+
+def insertar_registro(message_json):
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        connection.execute(f"""
+            INSERT INTO {tabla} (fid , matricula) VALUES ({message_json['fid']}, {message_json['matricula']})
+        """)
 
 with DAG(
     "kafka_DAG",
