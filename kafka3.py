@@ -5,7 +5,6 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from datetime import datetime, timedelta
 from airflow.operators.python import PythonOperator
 from sqlalchemy import create_engine
-#from pymongo import MongoClient
 from airflow.providers.mongo.hooks.mongo import MongoHook
 
 database_url = "postgresql://biodb:b10Db@vps-52d8b534.vps.ovh.net:5431/postgres"
