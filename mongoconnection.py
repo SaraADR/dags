@@ -4,13 +4,11 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime
 import json
 
-
 default_args = {
     'owner': 'airflow',
     'start_date': datetime(2024, 4, 9),
     'retries': 1,
 }
-
 
 def generate_json():
     # Datos de ejemplo
@@ -22,8 +20,7 @@ def generate_json():
     json_data = json.dumps(data)
     return json_data
 
-
-def save_to_mongodb(json_data):
+def save_to_mongodb(json_data, **kwargs):
     # Establecer conexión con MongoDB
     hook = MongoHook(mongo_conn_id='mongoid')
     client = hook.get_conn()
@@ -34,8 +31,6 @@ def save_to_mongodb(json_data):
     print(f" MongoDB - {collection}")
     # Insertar el JSON en la colección
     collection.insert_one(json.loads(json_data))
-
-
 
 dag = DAG(
     'json_to_mongodb',
@@ -54,7 +49,7 @@ generate_json_task = PythonOperator(
 save_to_mongodb_task = PythonOperator(
     task_id='save_to_mongodb',
     python_callable=save_to_mongodb,
-    provide_context=True,
+    op_kwargs={'json_data': generate_json()},  # Pasa el resultado de generate_json como argumento
     dag=dag,
 )
 
