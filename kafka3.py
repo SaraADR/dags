@@ -40,7 +40,7 @@ def buscar_registro(message_json  , **kwargs):
             insertar_registro(message_json)
             return 
 
-def insertar_registro(message_json , **kwargs):
+def insertar_registro(message_json):
     engine = create_engine(database_url)
     with engine.connect() as connection:
         connection.execute(f"""
@@ -90,7 +90,7 @@ with DAG(
     save_to_mongodb_task = PythonOperator(
         task_id='save_to_mongodb',
         python_callable=uploadtomongo,
-        op_kwargs={'json_data': consumer_function()},  # Pasa el resultado de generate_json como argumento
+        op_kwargs={'message_json': consumer_function()},  # Pasa el resultado de generate_json como argumento
         dag=dag,
     )
 
@@ -98,7 +98,7 @@ with DAG(
     buscar_registro_task = PythonOperator(
         task_id='change_data',
         python_callable=buscar_registro,
-        op_kwargs={'json_data': consumer_function()},  # Pasa el resultado de generate_json como argumento
+        op_kwargs={'message_json': consumer_function()},  # Pasa el resultado de generate_json como argumento
         dag=dag,
     )
 
