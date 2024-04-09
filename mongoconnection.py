@@ -23,13 +23,9 @@ def generate_json():
 def save_to_mongodb(json_data, **kwargs):
     # Establecer conexión con MongoDB
     hook = MongoHook(mongo_conn_id='mongoid')
-    print(f" MongoDB -------------- {json_data}")
     client = hook.get_conn()
-    print(f" MongoDB - {client}")
     db = client['airflow']
-    print(f" MongoDB - {db}")
     collection = db['datalake']
-    print(f" MongoDB - {collection}")
     # Insertar el JSON en la colección
     collection.insert_one(json.loads(json_data))
     print(f"Connected to MongoDB - {client.server_info()}")
