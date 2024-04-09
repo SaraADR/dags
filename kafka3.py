@@ -28,7 +28,7 @@ def consumer_function(message, prefix=None):
     buscar_registro(message_json)
     return message_json
 
-def buscar_registro(message_json):
+def buscar_registro(message_json  , **kwargs):
     engine = create_engine(database_url)
     with engine.connect() as connection:
         resultado = connection.execute(f"SELECT * FROM {tabla} WHERE fid = {message_json['fid']}")
@@ -40,7 +40,7 @@ def buscar_registro(message_json):
             insertar_registro(message_json)
             return 
 
-def insertar_registro(message_json):
+def insertar_registro(message_json , **kwargs):
     engine = create_engine(database_url)
     with engine.connect() as connection:
         connection.execute(f"""
