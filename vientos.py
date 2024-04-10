@@ -58,7 +58,7 @@ def procedimiento_inicial_def(json_data, **kwargs):
     return data
 
 dag = DAG(
-    'json_to_mongodb',
+    'vientos',
     default_args=default_args,
     description='Genera un JSON y lo guarda en MongoDB',
     schedule_interval='@once',
