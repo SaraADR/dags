@@ -12,6 +12,7 @@ default_args = {
     "email_on_retry": False,
     "retries": 1,
     "retry_delay": timedelta(minutes=2),
+    "api-key": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzYXJhLmFycmliYXNAY3VhdHJvZGlnaXRhbC5jb20iLCJqdGkiOiIyOWMyZjJkMi1hNWM2LTQ4NmYtYWNhZC0xZTY1NjhiNWEwYzUiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTcxMjc0MzEyOSwidXNlcklkIjoiMjljMmYyZDItYTVjNi00ODZmLWFjYWQtMWU2NTY4YjVhMGM1Iiwicm9sZSI6IiJ9.Fev0ADUIPt-NBmMLDIEqrybWG9MUsKU12U_G2CyAo_4"
 }
 
 def generate_json():
@@ -40,6 +41,22 @@ def save_to_mongodb(json_data, **kwargs):
     collection.insert_one(json.loads(json_data))
     print(f"Connected to MongoDB - {client.server_info()}")
 
+def procedimiento_inicial_def(json_data, **kwargs):
+    data = json.loads(json_data)
+    if "inicio_periodo" in data:
+        print("El campo 'inicio periodo' existe.")
+    else:
+        print("El campo 'inicio periodo' no existe.")
+        data.setdefault("inicio_periodo", datetime.now().isoformat())
+
+    if "fin_periodo" in data:
+        print("El campo 'fin periodo' existe.")
+    else:
+        print("El campo 'fin periodo' no existe.")
+        data["fin_periodo"] = (datetime.now() + timedelta(hours=6)).isoformat()
+    print(data)
+    return data
+
 dag = DAG(
     'json_to_mongodb',
     default_args=default_args,
@@ -61,5 +78,12 @@ save_to_mongodb_task = PythonOperator(
     dag=dag,
 )
 
+procedimiento_inicial = PythonOperator(
+    task_id='procedimiento_inicial',
+    python_callable=procedimiento_inicial_def,
+    op_kwargs={'json_data': generate_json()},  # Pasa el resultado de generate_json como argumento
+    dag=dag,
+)
+
 # Establece la secuencia de tareas
-generate_json_task >> save_to_mongodb_task
+generate_json_task >> save_to_mongodb_task >> procedimiento_inicial
