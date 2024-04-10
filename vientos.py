@@ -22,7 +22,7 @@ def generate_json():
             "x": 10.01,
             "y": 14.34 
         },
-        "inicio_periodo": "14:05:02 10-05-2024",
+        #"inicio_periodo": "14:05:02 10-05-2024",
         "fin_periodo": "16:00:00 12-05-2024",
         "extension_tiff": "?",
         "fichero_tiff": False,
