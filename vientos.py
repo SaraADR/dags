@@ -74,14 +74,14 @@ generate_json_task = PythonOperator(
 save_to_mongodb_task = PythonOperator(
     task_id='save_to_mongodb',
     python_callable=save_to_mongodb,
-    op_kwargs={'json_data': generate_json()},  # Pasa el resultado de generate_json como argumento
+    op_kwargs={'json_data': generate_json()}, 
     dag=dag,
 )
 
 procedimiento_inicial = PythonOperator(
     task_id='procedimiento_inicial',
     python_callable=procedimiento_inicial_def,
-    op_kwargs={'json_data': generate_json()},  # Pasa el resultado de generate_json como argumento
+    op_kwargs={'json_data': generate_json()},  
     dag=dag,
 )
 
