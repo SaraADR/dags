@@ -15,6 +15,7 @@ default_args = {
     "api-key": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzYXJhLmFycmliYXNAY3VhdHJvZGlnaXRhbC5jb20iLCJqdGkiOiIyOWMyZjJkMi1hNWM2LTQ4NmYtYWNhZC0xZTY1NjhiNWEwYzUiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTcxMjc0MzEyOSwidXNlcklkIjoiMjljMmYyZDItYTVjNi00ODZmLWFjYWQtMWU2NTY4YjVhMGM1Iiwicm9sZSI6IiJ9.Fev0ADUIPt-NBmMLDIEqrybWG9MUsKU12U_G2CyAo_4"
 }
 
+#Json de ejemplo
 def generate_json():
     # Datos de ejemplo
     data = {
@@ -22,7 +23,7 @@ def generate_json():
             "x": 10.01,
             "y": 14.34 
         },
-        #"inicio_periodo": "14:05:02 10-05-2024",
+        "inicio_periodo": "14:05:02 10-05-2024",
         "fin_periodo": "16:00:00 12-05-2024",
         "extension_tiff": "?",
         "fichero_tiff": False,
@@ -31,6 +32,7 @@ def generate_json():
     json_data = json.dumps(data)
     return json_data
 
+#Guardamos lo que sea que nos llegue como dato inicial en mongobd
 def save_to_mongodb(json_data, **kwargs):
     # Establecer conexión con MongoDB
     hook = MongoHook(mongo_conn_id='mongoid')
@@ -41,6 +43,7 @@ def save_to_mongodb(json_data, **kwargs):
     collection.insert_one(json.loads(json_data))
     print(f"Connected to MongoDB - {client.server_info()}")
 
+#Caracteristicas iniciales, si campo inicio o fin no estan se rellenan
 def procedimiento_inicial_def(json_data, **kwargs):
     data = json.loads(json_data)
     if "inicio_periodo" in data:
@@ -56,6 +59,34 @@ def procedimiento_inicial_def(json_data, **kwargs):
         data["fin_periodo"] = (datetime.now() + timedelta(hours=6)).isoformat()
     print(data)
     return data
+
+#Se calcula el uso de las coordenadas
+def calculo_huso(json_data, **kwargs):
+    coordLong = json_data['longitud']
+    return int((coordLong / 6) + 31)
+
+#Se calcula la dirección del viento
+def calculo_wind_direction(json_data, **kwargs):
+    if dir == "N":
+        return 0
+    elif dir == "NE":
+        return 45
+    elif dir == "E":
+        return 90
+    elif dir == "SE":
+        return 135
+    elif dir == "S":
+        return 180
+    elif dir == "SO":
+        return 225
+    elif dir == "O":
+        return 270
+    elif dir == "NO":
+        return 315
+    elif dir == "C":
+        return 0  # Consideramos "calma" como 0 grados
+
+
 
 dag = DAG(
     'vientos',
@@ -85,5 +116,26 @@ procedimiento_inicial = PythonOperator(
     dag=dag,
 )
 
+huso = PythonOperator(
+    task_id='huso',
+    python_callable=calculo_huso,
+    op_kwargs={'json_data': procedimiento_inicial.output},  
+    dag=dag,
+)
+
+wind_direction = PythonOperator(
+    task_id='huso',
+    python_callable=calculo_wind_direction,
+    op_kwargs={'json_data': procedimiento_inicial.output},  
+    dag=dag,
+)
+
+prueba_api_key = PythonOperator(
+    task_id='procedimiento_inicial',
+    python_callable=procedimiento_inicial_def,
+    op_kwargs={'json_data': generate_json()},  
+    dag=dag,
+)
+
 # Establece la secuencia de tareas
-generate_json_task >> save_to_mongodb_task >> procedimiento_inicial
+generate_json_task >> save_to_mongodb_task >> procedimiento_inicial >> [ huso, wind_direction] >> prueba_api_key
