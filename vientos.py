@@ -131,7 +131,7 @@ wind_direction = PythonOperator(
 )
 
 prueba_api_key = PythonOperator(
-    task_id='procedimiento_inicial',
+    task_id='api_key',
     python_callable=procedimiento_inicial_def,
     op_kwargs={'json_data': generate_json()},  
     dag=dag,
