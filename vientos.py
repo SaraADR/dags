@@ -124,7 +124,7 @@ huso = PythonOperator(
 )
 
 wind_direction = PythonOperator(
-    task_id='huso',
+    task_id='direction',
     python_callable=calculo_wind_direction,
     op_kwargs={'json_data': procedimiento_inicial.output},  
     dag=dag,
