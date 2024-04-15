@@ -12,6 +12,8 @@ default_args = {
     "retry_delay": timedelta(minutes=2),
 }
 
+def execute_spark_script(spark_script_path):
+    exec(open(spark_script_path).read())
 
 with DAG(
     'spark_connection', 
@@ -23,7 +25,7 @@ with DAG(
 
     spark_task = PythonOperator(
         task_id='spark_id',
-        python_callable=spark_script_executor,
+        python_callable=execute_spark_script,
         op_kwargs={'spark_script_path': '/archivos/spark1.py'},
         dag=dag,
     )
