@@ -19,6 +19,7 @@ def spark_script_executor():
 
   # Stop the SparkSession
   spark.stop()
+  return line_count
 
 if __name__ == "__main__":
   spark_script_executor()
