@@ -9,7 +9,7 @@ def spark_script_executor():
   spark = pyspark.sql.SparkSession.builder.appName("SparkTest").getOrCreate()
 
   # Read data from a text file
-  data = spark.read.text("/dato.txt")
+  data = spark.read.text("dato.txt")
 
   # Count the number of lines
   line_count = data.count()
