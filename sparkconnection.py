@@ -26,6 +26,6 @@ with DAG(
     spark_task = PythonOperator(
         task_id='spark_id',
         python_callable=execute_spark_script,
-        op_kwargs={'spark_script_path': './archivos/spark1.py'},
+        op_kwargs={'spark_script_path': './dags/archivos/spark1.py'},
         dag=dag,
     )
