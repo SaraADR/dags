@@ -4,7 +4,7 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 import json
 import requests
-#import geopandas as gpd
+import geopandas as gpd
 
 default_args = {
     "owner": "Sadr",
@@ -111,7 +111,7 @@ def aemetdownload(json_data, huso, **kwargs):
 
     #APARTADO DE MUNICIPIOS
     # Lee los datos de los municipios desde un archivo
-    #municipios = geopanda.read_file('/opt/airflow/dags/repo/archivos/municipios/municipios.shp')   
+    municipios = gpd.read_file('/opt/airflow/dags/repo/archivos/municipios/municipios.shp')   
 
     #municipios =  exec(open('/opt/airflow/dags/repo/archivos/municipios.csv').read())
 
