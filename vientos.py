@@ -4,6 +4,7 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 import json
 import requests
+import geopandas as gpd
 
 default_args = {
     "owner": "Sadr",
@@ -95,14 +96,22 @@ def aemetdownload(json_data, huso, **kwargs):
     #INICIALIZACION DE VARIABLES
     coordenadas = json_data['coordenadas']
     api_key = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzYXJhLmFycmliYXNAY3VhdHJvZGlnaXRhbC5jb20iLCJqdGkiOiIyOWMyZjJkMi1hNWM2LTQ4NmYtYWNhZC0xZTY1NjhiNWEwYzUiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTcxMjc0MzEyOSwidXNlcklkIjoiMjljMmYyZDItYTVjNi00ODZmLWFjYWQtMWU2NTY4YjVhMGM1Iiwicm9sZSI6IiJ9.Fev0ADUIPt-NBmMLDIEqrybWG9MUsKU12U_G2CyAo_4"
-    #municipios = ?
     start = json_data['inicio_periodo']
     finish = json_data['fin_periodo']
-    proj = 25830 ##TO DO: VER COMO GESTIONA ESTO CON LOS HUSOS
+                ##-------------- TO DO: VER COMO GESTIONA ESTO CON LOS HUSOS ----------------------------------------------
+    if huso == 29:
+        proj = 25829
+    else:
+        proj = 25830 
+
     projlonlat = "epsg:4326"
 
     error = ""
     derror = ""
+
+    #APARTADO DE MUNICIPIOS
+    # Lee los datos de los municipios desde un archivo
+    municipios = gpd.read_file('/opt/airflow/dags/repo/archivos/municipios/municipios.shp')   
 
     #municipios =  exec(open('/opt/airflow/dags/repo/archivos/municipios.csv').read())
 

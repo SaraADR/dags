@@ -1,0 +1,32 @@
+from airflow import DAG
+from airflow.operators.http_operator import SimpleHttpOperator
+from datetime import datetime
+
+# Define el DAG
+dag = DAG(
+    dag_id='llamada_api_aemet_dag',
+    schedule_interval=None,  # Puedes definir un intervalo de programación si es necesario
+    start_date=datetime(2024, 4, 16),
+    catchup=False
+)
+
+# Define la URL de la API y los parámetros necesarios, como la API key y la ruta específica
+url_api = "https://opendata.aemet.es/opendata/api/prediccion/especifica/municipio/horaria/"
+params = {
+    "api_key": "TU_API_KEY_AEMET",
+    "municipio": "15061"
+}
+
+# Define la tarea que realizará la llamada a la API
+llamada_api_task = SimpleHttpOperator(
+    task_id='llamada_api_task',
+    http_conn_id='http_default',  # Identificador de la conexión HTTP, puedes configurar esto en Airflow UI
+    method='GET',  # Método HTTP a utilizar (GET, POST, etc.)
+    endpoint=url_api,
+    data=params,  # Parámetros a enviar en la solicitud
+    headers={"Content-Type": "application/json"},  # Cabeceras opcionales
+    dag=dag
+)
+
+# Define la dependencia de la tarea
+llamada_api_task
