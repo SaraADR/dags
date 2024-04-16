@@ -67,7 +67,6 @@ def procedimiento_inicial_def(json_data, **kwargs):
 #Se calcula el uso de las coordenadas
 def calculo_huso(json_data, **kwargs):
     coordLong = json_data['coordenadas']["x"]
-    print(str(coordLong) + " COORDENADAS DEL HUSO")
     return int((coordLong / 6) + 31)
 
 #Se calcula la dirección del viento
@@ -111,7 +110,7 @@ def aemetdownload(json_data, huso, **kwargs):
     url = "https://opendata.aemet.es/opendata/api/prediccion/especifica/municipio/horaria/"
     params = {
     "api_key": api_key,
-    "municipio": "CODIGO_MUNICIPIO"
+    #"municipio": "CODIGO_MUNICIPIO"
     }
     urlpaste = url + '15061'
     print(urlpaste)
@@ -121,10 +120,22 @@ def aemetdownload(json_data, huso, **kwargs):
         response.raise_for_status()  # Raise an exception for 4xx or 5xx errors
         data = response.json()  # Convert response to JSON
         print(data)
-        print("ESTO NO FUNCIONA A LA PRIMERA NI DE COÑA")
+        print(data['datos'])
     except requests.RequestException as e:
         # Manejar errores de solicitud aquí...
         print("Error al realizar la solicitud:", e)
+
+    try:
+        response = requests.get(data['datos'], params=params)
+        response.raise_for_status()  # Raise an exception for 4xx or 5xx errors
+        data = response.json()  # Convert response to JSON
+        print("Segunda ejecución")
+        print(data)
+
+    except requests.RequestException as e:
+        # Manejar errores de solicitud aquí...
+        print("Error al realizar la solicitud:", e)
+
     return data
 
 
