@@ -66,7 +66,7 @@ def procedimiento_inicial_def(json_data, **kwargs):
 
 #Se calcula el uso de las coordenadas
 def calculo_huso(json_data, **kwargs):
-    coordLong = json_data['longitud']
+    coordLong = json_data['coordenadas']["x"]
     print(coordLong + "COORDENADAS DEL HUSO")
     return int((coordLong / 6) + 31)
 
@@ -114,6 +114,7 @@ def aemetdownload(json_data, huso, **kwargs):
     "municipio": "CODIGO_MUNICIPIO"
     }
     urlpaste = url + '15061'
+    print(urlpaste)
 
     try:
         response = requests.get(urlpaste, params=params)
