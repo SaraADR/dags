@@ -3,6 +3,7 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 import json
+import requests
 
 default_args = {
     "owner": "Sadr",
@@ -27,7 +28,7 @@ def generate_json():
         "fin_periodo": "16:00:00 12-05-2024",
         "extension_tiff": "?",
         "fichero_tiff": False,
-        "horas_periodo": 1
+        #"horas_periodo": 1
     }
     json_data = json.dumps(data)
     return json_data
@@ -56,13 +57,17 @@ def procedimiento_inicial_def(json_data, **kwargs):
         print("El campo 'fin periodo' existe.")
     else:
         print("El campo 'fin periodo' no existe.")
-        data["fin_periodo"] = (datetime.now() + timedelta(hours=6)).isoformat()
+        if "horas_periodo" in data:
+            data["fin_periodo"] = (datetime.now() + timedelta(data["horas_periodo"])).isoformat()
+        else:    
+            data["fin_periodo"] = (datetime.now() + timedelta(hours=6)).isoformat()
     print(data)
     return data
 
 #Se calcula el uso de las coordenadas
 def calculo_huso(json_data, **kwargs):
     coordLong = json_data['longitud']
+    print(coordLong + "COORDENADAS DEL HUSO")
     return int((coordLong / 6) + 31)
 
 #Se calcula la dirección del viento
@@ -86,6 +91,40 @@ def calculo_wind_direction(json_data, **kwargs):
     elif dir == "C":
         return 0  # Consideramos "calma" como 0 grados
 
+def aemetdownload(json_data, huso, **kwargs):
+   
+    #INICIALIZACION DE VARIABLES
+    coordenadas = json_data['coordenadas']
+    api_key = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzYXJhLmFycmliYXNAY3VhdHJvZGlnaXRhbC5jb20iLCJqdGkiOiIyOWMyZjJkMi1hNWM2LTQ4NmYtYWNhZC0xZTY1NjhiNWEwYzUiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTcxMjc0MzEyOSwidXNlcklkIjoiMjljMmYyZDItYTVjNi00ODZmLWFjYWQtMWU2NTY4YjVhMGM1Iiwicm9sZSI6IiJ9.Fev0ADUIPt-NBmMLDIEqrybWG9MUsKU12U_G2CyAo_4"
+    #municipios = ?
+    start = json_data['inicio_periodo']
+    finish = json_data['fin_periodo']
+    proj = 25830 ##TO DO: VER COMO GESTIONA ESTO CON LOS HUSOS
+    projlonlat = "epsg:4326"
+
+    error = ""
+    derror = ""
+
+    #municipios =  exec(open('/opt/airflow/dags/repo/archivos/municipios.csv').read())
+
+    # dirección para la predicción horaria por municipios de AEMET
+    url = "https://opendata.aemet.es/opendata/api/prediccion/especifica/municipio/horaria/"
+    params = {
+    "api_key": api_key,
+    "municipio": "CODIGO_MUNICIPIO"
+    }
+    urlpaste = url + '15061'
+
+    try:
+        response = requests.get(urlpaste, params=params)
+        response.raise_for_status()  # Raise an exception for 4xx or 5xx errors
+        data = response.json()  # Convert response to JSON
+        print(data)
+        print("ESTO NO FUNCIONA A LA PRIMERA NI DE COÑA")
+    except requests.RequestException as e:
+        # Manejar errores de solicitud aquí...
+        print("Error al realizar la solicitud:", e)
+    return data
 
 
 dag = DAG(
@@ -130,12 +169,12 @@ wind_direction = PythonOperator(
     dag=dag,
 )
 
-prueba_api_key = PythonOperator(
+downloadAEMET = PythonOperator(
     task_id='api_key',
-    python_callable=procedimiento_inicial_def,
-    op_kwargs={'json_data': generate_json()},  
+    python_callable=aemetdownload,
+    op_kwargs={'json_data': procedimiento_inicial.output , 'huso' : huso.output},  
     dag=dag,
 )
 
 # Establece la secuencia de tareas
-generate_json_task >> save_to_mongodb_task >> procedimiento_inicial >> [ huso, wind_direction] >> prueba_api_key
+generate_json_task >> save_to_mongodb_task >> [procedimiento_inicial, huso] >> downloadAEMET >> wind_direction 
