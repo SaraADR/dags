@@ -67,7 +67,7 @@ def procedimiento_inicial_def(json_data, **kwargs):
 #Se calcula el uso de las coordenadas
 def calculo_huso(json_data, **kwargs):
     coordLong = json_data['coordenadas']["x"]
-    print(coordLong + "COORDENADAS DEL HUSO")
+    print(str(coordLong) + " COORDENADAS DEL HUSO")
     return int((coordLong / 6) + 31)
 
 #Se calcula la dirección del viento
