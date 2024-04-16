@@ -35,12 +35,13 @@ with DAG(
     # )
 
     task_elt_documento_pagar = SparkSubmitOperator(
-    task_id='elt_documento_pagar_spark',
+    task_id='spark',
     conn_id='spark_id',
-    application="/opt/airflow/dags/repo/archivos/spark1.py",
-    application_args=[],#caso precise enviar dados da dag para o job airflow utilize esta propriedade
-    total_executor_cores=2,
-    executor_memory="30g",
-    conf={},
-    packages=""
+    application='/opt/airflow/dags/repo/archivos/spark1.py',
+    executor_memory='2g',
+    executor_cores='1',
+    total_executor_cores='1',
+    num_executors='1',
+    driver_memory='2g',
+    verbose=False
     )
