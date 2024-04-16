@@ -13,7 +13,9 @@ default_args = {
 }
 
 def execute_spark_script(spark_script_path):
-    exec(open(spark_script_path).read())
+    output = exec(open(spark_script_path).read())
+    print(output)
+    return output
 
 with DAG(
     'spark_connection', 
