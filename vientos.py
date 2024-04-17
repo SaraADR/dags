@@ -143,7 +143,7 @@ wind_direction = PythonOperator(
 
 downloadAEMET = SparkSubmitOperator(
     task_id='spark',
-    conn_id='spark_id',
+    conn_id='spark2',
     application='/opt/airflow/dags/repo/archivos/spark1.py',
     executor_memory='2g',
     executor_cores='1',
