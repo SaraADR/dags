@@ -151,7 +151,7 @@ downloadAEMET = SparkSubmitOperator(
     num_executors='1',
     driver_memory='2g',
     verbose=False,
-    application_args=[procedimiento_inicial.output , huso.output],
+    application_args=[json.dumps(procedimiento_inicial.output), str(huso.output)],
 )
 
 # Establece la secuencia de tareas
