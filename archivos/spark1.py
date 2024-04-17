@@ -5,9 +5,9 @@ import sys
 def aemetdownload( ):
 
   # Acceder a los argumentos pasados al script
-  variable1 = sys.argv[1]
-  variable2 = sys.argv[2]
-  print(variable1)
+  #variable1 = sys.argv[1]
+  #variable2 = sys.argv[2]
+  print("AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
 
   #INICIALIZACION DE VARIABLES
   #coordenadas = json_data['coordenadas']
