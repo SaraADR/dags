@@ -21,8 +21,8 @@ def aemetdownload( ):
   spark = pyspark.sql.SparkSession.builder.appName("aemetdownload").getOrCreate()
 
   #data = spark.read.text("./municipios/municipios.shp")
-  shapefile_df = spark.read.format("txt").load("/opt/airflow/dags/repo/archivos/dato.txt")
-  shapefile_df.printSchema()
+  df = spark.read.csv('./municipios/municipios.shp', header=True)  # Lee el archivo CSV
+  df.show()
    
 
 
