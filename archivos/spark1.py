@@ -1,7 +1,8 @@
 import pyspark
 import requests
 import sys
-
+from pyspark import SparkFiles
+from pyspark.sql import SQLContext
 def aemetdownload( ):
 
   # Acceder a los argumentos pasados al script
@@ -21,8 +22,11 @@ def aemetdownload( ):
   spark = pyspark.sql.SparkSession.builder.appName("aemetdownload").getOrCreate()
 
 
+  url = "https://raw.githubusercontent.com/guru99-edu/R-Programming/master/adult_data.csv"
+
+
   #data = spark.read.text("./municipios/municipios.shp")
-  df = spark.read.csv('examples/src/main/resources/people.csv', header=True)  # Lee el archivo CSV
+  df = spark.read.csv(url, header=True)  # Lee el archivo CSV
   df.show()
    
 
