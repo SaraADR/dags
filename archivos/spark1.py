@@ -22,7 +22,7 @@ def aemetdownload( ):
 
 
   #data = spark.read.text("./municipios/municipios.shp")
-  df = spark.read.csv('examples/src/main/resources/dir1/', header=True)  # Lee el archivo CSV
+  df = spark.read.csv('examples/src/main/resources/people.csv', header=True)  # Lee el archivo CSV
   df.show()
    
 
