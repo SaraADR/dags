@@ -20,16 +20,9 @@ def aemetdownload( ):
   # Create a SparkSession
   spark = pyspark.sql.SparkSession.builder.appName("aemetdownload").getOrCreate()
 
-  spark_conf = spark.sparkContext.conf
-
-  # Obtener la propiedad de configuración relacionada con la ruta de búsqueda de archivos
-  file_search_path = spark_conf.get("spark.sql.files.searchPath")
-
-  # Imprimir la ruta de búsqueda de archivos
-  print(file_search_path)
 
   #data = spark.read.text("./municipios/municipios.shp")
-  df = spark.read.csv('./municipios/municipios.shp', header=True)  # Lee el archivo CSV
+  df = spark.read.csv('examples/src/main/resources/dir1/', header=True)  # Lee el archivo CSV
   df.show()
    
 
