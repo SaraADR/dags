@@ -69,8 +69,10 @@ def calculo_huso(json_data, **kwargs):
     coordLong = json_data['coordenadas']["x"]
     return int((coordLong / 6) + 31)
 
+
+
 #Se calcula la dirección del viento
-def calculo_wind_direction(json_data, **kwargs):
+def calculo_wind_direction(json_data,  **kwargs):
     if dir == "N":
         return 0
     elif dir == "NE":
@@ -89,6 +91,7 @@ def calculo_wind_direction(json_data, **kwargs):
         return 315
     elif dir == "C":
         return 0  # Consideramos "calma" como 0 grados
+
 
 
 
@@ -127,6 +130,7 @@ huso = PythonOperator(
     dag=dag,
 )
 
+
 wind_direction = PythonOperator(
     task_id='direction',
     python_callable=calculo_wind_direction,
@@ -141,6 +145,9 @@ wind_direction = PythonOperator(
 #     dag=dag,
 # )
 
+procedimiento_inicial_data_str = json.dumps(procedimiento_inicial.output)
+uso_str = str(huso.output)
+
 downloadAEMET = SparkSubmitOperator(
     task_id='spark',
     conn_id='spark2',
@@ -151,8 +158,8 @@ downloadAEMET = SparkSubmitOperator(
     num_executors='1',
     driver_memory='2g',
     verbose=False,
-    application_args=[huso.output],
+    application_args=[procedimiento_inicial_data_str, uso_str],
 )
 
 # Establece la secuencia de tareas
-generate_json_task >> save_to_mongodb_task >> [procedimiento_inicial, huso] >> downloadAEMET >> wind_direction 
+generate_json_task >> save_to_mongodb_task >> [procedimiento_inicial, huso] >>  downloadAEMET >> wind_direction 
