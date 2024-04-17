@@ -1,47 +1,22 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-
+from airflow.operators.bash_operator import BashOperator
 
 default_args = {
-    "owner": "Sadr",
-    "depend_on_past": False,
-    "start_date": datetime(2024, 4, 4),
-    "email_on_failure": False,
-    "email_on_retry": False,
-    "retries": 1,
-    "retry_delay": timedelta(minutes=2),
+    'owner': 'airflow',
+    'start_date': datetime(2024, 4, 17),
+    'retries': 1
 }
 
-def execute_spark_script(spark_script_path):
-    output = exec(open(spark_script_path).read())
-    print(output)
-    return output
+dag = DAG('spark_word_count', default_args=default_args, schedule_interval=None)
 
-with DAG(
-    'spark_connection', 
-    default_args=default_args, 
-    schedule_interval=None,
-    start_date=datetime(2021, 1, 1),
-    tags=["Spark"],
-) as dag:
+# Define la tarea que ejecutará el script de Spark
+spark_task = BashOperator(
+    task_id='run_spark_job',
+    bash_command='spark-submit /opt/airflow/dags/repo/archivos/spark2.py',
+    dag=dag
+)
 
-    # spark_task = PythonOperator(
-    #     task_id='spark_id',
-    #     python_callable=execute_spark_script,
-    #     op_kwargs={'spark_script_path': '/opt/airflow/dags/repo/archivos/spark1.py'},
-    #     dag=dag,
-    # )
+# Puedes agregar más tareas aquí si necesitas hacer otras cosas después del trabajo de Spark
 
-    task_elt_documento_pagar = SparkSubmitOperator(
-    task_id='spark',
-    conn_id='spark_id',
-    application='/opt/airflow/dags/repo/archivos/spark1.py',
-    executor_memory='2g',
-    executor_cores='1',
-    total_executor_cores='1',
-    num_executors='1',
-    driver_memory='2g',
-    verbose=False
-    )
+spark_task
