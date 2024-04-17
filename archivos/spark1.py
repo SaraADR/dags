@@ -2,7 +2,7 @@ import pyspark
 import requests
 import sys
 
-def aemetdownload(json_data, huso):
+def aemetdownload( huso):
 
   # Acceder a los argumentos pasados al script
   variable1 = sys.argv[1]
@@ -12,8 +12,8 @@ def aemetdownload(json_data, huso):
   #INICIALIZACION DE VARIABLES
   coordenadas = json_data['coordenadas']
   api_key = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzYXJhLmFycmliYXNAY3VhdHJvZGlnaXRhbC5jb20iLCJqdGkiOiIyOWMyZjJkMi1hNWM2LTQ4NmYtYWNhZC0xZTY1NjhiNWEwYzUiLCJpc3MiOiJBRU1FVCIsImlhdCI6MTcxMjc0MzEyOSwidXNlcklkIjoiMjljMmYyZDItYTVjNi00ODZmLWFjYWQtMWU2NTY4YjVhMGM1Iiwicm9sZSI6IiJ9.Fev0ADUIPt-NBmMLDIEqrybWG9MUsKU12U_G2CyAo_4"
-  start = json_data['inicio_periodo']
-  finish = json_data['fin_periodo']
+  #start = json_data['inicio_periodo']
+  #finish = json_data['fin_periodo']
   error = ""
   derror = ""
 
