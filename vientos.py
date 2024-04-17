@@ -152,12 +152,12 @@ downloadAEMET = SparkSubmitOperator(
     task_id='spark',
     conn_id='spark2',
     application='/opt/airflow/dags/repo/archivos/spark1.py',
-    executor_memory='2g',
-    executor_cores='1',
-    total_executor_cores='1',
-    num_executors='1',
-    driver_memory='2g',
-    verbose=False,
+   # executor_memory='2g',
+   # executor_cores='1',
+    #total_executor_cores='1',
+    #num_executors='1',
+   # driver_memory='2g',
+    #verbose=False,
 )
 
 # Establece la secuencia de tareas
