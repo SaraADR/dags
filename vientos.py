@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import json
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
-
 default_args = {
     "owner": "Sadr",
     "depend_on_past": False,
