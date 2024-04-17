@@ -145,7 +145,7 @@ wind_direction = PythonOperator(
 #     dag=dag,
 # )
 
-procedimiento_inicial_data_str = json.dumps(procedimiento_inicial.output)
+#procedimiento_inicial_data_str = json.dumps(procedimiento_inicial.output)
 uso_str = str(huso.output)
 
 downloadAEMET = SparkSubmitOperator(
