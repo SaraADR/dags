@@ -150,7 +150,7 @@ uso_str = str(huso.output)
 
 downloadAEMET = SparkSubmitOperator(
     task_id='spark',
-    conn_id='spark2',
+    conn_id='spark_id',
     application='/opt/airflow/dags/repo/archivos/spark1.py',
    # executor_memory='2g',
    # executor_cores='1',
