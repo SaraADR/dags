@@ -2,7 +2,7 @@ import pyspark
 import requests
 import sys
 
-def aemetdownload(json_data, huso, **kwargs):
+def aemetdownload(json_data, huso):
 
   # Acceder a los argumentos pasados al script
   variable1 = sys.argv[1]
