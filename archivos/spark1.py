@@ -27,6 +27,7 @@ def aemetdownload( ):
 
   #data = spark.read.text("./municipios/municipios.shp")
   df = spark.read.csv(url, header=True, sep=',')  # Lee el archivo CSV
+  df.printSchema()
   df.show()
    
 
