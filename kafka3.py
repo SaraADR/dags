@@ -23,9 +23,7 @@ default_args = {
 consumer_logger = logging.getLogger("airflow")
 def consumer_function(message, prefix=None):
     message_json = json.loads(message.value().decode('utf-8'))
-    consumer_logger.info(f"{prefix}  {message_json}")
-    uploadtomongo(message_json)
-    buscar_registro(message_json)
+    consumer_logger.info(f"{prefix} {message_json}")
     return message_json
 
 def buscar_registro(message_json  , **kwargs):
@@ -52,7 +50,11 @@ def on_failure_callback():
     print(f"Task mongo failed.")
 
 def uploadtomongo(message_json , **kwargs):
+    ti = kwargs['ti']
+    message_json2 = ti.xcom_pull(task_ids='consume_from_topic')
+    print(f"data mongo 22 {message_json2}")
     print(f"data mongo {message_json}")
+
     try:
         hook = MongoHook(mongo_conn_id='mongoid')
         client = hook.get_conn()
@@ -93,6 +95,7 @@ with DAG(
         task_id='save_to_mongodb',
         python_callable=uploadtomongo,
         op_kwargs={'message_json': t2.output},
+        provide_context=True,
         dag=dag,
     )
 
@@ -104,4 +107,4 @@ with DAG(
         dag=dag,
     )
 
-t2 
+t2 >> [save_to_mongodb_task, buscar_registro_task]
