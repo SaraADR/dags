@@ -1,5 +1,6 @@
 import json
 import logging
+from tkinter import Variable
 from airflow import DAG
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from datetime import datetime, timedelta
@@ -25,12 +26,14 @@ def consumer_function(message, prefix=None):
     if message != None :
         message_json = json.loads(message.value().decode('utf-8'))
         consumer_logger.info(f"{prefix} {message_json}")
+        Variable.set("message_json", message_json)
         return message_json
     else: 
         return None
 
 def buscar_registro(message_json  , **kwargs):
     engine = create_engine(database_url)
+    message_json = Variable.get("message_json", default_var=None)
     if message_json != None :
         with engine.connect() as connection:
             resultado = connection.execute(f"SELECT * FROM {tabla} WHERE fid = {message_json['fid']}")
@@ -58,7 +61,7 @@ def on_failure_callback():
 
 def uploadtomongo(message_json , **kwargs):
     print(f"data mongo {message_json}")
-
+    message_json = Variable.get("message_json", default_var=None)
     try:
         hook = MongoHook(mongo_conn_id='mongoid')
         client = hook.get_conn()
