@@ -16,8 +16,7 @@ default_args = {
     "start_date": datetime(2024, 4, 4),
     "email_on_failure": False,
     "email_on_retry": False,
-    "retries": 1,
-    "retry_delay": timedelta(minutes=2),
+    "retries": 0,
 }
 
 
@@ -68,7 +67,7 @@ with DAG(
     "kafka_DAG",
     default_args=default_args,
     description="KafkaOperators",
-    schedule_interval=None,
+    schedule_interval=timedelta(minutes=2),
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["Test_DAG"],
