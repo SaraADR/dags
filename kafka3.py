@@ -22,9 +22,12 @@ default_args = {
 
 consumer_logger = logging.getLogger("airflow")
 def consumer_function(message, prefix=None):
-    message_json = json.loads(message.value().decode('utf-8'))
-    consumer_logger.info(f"{prefix} {message_json}")
-    return message_json
+    if message != None :
+        message_json = json.loads(message.value().decode('utf-8'))
+        consumer_logger.info(f"{prefix} {message_json}")
+        return message_json
+    else : 
+        return None
 
 def buscar_registro(message_json  , **kwargs):
     engine = create_engine(database_url)
