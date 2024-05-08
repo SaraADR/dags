@@ -56,7 +56,7 @@ def uploadtomongo(message_json , **kwargs):
     try:
         hook = MongoHook(mongo_conn_id='mongoid')
         client = hook.get_conn()
-        db = client['airflow']
+        db = client['Datalake']
         collection = db['Datalake']
         print(f"data {message_json}")
         # Insertar el JSON en la colección
