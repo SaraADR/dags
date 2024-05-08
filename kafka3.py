@@ -53,9 +53,6 @@ def on_failure_callback():
 
 def uploadtomongo(message_json , **kwargs):
     print(f"data {message_json}")
-    consumer_logger.info(f"{kwargs}")
-    message_json = kwargs['ti'].xcom_pull(task_ids='consume_from_topic')
-    print(f"data {message_json}")
     try:
         hook = MongoHook(mongo_conn_id='mongoid')
         client = hook.get_conn()
