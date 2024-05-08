@@ -50,11 +50,13 @@ def on_failure_callback():
     print(f"Task mongo failed.")
 
 def uploadtomongo(message_json , **kwargs):
+    print(f"data {message_json}")
     try:
         hook = MongoHook(mongo_conn_id='mongoid')
         client = hook.get_conn()
         db = client['airflow']
         collection = db['datalake']
+        print(f"data {message_json}")
         # Insertar el JSON en la colección
         collection.insert_one(json.loads(message_json))
         print(f"Connected to MongoDB - {client.server_info()}")
