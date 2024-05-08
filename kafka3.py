@@ -44,7 +44,7 @@ def insertar_registro(message_json):
     engine = create_engine(database_url)
     with engine.connect() as connection:
         connection.execute(f"""
-            INSERT INTO {tabla} (fid , matricula) VALUES ({message_json['fid']}, {message_json['matricula']})
+            INSERT INTO {tabla} (fid , matricula) VALUES ({message_json['fid']}, " + {message_json['matricula']} + ")
         """)
 
 
