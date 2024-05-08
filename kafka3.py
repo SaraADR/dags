@@ -60,7 +60,7 @@ def uploadtomongo(message_json , **kwargs):
         collection = db['datalake']
         print(f"data {message_json}")
         # Insertar el JSON en la colección
-        collection.insert_one(json.loads(message_json))
+        collection.insert_one(json.dumps(message_json))
         print(f"Connected to MongoDB - {client.server_info()}")
     except Exception as e:
         print(f"Error connecting to MongoDB -- {e}")
