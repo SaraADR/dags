@@ -24,6 +24,8 @@ consumer_logger = logging.getLogger("airflow")
 def consumer_function(message, prefix=None):
     message_json = json.loads(message.value().decode('utf-8'))
     consumer_logger.info(f"{prefix}  {message_json}")
+    uploadtomongo(message_json)
+    buscar_registro(message_json)
     return message_json
 
 def buscar_registro(message_json  , **kwargs):
@@ -105,4 +107,4 @@ with DAG(
         dag=dag,
     )
 
-t2 >> [save_to_mongodb_task, buscar_registro_task]
+t2 
