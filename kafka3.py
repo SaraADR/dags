@@ -28,15 +28,19 @@ def consumer_function(message, prefix=None):
 
 def buscar_registro(message_json  , **kwargs):
     engine = create_engine(database_url)
-    with engine.connect() as connection:
-        resultado = connection.execute(f"SELECT * FROM {tabla} WHERE fid = {message_json['fid']}")
-        registro = resultado.first()
+    if message_json != None :
+        with engine.connect() as connection:
+            resultado = connection.execute(f"SELECT * FROM {tabla} WHERE fid = {message_json['fid']}")
+            registro = resultado.first()
         if registro:
             consumer_logger.info(f"Registro encontrado para FID {message_json['fid']}: {registro}")
             return registro
         else:
             insertar_registro(message_json)
             return 
+    else:
+         consumer_logger.info(f"No hay datos para guardar en la base de datos de bio")
+    
 
 def insertar_registro(message_json):
     engine = create_engine(database_url)
