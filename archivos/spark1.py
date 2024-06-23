@@ -20,8 +20,6 @@ def aemetdownload( ):
 
   # Create a SparkSession
   spark = pyspark.sql.SparkSession.builder.appName("aemetdownload").getOrCreate()
-
-
   url = "https://raw.githubusercontent.com/guru99-edu/R-Programming/master/adult_data.csv"
 
 
@@ -47,11 +45,10 @@ def aemetdownload( ):
 
   #   #municipios =  exec(open('/opt/airflow/dags/repo/archivos/municipios.csv').read())
 
-  # # dirección para la predicción horaria por municipios de AEMET
+  # dirección para la predicción horaria por municipios de AEMET
   # url = "https://opendata.aemet.es/opendata/api/prediccion/especifica/municipio/horaria/"
   # params = {
   # "api_key": api_key,
-  # #"municipio": "CODIGO_MUNICIPIO"
   # }
   # urlpaste = url + '15061'
   # print(urlpaste)
