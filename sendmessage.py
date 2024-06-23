@@ -25,16 +25,16 @@ def create_email_task(dag, to, subject, body, cc, bcc, attachments):
         html_content=body,
         cc=cc,
         bcc=bcc,
-        files=attachments,
+        #files=attachments,
         dag=dag,
     )
 
 # Valores de ejemplo; reemplazar con los valores reales
-to = 'kotamod522@gawte.com'
+to = 'sara.arrdr@gmail.com'
 subject = 'Test Email'
 body = 'This is a test email'
 cc = ['sara_adr@hotmail.com']
 bcc = ['sara.arrdr@gmail.com']
-attachments = ['/path/to/attachment.txt']
+#attachments = ['/path/to/attachment.txt']
 
 send_email_task = create_email_task(dag, to, subject, body, cc, bcc, attachments)
