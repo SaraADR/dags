@@ -17,7 +17,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-def create_email_task(dag, to, subject, body, cc, bcc, attachments):
+def create_email_task(dag, to, subject, body, cc, bcc):
     return EmailOperator(
         task_id='send_email',
         to=to,
@@ -37,4 +37,4 @@ cc = ['sara_adr@hotmail.com']
 bcc = ['sara.arrdr@gmail.com']
 #attachments = ['/path/to/attachment.txt']
 
-send_email_task = create_email_task(dag, to, subject, body, cc, bcc, attachments)
+send_email_task = create_email_task(dag, to, subject, body, cc, bcc)
