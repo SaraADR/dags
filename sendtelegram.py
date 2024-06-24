@@ -8,7 +8,7 @@ def send_telegram_message():
     # Obtén la conexión configurada en Airflow
     conn = BaseHook.get_connection('telegram_default')
     telegram_token = conn.password
-    chat_id = '-4197964914'
+    chat_id = "-4197964914"
     message = "Hello from Airflow!"
 
     # Configura la URL de la API de Telegram
