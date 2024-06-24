@@ -22,6 +22,7 @@ with DAG(
         to='sara_adr@hotmail.com',  # Cambia esto a la dirección de correo del destinatario
         subject='Test Email from Airflow',
         html_content='<p>This is a test email sent from an Airflow DAG!</p>',
+        conn_id='smtp_default'  # Usar la conexión configurada en Airflow
     )
 
     send_email
