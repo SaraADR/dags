@@ -6,7 +6,7 @@ from airflow.operators.bash_operator import BashOperator
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
-    'start_date': datetime(2024, 4, 4),
+    'start_date': datetime(2024, 6, 6),
 }
 
 with DAG(
