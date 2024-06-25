@@ -19,7 +19,7 @@ def upload_to_minio(image_path):
         bucket_name='bucket-test',
         replace=True,
         encrypt=False,
-        endpoint_url='http://10.96.233.7:9000'  # Añade la URL de MinIO aquí
+        endpoint_url='https://storage-minio.default.svc.cluster.local:9000'  # Añade la URL de MinIO aquí
     )
 
 default_args = {
