@@ -2,24 +2,22 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from datetime import datetime
-import os
 
 # Función para procesar la imagen
 def process_image():
     # Aquí es donde deberías tener la lógica para recibir la imagen
-    image_path = 'https://www.carype.com/frontend/img/upload/dummy-playmobil-dummy.jpg'
+    image_path = 'https://www.carype.com/frontend/img/upload/dummy-playmobil-dummy.jpg'  # Asegúrate de que esta ruta sea correcta
     return image_path
 
 # Función para subir la imagen a MinIO
 def upload_to_minio(image_path):
-    hook = S3Hook(aws_conn_id='aws_default')
+    hook = S3Hook(aws_conn_id='minio_conn')
     hook.load_file(
         filename=image_path,
         key='your-image-key.jpg',
         bucket_name='bucket-test',
         replace=True,
-        encrypt=False,
-        endpoint_url='https://storage-minio.default.svc.cluster.local:9000'  # Añade la URL de MinIO aquí
+        encrypt=False
     )
 
 default_args = {
@@ -50,3 +48,7 @@ with DAG(
     )
 
     process_image_task >> upload_to_minio_task
+
+
+
+
