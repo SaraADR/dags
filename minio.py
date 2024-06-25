@@ -5,18 +5,9 @@ from datetime import datetime
 
 # Función para procesar la imagen
 def process_image():
-    image_url = 'https://www.carype.com/frontend/img/upload/dummy-playmobil-dummy.jpg'
-    local_path = '/tmp/dummy-playmobil-dummy.jpg'
-
-    # Descargar la imagen
-    response = requests.get(image_url)
-    if response.status_code == 200:
-        with open(local_path, 'wb') as f:
-            f.write(response.content)
-    else:
-        raise Exception(f"Failed to download image. Status code: {response.status_code}")
-
-    return local_path
+    # Aquí es donde deberías tener la lógica para recibir la imagen
+    image_path = 'https://www.carype.com/frontend/img/upload/dummy-playmobil-dummy.jpg'  # Asegúrate de que esta ruta sea correcta
+    return image_path
 
 # Función para subir la imagen a MinIO
 def upload_to_minio(image_path):
