@@ -30,7 +30,6 @@ spark_task = SparkSubmitOperator(
     driver_memory='2g',
     verbose=False,
     resources={
-        'executor_memory': '2g',  # Memoria por ejecutor (opcionalmente, puede ser diferente al definido arriba)
         'executor_cores': 1,  # Cores por ejecutor (opcionalmente, puede ser diferente al definido arriba)
     }
 )
