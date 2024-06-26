@@ -20,14 +20,14 @@ dag = DAG(
 
 spark_task = SparkSubmitOperator(
     task_id='spark_submit_job',
-    application='/opt/airflow/dags/repo/spark/sparktest.py',  # Ruta al script PySpark
+    application='/opt/airflow/dags/repo/spark/sparktest.py',
     conn_id='spark_default',
     dag=dag,
     total_executor_cores=1,
     executor_cores=1,
-    executor_memory='2g',
+    executor_memory='512m',  # Reducir a 512 MB
     num_executors=1,
-    driver_memory='2g',
+    driver_memory='512m',  # Reducir a 512 MB
     verbose=False,
 )
 
