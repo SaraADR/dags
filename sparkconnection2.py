@@ -23,6 +23,12 @@ spark_task = SparkSubmitOperator(
     application='/opt/airflow/dags/repo/spark/sparktest.py',  # Ruta al script PySpark
     conn_id='spark_default',
     dag=dag,
+    total_executor_cores='1',
+    executor_cores='1',
+    executor_memory='2g',
+    num_executors='1',
+    driver_memory='2g',
+    verbose=False
 )
 
 spark_task
