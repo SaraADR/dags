@@ -17,6 +17,10 @@ def process_message(**kwargs):
     ti = kwargs['ti']
     messages = ti.xcom_pull(task_ids='Consume_topic_test1_kafka')
 
+    if not messages:
+        print("No messages received from Kafka.")
+        return
+
     for message in messages:
         content = base64.b64decode(message['value'])
         try:
