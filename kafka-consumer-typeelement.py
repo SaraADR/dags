@@ -13,9 +13,12 @@ default_args = {
     'start_date': datetime(2024, 6, 6),
 }
 
-def process_message(messages, **kwargs):
+def process_message(**kwargs):
+    ti = kwargs['ti']
+    messages = ti.xcom_pull(task_ids='Consume_topic_test1_kafka')
+
     for message in messages:
-        content = message['value']
+        content = base64.b64decode(message['value'])
         try:
             # Try to open the content as an image
             image = Image.open(BytesIO(content))
@@ -25,13 +28,12 @@ def process_message(messages, **kwargs):
             # If it fails, assume it's text
             print("Text message:", content.decode('utf-8'))
 
-
 with DAG(
     'kaint', 
     default_args=default_args,
     schedule_interval='@daily',
     catchup=False,
-    ) as dag:
+) as dag:
 
     t2 = ConsumeFromTopicOperator(
         kafka_config_id="kafka_connection",
@@ -52,10 +54,16 @@ with DAG(
     process_message_task = PythonOperator(
         task_id='process_message_task',
         python_callable=process_message,
-       # op_args=[[{"value": base64.b64decode(m)} for m in "{{ ti.xcom_pull(task_ids='Consume_topic_test1_kafka') }}"]],
         provide_context=True,
     )
- 
+
     # Establecer la secuencia de tareas
     t2 >> print_message_1 >> process_message_task
 
+
+  process_message_task = PythonOperator(
+    #     task_id='process_message_task',
+    #     python_callable=process_message,
+    #    # op_args=[[{"value": base64.b64decode(m)} for m in "{{ ti.xcom_pull(task_ids='Consume_topic_test1_kafka') }}"]],
+    #     provide_context=True,
+    # )
