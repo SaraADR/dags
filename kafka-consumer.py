@@ -28,7 +28,7 @@ def process_message(messages, **kwargs):
 
 
 with DAG(
-    'kafka_airflow_integration', 
+    'KAINT', 
     default_args=default_args,
     schedule_interval='@daily',
     catchup=False,
