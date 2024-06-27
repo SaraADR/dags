@@ -52,9 +52,10 @@ with DAG(
     process_message_task = PythonOperator(
         task_id='process_message_task',
         python_callable=process_message,
-        op_args=[[{"value": base64.b64decode(m)} for m in "{{ ti.xcom_pull(task_ids='Consume_topic_test1_kafka') }}"]],
+       # op_args=[[{"value": base64.b64decode(m)} for m in "{{ ti.xcom_pull(task_ids='Consume_topic_test1_kafka') }}"]],
         provide_context=True,
     )
-
+ 
     # Establecer la secuencia de tareas
     t2 >> print_message_1 >> process_message_task
+
