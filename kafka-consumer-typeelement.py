@@ -61,7 +61,7 @@ with DAG(
     t2 >> print_message_1 >> process_message_task
 
 
-  process_message_task = PythonOperator(
+  #process_message_task = PythonOperator(
     #     task_id='process_message_task',
     #     python_callable=process_message,
     #    # op_args=[[{"value": base64.b64decode(m)} for m in "{{ ti.xcom_pull(task_ids='Consume_topic_test1_kafka') }}"]],
