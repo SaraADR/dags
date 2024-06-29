@@ -22,12 +22,7 @@ spark_task = SparkSubmitOperator(
     task_id='spark_submit_job',
     application='/opt/airflow/dags/repo/spark/sparktest.py',
     conn_id='spark_default',
-    executor_memory='2G',   # Increase executor memory
-    driver_memory='2G',     # Increase driver memory
-    total_executor_cores=4, # Increase total executor cores
-    executor_cores=2,       # Increase executor cores per executor
     name='arrow-spark',
-    queue='default',
     dag=dag,
     verbose=False,
 )

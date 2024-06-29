@@ -1,3 +1,4 @@
+import sys
 from pyspark.sql import SparkSession
 
 def show_text(spark, text, times):
