@@ -8,11 +8,16 @@ def show_text(spark, text, times):
     rdd.foreach(lambda x: print(x))
 
 if __name__ == "__main__":
-    # Inicializa una sesión de Spark
-    spark = SparkSession.builder.appName("ShowTextApp").getOrCreate()
+    # Inicializa una sesión de Spark con configuraciones personalizadas
+    spark = SparkSession.builder \
+        .appName("ShowTextApp") \
+        .config("spark.executor.memory", "2g") \
+        .config("spark.executor.cores", "2") \
+        .getOrCreate()
     
-    # Llama a la función con el texto deseado y la cantidad de veces que debe mostrarse
-    show_text(spark, "Hola, este es el texto que se muestra por consola.", 5)
-    
-    # Detiene la sesión de Spark
-    spark.stop()
+    try:
+        # Llama a la función con el texto deseado y la cantidad de veces que debe mostrarse
+        show_text(spark, "Hola, este es el texto que se muestra por consola.", 5)
+    finally:
+        # Detiene la sesión de Spark
+        spark.stop()
