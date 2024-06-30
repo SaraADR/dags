@@ -17,9 +17,9 @@ if __name__ == "__main__":
     spark = SparkSession.builder \
     .appName("DistributedShowTextApp") \
     .master("spark://10.96.203.154:7077") \
-    .config("spark.executor.memory", "2g") \
-    .config("spark.executor.cores", "2") \
-    .config("spark.cores.max", "4") \
+    .config("spark.executor.memory", "1g") \
+    .config("spark.executor.cores", "1") \
+    .config("spark.cores.max", "2") \
     .getOrCreate()
     
     try:
