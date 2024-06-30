@@ -16,7 +16,7 @@ if __name__ == "__main__":
     # Inicializa una sesión de Spark con configuraciones personalizadas
     spark = SparkSession.builder \
     .appName("DistributedShowTextApp") \
-    .master("spark://10.96.203.154:7077") \
+    .master("spark://10.96.245.163:7077") \
     .config("spark.executor.memory", "1g") \
     .config("spark.executor.cores", "1") \
     .config("spark.cores.max", "2") \
