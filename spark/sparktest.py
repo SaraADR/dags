@@ -5,8 +5,12 @@ def show_text(spark, text, times):
     # Crea un RDD con el texto repetido la cantidad de veces especificada
     rdd = spark.sparkContext.parallelize([text] * times)
     
-    # Muestra el texto por consola
-    rdd.foreach(lambda x: print(x))
+    # Recolecta los datos en el driver
+    collected = rdd.collect()
+    
+    # Muestra el texto por consola desde el driver
+    for item in collected:
+        print(item)
 
 if __name__ == "__main__":
     # Inicializa una sesión de Spark con configuraciones personalizadas
