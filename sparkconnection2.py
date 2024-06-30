@@ -24,6 +24,10 @@ spark_task = SparkSubmitOperator(
     conn_id='spark_default',
     name='arrow-spark',
     dag=dag,
+    conf={
+        'spark.master': 'spark://spark-master-svc:7077',
+        'spark.executor.memory': '2g',
+    },
     verbose=False,
 )
 
