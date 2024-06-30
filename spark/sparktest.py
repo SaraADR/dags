@@ -14,7 +14,13 @@ def show_text(spark, text, times):
 
 if __name__ == "__main__":
     # Inicializa una sesión de Spark con configuraciones personalizadas
-    spark = SparkSession.builder.appName("ShowTextApp").master("local[*]").getOrCreate()
+    spark = SparkSession.builder \
+    .appName("DistributedShowTextApp") \
+    .master("spark://master:7077") \
+    .config("spark.executor.memory", "2g") \
+    .config("spark.executor.cores", "2") \
+    .config("spark.cores.max", "4") \
+    .getOrCreate()
     
     try:
         # Llama a la función con el texto deseado y la cantidad de veces que debe mostrarse
