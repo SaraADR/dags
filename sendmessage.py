@@ -7,7 +7,7 @@ from airflow.operators.python import PythonOperator
 
 default_args = {
     'owner': 'airflow',
-    'start_date': datetime(2023, 1, 1),
+    'start_date': datetime(2024, 7, 5),
     'email_on_failure': False,
     'email_on_retry': False,
 }
@@ -15,10 +15,11 @@ default_args = {
 # Variable global para almacenar el mensaje consumido
 message_json = {}
 
-def consumer_function(message, prefix=None):
+def consumer_function(message, prefix=None , **kwargs):
     if message is not None:
         global message_json
         message_json = json.loads(message.value().decode('utf-8'))
+        kwargs['ti'].log.info(f'Contenido de data: {message_json}')
         if message_json.get('destination') == 'email':
             return True
     return False
