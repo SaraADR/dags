@@ -30,6 +30,9 @@ def send_email_function(**kwargs):
     subject = data.get('subject', 'No Subject')
     body = data.get('body', 'No Body')
 
+    # Loguear el contenido de 'data'
+    kwargs['ti'].log.info(f'Contenido de data: {data}')
+
     email_operator = EmailOperator(
         task_id='send_email_task',
         to=to,
