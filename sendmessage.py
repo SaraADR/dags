@@ -1,6 +1,5 @@
 from datetime import datetime
 import json
-from tkinter import Variable
 from airflow import DAG
 from airflow.operators.email import EmailOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
