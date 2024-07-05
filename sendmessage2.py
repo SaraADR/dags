@@ -61,7 +61,7 @@ def send_email_function(**kwargs):
     return email_operator.execute(context=kwargs)
 
 with DAG(
-    'send_test_email',
+    'send_test_email2',
     default_args=default_args,
     description='A DAG to send emails based on Kafka message',
     schedule_interval=None,
