@@ -24,7 +24,8 @@ def consumer_function(message, prefix=None):
         # Loguear el contenido de message_json
         print(f'Mensaje consumido: {message_json}')
         if message_json.get('destination') == 'email':
-            print(f'Mensaje consumido con destination: {message_json.get('destination')}')
+            tre = message_json.get('destination')
+            print(f'Mensaje consumido con destination: {tre}')
             return message_json
     return None
 
