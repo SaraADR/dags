@@ -92,6 +92,6 @@ with DAG(
         sql="UPDATE public.notifications SET status = 'ok' WHERE id = {{ ti.xcom_pull(task_ids='consume_from_topic')['id'] }};",
     )
 
-    consume_task >> send_email_task
+    consume_task >> send_email_task >> update_status_task
 
 #stcp fpia fdtb etek
