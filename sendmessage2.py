@@ -4,7 +4,7 @@ from airflow import DAG
 from airflow.operators.email import EmailOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.postgres.operators.postgres import PostgresOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 default_args = {
     'owner': 'airflow',
@@ -17,7 +17,7 @@ default_args = {
 message_json = {}
 otro_json = {}
 
-def consumer_function(message, prefix=None, **kwargs):
+def consumer_function(message, prefix=None):
     if message is not None:
         global message_json
         global otro_json
@@ -25,11 +25,11 @@ def consumer_function(message, prefix=None, **kwargs):
         try:
             message_json = json.loads(message.value().decode('utf-8'))
         except json.JSONDecodeError as e:
-            kwargs['ti'].log.error(f'Error decoding JSON: {e}')
+            print(f'Error decoding JSON: {e}')
             return False
 
         # Loguear el contenido de message_json
-        kwargs['ti'].log.info(f'Mensaje consumido: {message_json}')
+        print(f'Mensaje consumido: {message_json}')
         if message_json.get('destination') == 'email':
             return True
     return False
@@ -43,7 +43,7 @@ def send_email_function(**kwargs):
 
     destin = message_json.get('destination', {})
     idd = message_json.get('id', {})
-
+    
     # Loguear el contenido de 'data'
     kwargs['ti'].log.info(f'Mensaje: {otro_json}')
     kwargs['ti'].log.info(f'MensajeJSON: {message_json}')
@@ -61,7 +61,7 @@ def send_email_function(**kwargs):
     return email_operator.execute(context=kwargs)
 
 with DAG(
-    'send_test_email2',
+    'send_test_email',
     default_args=default_args,
     description='A DAG to send emails based on Kafka message',
     schedule_interval=None,
@@ -72,7 +72,6 @@ with DAG(
         task_id="consume_from_topic",
         topics=["test1"],
         apply_function=consumer_function,
-        #apply_function_kwargs={"prefix": "consumed:::"},
         kafka_config_id="kafka_connection",
         commit_cadence="end_of_batch",
         max_messages=10,
@@ -84,10 +83,10 @@ with DAG(
         python_callable=send_email_function,
     )
 
-    # Define el operador Postgres para actualizar el estado en la base de datos
-    update_status_task = PostgresOperator(
+    # Define el operador SQLExecuteQueryOperator para actualizar el estado en la base de datos
+    update_status_task = SQLExecuteQueryOperator(
         task_id='update_status_task',
-        postgres_conn_id='biobd', 
+        conn_id='biobd', 
         sql="UPDATE public.notifications SET status = 'ok' WHERE id = {{ task_instance.xcom_pull(task_ids='send_email_task')['id'] }};",
     )
 
