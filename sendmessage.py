@@ -4,6 +4,7 @@ from airflow import DAG
 from airflow.operators.email import EmailOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.postgres.operators.postgres import PostgresOperator
 
 default_args = {
     'owner': 'airflow',
@@ -77,6 +78,14 @@ with DAG(
         task_id='send_email_task',
         python_callable=send_email_function,
         provide_context=True,
+    )
+
+
+    # Define el operador Postgres para actualizar el estado en la base de datos
+    update_status_task = PostgresOperator(
+        task_id='update_status_task',
+        postgres_conn_id='biobd', 
+        sql="UPDATE public.notifications SET status = 'ok' WHERE id = {{ ti.xcom_pull(task_ids='consume_from_topic')['id'] }};",
     )
 
     consume_task >> send_email_task
