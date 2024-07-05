@@ -16,11 +16,12 @@ default_args = {
 # Variable global para almacenar el mensaje consumido
 message_json = {}
 
-def consumer_function(message, prefix=None , **kwargs):
+def consumer_function(message, prefix=None, **kwargs):
     if message is not None:
         global message_json
         message_json = json.loads(message.value().decode('utf-8'))
-        kwargs['ti'].log.info(f'Contenido de data: {message_json}')
+        # Loguear el contenido de message_json
+        kwargs['ti'].log.info(f'Contenido de message_json: {message_json}')
         if message_json.get('destination') == 'email':
             return True
     return False
@@ -63,6 +64,7 @@ with DAG(
         commit_cadence="end_of_batch",
         max_messages=10,
         max_batch_size=2,
+        provide_context=True,
     )
 
 
