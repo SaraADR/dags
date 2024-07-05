@@ -24,13 +24,13 @@ def consumer_function(message, prefix=None):
         # Loguear el contenido de message_json
         print(f'Mensaje consumido: {message_json}')
         if message_json.get('destination') == 'email':
+            print(f'Mensaje consumido con destination: {message_json.get('destination')}')
             return message_json
     return None
 
-def send_email_function(**kwargs):
+def send_email_function(message_json, **kwargs):
     # Obtener el mensaje desde XComs
     ti = kwargs['ti']
-    message_json = ti.xcom_pull(task_ids='consume_from_topic')
 
     if not message_json:
         print("No se recibió ningún mensaje.")
@@ -80,6 +80,7 @@ with DAG(
     send_email_task = PythonOperator(
         task_id='send_email_task',
         python_callable=send_email_function,
+        op_kwargs={'message_json': consume_task.output},
         provide_context=True,
     )
 
