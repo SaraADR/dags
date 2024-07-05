@@ -13,15 +13,8 @@ default_args = {
     'email_on_retry': False,
 }
 
-# Variable global para almacenar el mensaje consumido
-message_json = {}
-otro_json = {}
-
 def consumer_function(message, prefix=None):
     if message is not None:
-        global message_json
-        global otro_json
-        otro_json = message
         try:
             message_json = json.loads(message.value().decode('utf-8'))
         except json.JSONDecodeError as e:
@@ -31,12 +24,19 @@ def consumer_function(message, prefix=None):
         # Loguear el contenido de message_json
         print(f'Mensaje consumido: {message_json}')
         if message_json.get('destination') == 'email':
-            return True
-    return False
+            return message_json
+    return None
 
 def send_email_function(**kwargs):
-    global message_json
-    data = message_json.get('data', {})
+    # Obtener el mensaje desde XComs
+    ti = kwargs['ti']
+    message_json = ti.xcom_pull(task_ids='consume_from_topic')
+
+    if not message_json:
+        print("No se recibió ningún mensaje.")
+        return
+
+    data = json.loads(message_json.get('data', '{}'))
     to = data.get('to', 'default@example.com')
     subject = data.get('subject', 'No Subject')
     body = data.get('body', 'No Body')
@@ -45,11 +45,10 @@ def send_email_function(**kwargs):
     idd = message_json.get('id', {})
     
     # Loguear el contenido de 'data'
-    kwargs['ti'].log.info(f'Mensaje: {otro_json}')
-    kwargs['ti'].log.info(f'MensajeJSON: {message_json}')
-    kwargs['ti'].log.info(f'Contenido de destin: {destin}')
-    kwargs['ti'].log.info(f'Contenido de id: {idd}')
-    kwargs['ti'].log.info(f'Contenido de data: {data}')
+    ti.log.info(f'MensajeJSON: {message_json}')
+    ti.log.info(f'Contenido de destin: {destin}')
+    ti.log.info(f'Contenido de id: {idd}')
+    ti.log.info(f'Contenido de data: {data}')
 
     email_operator = EmailOperator(
         task_id='send_email_task',
@@ -58,7 +57,7 @@ def send_email_function(**kwargs):
         html_content=f'<p>{body}</p>',
         conn_id='smtp_default'
     )
-    return email_operator.execute(context=kwargs)
+    email_operator.execute(context=kwargs)
 
 with DAG(
     'send_test_email2',
@@ -81,13 +80,14 @@ with DAG(
     send_email_task = PythonOperator(
         task_id='send_email_task',
         python_callable=send_email_function,
+        provide_context=True,
     )
 
     # Define el operador SQLExecuteQueryOperator para actualizar el estado en la base de datos
     update_status_task = SQLExecuteQueryOperator(
         task_id='update_status_task',
         conn_id='biobd', 
-        sql="UPDATE public.notifications SET status = 'ok' WHERE id = {{ task_instance.xcom_pull(task_ids='send_email_task')['id'] }};",
+        sql="UPDATE public.notifications SET status = 'ok' WHERE id = '{{ task_instance.xcom_pull(task_ids='consume_from_topic')['id'] }}';",
     )
 
     consume_task >> send_email_task >> update_status_task
