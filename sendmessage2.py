@@ -52,7 +52,7 @@ def send_email_function(**kwargs):
     kwargs['ti'].log.info(f'Contenido de data: {data}')
 
     email_operator = EmailOperator(
-        task_id='send_email_task_2',
+        task_id='send_email_task',
         to=to,
         subject=subject,
         html_content=f'<p>{body}</p>',
@@ -61,7 +61,7 @@ def send_email_function(**kwargs):
     return email_operator.execute(context=kwargs)
 
 with DAG(
-    'send_test_email_2',
+    'send_test_email',
     default_args=default_args,
     description='A DAG to send emails based on Kafka message',
     schedule_interval=None,
@@ -77,20 +77,18 @@ with DAG(
         commit_cadence="end_of_batch",
         max_messages=10,
         max_batch_size=2,
-        provide_context=True,
     )
 
     send_email_task = PythonOperator(
         task_id='send_email_task',
         python_callable=send_email_function,
-        provide_context=True,
     )
 
     # Define el operador Postgres para actualizar el estado en la base de datos
     update_status_task = PostgresOperator(
         task_id='update_status_task',
         postgres_conn_id='biobd', 
-        sql="UPDATE public.notifications SET status = 'ok' WHERE id = {{ ti.xcom_pull(task_ids='send_email_task')['id'] }};",
+        sql="UPDATE public.notifications SET status = 'ok' WHERE id = {{ task_instance.xcom_pull(task_ids='send_email_task')['id'] }};",
     )
 
     consume_task >> send_email_task >> update_status_task
