@@ -15,10 +15,13 @@ default_args = {
 
 # Variable global para almacenar el mensaje consumido
 message_json = {}
+otro_json = {}
 
 def consumer_function(message, prefix=None):
     if message is not None:
         global message_json
+        global otro_json
+        otro_json = message
         message_json = json.loads(message.value().decode('utf-8'))
         # Loguear el contenido de message_json
         if message_json.get('destination') == 'email':
@@ -34,7 +37,10 @@ def send_email_function(**kwargs):
 
     destin = message_json.get('destination', {})
     idd = message_json.get('id', {})
+    
     # Loguear el contenido de 'data'
+    kwargs['ti'].log.info(f'Mensaje: {otro_json}')
+    kwargs['ti'].log.info(f'MensajeJSON: {message_json}')
     kwargs['ti'].log.info(f'Contenido de destin: {destin}')
     kwargs['ti'].log.info(f'Contenido de id: {idd}')
     kwargs['ti'].log.info(f'Contenido de data: {data}')
@@ -62,7 +68,7 @@ with DAG(
         task_id="consume_from_topic",
         topics=["test1"],
         apply_function=consumer_function,
-        apply_function_kwargs={"prefix": "consumed:::"},
+        #apply_function_kwargs={"prefix": "consumed:::"},
         kafka_config_id="kafka_connection",
         commit_cadence="end_of_batch",
         max_messages=10,
