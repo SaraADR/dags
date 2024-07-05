@@ -16,12 +16,11 @@ default_args = {
 # Variable global para almacenar el mensaje consumido
 message_json = {}
 
-def consumer_function(message, prefix=None, **kwargs):
+def consumer_function(message, prefix=None):
     if message is not None:
         global message_json
         message_json = json.loads(message.value().decode('utf-8'))
         # Loguear el contenido de message_json
-        kwargs['ti'].log.info(f'Contenido de message_json: {message_json}')
         if message_json.get('destination') == 'email':
             return True
     return False
@@ -33,7 +32,11 @@ def send_email_function(**kwargs):
     subject = data.get('subject', 'No Subject')
     body = data.get('body', 'No Body')
 
+    destin = message_json.get('destination', {})
+    idd = message_json.get('id', {})
     # Loguear el contenido de 'data'
+    kwargs['ti'].log.info(f'Contenido de destin: {destin}')
+    kwargs['ti'].log.info(f'Contenido de id: {idd}')
     kwargs['ti'].log.info(f'Contenido de data: {data}')
 
     email_operator = EmailOperator(
@@ -64,7 +67,6 @@ with DAG(
         commit_cadence="end_of_batch",
         max_messages=10,
         max_batch_size=2,
-        provide_context=True,
     )
 
 
