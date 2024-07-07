@@ -32,7 +32,7 @@ def consumer_function(message, prefix=None):
 def send_email_function(ti, **kwargs):
     # Obtener el mensaje desde XComs
     message_json = ti.xcom_pull(task_ids='consume_from_topic')
-    
+
     if not message_json:
         print("No se recibió ningún mensaje.")
         return
