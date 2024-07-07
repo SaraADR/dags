@@ -4,10 +4,15 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from datetime import datetime, timedelta
+from kafka import KafkaConsumer
 
 def handle_message(message, **kwargs):
+    if not message:
+        return None
+     
     try:
-        msg_dict = json.loads(message)
+        # Extraemos el valor del mensaje Kafka
+        msg_dict = json.loads(message.value())
     except json.JSONDecodeError:
         return None
 
@@ -43,10 +48,9 @@ consume_task = ConsumeFromTopicOperator(
     task_id='consume_from_kafka',
     kafka_config_id="kafka_connection",
     topics=['test1'],
-    apply_function=handle_message,  
+    apply_function=handle_message,  # Referencia directa a la función definida en el mismo archivo
     dag=dag,
 )
-
 
 trigger_dag_task = PythonOperator(
     task_id='trigger_sendmessage3_dag',
