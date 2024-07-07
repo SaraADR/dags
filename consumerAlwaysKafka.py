@@ -7,18 +7,24 @@ from datetime import datetime, timedelta
 
 
 def handle_message(message, **kwargs):
+    ti = kwargs.get('ti')  # Obtener 'ti' desde kwargs
+
     if not message:
         return None
-     
+
     try:
-        # Extraemos el valor del mensaje Kafka
         msg_dict = json.loads(message.value())
     except json.JSONDecodeError:
         return None
 
     if msg_dict.get('destination') == 'email':
-        kwargs['ti'].xcom_push(key='message', value=msg_dict)
+        if ti is not None:
+            ti.xcom_push(key='message', value=msg_dict)  # Usar ti para push a XCom
+        else:
+            raise ValueError("Task Instance (ti) is None. Cannot push message to XCom.")
+
         return msg_dict
+
     return None
 
 def trigger_sendmessage3_dag(**kwargs):
