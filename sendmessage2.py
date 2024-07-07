@@ -32,7 +32,8 @@ def consumer_function(message, prefix=None):
 def send_email_function(message_json, **kwargs):
     # Obtener el mensaje desde XComs
     ti = kwargs['ti']
-
+    ti.log.info(f'MensajeJSON: {message_json}')
+    
     if not message_json:
         print("No se recibió ningún mensaje.")
         return
