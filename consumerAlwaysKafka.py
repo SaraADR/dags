@@ -56,6 +56,7 @@ consume_task = ConsumeFromTopicOperator(
     topics=['test1'],
     apply_function=handle_message,  # Referencia directa a la función definida en el mismo archivo
     dag=dag,
+    provide_context=True
 )
 
 trigger_dag_task = PythonOperator(
