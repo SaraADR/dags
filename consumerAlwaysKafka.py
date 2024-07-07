@@ -57,7 +57,6 @@ trigger_dag_task = TriggerDagRunOperator(
     task_id='trigger_dag_run',
     trigger_dag_id='sendmessage3',  # DAG a disparar
     python_callable=trigger_dag_run,
-    provide_context=True,
     dag=dag,
 )
 
