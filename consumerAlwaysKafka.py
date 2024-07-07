@@ -47,12 +47,8 @@ dag = DAG(
 
 consume_task = ConsumeFromTopicOperator(
     task_id='consume_from_kafka',
-    kafka_config={
-        'bootstrap.servers': 'localhost:9092',
-        'group.id': 'my_group',
-        'auto.offset.reset': 'earliest',
-    },
-    topics=['my_topic'],
+    kafka_config_id="kafka_connection",
+    topics=['test1'],
     apply_function='dags.kafka_listener_dag.handle_message',
     xcom_push=True,
     dag=dag,
