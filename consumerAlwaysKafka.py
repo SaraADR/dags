@@ -1,6 +1,6 @@
 import json
 from airflow import DAG
-from airflow.providers.apache.kafka.sensors.consume_from_topic import ConsumeFromTopicOperator
+from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from datetime import datetime, timedelta
 
