@@ -1,7 +1,7 @@
 import json
 from airflow import DAG
-from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from datetime import datetime, timedelta
 
@@ -12,9 +12,14 @@ def handle_message(message, **kwargs):
         return None
 
     if msg_dict.get('destination') == 'email':
-        trigger_dag(dag_id='sendmessage3', run_id=None, conf=msg_dict)
+        kwargs['ti'].xcom_push(key='message', value=msg_dict)
         return msg_dict
     return None
+
+def trigger_sendmessage3_dag(**kwargs):
+    message = kwargs['ti'].xcom_pull(task_ids='consume_from_kafka', key='message')
+    if message:
+        trigger_dag(dag_id='sendmessage3', run_id=None, conf=message)
 
 default_args = {
     'owner': 'airflow',
@@ -38,8 +43,16 @@ consume_task = ConsumeFromTopicOperator(
     task_id='consume_from_kafka',
     kafka_config_id="kafka_connection",
     topics=['test1'],
-    apply_function='kafka_listener_dag.handle_message',
+    apply_function=handle_message,  
     dag=dag,
 )
 
-consume_task
+
+trigger_dag_task = PythonOperator(
+    task_id='trigger_sendmessage3_dag',
+    provide_context=True,
+    python_callable=trigger_sendmessage3_dag,
+    dag=dag,
+)
+
+consume_task >> trigger_dag_task
