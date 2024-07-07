@@ -4,7 +4,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from datetime import datetime, timedelta
-from kafka import KafkaConsumer
+
 
 def handle_message(message, **kwargs):
     if not message:
