@@ -19,7 +19,7 @@ def consumer_function(message, prefix=None):
             message_json = json.loads(message.value().decode('utf-8'))
         except json.JSONDecodeError as e:
             print(f'Error decoding JSON: {e}')
-            return False
+            return None
 
         # Loguear el contenido de message_json
         print(f'Mensaje consumido: {message_json}')
@@ -29,10 +29,9 @@ def consumer_function(message, prefix=None):
             return message_json
     return None
 
-def send_email_function(message_json, **kwargs):
+def send_email_function(ti, **kwargs):
     # Obtener el mensaje desde XComs
-    ti = kwargs['ti']
-    ti.log.info(f'MensajeJSON: {message_json}')
+    message_json = ti.xcom_pull(task_ids='consume_from_topic')
     
     if not message_json:
         print("No se recibió ningún mensaje.")
@@ -53,7 +52,7 @@ def send_email_function(message_json, **kwargs):
     ti.log.info(f'Contenido de data: {data}')
 
     email_operator = EmailOperator(
-        task_id='send_email_task',
+        task_id='send_email_task_inner',
         to=to,
         subject=subject,
         html_content=f'<p>{body}</p>',
@@ -82,7 +81,6 @@ with DAG(
     send_email_task = PythonOperator(
         task_id='send_email_task',
         python_callable=send_email_function,
-        op_kwargs={'message_json': consume_task.output},
         provide_context=True,
     )
 
