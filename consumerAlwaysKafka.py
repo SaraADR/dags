@@ -50,7 +50,6 @@ consume_task = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     topics=['test1'],
     apply_function='dags.kafka_listener_dag.handle_message',
-    xcom_push=True,
     dag=dag,
 )
 
