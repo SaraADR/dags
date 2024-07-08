@@ -5,6 +5,8 @@ from airflow.models import Variable
 from airflow.operators.email import EmailOperator
 import json
 from airflow.providers.postgres.operators.postgres import PostgresOperator
+import ast
+
 
 default_args = {
     'owner': 'airflow',
@@ -18,12 +20,13 @@ default_args = {
 
 def print_message_and_send_email(**context):
     message = context['dag_run'].conf
-    message2 = json.loads(message) 
     print(f"Received message: {message}")
-    context['ti'].xcom_push(key='message_id', value=message2.get('id'))
+    context['ti'].xcom_push(key='message_id', value=message.get('id'))
+
+    message_dict = ast.literal_eval(message['message'])
 
 
-    data = json.loads(message2.get('data', '{}'))  # Decodificar el campo 'data'
+    data = json.loads(message_dict.get('data', '{}'))  # Decodificar el campo 'data'
     print(f"Received message: {data}")
     to = data.get('to', 'default@example.com')
     subject = data.get('subject', 'No Subject')

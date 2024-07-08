@@ -22,12 +22,15 @@ def consumer_function(message, prefix, **kwargs):
                 print(f"Error decoding JSON: {e}")
         else:
             print("Empty message received")
-    Variable.set("my_variable_key", message)        
-    return None  # Returning None if message is empty or not valid
+        Variable.set("my_variable_key", message)        
+        return None  # Returning None if message is empty or not valid
+    else:
+        Variable.set("my_variable_key", message)        
 
 def trigger_email_handler(**kwargs):
     value_pulled = Variable.get("my_variable_key")
     print(f"messageTRAS TRIGg: {value_pulled}")
+    
     if value_pulled is not None:
         try:
 
