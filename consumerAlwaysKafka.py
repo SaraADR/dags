@@ -22,6 +22,7 @@ def consumer_function(message, prefix, **kwargs):
 
 def trigger_email_handler_dag_run(conf, **kwargs):
     if json.loads(conf).get('destination') == 'none':
+        print(f"No se envia correo por estar vacio: {conf}")
         return None
     trigger_dag_run = TriggerDagRunOperator(
         task_id='trigger_email_handler',
