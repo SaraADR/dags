@@ -69,4 +69,4 @@ trigger_email_handler = PythonOperator(
     op_args=["{{ task_instance.xcom_pull(task_ids='consume_from_topic') }}"],
     dag=dag,
 )
-consume_from_topic 
+consume_from_topic >> trigger_email_handler
