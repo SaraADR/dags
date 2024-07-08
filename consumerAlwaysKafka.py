@@ -18,8 +18,17 @@ def consumer_function(message, prefix, **kwargs):
                 print(f"Error decoding JSON: {e}")
         else:
             print("Empty message received")
-    else:
-        print("No messages")
+    return None
+
+def trigger_email_handler_dag_run(args, **kwargs):
+    if args is not None:
+        trigger_dag_run = TriggerDagRunOperator(
+            task_id='trigger_email_handler',
+            trigger_dag_id='recivekafka',
+            conf=args,
+            dag=kwargs['dag']
+        )
+        trigger_dag_run.execute(context=kwargs)
 
 default_args = {
     'owner': 'airflow',
@@ -46,15 +55,16 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
-    max_messages=1,
+    max_messages=10,
     max_batch_size=1,
     dag=dag,
 )
 
-trigger_email_handler = TriggerDagRunOperator(
+trigger_email_handler = PythonOperator(
     task_id='trigger_email_handler',
-    trigger_dag_id='recivekafka',
-    conf="{{ task_instance.xcom_pull(task_ids='consume_from_topic') }}",
+    python_callable=trigger_email_handler_dag_run,
+    provide_context=True,
+    op_args=["{{ task_instance.xcom_pull(task_ids='consume_from_topic') }}"],
     dag=dag,
 )
 
