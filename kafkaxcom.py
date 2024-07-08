@@ -34,7 +34,7 @@ default_args = {
 
 
 with DAG(
-    "xcom_dag",
+    "xcomdag",
     default_args=default_args,
     start_date=datetime(2024, 7, 8),
     max_active_runs=1,
