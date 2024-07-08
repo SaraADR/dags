@@ -2,6 +2,8 @@ import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python import BranchPythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta
 
@@ -13,25 +15,32 @@ def consumer_function(message, prefix, **kwargs):
             try:
                 msg_json = json.loads(msg_value)
                 if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
-                    return msg_json
+                    return msg_json  # Returning msg_json to be pushed to XCom
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
         else:
             print("Empty message received")
-    return "{'destination' : 'none'}"
+    return None  # Returning None if message is empty or not valid
 
-def trigger_email_handler_dag_run(messag, **kwargs):
-    print(f"No envia : {messag}")
-    if json.loads(messag).get('destination') == 'none':
-        print(f"No se envia correo por estar vacio: {messag}")
-        return None
-    trigger_dag_run = TriggerDagRunOperator(
-        task_id='trigger_email_handler',
-        trigger_dag_id='recivekafka',
-        conf=messag,
-        dag=kwargs['dag']
-    )
-    trigger_dag_run.execute(context=kwargs)
+def decide_which_path(**kwargs):
+    ti = kwargs['task_instance']
+    msg_json = ti.xcom_pull(task_ids='consume_from_topic')
+    print(f"Que trae: {msg_json}")
+    if msg_json:
+        return 'trigger_email_handler'
+    else:
+        return 'no_op'
+
+def trigger_email_handler(**kwargs):
+    ti = kwargs['task_instance']
+    msg_json = ti.xcom_pull(task_ids='consume_from_topic')
+    if msg_json:
+        trigger = TriggerDagRunOperator(
+            task_id='trigger_email_handler_inner',
+            trigger_dag_id='recivekafka',
+            conf=msg_json,
+        )
+        trigger.execute(context=kwargs)
 
 default_args = {
     'owner': 'airflow',
@@ -63,11 +72,23 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-trigger_email_handler = PythonOperator(
-    task_id='trigger_email_handler',
-    python_callable=trigger_email_handler_dag_run,
+decide_path = BranchPythonOperator(
+    task_id='decide_path',
+    python_callable=decide_which_path,
     provide_context=True,
-    op_args=["{{ task_instance.xcom_pull(task_ids='consume_from_topic') }}"],
     dag=dag,
 )
-consume_from_topic >> trigger_email_handler
+
+trigger_email_handler_task = PythonOperator(
+    task_id='trigger_email_handler',
+    python_callable=trigger_email_handler,
+    provide_context=True,
+    dag=dag,
+)
+
+no_op = DummyOperator(
+    task_id='no_op',
+    dag=dag,
+)
+
+consume_from_topic >> decide_path >> [trigger_email_handler_task, no_op]
