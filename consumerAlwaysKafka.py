@@ -16,7 +16,7 @@ def consumer_function(message, prefix, **kwargs):
             try:
                 msg_json = json.loads(msg_value)
                 if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
-                    decide_which_path(msg_json)
+                    decide_which_path(message)
                     return msg_json  # Returning msg_json to be pushed to XCom
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
@@ -25,6 +25,7 @@ def consumer_function(message, prefix, **kwargs):
     return None  # Returning None if message is empty or not valid
 
 def decide_which_path(dato, **kwargs):
+    print(f"Que trae dato: {dato}")
     ti = kwargs.get('ti')
     msg_json = ti.xcom_push(key='message', value=dato)
     print(f"Que trae: {msg_json}")
