@@ -5,6 +5,8 @@ import requests
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
+from airflow.hooks.base_hook import BaseHook
+from confluent_kafka import Consumer, KafkaException
 
 def get_a_cat_fact(ti):
     """
@@ -14,21 +16,42 @@ def get_a_cat_fact(ti):
     res = requests.get(url)
     ti.xcom_push(key="cat_fact", value=json.loads(res.text)["fact"])
 
-def consumer_function(message, ti):
-    if message is not None:
-        global message_json
-        global otro_json
-        otro_json = message
-        message_json = json.loads(message.value().decode('utf-8'))
-        # Loguear el contenido de message_json
-        if message_json.get('destination') == 'email':
-            ti.xcom_push(key="message_resp", value=json.loads(message))
-            return True
-    return False
+def consume_messages():
+    # Obtener la conexión de Kafka desde Airflow
+    kafka_conn = BaseHook.get_connection('kafka_connection')
+    
+    conf = {
+        'bootstrap.servers': f'{kafka_conn.host}:{kafka_conn.port}',
+        'group.id': 'my_group',
+        'auto.offset.reset': 'earliest',
+        'security.protocol': 'PLAINTEXT'
+    }
+    
+    if kafka_conn.login:
+        conf['sasl.username'] = kafka_conn.login
+        conf['sasl.password'] = kafka_conn.password
+        conf['security.protocol'] = 'SASL_PLAINTEXT'
+        conf['sasl.mechanisms'] = 'PLAIN'
 
-def wrapped_consumer_function(message, **kwargs):
-    ti = kwargs['ti']
-    return consumer_function(message, ti)
+    consumer = Consumer(conf)
+    topic = 'my_topic'
+    consumer.subscribe([topic])
+
+    try:
+        while True:
+            msg = consumer.poll(timeout=1.0)
+            if msg is None:
+                continue
+            if msg.error():
+                if msg.error().code():
+                    continue
+                else:
+                    raise KafkaException(msg.error())
+            print(f'Received message: {msg.value().decode("utf-8")}')
+    except KeyboardInterrupt:
+        pass
+    finally:
+        consumer.close()
 
 def analyze_cat_facts(ti):
     """
@@ -65,14 +88,10 @@ with DAG(
         python_callable=get_a_cat_fact
     )
 
-    consume_task = ConsumeFromTopicOperator(
-        task_id="consume_from_topic",
-        topics=["test1"],
-        apply_function=wrapped_consumer_function,
-        kafka_config_id="kafka_connection",
-        commit_cadence="end_of_batch",
-        max_messages=10,
-        max_batch_size=2,
+    # Definir el PythonOperator
+    consume_task = PythonOperator(
+        task_id='consume_kafka_messages',
+        python_callable=consume_messages,
     )
 
     analyze_cat_data = PythonOperator(
