@@ -18,7 +18,7 @@ def consumer_function(message, prefix, **kwargs):
                     trigger_dag_id='recivekafka',
                     conf=msg_json                   
                     )
-                    trigger_dag_run.execute()
+                    trigger_dag_run.execute(prefix)
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
         else:
