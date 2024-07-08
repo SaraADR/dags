@@ -14,8 +14,6 @@ def listen_function(message):
     elif msg_dict.get('destination') == 'telegram':
         return msg_dict
     return None
-    
-
 
 def trigger_sendmessage3_dag(message, **context):
     if not message:
@@ -27,16 +25,12 @@ def trigger_sendmessage3_dag(message, **context):
     print(f" tipo: {tipo}")
 
     TriggerDagRunOperator(
-        task_id=f"triggered_downstram_dag_{uuid.uuid4()}",
+        task_id=f"triggered_downstream_dag_{uuid.uuid4()}",
         trigger_dag_id="sendmessage3" if tipo == "email" else "send_telegram_message",
         wait_for_completion=True,
         conf={"tipo": tipo},
         poke_interval=20,
     ).execute(context)
-
-    #message = kwargs['ti'].xcom_pull(task_ids='consume_from_kafka', key='message')
-   # if tipo:
-    #    trigger_dag(dag_id='sendmessage3', run_id=None, conf=message)
 
 default_args = {
     'owner': 'airflow',
@@ -52,7 +46,7 @@ default_args = {
     'kafka_listener_dag',
     default_args=default_args,
     description='DAG that listens to Kafka and triggers other DAGs',
-    schedule_interval='@continuous',
+    schedule_interval=None,  # Change '@continuous' to None as '@continuous' is not a valid cron expression
     catchup=False,
     render_template_as_native_obj=True,
     max_active_runs=1,
@@ -62,12 +56,13 @@ def listen_to_the_stream():
         task_id='consume_from_kafka',
         kafka_config_id="kafka_connection",
         topics=['test1'],
-        apply_function="listen_to_the_stream.listen_function", 
+        apply_function=f"{__name__}.listen_function",  # Correct reference to the function
         poll_interval=5,
         poll_timeout=1,
         apply_function_kwargs={},
         event_triggered_function=trigger_sendmessage3_dag,
-)
+    )
 
+    listen_for_message
 
 listen_to_the_stream()
