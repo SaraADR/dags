@@ -20,11 +20,11 @@ def consumer_function(message, prefix, **kwargs):
             print("Empty message received")
     return None
 
-def trigger_email_handler_dag_run(conf, **kwargs):
+def trigger_email_handler_dag_run(args, **kwargs):
     trigger_dag_run = TriggerDagRunOperator(
         task_id='trigger_email_handler',
         trigger_dag_id='recivekafka',
-        conf=conf,
+        conf=args,
         dag=kwargs['dag']
     )
     trigger_dag_run.execute(context=kwargs)
@@ -55,7 +55,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
     max_messages=10,
-    max_batch_size=2,
+    max_batch_size=1,
     dag=dag,
 )
 
