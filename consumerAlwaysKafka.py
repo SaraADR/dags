@@ -9,27 +9,26 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 7, 7),
+    'start_date': datetime(2023, 1, 1),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
 }
 
-def consumer_function(messages, prefix, **kwargs):
-    for message in messages:
-        msg_value = message.value().decode('utf-8')
-        msg_json = json.loads(msg_value)
-        if msg_json.get('destination') == 'email':
-            ti = kwargs['ti']
-            ti.xcom_push(key='email_message', value=msg_json)
+def consumer_function(message, prefix, **kwargs):
+    msg_value = message.value().decode('utf-8')
+    msg_json = json.loads(msg_value)
+    if msg_json.get('destination') == 'email':
+        ti = kwargs['ti']
+        ti.xcom_push(key='email_message', value=msg_json)
 
 def trigger_email_handler_dag(**kwargs):
     message = kwargs['ti'].xcom_pull(task_ids='consume_from_topic', key='email_message')
     if message:
         trigger_dag_run = TriggerDagRunOperator(
             task_id='trigger_email_handler',
-            trigger_dag_id='xcomdag',
+            trigger_dag_id='sendmessage3',
             conf=message
         )
         trigger_dag_run.execute(context=kwargs)
