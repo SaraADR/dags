@@ -28,7 +28,7 @@ def trigger_sendmessage3_dag(message, **context):
 
     TriggerDagRunOperator(
         task_id=f"triggered_downstram_dag_{uuid.uuid4()}",
-        trigger_dag_id="enviarfichero" if tipo == "email" else "another_dag_for_telegram",
+        trigger_dag_id="sendmessage3" if tipo == "email" else "send_telegram_message",
         wait_for_completion=True,
         conf={"tipo": tipo},
         poke_interval=20,
