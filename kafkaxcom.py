@@ -4,7 +4,6 @@ import requests
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-
 def get_a_cat_fact(ti):
     """
     Gets a cat fact from the CatFacts API
