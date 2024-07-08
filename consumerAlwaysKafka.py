@@ -3,7 +3,7 @@ import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator, TriggerDagRunOperator
 from airflow.providers.apache.kafka.sensors.consume_from_topic import ConsumeFromTopicOperator
-
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 # Configuración del DAG
 default_args = {
