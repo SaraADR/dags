@@ -6,7 +6,6 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta
 
 def consumer_function(message, prefix, **kwargs):
-    print(f"message: {message}")
     if message is not None:
         msg_value = message.value().decode('utf-8')
         print(f"message2: {msg_value}")
@@ -56,7 +55,5 @@ consume_from_topic = ConsumeFromTopicOperator(
     max_batch_size=2,
     dag=dag,
 )
-
-
 
 consume_from_topic 
