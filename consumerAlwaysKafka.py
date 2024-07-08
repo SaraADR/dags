@@ -16,7 +16,7 @@ def consumer_function(message, prefix, **kwargs):
             try:
                 msg_json = json.loads(msg_value)
                 if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
-                    kwargs['ti'].xcom_push(key='message', value=msg_json)
+                    decide_which_path(msg_json)
                     return msg_json  # Returning msg_json to be pushed to XCom
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
@@ -24,9 +24,9 @@ def consumer_function(message, prefix, **kwargs):
             print("Empty message received")
     return None  # Returning None if message is empty or not valid
 
-def decide_which_path(**kwargs):
+def decide_which_path(dato, **kwargs):
     ti = kwargs['task_instance']
-    msg_json = ti.xcom_pull(task_ids='consume_from_topic')
+    msg_json = ti.xcom_push(key='message', value=dato)
     print(f"Que trae: {msg_json}")
     if msg_json:
         return 'trigger_email_handler'
@@ -93,4 +93,4 @@ no_op = DummyOperator(
     dag=dag,
 )
 
-consume_from_topic >> decide_path >> [trigger_email_handler_task, no_op]
+consume_from_topic >>  [trigger_email_handler_task, no_op]
