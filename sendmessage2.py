@@ -21,11 +21,11 @@ default_args = {
 def print_message_and_send_email(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
-    context['ti'].xcom_push(key='message_id', value=message.get('id'))
+   
 
     message_dict = ast.literal_eval(message['message'])
 
-
+    context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
     data = json.loads(message_dict.get('data', '{}'))  # Decodificar el campo 'data'
     print(f"Received message: {data}")
     to = data.get('to', 'default@example.com')
