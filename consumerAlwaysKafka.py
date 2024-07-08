@@ -17,20 +17,20 @@ def consumer_function(message, prefix, **kwargs):
                 msg_json = json.loads(msg_value)
                 if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
                     Variable.set("my_variable_key", msg_json)
-                    return msg_json  # Returning msg_json to be pushed to XCom
+                    return msg_json 
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
         else:
             print("Empty message received")
-        Variable.set("my_variable_key", message)        
-        return None  # Returning None if message is empty or not valid
+        Variable.set("my_variable_key", None)        
+        return None  
     else:
-        Variable.set("my_variable_key", message)        
+        Variable.set("my_variable_key", None)        
 
 def trigger_email_handler(**kwargs):
     value_pulled = Variable.get("my_variable_key")
     print(f"messageTRAS TRIGg: {value_pulled}")
-    
+
     if value_pulled is not None:
         try:
 
