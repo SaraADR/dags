@@ -1,8 +1,9 @@
 import json
 from airflow import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.operators.python import PythonOperator, BranchPythonOperator
+from airflow.operators.dummy import DummyOperator
 from datetime import datetime, timedelta
 
 def consumer_function(message, prefix, **kwargs):
@@ -20,15 +21,27 @@ def consumer_function(message, prefix, **kwargs):
             print("Empty message received")
     return None
 
-def trigger_email_handler_dag_run(args, **kwargs):
-    if args is not None:
-        trigger_dag_run = TriggerDagRunOperator(
-            task_id='trigger_email_handler',
+def decide_which_path(**kwargs):
+    # Pull the message JSON from the XCom
+    msg_json = kwargs['task_instance'].xcom_pull(task_ids='consume_from_topic')
+    # Decide the next task based on whether msg_json is None or not
+    if msg_json:
+        return 'trigger_email_handler'
+    else:
+        return 'no_op'
+
+def trigger_email_handler_dag_run(msg_json, **kwargs):
+    # Logic to trigger the DAG
+    if msg_json:
+        print(f"Triggering email handler DAG with config: {msg_json}")
+        trigger = TriggerDagRunOperator(
+            task_id='trigger_email_handler_dag_run_inner',
             trigger_dag_id='recivekafka',
-            conf=args,
-            dag=kwargs['dag']
+            conf=msg_json
         )
-        trigger_dag_run.execute(context=kwargs)
+        trigger.execute(context=kwargs)
+    else:
+        print("No valid message to trigger DAG")
 
 default_args = {
     'owner': 'airflow',
@@ -55,8 +68,15 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
-    max_messages=10,
+    max_messages=1,
     max_batch_size=1,
+    dag=dag,
+)
+
+decide_path = BranchPythonOperator(
+    task_id='decide_path',
+    python_callable=decide_which_path,
+    provide_context=True,
     dag=dag,
 )
 
@@ -68,4 +88,9 @@ trigger_email_handler = PythonOperator(
     dag=dag,
 )
 
-consume_from_topic >> trigger_email_handler
+no_op = DummyOperator(
+    task_id='no_op',
+    dag=dag,
+)
+
+consume_from_topic >> decide_path >> [trigger_email_handler, no_op]
