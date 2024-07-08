@@ -1,12 +1,10 @@
 from datetime import timedelta
 import json
-from pendulum import datetime, duration
 import requests
+from pendulum import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.hooks.base_hook import BaseHook
-from confluent_kafka import Consumer, KafkaException
 
 def get_a_cat_fact(ti):
     """
@@ -16,42 +14,16 @@ def get_a_cat_fact(ti):
     res = requests.get(url)
     ti.xcom_push(key="cat_fact", value=json.loads(res.text)["fact"])
 
-def consume_messages():
-    # Obtener la conexión de Kafka desde Airflow
-    kafka_conn = BaseHook.get_connection('kafka_connection')
-    
-    conf = {
-        'bootstrap.servers': f'{kafka_conn.host}:{kafka_conn.port}',
-        'group.id': '1',
-        'auto.offset.reset': 'earliest',
-        'security.protocol': 'PLAINTEXT'
-    }
-    
-    if kafka_conn.login:
-        conf['sasl.username'] = kafka_conn.login
-        conf['sasl.password'] = kafka_conn.password
-        conf['security.protocol'] = 'SASL_PLAINTEXT'
-        conf['sasl.mechanisms'] = 'PLAIN'
-
-    consumer = Consumer(conf)
-    topic = 'my_topic'
-    consumer.subscribe([topic])
-
-    try:
-        while True:
-            msg = consumer.poll(timeout=1.0)
-            if msg is None:
-                continue
-            if msg.error():
-                if msg.error().code():
-                    continue
-                else:
-                    raise KafkaException(msg.error())
-            print(f'Received message: {msg.value().decode("utf-8")}')
-    except KeyboardInterrupt:
-        pass
-    finally:
-        consumer.close()
+def consumer_function(message, **kwargs):
+    ti = kwargs['ti']
+    if message is not None:
+        message_json = json.loads(message.value().decode('utf-8'))
+        # Log the content of message_json
+        print(f"Received message: {message_json}")
+        if message_json.get('destination') == 'email':
+            ti.xcom_push(key="message_resp", value=message_json)
+            return True
+    return False
 
 def analyze_cat_facts(ti):
     """
@@ -60,9 +32,9 @@ def analyze_cat_facts(ti):
     cat_fact = ti.xcom_pull(key="cat_fact", task_ids="get_a_cat_fact")
     print("Cat fact for today:", cat_fact)
 
-    message_fact = ti.xcom_pull(key="message_resp", task_ids="consume_from_topic")
-    print("Message fact:", message_fact)
-    # run some analysis here
+    message_resp = ti.xcom_pull(key="message_resp", task_ids="consume_from_topic")
+    print("Message received from Kafka:", message_resp)
+    # Run some analysis here
 
 default_args = {
     'owner': 'airflow',
@@ -76,7 +48,7 @@ default_args = {
 
 with DAG(
     "xcomdag",
-    description="arg",
+    description="A DAG to demonstrate Kafka consumption with Apache Kafka",
     default_args=default_args,
     max_active_runs=1,
     schedule_interval=None,
@@ -84,19 +56,25 @@ with DAG(
 ) as dag:
     
     get_cat_data = PythonOperator(
-        task_id="get_a_cat_fact", 
-        python_callable=get_a_cat_fact
+        task_id="get_a_cat_fact",
+        python_callable=get_a_cat_fact,
     )
 
-    # Definir el PythonOperator
-    consume_task = PythonOperator(
-        task_id='consume_kafka_messages',
-        python_callable=consume_messages,
+    consume_task = ConsumeFromTopicOperator(
+        task_id="consume_from_topic",
+        topics=["test1"],
+        apply_function=consumer_function,
+        kafka_config_id="kafka_connection",
+        commit_cadence="end_of_batch",
+        max_messages=10,
+        max_batch_size=2,
+        execution_timeout=timedelta(minutes=5),
+        provide_context=True,
     )
 
     analyze_cat_data = PythonOperator(
-        task_id="analyze_data", 
-        python_callable=analyze_cat_facts
+        task_id="analyze_data",
+        python_callable=analyze_cat_facts,
     )
 
     get_cat_data >> consume_task >> analyze_cat_data
