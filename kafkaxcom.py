@@ -35,12 +35,15 @@ default_args = {
 
 with DAG(
     "xcomdag",
+    description="arg",
     default_args=default_args,
     start_date=datetime(2024, 7, 8),
     max_active_runs=1,
     schedule=duration(minutes=1),
     catchup=False,
+
 ) as dag:
+    
     get_cat_data = PythonOperator(
         task_id="get_a_cat_fact", python_callable=get_a_cat_fact
     )
