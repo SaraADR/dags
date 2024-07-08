@@ -12,7 +12,7 @@ def consumer_function(message, prefix, **kwargs):
         if msg_value:
             try:
                 msg_json = json.loads(msg_value)
-                if msg_json.get('destination') == 'email':
+                if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
                     trigger_dag_run = TriggerDagRunOperator(
                     task_id='trigger_email_handler',
                     trigger_dag_id='recivekafka',
@@ -29,7 +29,7 @@ def consumer_function(message, prefix, **kwargs):
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2023, 1, 1),
+    'start_date': datetime(2024, 7, 7),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -40,7 +40,7 @@ dag = DAG(
     'kafka_consumer_trigger_dag',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG si destination=email',
-    schedule_interval='*/2 * * * *',
+    schedule_interval='*/5 * * * *',
     catchup=False
 )
 

@@ -4,6 +4,7 @@ from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 from airflow.operators.email import EmailOperator
 import json
+from airflow.providers.postgres.operators.postgres import PostgresOperator
 
 default_args = {
     'owner': 'airflow',
@@ -18,6 +19,8 @@ default_args = {
 def print_message_and_send_email(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
+    context['ti'].xcom_push(key='message_id', value=message.get('id'))
+
 
     data = json.loads(message.get('data', '{}'))  # Decodificar el campo 'data'
     to = data.get('to', 'default@example.com')
@@ -33,6 +36,7 @@ def print_message_and_send_email(**context):
         html_content=f'<p>{body}</p>',
         conn_id='smtp_default'
     )
+    
     return email_operator.execute(context)
 
 
@@ -51,4 +55,15 @@ print_message_task = PythonOperator(
     dag=dag,
 )
 
-print_message_task
+update_status_task = PostgresOperator(
+    task_id='update_status',
+    postgres_conn_id='biobd',  # Asegúrate de que esta conexión esté configurada en Airflow
+    sql="""
+        UPDATE public.notifications
+        SET status = 'ok'
+        WHERE id = '{{ ti.xcom_pull(task_ids="print_message", key="message_id") }}';
+    """,
+    dag=dag,
+)
+
+print_message_task >> update_status_task
