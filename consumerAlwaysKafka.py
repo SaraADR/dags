@@ -8,6 +8,7 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta
 
 def consumer_function(message, prefix, **kwargs):
+    ti = kwargs['task_instance']
     if message is not None:
         msg_value = message.value().decode('utf-8')
         print(f"message2: {msg_value}")
@@ -15,6 +16,7 @@ def consumer_function(message, prefix, **kwargs):
             try:
                 msg_json = json.loads(msg_value)
                 if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
+                    ti.xcom_push(key='message', value=msg_json)
                     return msg_json  # Returning msg_json to be pushed to XCom
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
