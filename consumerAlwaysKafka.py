@@ -62,7 +62,7 @@ def listen_to_the_stream():
         topics=['test1'],
         apply_function="listen_to_the_stream.listen_function", 
         poll_interval=5,
-        poll_timeaut=1,
+        poll_timeout=1,
         apply_function_kwargs={},
         event_triggered_function=trigger_sendmessage3_dag,
 )
