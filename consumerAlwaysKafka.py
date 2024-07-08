@@ -17,6 +17,9 @@ default_args = {
 }
 
 def consumer_function(message, prefix, **kwargs):
+
+    if message == None :
+        return
     msg_value = message.value().decode('utf-8')
     msg_json = json.loads(msg_value)
     if msg_json.get('destination') == 'email':
