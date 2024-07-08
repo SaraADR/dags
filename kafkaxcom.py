@@ -4,8 +4,6 @@ import requests
 from pendulum import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.providers.apache.kafka.operators.consume import KafkaConsumerOperator
 
 def get_a_cat_fact(ti):
     """
