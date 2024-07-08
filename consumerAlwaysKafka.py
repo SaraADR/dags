@@ -5,7 +5,7 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 
 def consumer_function(message, prefix, **kwargs):
@@ -34,9 +34,9 @@ def trigger_email_handler(**kwargs):
             trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
                 trigger_dag_id='recivekafka',
-                conf={'message': value_pulled},  # Adjust conf as per your requirement
-                execution_date=datetime.now(),
-                dag=dag
+                conf={'message': value_pulled}, 
+                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                dag=dag,
             )
             trigger.execute(context=kwargs)
         except json.JSONDecodeError as e:
