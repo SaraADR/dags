@@ -1,36 +1,40 @@
 import json
+import uuid
 from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.api.common.experimental.trigger_dag import trigger_dag
+from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageTriggerFunctionSensor
 from datetime import datetime, timedelta
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.decorators import dag
 
+def listen_function(message):
 
-def handle_message(message, **kwargs):
-    ti = kwargs.get('ti')  # Obtener 'ti' desde kwargs
-
-    if not message:
-        return None
-
-    try:
-        msg_dict = json.loads(message.value())
-    except json.JSONDecodeError:
-        return None
+    msg_dict = json.loads(message.value())
+    print(f"Full message: {msg_dict}")
 
     if msg_dict.get('destination') == 'email':
-        if ti is not None:
-            ti.xcom_push(key='message', value=msg_dict)  # Usar ti para push a XCom
-        else:
-            raise ValueError("Task Instance (ti) is None. Cannot push message to XCom.")
-
         return msg_dict
+    
 
-    return None
 
-def trigger_sendmessage3_dag(**kwargs):
-    message = kwargs['ti'].xcom_pull(task_ids='consume_from_kafka', key='message')
-    if message:
-        trigger_dag(dag_id='sendmessage3', run_id=None, conf=message)
+def trigger_sendmessage3_dag(message, **context):
+    tipo = message[0]
+    print(f" message: {message}")
+    print(f" tipo: {tipo}")
+
+    TriggerDagRunOperator(
+        trigger_dag_id="enviarfichero",
+        task_id=f"triggered_downstram_dag_{uuid.uuid4()}",
+        wait_for_completion=True,
+        conf={
+            "tipo": tipo
+        },
+        poke_interval=20,
+
+    ).execute(context)
+
+    #message = kwargs['ti'].xcom_pull(task_ids='consume_from_kafka', key='message')
+   # if tipo:
+    #    trigger_dag(dag_id='sendmessage3', run_id=None, conf=message)
 
 default_args = {
     'owner': 'airflow',
@@ -42,28 +46,25 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-dag = DAG(
+@dag(
     'kafka_listener_dag',
     default_args=default_args,
     description='DAG that listens to Kafka and triggers other DAGs',
-    schedule_interval='*/5 * * * *',
+    schedule_interval='@continuous',
     catchup=False,
+    render_template_as_native_obj=True,
+)
+def listen_to_the_stream():
+    listen_for_message = AwaitMessageTriggerFunctionSensor(
+        task_id='consume_from_kafka',
+        kafka_config_id="kafka_connection",
+        topics=['test1'],
+        apply_function="listen_to_the_stream.listen_function", 
+        poll_interval=5,
+        poll_timeaut=1,
+        apply_function_kwargs={},
+        event_triggered_function=trigger_sendmessage3_dag,
 )
 
-consume_task = ConsumeFromTopicOperator(
-    task_id='consume_from_kafka',
-    kafka_config_id="kafka_connection",
-    topics=['test1'],
-    apply_function=handle_message,  # Referencia directa a la función definida en el mismo archivo
-    dag=dag,
-    provide_context=True
-)
 
-trigger_dag_task = PythonOperator(
-    task_id='trigger_sendmessage3_dag',
-    provide_context=True,
-    python_callable=trigger_sendmessage3_dag,
-    dag=dag,
-)
-
-consume_task >> trigger_dag_task
+listen_to_the_stream()
