@@ -18,13 +18,15 @@ default_args = {
 
 def consumer_function(message, prefix, **kwargs):
 
-    if message == None :
-        return
-    msg_value = message.value().decode('utf-8')
-    msg_json = json.loads(msg_value)
-    if msg_json.get('destination') == 'email':
-        ti = kwargs['ti']
-        ti.xcom_push(key='email_message', value=msg_json)
+    if message != None :
+        
+        msg_value = message.value().decode('utf-8')
+        msg_json = json.loads(msg_value)
+        if msg_json.get('destination') == 'email':
+            ti = kwargs['ti']
+            ti.xcom_push(key='email_message', value=msg_json)
+    else:
+        return None
 
 def trigger_email_handler_dag(**kwargs):
     message = kwargs['ti'].xcom_pull(task_ids='consume_from_topic', key='email_message')
