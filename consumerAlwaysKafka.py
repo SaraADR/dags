@@ -25,7 +25,7 @@ def consumer_function(message, prefix, **kwargs):
     return None  # Returning None if message is empty or not valid
 
 def decide_which_path(dato, **kwargs):
-    ti = kwargs['task_instance']
+    ti = kwargs.get('ti')
     msg_json = ti.xcom_push(key='message', value=dato)
     print(f"Que trae: {msg_json}")
     if msg_json:
