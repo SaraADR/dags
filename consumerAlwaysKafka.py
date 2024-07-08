@@ -1,11 +1,34 @@
-from datetime import datetime, timedelta
 import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from datetime import datetime, timedelta
 
-# Configuración del DAG
+def consumer_function(message, prefix, **kwargs):
+    if message is not None:
+        msg_value = message.value().decode('utf-8')
+        if msg_value:
+            try:
+                msg_json = json.loads(msg_value)
+                if msg_json.get('destination') == 'email':
+                    ti = kwargs['ti']
+                    ti.xcom_push(key='email_message', value=msg_json)
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON: {e}")
+        else:
+            print("Empty message received")
+
+def trigger_email_handler_dag(**kwargs):
+    message = kwargs['ti'].xcom_pull(task_ids='consume_from_topic', key='email_message')
+    if message:
+        trigger_dag_run = TriggerDagRunOperator(
+            task_id='trigger_email_handler',
+            trigger_dag_id='email_handler_dag',
+            conf=message
+        )
+        trigger_dag_run.execute(context=kwargs)
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -15,28 +38,6 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
 }
-
-def consumer_function(message, prefix, **kwargs):
-
-    if message != None :
-        
-        msg_value = message.value().decode('utf-8')
-        msg_json = json.loads(msg_value)
-        if msg_json.get('destination') == 'email':
-            ti = kwargs['ti']
-            ti.xcom_push(key='email_message', value=msg_json)
-    else:
-        return None
-
-def trigger_email_handler_dag(**kwargs):
-    message = kwargs['ti'].xcom_pull(task_ids='consume_from_topic', key='email_message')
-    if message:
-        trigger_dag_run = TriggerDagRunOperator(
-            task_id='trigger_email_handler',
-            trigger_dag_id='sendmessage3',
-            conf=message
-        )
-        trigger_dag_run.execute(context=kwargs)
 
 dag = DAG(
     'kafka_consumer_trigger_dag',
