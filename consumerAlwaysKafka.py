@@ -53,6 +53,7 @@ default_args = {
     schedule_interval='@continuous',
     catchup=False,
     render_template_as_native_obj=True,
+    max_active_runs=1,
 )
 def listen_to_the_stream():
     listen_for_message = AwaitMessageTriggerFunctionSensor(
