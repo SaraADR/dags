@@ -16,7 +16,7 @@ def consumer_function(message, prefix, **kwargs):
             try:
                 msg_json = json.loads(msg_value)
                 if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
-                    Variable.set("my_variable_key", message)
+                    Variable.set("my_variable_key", msg_json)
                     return msg_json  # Returning msg_json to be pushed to XCom
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
@@ -29,15 +29,23 @@ def trigger_email_handler(**kwargs):
     value_pulled = Variable.get("my_variable_key")
     print(f"messageTRAS TRIGg: {value_pulled}")
     if value_pulled is not None:
-        msg_json = json.loads(value_pulled.value().decode('utf-8'))
-        if msg_json:
+        try:
+            msg_json = json.loads(value_pulled)
+            print(f"Decoded JSON: {msg_json}")
             trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
                 trigger_dag_id='recivekafka',
-                conf=msg_json,
+                conf={'message': msg_json},  # Adjust conf as per your requirement
+                execution_date=datetime.now(),
+                dag=dag
             )
             trigger.execute(context=kwargs)
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+    else:
+        print("No message pulled from XCom")
 
+        
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
