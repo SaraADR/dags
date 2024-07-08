@@ -1,3 +1,4 @@
+from datetime import timedelta
 import json
 from pendulum import datetime, duration
 import requests
@@ -21,13 +22,23 @@ def analyze_cat_facts(ti):
     print("Cat fact for today:", cat_fact)
     # run some analysis here
 
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2024, 7, 8),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
+
 
 with DAG(
     "xcom_dag",
+    default_args=default_args,
     start_date=datetime(2024, 7, 8),
     max_active_runs=1,
     schedule=duration(minutes=1),
-    default_args={"retries": 1, "retry_delay": duration(minutes=1)},
     catchup=False,
 ) as dag:
     get_cat_data = PythonOperator(
