@@ -20,14 +20,14 @@ def consumer_function(message, prefix, **kwargs):
             print("Empty message received")
     return "{'destination' : 'none'}"
 
-def trigger_email_handler_dag_run(conf, **kwargs):
-    if json.loads(conf).get('destination') == 'none':
-        print(f"No se envia correo por estar vacio: {conf}")
+def trigger_email_handler_dag_run(messag, **kwargs):
+    if json.loads(messag).get('destination') == 'none':
+        print(f"No se envia correo por estar vacio: {messag}")
         return None
     trigger_dag_run = TriggerDagRunOperator(
         task_id='trigger_email_handler',
         trigger_dag_id='recivekafka',
-        conf=conf,
+        conf=messag,
         dag=kwargs['dag']
     )
     trigger_dag_run.execute(context=kwargs)
