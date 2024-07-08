@@ -16,7 +16,7 @@ def consumer_function(message, prefix, **kwargs):
                 if msg_json.get('destination') == 'email':
                     trigger_dag_run = TriggerDagRunOperator(
                     task_id='trigger_email_handler',
-                    trigger_dag_id='email_handler_dag',
+                    trigger_dag_id='xcomdag',
                     conf=msg_json
                     )
                     trigger_dag_run.execute(context=kwargs)
