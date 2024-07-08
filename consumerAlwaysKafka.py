@@ -27,6 +27,7 @@ def consumer_function(message, prefix, **kwargs):
 
 def trigger_email_handler(**kwargs):
     value_pulled = Variable.get("my_variable_key")
+    print(f"messageTRAS TRIGg: {value_pulled}")
     if value_pulled is not None:
         msg_json = json.loads(value_pulled.value().decode('utf-8'))
         if msg_json:
