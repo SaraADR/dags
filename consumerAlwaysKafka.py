@@ -29,6 +29,7 @@ def consumer_function(message, prefix, **kwargs):
 
 def trigger_email_handler(**kwargs):
     value_pulled = Variable.get("my_variable_key")
+    Variable.delete("my_variable_key")
     print(f"messageTRAS TRIGg: {value_pulled}")
 
     if value_pulled is not None:
