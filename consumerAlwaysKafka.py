@@ -14,8 +14,12 @@ def consumer_function(message, prefix, **kwargs):
             try:
                 msg_json = json.loads(msg_value)
                 if msg_json.get('destination') == 'email':
-                    ti = kwargs['ti']
-                    ti.xcom_push(key='email_message', value=msg_json)
+                    trigger_dag_run = TriggerDagRunOperator(
+                    task_id='trigger_email_handler',
+                    trigger_dag_id='email_handler_dag',
+                    conf=msg_json
+                    )
+                    trigger_dag_run.execute(context=kwargs)
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
         else:
