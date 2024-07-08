@@ -37,9 +37,8 @@ with DAG(
     "xcomdag",
     description="arg",
     default_args=default_args,
-    start_date=datetime(2024, 7, 8),
     max_active_runs=1,
-    schedule=duration(minutes=1),
+    schedule_interval=None,
     catchup=False,
 
 ) as dag:
