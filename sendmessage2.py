@@ -3,6 +3,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 from airflow.operators.email import EmailOperator
+import json
 
 default_args = {
     'owner': 'airflow',
@@ -17,8 +18,9 @@ default_args = {
 def print_message_and_send_email(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
+    msg_json = json.loads(message)
 
-    data = message.get('data', {})
+    data = msg_json.get('data', {})
     to = data.get('to', 'default@example.com')
     subject = data.get('subject', 'No Subject')
     body = data.get('body', 'No Body')
