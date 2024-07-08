@@ -62,7 +62,7 @@ def listen_to_the_stream():
         task_id='consume_from_kafka',
         kafka_config_id="kafka_connection",
         topics=['test1'],
-        apply_function=listen_function, 
+        apply_function="consumeralwayskafka.listen_function", 
         poll_interval=5,
         poll_timeout=1,
         apply_function_kwargs={},
