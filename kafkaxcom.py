@@ -22,7 +22,7 @@ def consume_messages():
     
     conf = {
         'bootstrap.servers': f'{kafka_conn.host}:{kafka_conn.port}',
-        'group.id': 'my_group',
+        'group.id': '1',
         'auto.offset.reset': 'earliest',
         'security.protocol': 'PLAINTEXT'
     }
