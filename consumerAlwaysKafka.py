@@ -16,8 +16,8 @@ def consumer_function(message, prefix, **kwargs):
                 if msg_json.get('destination') == 'email':
                     trigger_dag_run = TriggerDagRunOperator(
                     task_id='trigger_email_handler',
-                    trigger_dag_id='xcomdag',
-                    conf=msg_json
+                    trigger_dag_id='recivekafka',
+                    conf=msg_json                   
                     )
                     trigger_dag_run.execute(context=kwargs)
             except json.JSONDecodeError as e:
@@ -25,15 +25,7 @@ def consumer_function(message, prefix, **kwargs):
         else:
             print("Empty message received")
 
-def trigger_email_handler_dag(**kwargs):
-    message = kwargs['ti'].xcom_pull(task_ids='consume_from_topic', key='email_message')
-    if message:
-        trigger_dag_run = TriggerDagRunOperator(
-            task_id='trigger_email_handler',
-            trigger_dag_id='email_handler_dag',
-            conf=message
-        )
-        trigger_dag_run.execute(context=kwargs)
+
 
 default_args = {
     'owner': 'airflow',
@@ -65,11 +57,6 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-trigger_email_handler = PythonOperator(
-    task_id='trigger_email_handler',
-    python_callable=trigger_email_handler_dag,
-    provide_context=True,
-    dag=dag,
-)
 
-consume_from_topic >> trigger_email_handler
+
+consume_from_topic 
