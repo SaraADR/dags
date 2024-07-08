@@ -28,7 +28,7 @@ def consumer_function(message, prefix, **kwargs):
 def trigger_email_handler(**kwargs):
     value_pulled = Variable.get("my_variable_key")
     if value_pulled is not None:
-        msg_json =  msg_json = json.loads(value_pulled.value().decode('utf-8'))
+        msg_json = json.loads(value_pulled.value().decode('utf-8'))
         if msg_json:
             trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
@@ -62,7 +62,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
-    max_messages=10,
+    max_messages=1,
     max_batch_size=2,
     dag=dag,
 )
