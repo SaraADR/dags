@@ -30,12 +30,11 @@ def trigger_email_handler(**kwargs):
     print(f"messageTRAS TRIGg: {value_pulled}")
     if value_pulled is not None:
         try:
-            msg_json = json.loads(value_pulled)
-            print(f"Decoded JSON: {msg_json}")
+
             trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
                 trigger_dag_id='recivekafka',
-                conf={'message': msg_json},  # Adjust conf as per your requirement
+                conf={'message': value_pulled},  # Adjust conf as per your requirement
                 execution_date=datetime.now(),
                 dag=dag
             )
@@ -45,7 +44,7 @@ def trigger_email_handler(**kwargs):
     else:
         print("No message pulled from XCom")
 
-        
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
