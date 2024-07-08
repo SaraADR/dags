@@ -2,7 +2,7 @@ import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from datetime import datetime, timedelta
 
 def consumer_function(message, prefix, **kwargs):
@@ -12,19 +12,22 @@ def consumer_function(message, prefix, **kwargs):
         if msg_value:
             try:
                 msg_json = json.loads(msg_value)
-                if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
-                    trigger_dag_run = TriggerDagRunOperator(
-                    task_id='trigger_email_handler',
-                    trigger_dag_id='recivekafka',
-                    conf=msg_json                   
-                    )
-                    trigger_dag_run.execute(context=kwargs)
+                if msg_json.get('destination') == 'email':
+                    return msg_json
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
         else:
             print("Empty message received")
+    return None
 
-
+def trigger_email_handler_dag_run(conf, **kwargs):
+    trigger_dag_run = TriggerDagRunOperator(
+        task_id='trigger_email_handler',
+        trigger_dag_id='recivekafka',
+        conf=conf,
+        dag=kwargs['dag']
+    )
+    trigger_dag_run.execute(context=kwargs)
 
 default_args = {
     'owner': 'airflow',
@@ -56,4 +59,12 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-consume_from_topic 
+trigger_email_handler = PythonOperator(
+    task_id='trigger_email_handler',
+    python_callable=trigger_email_handler_dag_run,
+    provide_context=True,
+    op_args=["{{ task_instance.xcom_pull(task_ids='consume_from_topic') }}"],
+    dag=dag,
+)
+
+consume_from_topic >> trigger_email_handler
