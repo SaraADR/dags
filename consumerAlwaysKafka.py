@@ -6,6 +6,7 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta
 
 def consumer_function(message, prefix, **kwargs):
+    print(f"message: {message}")
     if message is not None:
         msg_value = message.value().decode('utf-8')
         if msg_value:
