@@ -9,7 +9,7 @@ def consumer_function(message, prefix, **kwargs):
     print(f"message: {message}")
     if message is not None:
         msg_value = message.value().decode('utf-8')
-        print(f"message: {msg_value}")
+        print(f"message2: {msg_value}")
         if msg_value:
             try:
                 msg_json = json.loads(msg_value)
