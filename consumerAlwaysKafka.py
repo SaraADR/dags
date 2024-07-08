@@ -7,29 +7,31 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.decorators import dag
 
 def listen_function(message):
-
     msg_dict = json.loads(message.value())
     print(f"Full message: {msg_dict}")
-
     if msg_dict.get('destination') == 'email':
         return msg_dict
+    elif msg_dict.get('destination') == 'telegram':
+        return msg_dict
+    return None
     
 
 
 def trigger_sendmessage3_dag(message, **context):
-    tipo = message[0]
+    if not message:
+        print("No valid message received.")
+        return
+    
+    tipo = message.get('destination')
     print(f" message: {message}")
     print(f" tipo: {tipo}")
 
     TriggerDagRunOperator(
-        trigger_dag_id="enviarfichero",
         task_id=f"triggered_downstram_dag_{uuid.uuid4()}",
+        trigger_dag_id="enviarfichero" if tipo == "email" else "another_dag_for_telegram",
         wait_for_completion=True,
-        conf={
-            "tipo": tipo
-        },
+        conf={"tipo": tipo},
         poke_interval=20,
-
     ).execute(context)
 
     #message = kwargs['ti'].xcom_pull(task_ids='consume_from_kafka', key='message')
@@ -60,7 +62,7 @@ def listen_to_the_stream():
         task_id='consume_from_kafka',
         kafka_config_id="kafka_connection",
         topics=['test1'],
-        apply_function="listen_to_the_stream.listen_function", 
+        apply_function="listen_function", 
         poll_interval=5,
         poll_timeout=1,
         apply_function_kwargs={},
