@@ -7,6 +7,7 @@ from airflow.operators.python import BranchPythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
+from airflow.exceptions import AirflowSkipException
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
@@ -28,8 +29,12 @@ def consumer_function(message, prefix, **kwargs):
         Variable.set("my_variable_key", None)        
 
 def trigger_email_handler(**kwargs):
-    value_pulled = Variable.get("my_variable_key")
-    print(f"messageTRAS TRIGg: {value_pulled}")
+    try:
+        value_pulled = Variable.get("my_variable_key")
+    except KeyError:
+        print("Variable my_variable_key does not exist")
+        raise AirflowSkipException("Variable my_variable_key does not exist")
+    
 
     if value_pulled is not None and value_pulled != 'null':
         try:
