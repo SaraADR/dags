@@ -22,9 +22,6 @@ def analyze_cat_facts(ti):
     cat_fact = ti.xcom_pull(key="cat_fact", task_ids="get_a_cat_fact")
     print("Cat fact for today:", cat_fact)
 
-    message_resp = ti.xcom_pull(key="message_resp", task_ids="consume_from_kafka")
-    print("Messages received from Kafka:", message_resp)
-
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -49,21 +46,10 @@ with DAG(
         python_callable=get_a_cat_fact,
     )
 
-    consume_kafka_data = KafkaConsumerOperator(
-        task_id="consume_from_kafka",
-        topics=["topic1"],  # Reemplaza 'your_topic' con el nombre de tu topic
-        kafka_config={
-            "bootstrap.servers": "10.96.117.39:9092",  # Reemplaza con la dirección de tu servidor Kafka
-            "group.id": "1",  # Reemplaza 'my-group' con el ID de tu grupo de consumidores
-            "auto.offset.reset": "earliest",
-        },
-        max_messages=10,
-        xcom_push_key="message_resp",
-    )
 
     analyze_cat_data = PythonOperator(
         task_id="analyze_data",
         python_callable=analyze_cat_facts,
     )
 
-    get_cat_data >> consume_kafka_data >> analyze_cat_data
+    get_cat_data >> analyze_cat_data
