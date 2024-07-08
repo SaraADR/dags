@@ -29,10 +29,9 @@ def consumer_function(message, prefix, **kwargs):
 
 def trigger_email_handler(**kwargs):
     value_pulled = Variable.get("my_variable_key")
-    Variable.delete("my_variable_key")
     print(f"messageTRAS TRIGg: {value_pulled}")
 
-    if value_pulled is not None:
+    if value_pulled is not None and value_pulled != 'null':
         try:
 
             trigger = TriggerDagRunOperator(
@@ -43,10 +42,12 @@ def trigger_email_handler(**kwargs):
                 dag=dag,
             )
             trigger.execute(context=kwargs)
+            Variable.delete("my_variable_key")
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:
         print("No message pulled from XCom")
+        Variable.delete("my_variable_key")
 
 
 default_args = {
