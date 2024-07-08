@@ -26,6 +26,10 @@ def consumer_function(message, ti):
             return True
     return False
 
+def wrapped_consumer_function(message, **kwargs):
+    ti = kwargs['ti']
+    return consumer_function(message, ti)
+
 def analyze_cat_facts(ti):
     """
     Prints the cat fact
@@ -33,8 +37,8 @@ def analyze_cat_facts(ti):
     cat_fact = ti.xcom_pull(key="cat_fact", task_ids="get_a_cat_fact")
     print("Cat fact for today:", cat_fact)
 
-    message_fact = ti.xcom_pull(key="message_resp", task_ids="consumer_function")
-    print("Cat fact for today:", cat_fact)
+    message_fact = ti.xcom_pull(key="message_resp", task_ids="consume_from_topic")
+    print("Message fact:", message_fact)
     # run some analysis here
 
 default_args = {
@@ -47,7 +51,6 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-
 with DAG(
     "xcomdag",
     description="arg",
@@ -55,27 +58,26 @@ with DAG(
     max_active_runs=1,
     schedule_interval=None,
     catchup=False,
-
 ) as dag:
     
     get_cat_data = PythonOperator(
-        task_id="get_a_cat_fact", python_callable=get_a_cat_fact
+        task_id="get_a_cat_fact", 
+        python_callable=get_a_cat_fact
     )
 
     consume_task = ConsumeFromTopicOperator(
         task_id="consume_from_topic",
         topics=["test1"],
-        apply_function=consumer_function,
-        #apply_function_kwargs={"prefix": "consumed:::"},
+        apply_function=wrapped_consumer_function,
         kafka_config_id="kafka_connection",
         commit_cadence="end_of_batch",
         max_messages=10,
         max_batch_size=2,
     )
 
-
     analyze_cat_data = PythonOperator(
-        task_id="analyze_data", python_callable=analyze_cat_facts
+        task_id="analyze_data", 
+        python_callable=analyze_cat_facts
     )
 
     get_cat_data >> consume_task >> analyze_cat_data
