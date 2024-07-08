@@ -5,7 +5,7 @@ from pendulum import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from kafka import KafkaConsumer
+from airflow.providers.apache.kafka.operators.consume import KafkaConsumerOperator
 
 def get_a_cat_fact(ti):
     """
@@ -14,27 +14,6 @@ def get_a_cat_fact(ti):
     url = "http://catfact.ninja/fact"
     res = requests.get(url)
     ti.xcom_push(key="cat_fact", value=json.loads(res.text)["fact"])
-
-def consume_from_kafka(ti):
-    """
-    Consumes messages from a Kafka topic and pushes them to XCom
-    """
-    consumer = KafkaConsumer(
-        'topic1',  # Reemplaza 'your_topic' con el nombre de tu topic
-        bootstrap_servers=['10.96.117.39:9092'],  # Reemplaza con la dirección de tu servidor Kafka
-        auto_offset_reset='earliest',
-        enable_auto_commit=True,
-        group_id='1',  # Reemplaza 'my-group' con el ID de tu grupo de consumidores
-        value_deserializer=lambda x: json.loads(x.decode('utf-8'))
-    )
-    
-    messages = []
-    for message in consumer:
-        messages.append(message.value)
-        if len(messages) >= 10:  # Leemos 10 mensajes como ejemplo. Ajusta según tus necesidades
-            break
-
-    ti.xcom_push(key="message_resp", value=messages)
 
 def analyze_cat_facts(ti):
     """
@@ -70,9 +49,16 @@ with DAG(
         python_callable=get_a_cat_fact,
     )
 
-    consume_kafka_data = PythonOperator(
+    consume_kafka_data = KafkaConsumerOperator(
         task_id="consume_from_kafka",
-        python_callable=consume_from_kafka,
+        topics=["topic1"],  # Reemplaza 'your_topic' con el nombre de tu topic
+        kafka_config={
+            "bootstrap.servers": "10.96.117.39:9092",  # Reemplaza con la dirección de tu servidor Kafka
+            "group.id": "1",  # Reemplaza 'my-group' con el ID de tu grupo de consumidores
+            "auto.offset.reset": "earliest",
+        },
+        max_messages=10,
+        xcom_push_key="message_resp",
     )
 
     analyze_cat_data = PythonOperator(
