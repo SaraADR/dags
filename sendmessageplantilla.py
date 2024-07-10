@@ -28,9 +28,12 @@ def render_template(message_dict):
 
     data = json.loads(message_dict.get('data', '{}'))
 
-    print(f"Received message: {TEMPLATE_PATH}")
+    print(f"Template Path: {TEMPLATE_PATH}")
+    print(f"Logo path: {LOGO_PATH}")
 
-    with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html') as file_:
+    # with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html') as file_:
+    #     template = Template(file_.read())
+    with open(TEMPLATE_PATH, 'r') as file_:
         template = Template(file_.read())
 
     context = {
