@@ -32,10 +32,10 @@ def render_template(message_dict):
     
     # Listar el contenido del directorio actual
     print("Content of current directory:")
-    print(os.listdir(current_dir))
+    print(os.listdir(current_dir + '/dags'))
     
     # Verificar y listar el contenido del directorio de recursos
-    recursos_dir = os.path.join(current_dir, 'repo', 'recursos')
+    recursos_dir = os.path.join(current_dir, 'dags','repo', 'recursos')
     print(f"Content of recursos directory ({recursos_dir}):")
     if os.path.exists(recursos_dir):
         print(os.listdir(recursos_dir))
@@ -43,6 +43,7 @@ def render_template(message_dict):
         print(f"Directory {recursos_dir} does not exist.")
 
     # Verificar si los archivos existen
+    print(f"TEMPLATE_PATH: {DAGS_FOLDER}, exists: {os.path.exists(DAGS_FOLDER)}")
     print(f"TEMPLATE_PATH: {TEMPLATE_PATH}, exists: {os.path.exists(TEMPLATE_PATH)}")
     print(f"LOGO_PATH: {LOGO_PATH}, exists: {os.path.exists(LOGO_PATH)}")
 
