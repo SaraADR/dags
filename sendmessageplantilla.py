@@ -10,8 +10,9 @@ import os
 from jinja2 import Template
 
 DAGS_FOLDER = os.path.dirname(os.path.realpath(__file__))
-TEMPLATE_PATH = os.path.join(DAGS_FOLDER, 'recursos', 'plantillacorreo.html')
-LOGO_PATH = os.path.join(DAGS_FOLDER, 'recursos', 'dummy.jpg')
+TEMPLATE_PATH = os.path.join(DAGS_FOLDER, 'repo', 'recursos', 'plantillacorreo.html')
+LOGO_PATH = os.path.join(DAGS_FOLDER, 'repo', 'recursos', 'dummy.jpg')
+
 
 
 default_args = {
@@ -33,7 +34,7 @@ def render_template(message_dict):
 
     # with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html') as file_:
     #     template = Template(file_.read())
-    with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html', 'r') as file_:
+    with open("/opt/airflow/dags/repo/recursos/plantillacorreo.html", 'r') as file_:
         template = Template(file_.read())
 
     context = {
