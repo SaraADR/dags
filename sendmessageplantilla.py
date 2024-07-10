@@ -24,13 +24,9 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-def render_template(**context):
-    message = context['dag_run'].conf
-    print(f"Received message: {message}")
-    
-    message_dict = ast.literal_eval(message['message'])
+def render_template(message_dict):
+
     data = json.loads(message_dict.get('data', '{}'))
-    
     
     with open(TEMPLATE_PATH) as file_:
         template = Template(file_.read())
@@ -46,9 +42,14 @@ def render_template(**context):
 
 def print_message_and_send_email(**context):
 
-    email_body = render_template()
     message = context['dag_run'].conf
+    print(f"Received message: {message}")
+
+    
+
     message_dict = ast.literal_eval(message['message'])
+    email_body = render_template(message_dict)
+
 
     context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
     data = json.loads(message_dict.get('data', '{}'))  # Decodificar el campo 'data'
