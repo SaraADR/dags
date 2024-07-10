@@ -10,6 +10,7 @@ import os
 from jinja2 import Template
 
 PLANTILLA_1 = './dags/repo/recursos/plantillacorreo.html'
+LOGO = './dags/repo/recursos/dummy.jpg'
 
 
 default_args = {
@@ -65,7 +66,7 @@ def print_message_and_send_email(**context):
         html_content=f'<p>{email_body}</p>',
         conn_id='smtp_default',
         mime_subtype='related',
-        files=LOGO_PATH
+        files=LOGO
     )
     
     return email_operator.execute(context)
