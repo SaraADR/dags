@@ -3,17 +3,25 @@
 <html>
 <head>
     <style>
-        /* Incluye tu CSS aquí */
+         .container {
+            text-shadow: 10px 10px 10px #000000;
+            background: linear-gradient(to right, #00000088, #ffffff1d);
+            color: rgb(198, 198, 198);
+            padding-bottom: 10px;
+            padding-left: 5px;
+        }
     </style>
 </head>
-<body>
-    <img src="cid:dummy" alt="Logo de la empresa" style="width:100px;height:auto;">
-    <p>Hola {{ nombre }},</p>
-    <p>Este es un ejemplo de correo enviado desde Airflow.</p>
-    <p>Detalles:</p>
-    <ul>
-        <li>Dato 1: {{ dato1 }}</li>
-        <li>Dato 2: {{ dato2 }}</li>
-    </ul>
+<body >
+    <div class="container">
+        <p>Hola {{ nombre }},</p>
+        <p>Este es un ejemplo de correo enviado desde Airflow.</p>
+        <p>Detalles:</p>
+        <ul>
+            <li>Dato 1: {{ dato1 }}</li>
+            <li>Dato 2: {{ dato2 }}</li>
+        </ul>
+    </div>
+    <!-- <img src="cid:dummy" alt="Logo de la empresa" style="width:100px;height:auto;"> -->
 </body>
 </html>

@@ -35,7 +35,10 @@ def render_template(message_dict):
     # with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html') as file_:
     #     template = Template(file_.read())
 
-    with open("/opt/airflow/dags/repo/recursos/plantillacorreo.html", "r") as file:
+    t = Template('Hello, {{ name }}!')
+    print(t.render(name='John Doe'))
+
+    with open("./recursos/plantillacorreo.html", "r") as file:
         template_str = file.read()
     jinja_template = Template(template_str)
 
