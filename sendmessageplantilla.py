@@ -34,7 +34,11 @@ def render_template(message_dict):
 
     # with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html') as file_:
     #     template = Template(file_.read())
-    with open(TEMPLATE_PATH, 'r') as file_:
+
+    f = open("/opt/airflow/dags/repo/recursos/plantillacorreo.html", "r")
+    print(f.read())
+    
+    with open("/opt/airflow/dags/repo/recursos/plantillacorreo.html", 'r') as file_:
         template = Template(file_.read())
 
     context = {
