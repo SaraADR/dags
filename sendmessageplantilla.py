@@ -6,6 +6,12 @@ from airflow.operators.email import EmailOperator
 import json
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 import ast
+import os
+from jinja2 import Template
+
+DAGS_FOLDER = os.path.dirname(os.path.realpath(__file__))
+TEMPLATE_PATH = os.path.join(DAGS_FOLDER, 'recursos', 'plantillacorreo.html')
+LOGO_PATH = os.path.join(DAGS_FOLDER, 'recursos', 'dummy.jpg')
 
 
 default_args = {
@@ -18,11 +24,30 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-def print_message_and_send_email(**context):
+def render_template(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
-   
+    
+    message_dict = ast.literal_eval(message['message'])
+    data = json.loads(message_dict.get('data', '{}'))
+    
+    
+    with open(TEMPLATE_PATH) as file_:
+        template = Template(file_.read())
 
+    context = {
+        'nombre': data.get('to', 'default@example.com'),
+        'dato1': data.get('subject', 'No Subject'),
+        'dato2': data.get('subject', 'No Subject')
+    }
+    return template.render(context)
+
+
+
+def print_message_and_send_email(**context):
+
+    email_body = render_template()
+    message = context['dag_run'].conf
     message_dict = ast.literal_eval(message['message'])
 
     context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
@@ -38,15 +63,17 @@ def print_message_and_send_email(**context):
         task_id='send_email_task',
         to=to,
         subject=subject,
-        html_content=f'<p>{body}</p>',
-        conn_id='smtp_default'
+        html_content=f'<p>{email_body}</p>',
+        conn_id='smtp_default',
+        mime_subtype='related',
+        files=LOGO_PATH
     )
     
     return email_operator.execute(context)
 
 
 dag = DAG(
-    'send_email',
+    'send_email_wplantilla',
     default_args=default_args,
     description='DAG que imprime el mensaje recibido a través de XCom',
     schedule_interval=None,
