@@ -34,7 +34,7 @@ def render_template(message_dict):
     email_data = {
         'nombre': data.get('to', 'default@example.com'),
         'dato1':  data.get('subject', 'No Subject'),
-        'dato2':  data.get('subject', 'No Subject')
+        'dato2':  data.get('subject', 'No Subject'),
     }
 
     email_content = jinja_template.render(email_data)
@@ -56,6 +56,7 @@ def print_message_and_send_email(**context):
     context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
     data = json.loads(message_dict.get('data', '{}'))  
     print(f"Received message: {data}")
+
     to = data.get('to', 'default@example.com')
     subject = data.get('subject', 'No Subject')
 
@@ -63,9 +64,10 @@ def print_message_and_send_email(**context):
         task_id='send_email_task',
         to=to,
         subject=subject,
-        html_content=f'<p>{email_body}</p>',
+        html_content=email_body,
         conn_id='smtp_default',
         mime_subtype='related',
+        files=[LOGO]
     )
     
     return email_operator.execute(context)
