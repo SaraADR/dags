@@ -12,7 +12,8 @@ import ast
 import os
 from jinja2 import Template
 
-PLANTILLA_1 = './dags/repo/recursos/plantillacorreo.html'
+PLANTILLA_1 = './dags/repo/recursos/plantillaid1.html'
+PLANTILLA_2 = './dags/repo/recursos/plantillaid2.html'
 LOGO = './dags/repo/recursos/dummy.jpg'
 
 
@@ -29,19 +30,32 @@ default_args = {
 def render_template(message_dict):
 
     data = json.loads(message_dict.get('data', '{}'))
+    templateId = data.get('templateId', '1')
+    email_data = {}
 
-    with open(PLANTILLA_1) as file:
-        template_str = file.read()
-    jinja_template = Template(template_str)
+# Añadir aqui todas las posibilidades de plantillas. Si no hay ninguna plantilla se usará por defecto la 1
+    if templateId == '1':
+            with open(PLANTILLA_1) as file:
+                template_str = file.read()
+                jinja_template = Template(template_str)
+            email_data = {
+                'nombre': data.get('to', 'default@example.com'),
+                'dato1':  data.get('subject', 'No Subject'),
+                'dato2':  data.get('subject', 'No Subject'),
+            }
 
-    email_data = {
-        'nombre': data.get('to', 'default@example.com'),
-        'dato1':  data.get('subject', 'No Subject'),
-        'dato2':  data.get('subject', 'No Subject'),
-    }
+
+    if templateId == '2':
+            with open(PLANTILLA_1) as file:
+                template_str = file.read()
+                jinja_template = Template(template_str)
+            email_data = {
+                'nombre': data.get('to', 'default@example.com'),
+                'dato1':  data.get('DATO', 'DATO'),
+                'dato2':  data.get('templateId', 'No Subject'),
+            }
 
     email_content = jinja_template.render(email_data)
-
     return email_content
 
 
@@ -53,10 +67,11 @@ def print_message_and_send_email(**context):
 
     message_dict = ast.literal_eval(message['message'])
     email_body = render_template(message_dict)
-    print(email_body)
 
-
+#Guardamos el id para poder hacer la modificación posterior en la base de datos
     context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
+
+#Extraemos el campo data
     data = json.loads(message_dict.get('data', '{}'))  
     print(f"Received message: {data}")
 
@@ -64,7 +79,7 @@ def print_message_and_send_email(**context):
     to = data.get('to', 'default@example.com')
     subject = data.get('subject', 'No Subject')
 
-    # Crear el mensaje MIME multipart
+# Crear el mensaje MIME multipart
     msg = MIMEMultipart('related')
     msg['Subject'] = subject
     msg['From'] = 'your_email@example.com'
