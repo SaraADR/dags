@@ -27,6 +27,26 @@ default_args = {
 
 def render_template(message_dict):
 
+    current_dir = os.getcwd()
+    print(f"Current working directory: {current_dir}")
+    
+    # Listar el contenido del directorio actual
+    print("Content of current directory:")
+    print(os.listdir(current_dir))
+    
+    # Verificar y listar el contenido del directorio de recursos
+    recursos_dir = os.path.join(current_dir, 'repo', 'recursos')
+    print(f"Content of recursos directory ({recursos_dir}):")
+    if os.path.exists(recursos_dir):
+        print(os.listdir(recursos_dir))
+    else:
+        print(f"Directory {recursos_dir} does not exist.")
+
+    # Verificar si los archivos existen
+    print(f"TEMPLATE_PATH: {TEMPLATE_PATH}, exists: {os.path.exists(TEMPLATE_PATH)}")
+    print(f"LOGO_PATH: {LOGO_PATH}, exists: {os.path.exists(LOGO_PATH)}")
+
+
     data = json.loads(message_dict.get('data', '{}'))
 
     print(f"Template Path: {TEMPLATE_PATH}")
