@@ -1,4 +1,7 @@
 from datetime import datetime, timedelta
+from email.mime.image import MIMEImage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.models import Variable
@@ -57,8 +60,21 @@ def print_message_and_send_email(**context):
     data = json.loads(message_dict.get('data', '{}'))  
     print(f"Received message: {data}")
 
+
     to = data.get('to', 'default@example.com')
     subject = data.get('subject', 'No Subject')
+
+    # Crear el mensaje MIME multipart
+    msg = MIMEMultipart('related')
+    msg['Subject'] = subject
+    msg['From'] = 'your_email@example.com'
+    msg['To'] = to
+    msg.attach(MIMEText(email_body, 'html'))
+    with open(LOGO, 'rb') as img:
+        mime_image = MIMEImage(img.read())
+        mime_image.add_header('Content-ID', '<logo_cid>')
+        msg.attach(mime_image)
+    email_content = msg.as_string()
 
     email_operator = EmailOperator(
         task_id='send_email_task',
@@ -69,7 +85,7 @@ def print_message_and_send_email(**context):
         mime_subtype='related',
         files=[LOGO]
     )
-    
+    email_operator.html_content = email_content
     return email_operator.execute(context)
 
 
