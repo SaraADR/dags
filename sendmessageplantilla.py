@@ -33,6 +33,7 @@ def render_template(message_dict):
     templateId = data.get('templateId', '1')
     email_data = {}
 
+
 # Añadir aqui todas las posibilidades de plantillas. Si no hay ninguna plantilla se usará por defecto la 1
     if templateId == '1':
             with open(PLANTILLA_1) as file:
@@ -79,18 +80,6 @@ def print_message_and_send_email(**context):
     to = data.get('to', 'default@example.com')
     subject = data.get('subject', 'No Subject')
 
-# Crear el mensaje MIME multipart
-    msg = MIMEMultipart('related')
-    msg['Subject'] = subject
-    msg['From'] = 'your_email@example.com'
-    msg['To'] = to
-    msg.attach(MIMEText(email_body, 'html'))
-    with open(LOGO, 'rb') as img:
-        mime_image = MIMEImage(img.read())
-        mime_image.add_header('Content-ID', '<logo_cid>')
-        msg.attach(mime_image)
-    email_content = msg.as_string()
-
     email_operator = EmailOperator(
         task_id='send_email_task',
         to=to,
@@ -100,7 +89,6 @@ def print_message_and_send_email(**context):
         mime_subtype='related',
         files=[LOGO]
     )
-    email_operator.html_content = email_content
     return email_operator.execute(context)
 
 
@@ -112,6 +100,7 @@ dag = DAG(
     catchup=False
 )
 
+#Manda correo
 print_message_task = PythonOperator(
     task_id='print_message',
     python_callable=print_message_and_send_email,
@@ -119,9 +108,10 @@ print_message_task = PythonOperator(
     dag=dag,
 )
 
+#Actualiza bd
 update_status_task = PostgresOperator(
     task_id='update_status',
-    postgres_conn_id='biobd',  # Asegúrate de que esta conexión esté configurada en Airflow
+    postgres_conn_id='biobd',  
     sql="""
         UPDATE public.notifications
         SET status = 'ok'
