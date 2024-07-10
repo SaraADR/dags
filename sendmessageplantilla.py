@@ -38,8 +38,7 @@ def render_template(message_dict):
     f = open("/opt/airflow/dags/repo/recursos/plantillacorreo.html", "r")
     print(f.read())
     
-    with open("/opt/airflow/dags/repo/recursos/plantillacorreo.html", 'r') as file_:
-        template = Template(file_.read())
+    template = Template(f.read())
 
     context = {
         'nombre': data.get('to', 'default@example.com'),
