@@ -60,9 +60,9 @@ def render_template():
     # t = Template('Hello, {{ name }}!')
     # print(t.render(name='John Doe'))
 
-    # with open("./recursos/plantillacorreo.html", "r") as file:
-    #     template_str = file.read()
-    # jinja_template = Template(template_str)
+    with open('./dags/repo/recursos/plantillacorreo.html') as file:
+        template_str = file.read()
+    jinja_template = Template(template_str)
 
     # email_data = {
     #     'nombre': data.get('to', 'default@example.com'),
@@ -70,9 +70,14 @@ def render_template():
     #     'dato2': data.get('subject', 'No Subject')
     # }
 
-    # email_content = jinja_template.render(email_data)
+    email_data = {
+            'nombre': 'default@example.com',
+            'dato1': 'subject',
+            'dato2': 'No Subject'
+        }
+    email_content = jinja_template.render(email_data)
 
-    # return email_content
+    return email_content
 
 
 
@@ -85,6 +90,7 @@ def print_message_and_send_email(**context):
 
     #message_dict = ast.literal_eval(message['message'])
     email_body = render_template()
+    print(email_body)
 
 
     # context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
