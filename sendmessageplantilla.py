@@ -30,7 +30,7 @@ def render_template(message_dict):
 
     print(f"Received message: {TEMPLATE_PATH}")
 
-    with open('./recursos/plantillacorreo.html') as file_:
+    with open('/opt/airflow/dags/recursos/plantillacorreo.html') as file_:
         template = Template(file_.read())
 
     context = {
