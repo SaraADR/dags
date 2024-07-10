@@ -27,8 +27,10 @@ default_args = {
 def render_template(message_dict):
 
     data = json.loads(message_dict.get('data', '{}'))
-    
-    with open(TEMPLATE_PATH) as file_:
+
+    print(f"Received message: {TEMPLATE_PATH}")
+
+    with open('./recursos/plantillacorreo.html') as file_:
         template = Template(file_.read())
 
     context = {
