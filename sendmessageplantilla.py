@@ -25,7 +25,7 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-def render_template(message_dict):
+def render_template():
 
     current_dir = os.getcwd()
     print(f"Current working directory: {current_dir}")
@@ -48,64 +48,64 @@ def render_template(message_dict):
     print(f"LOGO_PATH: {LOGO_PATH}, exists: {os.path.exists(LOGO_PATH)}")
 
 
-    data = json.loads(message_dict.get('data', '{}'))
+    # data = json.loads(message_dict.get('data', '{}'))
 
-    print(f"Template Path: {TEMPLATE_PATH}")
-    print(f"Logo path: {LOGO_PATH}")
+    # print(f"Template Path: {TEMPLATE_PATH}")
+    # print(f"Logo path: {LOGO_PATH}")
 
-    # with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html') as file_:
-    #     template = Template(file_.read())
+    # # with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html') as file_:
+    # #     template = Template(file_.read())
 
-    t = Template('Hello, {{ name }}!')
-    print(t.render(name='John Doe'))
+    # t = Template('Hello, {{ name }}!')
+    # print(t.render(name='John Doe'))
 
-    with open("./recursos/plantillacorreo.html", "r") as file:
-        template_str = file.read()
-    jinja_template = Template(template_str)
+    # with open("./recursos/plantillacorreo.html", "r") as file:
+    #     template_str = file.read()
+    # jinja_template = Template(template_str)
 
-    email_data = {
-        'nombre': data.get('to', 'default@example.com'),
-        'dato1': data.get('subject', 'No Subject'),
-        'dato2': data.get('subject', 'No Subject')
-    }
+    # email_data = {
+    #     'nombre': data.get('to', 'default@example.com'),
+    #     'dato1': data.get('subject', 'No Subject'),
+    #     'dato2': data.get('subject', 'No Subject')
+    # }
 
-    email_content = jinja_template.render(email_data)
+    # email_content = jinja_template.render(email_data)
 
-    return email_content
+    # return email_content
 
 
 
 def print_message_and_send_email(**context):
 
-    message = context['dag_run'].conf
-    print(f"Received message: {message}")
+    # message = context['dag_run'].conf
+    # print(f"Received message: {message}")
 
     
 
-    message_dict = ast.literal_eval(message['message'])
-    email_body = render_template(message_dict)
+    #message_dict = ast.literal_eval(message['message'])
+    email_body = render_template()
 
 
-    context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
-    data = json.loads(message_dict.get('data', '{}'))  
-    print(f"Received message: {data}")
-    to = data.get('to', 'default@example.com')
-    subject = data.get('subject', 'No Subject')
-    body = data.get('body', 'No Body')
+    # context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
+    # data = json.loads(message_dict.get('data', '{}'))  
+    # print(f"Received message: {data}")
+    # to = data.get('to', 'default@example.com')
+    # subject = data.get('subject', 'No Subject')
+    # body = data.get('body', 'No Body')
 
 
 
-    email_operator = EmailOperator(
-        task_id='send_email_task',
-        to=to,
-        subject=subject,
-        html_content=f'<p>{email_body}</p>',
-        conn_id='smtp_default',
-        mime_subtype='related',
-        files=LOGO_PATH
-    )
+    # email_operator = EmailOperator(
+    #     task_id='send_email_task',
+    #     to=to,
+    #     subject=subject,
+    #     html_content=f'<p>{email_body}</p>',
+    #     conn_id='smtp_default',
+    #     mime_subtype='related',
+    #     files=LOGO_PATH
+    # )
     
-    return email_operator.execute(context)
+    # return email_operator.execute(context)
 
 
 dag = DAG(
