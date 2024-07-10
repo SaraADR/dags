@@ -33,7 +33,7 @@ def render_template(message_dict):
 
     # with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html') as file_:
     #     template = Template(file_.read())
-    with open(TEMPLATE_PATH, 'r') as file_:
+    with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html', 'r') as file_:
         template = Template(file_.read())
 
     context = {
@@ -57,7 +57,7 @@ def print_message_and_send_email(**context):
 
 
     context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
-    data = json.loads(message_dict.get('data', '{}'))  # Decodificar el campo 'data'
+    data = json.loads(message_dict.get('data', '{}'))  
     print(f"Received message: {data}")
     to = data.get('to', 'default@example.com')
     subject = data.get('subject', 'No Subject')
