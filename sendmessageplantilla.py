@@ -38,8 +38,6 @@ def render_template(message_dict):
     with open("/opt/airflow/dags/repo/recursos/plantillacorreo.html", "r") as file:
         template_str = file.read()
     jinja_template = Template(template_str)
-    
-    template = Template(f.read())
 
     email_data = {
         'nombre': data.get('to', 'default@example.com'),
