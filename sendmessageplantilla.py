@@ -42,10 +42,11 @@ def render_template():
     else:
         print(f"Directory {recursos_dir} does not exist.")
 
+
+
     # Verificar si los archivos existen
     print(f"TEMPLATE_PATH: {DAGS_FOLDER}, exists: {os.path.exists(DAGS_FOLDER)}")
-    print(f"TEMPLATE_PATH: {TEMPLATE_PATH}, exists: {os.path.exists(TEMPLATE_PATH)}")
-    print(f"LOGO_PATH: {LOGO_PATH}, exists: {os.path.exists(LOGO_PATH)}")
+    print(os.listdir(DAGS_FOLDER))
 
 
     # data = json.loads(message_dict.get('data', '{}'))
@@ -53,8 +54,8 @@ def render_template():
     # print(f"Template Path: {TEMPLATE_PATH}")
     # print(f"Logo path: {LOGO_PATH}")
 
-    # # with open('/opt/airflow/dags/repo/recursos/plantillacorreo.html') as file_:
-    # #     template = Template(file_.read())
+    with open('./dags/repo/recursos/plantillacorreo.html') as file_:
+        template = Template(file_.read())
 
     # t = Template('Hello, {{ name }}!')
     # print(t.render(name='John Doe'))
