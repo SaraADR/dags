@@ -99,7 +99,7 @@ def print_message_and_send_email(**context):
         to=to,
         subject=subject,
         html_content=email_body,
-        conn_id='smtp_default',
+        conn_id='test_mailing',
         mime_subtype='related',
         files=[LOGO]
     )
