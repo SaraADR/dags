@@ -14,6 +14,7 @@ from jinja2 import Template
 
 PLANTILLA_1 = './dags/repo/recursos/plantillaid1.html'
 PLANTILLA_2 = './dags/repo/recursos/plantillaid2.html'
+PLANTILLA_3 = './dags/repo/recursos/plantillaid3.html'
 LOGO = './dags/repo/recursos/dummy.jpg'
 
 
@@ -35,6 +36,7 @@ def render_template(message_dict):
 
 
 # Añadir aqui todas las posibilidades de plantillas. Si no hay ninguna plantilla se usará por defecto la 1
+
     if templateId == '1':
             with open(PLANTILLA_1) as file:
                 template_str = file.read()
@@ -47,7 +49,7 @@ def render_template(message_dict):
 
 
     if templateId == '2':
-            with open(PLANTILLA_1) as file:
+            with open(PLANTILLA_2) as file:
                 template_str = file.read()
                 jinja_template = Template(template_str)
             email_data = {
@@ -55,6 +57,18 @@ def render_template(message_dict):
                 'dato1':  data.get('DATO', 'DATO'),
                 'dato2':  data.get('templateId', 'No Subject'),
             }
+
+
+    if templateId == '3':
+            with open(PLANTILLA_3) as file:
+                template_str = file.read()
+                jinja_template = Template(template_str)
+            email_data = {
+                'nombre': data.get('to', 'default@example.com'),
+                'dato1':  data.get('DATO', 'DATO'),
+                'dato2':  data.get('templateId', 'No Subject'),
+            }
+
 
     email_content = jinja_template.render(email_data)
     return email_content

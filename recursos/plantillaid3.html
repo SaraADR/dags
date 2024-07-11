@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            background: linear-gradient(to right, #4e54c8, #8f94fb);
+            color: #fff;
+            padding: 20px;
+            margin: 50px auto;
+            max-width: 600px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .container p, .container ul {
+            margin: 0 0 10px 0;
+        }
+        .container ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .container ul li {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .container p {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <p>Hola {{ nombre }},</p>
+        <p>Este es un ejemplo de correo enviado desde Airflow que corresponde con la plantilla 1.</p>
+        <p>Detalles:</p>
+        <ul>
+            <li>Dato 1: {{ dato1 }}</li>
+            <li>Dato 2: {{ dato2 }}</li>
+        </ul>
+    </div>
+</body>
+</html>
