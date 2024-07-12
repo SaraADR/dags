@@ -9,12 +9,17 @@ from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 import mimetypes
+import magic
 
 def consumer_function(message, prefix, **kwargs):
 
     if message is not None:
+        message_value = message.value()
 
-        mime_type, _ = mimetypes.guess_type(message)
+        # Usar magic para determinar el tipo MIME del archivo
+        mime = magic.Magic(mime=True)
+        mime_type = mime.from_buffer(message_value)
+
         if mime_type in ["image/tiff"]:
             print("Esto es un tiff")
             Variable.set("my_variable_key", None)
