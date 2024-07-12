@@ -13,7 +13,16 @@ import mimetypes
 def consumer_function(message, prefix, **kwargs):
 
     if message is not None:
-        mime_type, _ = mimetypes.guess_type(message)
+
+        try:
+            # Extraer el valor del mensaje
+            message_value = message.value().decode('utf-8')
+        except Exception as e:
+            print(f"Error decoding message value: {e}")
+            Variable.set("my_variable_key", None)
+            return None
+
+        mime_type, _ = mimetypes.guess_type(message_value)
         if mime_type == 'application/json':
             try:
                 msg_value = message.value().decode('utf-8')
