@@ -59,6 +59,8 @@ def render_template(message_dict):
             'nombre': data.get('to', 'default@example.com'),
             'dato1': data.get('DATO', 'DATO'),
             'dato2': data.get('templateId', 'No Subject'),
+            'cc' : data.get('cc', 'default@example.com'),  # Extracting CC field
+            'bcc' : data.get('bcc', 'default@example.com')
         }
 
     email_content = jinja_template.render(email_data)
@@ -79,8 +81,8 @@ def print_message_and_send_email(**context):
     print(f"Received message: {data}")
 
     to = data.get('to', 'default@example.com')
-    cc = data.get('cc', None)  # Extracting CC field
-    bcc = data.get('bcc', None)  # Extracting BCC field
+    cc = data.get('cc', 'default@example.com')  # Extracting CC field
+    bcc = data.get('bcc', 'default@example.com')  # Extracting BCC field
     subject = data.get('subject', 'No Subject')
 
     # Log the recipients
