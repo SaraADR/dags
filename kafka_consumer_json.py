@@ -41,7 +41,7 @@ def trigger_email_handler(**kwargs):
 
             trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
-                trigger_dag_id='send_email_wplantilla',
+                trigger_dag_id='send_email_plantilla',
                 conf={'message': value_pulled}, 
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                 dag=dag,
