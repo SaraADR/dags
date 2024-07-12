@@ -8,54 +8,25 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
-import mimetypes
 
 def consumer_function(message, prefix, **kwargs):
-
     if message is not None:
-
-        try:
-            # Extraer el valor del mensaje
-            message_value = message.value().decode('utf-8')
-        except Exception as e:
-            print(f"Error decoding message value: {e}")
-            Variable.set("my_variable_key", None)
-            return None
-
-        mime_type, _ = mimetypes.guess_type(message_value)
-        if mime_type == 'application/json':
+        msg_value = message.value().decode('utf-8')
+        print(f"message2: {msg_value}")
+        if msg_value:
             try:
-                msg_value = message.value().decode('utf-8')
-                print(f"message2: {msg_value}")
-   
                 msg_json = json.loads(msg_value)
                 if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
                     Variable.set("my_variable_key", msg_json)
                     return msg_json 
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
-                Variable.set("my_variable_key", None)
-                return None
-        elif mime_type in ["image/tiff"]:
-            print("Esto es un tiff")
-            Variable.set("my_variable_key", None)
-            return None    
-        elif mime_type in ["image/jpeg"]:
-            print("Esto es un jpg")
-            Variable.set("my_variable_key", None)
-            return None    
-
         else:
-            print("Unknown mime type")
-            Variable.set("my_variable_key", None)
-            return None
+            print("Empty message received")
+        Variable.set("my_variable_key", None)        
         return None  
     else:
-        Variable.set("my_variable_key", None)   
-        return None     
-
-
-
+        Variable.set("my_variable_key", None)        
 
 def trigger_email_handler(**kwargs):
     try:
