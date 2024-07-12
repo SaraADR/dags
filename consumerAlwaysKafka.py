@@ -8,8 +8,10 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
+import mimetypes
 
 def consumer_function(message, prefix, **kwargs):
+
     if message is not None:
         msg_value = message.value().decode('utf-8')
         print(f"message2: {msg_value}")
@@ -21,12 +23,27 @@ def consumer_function(message, prefix, **kwargs):
                     return msg_json 
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
+                pass
         else:
             print("Empty message received")
-        Variable.set("my_variable_key", None)        
+            Variable.set("my_variable_key", None)     
+            pass
+
+        #Caso de que no sea un json
+        mime_type, _ = mimetypes.guess_type(message)
+        if mime_type in ["image/tiff"] :
+             print("Esto es un tiff")
+
+        if mime_type in ["image/jpg"] :
+             print("Esto es un jpg")
+
+
         return None  
     else:
         Variable.set("my_variable_key", None)        
+
+
+
 
 def trigger_email_handler(**kwargs):
     try:
