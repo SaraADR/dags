@@ -29,7 +29,7 @@ def consumer_function(message, prefix, **kwargs):
             return None
         return None  
     else:
-
+        print("No hay mensajes en espera")
         return None     
 
 
