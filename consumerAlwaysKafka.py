@@ -13,34 +13,37 @@ import mimetypes
 def consumer_function(message, prefix, **kwargs):
 
     if message is not None:
-        msg_value = message.value().decode('utf-8')
-        print(f"message2: {msg_value}")
-        if msg_value:
+        mime_type, _ = mimetypes.guess_type(message)
+        if mime_type == 'application/json':
             try:
+                msg_value = message.value().decode('utf-8')
+                print(f"message2: {msg_value}")
+   
                 msg_json = json.loads(msg_value)
                 if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
                     Variable.set("my_variable_key", msg_json)
                     return msg_json 
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
-                pass
+                Variable.set("my_variable_key", None)
+                return None
+        elif mime_type in ["image/tiff"]:
+            print("Esto es un tiff")
+            Variable.set("my_variable_key", None)
+            return None    
+        elif mime_type in ["image/jpeg"]:
+            print("Esto es un jpg")
+            Variable.set("my_variable_key", None)
+            return None    
+
         else:
-            print("Empty message received")
-            Variable.set("my_variable_key", None)     
-            pass
-
-        #Caso de que no sea un json
-        mime_type, _ = mimetypes.guess_type(message)
-        if mime_type in ["image/tiff"] :
-             print("Esto es un tiff")
-
-        if mime_type in ["image/jpg"] :
-             print("Esto es un jpg")
-
-
+            print("Unknown mime type")
+            Variable.set("my_variable_key", None)
+            return None
         return None  
     else:
-        Variable.set("my_variable_key", None)        
+        Variable.set("my_variable_key", None)   
+        return None     
 
 
 
