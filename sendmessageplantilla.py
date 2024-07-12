@@ -17,7 +17,6 @@ PLANTILLA_2 = './dags/repo/recursos/plantillaid2.html'
 PLANTILLA_3 = './dags/repo/recursos/plantillaid3.html'
 LOGO = './dags/repo/recursos/dummy.jpg'
 
-
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -29,74 +28,68 @@ default_args = {
 }
 
 def render_template(message_dict):
-
     data = json.loads(message_dict.get('data', '{}'))
     templateId = data.get('templateId', '1')
     email_data = {}
 
-
-# Añadir aqui todas las posibilidades de plantillas. Si no hay ninguna plantilla se usará por defecto la 1
-
+    # Añadir aqui todas las posibilidades de plantillas. Si no hay ninguna plantilla se usará por defecto la 1
     if templateId == '1':
-            with open(PLANTILLA_1) as file:
-                template_str = file.read()
-                jinja_template = Template(template_str)
-            email_data = {
-                'nombre': data.get('to', 'default@example.com'),
-                'dato1':  data.get('subject', 'No Subject'),
-                'dato2':  data.get('subject', 'No Subject'),
-            }
-
-
-    if templateId == '2':
-            with open(PLANTILLA_2) as file:
-                template_str = file.read()
-                jinja_template = Template(template_str)
-            email_data = {
-                'nombre': data.get('to', 'default@example.com'),
-                'dato1':  data.get('DATO', 'DATO'),
-                'dato2':  data.get('templateId', 'No Subject'),
-            }
-
-
-    if templateId == '3':
-            with open(PLANTILLA_3) as file:
-                template_str = file.read()
-                jinja_template = Template(template_str)
-            email_data = {
-                'nombre': data.get('to', 'default@example.com'),
-                'dato1':  data.get('DATO', 'DATO'),
-                'dato2':  data.get('templateId', 'No Subject'),
-            }
-
+        with open(PLANTILLA_1) as file:
+            template_str = file.read()
+            jinja_template = Template(template_str)
+        email_data = {
+            'nombre': data.get('to', 'default@example.com'),
+            'dato1': data.get('subject', 'No Subject'),
+            'dato2': data.get('subject', 'No Subject'),
+        }
+    elif templateId == '2':
+        with open(PLANTILLA_2) as file:
+            template_str = file.read()
+            jinja_template = Template(template_str)
+        email_data = {
+            'nombre': data.get('to', 'default@example.com'),
+            'dato1': data.get('DATO', 'DATO'),
+            'dato2': data.get('templateId', 'No Subject'),
+        }
+    elif templateId == '3':
+        with open(PLANTILLA_3) as file:
+            template_str = file.read()
+            jinja_template = Template(template_str)
+        email_data = {
+            'cc':data.get('cc', None),
+            'bcc':data.get('bcc', None),  
+            'nombre': data.get('to', 'default@example.com'),
+            'dato1': data.get('DATO', 'DATO'),
+            'dato2': data.get('templateId', 'No Subject'),
+        }
 
     email_content = jinja_template.render(email_data)
     return email_content
 
-
-
 def print_message_and_send_email(**context):
-
     message = context['dag_run'].conf
     print(f"Received message: {message}")
 
     message_dict = ast.literal_eval(message['message'])
     email_body = render_template(message_dict)
 
-#Guardamos el id para poder hacer la modificación posterior en la base de datos
+    # Guardamos el id para poder hacer la modificación posterior en la base de datos
     context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
 
-#Extraemos el campo data
-    data = json.loads(message_dict.get('data', '{}'))  
+    # Extraemos el campo data
+    data = json.loads(message_dict.get('data', '{}'))
     print(f"Received message: {data}")
 
-
     to = data.get('to', 'default@example.com')
+    cc = data.get('cc', None)  # Extracting CC field
+    bcc = data.get('bcc', None)  # Extracting BCC field
     subject = data.get('subject', 'No Subject')
 
     email_operator = EmailOperator(
         task_id='send_email_task',
         to=to,
+        cc=cc,  # Adding CC recipients
+        bcc=bcc,  # Adding BCC recipients
         subject=subject,
         html_content=email_body,
         conn_id='test_mailing',
@@ -104,7 +97,6 @@ def print_message_and_send_email(**context):
         files=[LOGO]
     )
     return email_operator.execute(context)
-
 
 dag = DAG(
     'send_email_wplantilla',
@@ -114,7 +106,7 @@ dag = DAG(
     catchup=False
 )
 
-#Manda correo
+# Manda correo
 print_message_task = PythonOperator(
     task_id='print_message',
     python_callable=print_message_and_send_email,
@@ -122,7 +114,7 @@ print_message_task = PythonOperator(
     dag=dag,
 )
 
-#Actualiza bd
+# Actualiza bd
 update_status_task = PostgresOperator(
     task_id='update_status',
     postgres_conn_id='biobd',  
