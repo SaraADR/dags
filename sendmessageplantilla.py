@@ -57,7 +57,7 @@ def render_template(message_dict):
             jinja_template = Template(template_str)
         email_data = {
             'cc':data.get('cc', None),
-            'cco':data.get('cco', None),  
+            'bcc':data.get('bcc', None),  # Extracting BCC field
             'nombre': data.get('to', 'default@example.com'),
             'dato1': data.get('DATO', 'DATO'),
             'dato2': data.get('templateId', 'No Subject'),
@@ -82,14 +82,14 @@ def print_message_and_send_email(**context):
 
     to = data.get('to', 'default@example.com')
     cc = data.get('cc', None)  # Extracting CC field
-    cco = data.get('cco', None)  # Extracting cco field
+    bcc = data.get('bcc', None)  # Extracting BCC field
     subject = data.get('subject', 'No Subject')
 
     email_operator = EmailOperator(
         task_id='send_email_task',
         to=to,
         cc=cc,  # Adding CC recipients
-        cco=cco,  # Adding cco recipients
+        bcc=bcc,  # Adding BCC recipients
         subject=subject,
         html_content=email_body,
         conn_id='test_mailing',
