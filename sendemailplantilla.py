@@ -29,7 +29,7 @@ default_args = {
 
 def render_template(message_dict):
     data = json.loads(message_dict.get('data', '{}'))
-    templateId = data.get('templateId', '1')
+    templateId = data.get('templateId', '3')
     email_data = {}
 
     # Añadir aqui todas las posibilidades de plantillas. Si no hay ninguna plantilla se usará por defecto la 1
@@ -56,11 +56,11 @@ def render_template(message_dict):
             template_str = file.read()
             jinja_template = Template(template_str)
         email_data = {
-            'cc':data.get('cc', None),
-            'bcc':data.get('bcc', None),  # Extracting BCC field
             'nombre': data.get('to', 'default@example.com'),
             'dato1': data.get('DATO', 'DATO'),
             'dato2': data.get('templateId', 'No Subject'),
+            'cc' : data.get('cc', 'default@example.com'),  # Extracting CC field
+            'bcc' : data.get('bcc', 'default@example.com')
         }
 
     email_content = jinja_template.render(email_data)
@@ -81,8 +81,8 @@ def print_message_and_send_email(**context):
     print(f"Received message: {data}")
 
     to = data.get('to', 'default@example.com')
-    cc = data.get('cc', None)  # Extracting CC field
-    bcc = data.get('bcc', None)  # Extracting BCC field
+    cc = data.get('cc', 'default@example.com')  # Extracting CC field
+    bcc = data.get('bcc', 'default@example.com')  # Extracting BCC field
     subject = data.get('subject', 'No Subject')
 
     email_operator = EmailOperator(
@@ -101,7 +101,7 @@ def print_message_and_send_email(**context):
 dag = DAG(
     'send_email_plantilla',
     default_args=default_args,
-    description='DAG que imprime el mensaje recibido a través de XCom',
+    description='DAG que envia emails',
     schedule_interval=None,
     catchup=False
 )
