@@ -12,8 +12,12 @@ import mimetypes
 
 def consumer_function(message, prefix, **kwargs):
     print("Esto es el mensaje")
-    print(f"{message.value()}")
-    print(f"{message.value().decode('utf-8')}")
+    file_name = message.key().decode('utf-8')
+    print(f"{file_name}")
+    file_content = message.value()
+
+
+
     # if message is not None:
 
     #     mime_type, _ = mimetypes.guess_type(message)
