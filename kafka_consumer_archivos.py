@@ -169,12 +169,6 @@ unknown_file_task = PythonOperator(
     dag=dag,
 )
 
-no_message_task = PythonOperator(
-    task_id='no_message_task',
-    python_callable=no_message,
-    provide_context=True,
-    dag=dag,
-)
 
 # trigger_email_handler_task = PythonOperator(
 #     task_id='trigger_email_handler',
@@ -185,4 +179,4 @@ no_message_task = PythonOperator(
 
 
 consume_from_topic >> choose_branch_task
-choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, unknown_file_task, no_message_task]
+choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, unknown_file_task]
