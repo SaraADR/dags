@@ -13,10 +13,13 @@ import mimetypes
 
 def consumer_function(message, prefix, **kwargs):
     print("Esto es el mensaje")
+    print(f"{message}")
 
     if message is not None:
-        Variable.set("key", message.key())
-        Variable.set("value", message.value())
+        nombre = message.key()
+        valor= message.value()
+        Variable.set("key", nombre)
+        Variable.set("value", valor)
     else:
         Variable.set("key", None)        
         Variable.set("value", None)  
