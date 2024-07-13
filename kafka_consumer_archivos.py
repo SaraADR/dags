@@ -179,7 +179,7 @@ process_jpg_task = PythonOperator(
 )
 
 process_png_task = PythonOperator(
-    task_id='process_jpg_task',
+    task_id='process_png_task',
     python_callable=process_png_file,
     provide_context=True,
     dag=dag,
