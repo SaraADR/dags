@@ -13,21 +13,23 @@ import mimetypes
 
 def consumer_function(message, prefix, **kwargs):
     print("Esto es el mensaje")
-    file_name = message.key()
-    print(f"{file_name}")
-    file_content = message.value()
-    primeros_40_caracteres = file_content[:40]  # Obtiene los primeros 40 caracteres
-    print(primeros_40_caracteres)
 
-    if file_name:
-        file_extension = os.path.splitext(file_name)[1].lower()
-        return file_extension
+    if message is not None:
+        Variable.set("key", message.key())
+        Variable.set("value", message.value())
     else:
-        return 'no_message_task'
+        Variable.set("key", None)        
+        Variable.set("value", None)  
+
+
     
 def choose_branch(**kwargs):
-    ti = kwargs['ti']
-    file_extension = ti.xcom_pull(task_ids='consume_from_topic')
+
+    nombre_fichero = Variable.get("key")
+    print(f"{nombre_fichero}")
+
+    file_extension = os.path.splitext(nombre_fichero)[1].lower()
+    Variable.set("key", None)   
 
     if file_extension == '.zip':
         return 'process_zip_task'
@@ -43,19 +45,36 @@ def choose_branch(**kwargs):
 
     
 def process_zip_file(**kwargs):
-    print("Processing ZIP file")
+    try:
+        value_pulled = Variable.get("value")
+        print("Processing ZIP file")
+    except KeyError:
+        print("Variable value does not exist")
+        raise AirflowSkipException("Variable value does not exist")
+
+
 
 def process_tiff_file(**kwargs):
-    print("Processing TIFF file")
+    try:
+        value_pulled = Variable.get("value")
+        print("Processing TIFF file")
+    except KeyError:
+        print("Variable value does not exist")
+        raise AirflowSkipException("Variable value does not exist")    
+    
 
 def process_jpg_file(**kwargs):
-    print("Processing JPG file")
+    try:
+        value_pulled = Variable.get("value")
+        print("Processing JPG file")
+    except KeyError:
+        print("Variable value does not exist")
+        raise AirflowSkipException("Variable value does not exist")
+    
+
 
 def handle_unknown_file(**kwargs):
     print("Unknown file type")
-
-def no_message(**kwargs):
-    print("No hay mensajes en el tópico")
 
 
 
