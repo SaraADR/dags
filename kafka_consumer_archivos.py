@@ -12,7 +12,8 @@ import mimetypes
 
 def consumer_function(message, prefix, **kwargs):
     print("Esto es el mensaje")
-    print(f"{message}")
+    print(f"{message.value()}")
+    print(f"{message.value().decode('utf-8')}")
     # if message is not None:
 
     #     mime_type, _ = mimetypes.guess_type(message)
