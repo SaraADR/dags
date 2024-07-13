@@ -9,7 +9,7 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
-import mimetypes
+
 
 def consumer_function(message, prefix, **kwargs):
     print("Esto es el mensaje")
@@ -32,7 +32,6 @@ def choose_branch(**kwargs):
     print(f"{nombre_fichero}")
 
     file_extension = os.path.splitext(nombre_fichero)[1].lower()
-    Variable.set("key", None)   
 
     if file_extension == '.zip':
         return 'process_zip_task'
@@ -54,6 +53,7 @@ def process_zip_file(**kwargs):
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")
+    Variable.set("key", None)   
 
 
 
@@ -64,7 +64,7 @@ def process_tiff_file(**kwargs):
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")    
-    
+    Variable.set("key", None)   
 
 def process_jpg_file(**kwargs):
     try:
@@ -73,11 +73,12 @@ def process_jpg_file(**kwargs):
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")
-    
+    Variable.set("key", None)   
 
 
 def handle_unknown_file(**kwargs):
     print("Unknown file type")
+    Variable.set("key", None)   
 
 
 
@@ -166,7 +167,7 @@ process_jpg_task = PythonOperator(
 )
 
 unknown_file_task = PythonOperator(
-    task_id='unknown_file_task',
+    task_id='unknown_or_none_file_task',
     python_callable=handle_unknown_file,
     provide_context=True,
     dag=dag,
