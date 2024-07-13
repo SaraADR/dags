@@ -16,9 +16,12 @@ def consumer_function(message, prefix, **kwargs):
     file_name = message.key()
     print(f"{file_name}")
     file_content = message.value()
+    primeros_40_caracteres = file_content[:40]  # Obtiene los primeros 40 caracteres
+    print(primeros_40_caracteres)
 
     if file_name:
         file_extension = os.path.splitext(file_name)[1].lower()
+        print(f"Esto es la extension: {file_extension}")
         if file_extension == '.zip':
             return 'process_zip_task'
         elif file_extension == '.tiff' or file_extension == '.tif':
