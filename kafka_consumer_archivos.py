@@ -40,6 +40,8 @@ def choose_branch(**kwargs):
         return 'process_tiff_task'
     elif file_extension == '.jpg' or file_extension == '.jpeg':
         return 'process_jpg_task'
+    elif file_extension == '.png':
+        return 'process_png_task'
     elif file_extension == 'no_message_task':
         return 'no_message_task'
     else:
@@ -71,6 +73,15 @@ def process_jpg_file(**kwargs):
     try:
         value_pulled = Variable.get("value")
         print("Processing JPG file")
+    except KeyError:
+        print("Variable value does not exist")
+        raise AirflowSkipException("Variable value does not exist")
+    Variable.set("key", None)   
+
+def process_png_file(**kwargs):
+    try:
+        value_pulled = Variable.get("value")
+        print("Processing PNG file")
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")
@@ -167,6 +178,13 @@ process_jpg_task = PythonOperator(
     dag=dag,
 )
 
+process_png_task = PythonOperator(
+    task_id='process_jpg_task',
+    python_callable=process_png_file,
+    provide_context=True,
+    dag=dag,
+)
+
 unknown_or_none_file_task = PythonOperator(
     task_id='unknown_or_none_file_task',
     python_callable=handle_unknown_file,
@@ -184,4 +202,4 @@ unknown_or_none_file_task = PythonOperator(
 
 
 consume_from_topic >> choose_branch_task
-choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, unknown_or_none_file_task]
+choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, process_png_task, unknown_or_none_file_task]
