@@ -12,7 +12,7 @@ import mimetypes
 
 def consumer_function(message, prefix, **kwargs):
     print("Esto es el mensaje")
-    file_name = message.key().decode('utf-8')
+    file_name = message.key()
     print(f"{file_name}")
     file_content = message.value()
 
