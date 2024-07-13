@@ -11,55 +11,56 @@ from airflow.exceptions import AirflowSkipException
 import mimetypes
 
 def consumer_function(message, prefix, **kwargs):
-    print(f"Esto es el mensaje {message}")
-    if message is not None:
+    print("Esto es el mensaje")
+    print(f"{message}")
+    # if message is not None:
 
-        mime_type, _ = mimetypes.guess_type(message)
-        if mime_type in ["image/tiff"]:
-            print("Esto es un tiff")
-            Variable.set("my_variable_key", None)
-            return None    
-        elif mime_type in ["image/jpeg"]:
-            print("Esto es un jpg")
-            Variable.set("my_variable_key", None)
-            return None    
-        else:
-            print("Unknown mime type")
-            Variable.set("my_variable_key", None)
-            return None
-        return None  
-    else:
-        print("No hay mensajes en topic")
-        return None     
+    #     mime_type, _ = mimetypes.guess_type(message)
+    #     if mime_type in ["image/tiff"]:
+    #         print("Esto es un tiff")
+    #         Variable.set("my_variable_key", None)
+    #         return None    
+    #     elif mime_type in ["image/jpeg"]:
+    #         print("Esto es un jpg")
+    #         Variable.set("my_variable_key", None)
+    #         return None    
+    #     else:
+    #         print("Unknown mime type")
+    #         Variable.set("my_variable_key", None)
+    #         return None
+    #     return None  
+    # else:
+    #     print("No hay mensajes en topic")
+    #     return None     
 
 
 
 
-def trigger_email_handler(**kwargs):
-    try:
-        value_pulled = Variable.get("my_variable_key")
-    except KeyError:
-        print("Variable my_variable_key does not exist")
-        raise AirflowSkipException("Variable my_variable_key does not exist")
+# def trigger_email_handler(**kwargs):
+#     try:
+#         value_pulled = Variable.get("my_variable_key")
+#     except KeyError:
+#         print("Variable my_variable_key does not exist")
+#         raise AirflowSkipException("Variable my_variable_key does not exist")
     
 
-    if value_pulled is not None and value_pulled != 'null':
-        try:
+#     if value_pulled is not None and value_pulled != 'null':
+#         try:
 
-            trigger = TriggerDagRunOperator(
-                task_id='trigger_email_handler_inner',
-                trigger_dag_id='send_email_wplantilla',
-                conf={'message': value_pulled}, 
-                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                dag=dag,
-            )
-            trigger.execute(context=kwargs)
-            Variable.delete("my_variable_key")
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON: {e}")
-    else:
-        print("No message pulled from XCom")
-        Variable.delete("my_variable_key")
+#             trigger = TriggerDagRunOperator(
+#                 task_id='trigger_email_handler_inner',
+#                 trigger_dag_id='send_email_wplantilla',
+#                 conf={'message': value_pulled}, 
+#                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
+#                 dag=dag,
+#             )
+#             trigger.execute(context=kwargs)
+#             Variable.delete("my_variable_key")
+#         except json.JSONDecodeError as e:
+#             print(f"Error decoding JSON: {e}")
+#     else:
+#         print("No message pulled from XCom")
+#         Variable.delete("my_variable_key")
 
 
 default_args = {
@@ -92,12 +93,13 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-trigger_email_handler_task = PythonOperator(
-    task_id='trigger_email_handler',
-    python_callable=trigger_email_handler,
-    provide_context=True,
-    dag=dag,
-)
+# trigger_email_handler_task = PythonOperator(
+#     task_id='trigger_email_handler',
+#     python_callable=trigger_email_handler,
+#     provide_context=True,
+#     dag=dag,
+# )
 
 
-consume_from_topic >> trigger_email_handler_task
+consume_from_topic 
+#>> trigger_email_handler_task
