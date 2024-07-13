@@ -31,7 +31,7 @@ def choose_branch(**kwargs):
     nombre_fichero = Variable.get("key")
     print(f"{nombre_fichero}")
 
-    file_extension = os.path.splitext(nombre_fichero)[1].lower()
+    file_extension = os.path.splitext(nombre_fichero)[1].strip().lower()
     print(f"Extensión del archivo: {file_extension}")
 
     if file_extension == '.zip':
