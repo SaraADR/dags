@@ -1,4 +1,5 @@
 import json
+import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
@@ -16,29 +17,46 @@ def consumer_function(message, prefix, **kwargs):
     print(f"{file_name}")
     file_content = message.value()
 
+    if file_name:
+        file_extension = os.path.splitext(file_name)[1].lower()
+        if file_extension == '.zip':
+            return 'process_zip_task'
+        elif file_extension == '.tiff' or file_extension == '.tif':
+            return 'process_tiff_task'
+        elif file_extension == '.jpg' or file_extension == '.jpeg':
+            return 'process_jpg_task'
+        else:
+            return 'unknown_file_task'
+    else:
+        return 'no_message_task'
+    
 
+def process_zip_file(**kwargs):
+    ti = kwargs['ti']
+    #file_name = ti.xcom_pull(task_ids='consume_from_topic', key='file_name')
+    print(f"Processing ZIP file")
+    # Agrega aquí la lógica para procesar archivos zip usando file_name
 
-    # if message is not None:
+def process_tiff_file(**kwargs):
+    ti = kwargs['ti']
+    #file_name = ti.xcom_pull(task_ids='consume_from_topic', key='file_name')
+    print(f"Processing TIFF file")
+    # Agrega aquí la lógica para procesar archivos tiff usando file_name
 
-    #     mime_type, _ = mimetypes.guess_type(message)
-    #     if mime_type in ["image/tiff"]:
-    #         print("Esto es un tiff")
-    #         Variable.set("my_variable_key", None)
-    #         return None    
-    #     elif mime_type in ["image/jpeg"]:
-    #         print("Esto es un jpg")
-    #         Variable.set("my_variable_key", None)
-    #         return None    
-    #     else:
-    #         print("Unknown mime type")
-    #         Variable.set("my_variable_key", None)
-    #         return None
-    #     return None  
-    # else:
-    #     print("No hay mensajes en topic")
-    #     return None     
+def process_jpg_file(**kwargs):
+    ti = kwargs['ti']
+    file_name = ti.xcom_pull(task_ids='consume_from_topic', key='file_name')
+    print(f"Processing JPG file")
+    # Agrega aquí la lógica para procesar archivos jpg usando file_name
 
+def handle_unknown_file(**kwargs):
+    ti = kwargs['ti']
+    file_name = ti.xcom_pull(task_ids='consume_from_topic', key='file_name')
+    print(f"Unknown file type")
+    # Agrega aquí la lógica para manejar archivos no reconocidos usando file_name
 
+def no_message(**kwargs):
+    print("No hay mensajes en el tópico")
 
 
 # def trigger_email_handler(**kwargs):
@@ -98,6 +116,41 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
+process_zip_task = PythonOperator(
+    task_id='process_zip_task',
+    python_callable=process_zip_file,
+    provide_context=True,
+    dag=dag,
+)
+
+process_tiff_task = PythonOperator(
+    task_id='process_tiff_task',
+    python_callable=process_tiff_file,
+    provide_context=True,
+    dag=dag,
+)
+
+process_jpg_task = PythonOperator(
+    task_id='process_jpg_task',
+    python_callable=process_jpg_file,
+    provide_context=True,
+    dag=dag,
+)
+
+unknown_file_task = PythonOperator(
+    task_id='unknown_file_task',
+    python_callable=handle_unknown_file,
+    provide_context=True,
+    dag=dag,
+)
+
+no_message_task = PythonOperator(
+    task_id='no_message_task',
+    python_callable=no_message,
+    provide_context=True,
+    dag=dag,
+)
+
 # trigger_email_handler_task = PythonOperator(
 #     task_id='trigger_email_handler',
 #     python_callable=trigger_email_handler,
@@ -106,5 +159,5 @@ consume_from_topic = ConsumeFromTopicOperator(
 # )
 
 
-consume_from_topic 
+consume_from_topic >> [process_zip_task, process_tiff_task, process_jpg_task, unknown_file_task, no_message_task]
 #>> trigger_email_handler_task
