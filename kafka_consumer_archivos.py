@@ -32,7 +32,8 @@ def choose_branch(**kwargs):
     print(f"{nombre_fichero}")
 
     file_extension = os.path.splitext(nombre_fichero)[1].lower()
-
+    print(f"{file_extension}")
+    
     if file_extension == '.zip':
         return 'process_zip_task'
     elif file_extension == '.tiff' or file_extension == '.tif':
@@ -42,7 +43,7 @@ def choose_branch(**kwargs):
     elif file_extension == 'no_message_task':
         return 'no_message_task'
     else:
-        return 'unknown_file_task'
+        return 'unknown_or_none_file_task'
     
 
     
@@ -166,7 +167,7 @@ process_jpg_task = PythonOperator(
     dag=dag,
 )
 
-unknown_file_task = PythonOperator(
+unknown_or_none_file_task = PythonOperator(
     task_id='unknown_or_none_file_task',
     python_callable=handle_unknown_file,
     provide_context=True,
@@ -183,4 +184,4 @@ unknown_file_task = PythonOperator(
 
 
 consume_from_topic >> choose_branch_task
-choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, unknown_file_task]
+choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, unknown_or_none_file_task]
