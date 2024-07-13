@@ -40,34 +40,23 @@ def choose_branch(**kwargs):
     else:
         return 'unknown_file_task'
     
-    
+
     
 def process_zip_file(**kwargs):
-    ti = kwargs['ti']
-    #file_name = ti.xcom_pull(task_ids='consume_from_topic', key='file_name')
-    print(f"Processing ZIP file")
-    # Agrega aquí la lógica para procesar archivos zip usando file_name
+    print("Processing ZIP file")
 
 def process_tiff_file(**kwargs):
-    ti = kwargs['ti']
-    #file_name = ti.xcom_pull(task_ids='consume_from_topic', key='file_name')
-    print(f"Processing TIFF file")
-    # Agrega aquí la lógica para procesar archivos tiff usando file_name
+    print("Processing TIFF file")
 
 def process_jpg_file(**kwargs):
-    ti = kwargs['ti']
-    file_name = ti.xcom_pull(task_ids='consume_from_topic', key='file_name')
-    print(f"Processing JPG file")
-    # Agrega aquí la lógica para procesar archivos jpg usando file_name
+    print("Processing JPG file")
 
 def handle_unknown_file(**kwargs):
-    ti = kwargs['ti']
-    file_name = ti.xcom_pull(task_ids='consume_from_topic', key='file_name')
-    print(f"Unknown file type")
-    # Agrega aquí la lógica para manejar archivos no reconocidos usando file_name
+    print("Unknown file type")
 
 def no_message(**kwargs):
     print("No hay mensajes en el tópico")
+
 
 
 # def trigger_email_handler(**kwargs):
