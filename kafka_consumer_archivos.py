@@ -1,5 +1,7 @@
+import io
 import json
 import os
+import zipfile
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
@@ -53,6 +55,13 @@ def process_zip_file(**kwargs):
     try:
         value_pulled = Variable.get("value")
         print("Processing ZIP file")
+
+        with zipfile.ZipFile(io.BytesIO(value_pulled), 'r') as zip_ref:
+            file_list = zip_ref.namelist()
+            for file_name in file_list:
+                print(file_name)
+
+
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")
@@ -94,36 +103,9 @@ def handle_unknown_file(**kwargs):
 
 
 
-# def trigger_email_handler(**kwargs):
-#     try:
-#         value_pulled = Variable.get("my_variable_key")
-#     except KeyError:
-#         print("Variable my_variable_key does not exist")
-#         raise AirflowSkipException("Variable my_variable_key does not exist")
-    
-
-#     if value_pulled is not None and value_pulled != 'null':
-#         try:
-
-#             trigger = TriggerDagRunOperator(
-#                 task_id='trigger_email_handler_inner',
-#                 trigger_dag_id='send_email_wplantilla',
-#                 conf={'message': value_pulled}, 
-#                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
-#                 dag=dag,
-#             )
-#             trigger.execute(context=kwargs)
-#             Variable.delete("my_variable_key")
-#         except json.JSONDecodeError as e:
-#             print(f"Error decoding JSON: {e}")
-#     else:
-#         print("No message pulled from XCom")
-#         Variable.delete("my_variable_key")
-
-
 default_args = {
     'owner': 'airflow',
-    'depends_on_past': False,
+    'depends_onpast': False,
     'start_date': datetime(2024, 7, 7),
     'email_on_failure': False,
     'email_on_retry': False,
@@ -191,15 +173,6 @@ unknown_or_none_file_task = PythonOperator(
     provide_context=True,
     dag=dag,
 )
-
-
-# trigger_email_handler_task = PythonOperator(
-#     task_id='trigger_email_handler',
-#     python_callable=trigger_email_handler,
-#     provide_context=True,
-#     dag=dag,
-# )
-
 
 consume_from_topic >> choose_branch_task
 choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, process_png_task, unknown_or_none_file_task]
