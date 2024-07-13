@@ -32,8 +32,8 @@ def choose_branch(**kwargs):
     print(f"{nombre_fichero}")
 
     file_extension = os.path.splitext(nombre_fichero)[1].lower()
-    print(f"{file_extension}")
-    
+    print(f"Extensión del archivo: {file_extension}")
+
     if file_extension == '.zip':
         return 'process_zip_task'
     elif file_extension == '.tiff' or file_extension == '.tif':
