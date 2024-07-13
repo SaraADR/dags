@@ -21,19 +21,27 @@ def consumer_function(message, prefix, **kwargs):
 
     if file_name:
         file_extension = os.path.splitext(file_name)[1].lower()
-        print(f"Esto es la extension: {file_extension}")
-        if file_extension == '.zip':
-            return 'process_zip_task'
-        elif file_extension == '.tiff' or file_extension == '.tif':
-            return 'process_tiff_task'
-        elif file_extension == '.jpg' or file_extension == '.jpeg':
-            return 'process_jpg_task'
-        else:
-            return 'unknown_file_task'
+        return file_extension
     else:
         return 'no_message_task'
     
+def choose_branch(**kwargs):
+    ti = kwargs['ti']
+    file_extension = ti.xcom_pull(task_ids='consume_from_topic')
 
+    if file_extension == '.zip':
+        return 'process_zip_task'
+    elif file_extension == '.tiff' or file_extension == '.tif':
+        return 'process_tiff_task'
+    elif file_extension == '.jpg' or file_extension == '.jpeg':
+        return 'process_jpg_task'
+    elif file_extension == 'no_message_task':
+        return 'no_message_task'
+    else:
+        return 'unknown_file_task'
+    
+    
+    
 def process_zip_file(**kwargs):
     ti = kwargs['ti']
     #file_name = ti.xcom_pull(task_ids='consume_from_topic', key='file_name')
@@ -119,6 +127,12 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
+choose_branch_task = BranchPythonOperator(
+    task_id='choose_branch_task',
+    python_callable=choose_branch,
+    provide_context=True,
+    dag=dag,
+)
 process_zip_task = PythonOperator(
     task_id='process_zip_task',
     python_callable=process_zip_file,
@@ -162,5 +176,5 @@ no_message_task = PythonOperator(
 # )
 
 
-consume_from_topic >> [process_zip_task, process_tiff_task, process_jpg_task, unknown_file_task, no_message_task]
-#>> trigger_email_handler_task
+consume_from_topic >> choose_branch_task
+choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, unknown_file_task, no_message_task]
