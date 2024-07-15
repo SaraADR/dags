@@ -19,10 +19,11 @@ minio_client = Minio(
 def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     message = context['dag_run'].conf
+    print(f"Received message: {message[:40]}")
     
     # Directorio temporal para descomprimir los archivos
-    temp_unzip_path = "/path/to/temp/unzip"
-    temp_zip_path = "/path/to/temp/zip"
+    temp_unzip_path = "./dags/repo/temp/unzip"
+    temp_zip_path = "./dags/repo/temp/zip"
 
     # Crear los directorios temporales si no existen
     os.makedirs(temp_unzip_path, exist_ok=True)
@@ -37,18 +38,18 @@ def process_kafka_message(**context):
     with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
         zip_ref.extractall(temp_unzip_path)
     
-    # Subir archivos descomprimidos a MinIO
-    for extracted_file in os.listdir(temp_unzip_path):
-        extracted_file_path = os.path.join(temp_unzip_path, extracted_file)
-        if extracted_file.endswith(".pdf") or extracted_file.endswith(".docx"):
-            with open(extracted_file_path, 'rb') as file_data:
-                file_stat = os.stat(extracted_file_path)
-                minio_client.put_object(
-                    "avincis-test",
-                    extracted_file,
-                    file_data,
-                    file_stat.st_size
-                )
+    # # Subir archivos descomprimidos a MinIO
+    # for extracted_file in os.listdir(temp_unzip_path):
+    #     extracted_file_path = os.path.join(temp_unzip_path, extracted_file)
+    #     if extracted_file.endswith(".pdf") or extracted_file.endswith(".docx"):
+    #         with open(extracted_file_path, 'rb') as file_data:
+    #             file_stat = os.stat(extracted_file_path)
+    #             minio_client.put_object(
+    #                 "avincis-test",
+    #                 extracted_file,
+    #                 file_data,
+    #                 file_stat.st_size
+    #             )
     
     # Limpiar los directorios temporales después de procesar el archivo zip
     os.remove(zip_filename)
