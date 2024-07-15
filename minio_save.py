@@ -6,16 +6,13 @@ import os
 import zipfile
 
 
-# vgtcFgEp7zeWftjSh7pAnZsYCKn2DIkAoRfQlvzD  no perder esta access key (por ahora aqui, despues ya en airflow)
-
-
 # Configuración de MinIO
-minio_client = Minio(
-    "storage-minio:9000",
-    access_key="dMxwH6VwKyUrjeX38J3y",
-    secret_key="vgtcFgEp7zeWftjSh7pAnZsYCKn2DIkAoRfQlvzD",
-    secure=False
-)
+# minio_client = Minio(
+#     "storage-minio:9000",
+#     access_key="dMxwH6VwKyUrjeX38J3y",
+#     secret_key="vgtcFgEp7zeWftjSh7pAnZsYCKn2DIkAoRfQlvzD",
+#     secure=False
+# )
 def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     message = context['dag_run'].conf
