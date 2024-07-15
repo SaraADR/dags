@@ -4,7 +4,7 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 import os
 import zipfile
-
+import ast
 
 # Configuración de MinIO
 # minio_client = Minio(
@@ -19,13 +19,12 @@ def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     message = context['dag_run'].conf
     
-    # Imprimir el mensaje completo para ver su contenido
-    print(f"Received message: {message}")
-    
+    message_dict = ast.literal_eval(message['message'])
+
     # Verificar que la clave 'file_content' esté presente en el mensaje
-    if 'file_content' in message:
+    if message:
         # Mostrar los primeros 40 caracteres del contenido del archivo
-        first_40_values = message['file_content'][:40]
+        first_40_values = message['message'][:40]
         print(f"Received file content (first 40 bytes): {first_40_values}")
     else:
         raise KeyError("The key 'file_content' was not found in the message.")
@@ -42,7 +41,7 @@ def process_kafka_message(**context):
         # Guardar el contenido del archivo zip en un archivo temporal
         zip_filename = os.path.join(temp_zip_path, 'temp_file.zip')
         with open(zip_filename, 'wb') as f:
-            f.write(message['file_content'])
+            f.write(message['message'])
 
         # Descomprimir el archivo zip
         with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
