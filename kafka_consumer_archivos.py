@@ -44,6 +44,8 @@ def choose_branch(**kwargs):
         return 'process_jpg_task'
     elif file_extension == '.png':
         return 'process_png_task'
+    elif file_extension == '.mp4' or file_extension == '.avi' or file_extension == '.mov':
+        return 'process_video_task'
     elif file_extension == 'no_message_task':
         return 'no_message_task'
     else:
@@ -55,6 +57,9 @@ def process_zip_file(**kwargs):
     try:
         value_pulled = Variable.get("value")
         print("Processing ZIP file")
+        first_40_values = value_pulled[:40]
+        print("First 40 values:", first_40_values)
+
 
         with zipfile.ZipFile(io.BytesIO(value_pulled), 'r') as zip_ref:
             file_list = zip_ref.namelist()
@@ -65,8 +70,10 @@ def process_zip_file(**kwargs):
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")
+    except zipfile.BadZipFile:
+        print("El archivo no es un ZIP válido")
+        raise AirflowSkipException("El archivo no es un ZIP válido")
     Variable.set("key", None)   
-
 
 
 def process_tiff_file(**kwargs):
@@ -96,6 +103,14 @@ def process_png_file(**kwargs):
         raise AirflowSkipException("Variable value does not exist")
     Variable.set("key", None)   
 
+def process_video_file(**kwargs):
+    try:
+        value_pulled = Variable.get("value")
+        print("Processing Video file")
+    except KeyError:
+        print("Variable value does not exist")
+        raise AirflowSkipException("Variable value does not exist")
+    Variable.set("key", None)   
 
 def handle_unknown_file(**kwargs):
     print("Unknown file type")
@@ -167,6 +182,13 @@ process_png_task = PythonOperator(
     dag=dag,
 )
 
+process_video_task = PythonOperator(
+    task_id='process_video_task',
+    python_callable=process_video_file,
+    provide_context=True,
+    dag=dag,
+)
+
 unknown_or_none_file_task = PythonOperator(
     task_id='unknown_or_none_file_task',
     python_callable=handle_unknown_file,
@@ -175,4 +197,4 @@ unknown_or_none_file_task = PythonOperator(
 )
 
 consume_from_topic >> choose_branch_task
-choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, process_png_task, unknown_or_none_file_task]
+choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, process_png_task, process_video_task, unknown_or_none_file_task]
