@@ -7,7 +7,6 @@ import os
 import zipfile
 import ast
 from minio import Minio
-from minio.error import S3Error
 from airflow.hooks.base_hook import BaseHook
 
 def process_kafka_message(**context):
