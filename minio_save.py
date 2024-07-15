@@ -41,7 +41,7 @@ def process_kafka_message(**context):
         os.makedirs(temp_unzip_path, exist_ok=True)
         os.makedirs(temp_zip_path, exist_ok=True)
 
-        with zipfile.ZipFile(io.BytesIO(message)) as zip_file:
+        with zipfile.ZipFile(io.BytesIO(file_content)) as zip_file:
         # Obtener la lista de archivos dentro del ZIP
             file_list = zip_file.namelist()
             print("Archivos en el ZIP:", file_list)
