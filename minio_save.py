@@ -55,9 +55,9 @@ def save_to_minio(file_name, content):
     connection = BaseHook.get_connection('minio_conn')
     s3_client = boto3.client(
         's3',
-        endpoint_url=f'http://{connection.host}:{connection.port}',
-        aws_access_key_id=connection.login,
-        aws_secret_access_key=connection.password,
+        endpoint_url=f'https://storage-minio.default.svc.cluster.local:9000',
+        aws_access_key_id="dMxwH6VwKyUrjeX38J3y",
+        aws_secret_access_key="vgtcFgEp7zeWftjSh7pAnZsYCKn2DIkAoRfQlvzD",
         config=Config(signature_version='s3v4')
     )
 
