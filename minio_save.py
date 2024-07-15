@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 import os
 import zipfile
 import ast
-from minio import Minio
+import boto3
+from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 
 def process_kafka_message(**context):
@@ -52,25 +53,27 @@ def process_kafka_message(**context):
 def save_to_minio(file_name, content):
     # Obtener la conexión de MinIO desde Airflow
     connection = BaseHook.get_connection('minio_conn')
-    minio_client = Minio(
-        f'{connection.host}:{connection.port}',
-        access_key=connection.login,
-        secret_key=connection.password,
-        secure=False  # Cambiar a True si estás usando HTTPS
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=f'http://{connection.host}:{connection.port}',
+        aws_access_key_id=connection.login,
+        aws_secret_access_key=connection.password,
+        config=Config(signature_version='s3v4')
     )
 
     bucket_name = 'avincis-test'  # Reemplaza esto con tu bucket de MinIO
 
     # Crear el bucket si no existe
-    if not minio_client.bucket_exists(bucket_name):
-        minio_client.make_bucket(bucket_name)
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+    except s3_client.exceptions.NoSuchBucket:
+        s3_client.create_bucket(Bucket=bucket_name)
 
     # Subir el archivo a MinIO
-    minio_client.put_object(
-        bucket_name,
-        file_name,
-        io.BytesIO(content),
-        length=len(content),
+    s3_client.put_object(
+        Bucket=bucket_name,
+        Key=file_name,
+        Body=io.BytesIO(content)
     )
     print(f'{file_name} subido correctamente a MinIO.')
 
