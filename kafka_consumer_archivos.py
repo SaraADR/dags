@@ -60,13 +60,19 @@ def process_zip_file(**kwargs):
         first_40_values = value_pulled[:40]
         print("First 40 values:", first_40_values)
 
+        try:
 
-        with zipfile.ZipFile(io.BytesIO(value_pulled), 'r') as zip_ref:
-            file_list = zip_ref.namelist()
-            for file_name in file_list:
-                print(file_name)
-
-
+            trigger = TriggerDagRunOperator(
+                task_id='trigger_email_handler_inner',
+                trigger_dag_id='save_documents_to_minio',
+                conf={'message': value_pulled}, 
+                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                dag=dag,
+            )
+            trigger.execute(context=kwargs)
+            Variable.delete("value")
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")
