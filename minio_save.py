@@ -57,7 +57,7 @@ def process_kafka_message(**context):
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 15, 7),
+    'start_date': datetime(2024, 7, 15),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
