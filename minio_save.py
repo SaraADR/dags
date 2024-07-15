@@ -24,8 +24,8 @@ def process_kafka_message(**context):
     message_dict = ast.literal_eval(message['message'])
 
     # Verificar que la clave 'file_content' esté presente en el mensaje
-    if 'file_content' in message_dict:
-        file_content = message_dict['file_content']
+    if message:
+        file_content = message['message']
         # Mostrar los primeros 40 caracteres del contenido del archivo
         first_40_values = file_content[:40]
         print(f"Received file content (first 40 bytes): {first_40_values}")
