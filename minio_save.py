@@ -1,3 +1,4 @@
+import tempfile
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
@@ -46,7 +47,9 @@ def process_kafka_message(**context):
         # Descomprimir el archivo zip
         with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
             zip_ref.extractall(temp_unzip_path)
-        
+
+
+        print(f"Se han creado los temporales")
         # # Subir archivos descomprimidos a MinIO
         # for extracted_file in os.listdir(temp_unzip_path):
         #     extracted_file_path = os.path.join(temp_unzip_path, extracted_file)
