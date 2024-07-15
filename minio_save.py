@@ -6,15 +6,9 @@ from datetime import datetime, timedelta
 import os
 import zipfile
 import ast
-
-# Configuración de MinIO
-# minio_client = Minio(
-#     "storage-minio:9000",
-#     access_key="dMxwH6VwKyUrjeX38J3y",
-#     secret_key="vgtcFgEp7zeWftjSh7pAnZsYCKn2DIkAoRfQlvzD",
-#     secure=False
-# )
-
+from minio import Minio
+from minio.error import S3Error
+from airflow.hooks.base_hook import BaseHook
 
 def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
@@ -51,23 +45,37 @@ def process_kafka_message(**context):
                 with zip_file.open(file_name) as file:
                     content = file.read()
                     print(f"Contenido del archivo {file_name}: {content[:10]}...")  
-
+                    save_to_minio(file_name, content)
 
         print(f"Se han creado los temporales")
-        # # Subir archivos descomprimidos a MinIO
-        # for extracted_file in os.listdir(temp_unzip_path):
-        #     extracted_file_path = os.path.join(temp_unzip_path, extracted_file)
-        #     if extracted_file.endswith(".pdf") or extracted_file.endswith(".docx"):
-        #         with open(extracted_file_path, 'rb') as file_data:
-        #             file_stat = os.stat(extracted_file_path)
-        #             minio_client.put_object(
-        #                 "avincis-test",
-        #                 extracted_file,
-        #                 file_data,
-        #                 file_stat.st_size
-        #             )
-        
-        # Los directorios temporales se limpiarán automáticamente al salir del bloque 'with'
+
+
+def save_to_minio(file_name, content):
+    # Obtener la conexión de MinIO desde Airflow
+    connection = BaseHook.get_connection('minio_conn')
+    minio_client = Minio(
+        f'{connection.host}:{connection.port}',
+        access_key=connection.login,
+        secret_key=connection.password,
+        secure=False  # Cambiar a True si estás usando HTTPS
+    )
+
+    bucket_name = 'avincis-test'  # Reemplaza esto con tu bucket de MinIO
+
+    # Crear el bucket si no existe
+    if not minio_client.bucket_exists(bucket_name):
+        minio_client.make_bucket(bucket_name)
+
+    # Subir el archivo a MinIO
+    minio_client.put_object(
+        bucket_name,
+        file_name,
+        io.BytesIO(content),
+        length=len(content),
+    )
+    print(f'{file_name} subido correctamente a MinIO.')
+
+
 
 
 # Definir el DAG
