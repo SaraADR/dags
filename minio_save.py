@@ -32,6 +32,7 @@ def process_kafka_message(**context):
     else:
         raise KeyError("The key 'file_content' was not found in the message.")
 
+    message_dict = ast.literal_eval(message['message'])
     # Crear un directorio temporal utilizando el módulo tempfile
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_unzip_path = os.path.join(temp_dir, 'unzip')
@@ -41,7 +42,7 @@ def process_kafka_message(**context):
         os.makedirs(temp_unzip_path, exist_ok=True)
         os.makedirs(temp_zip_path, exist_ok=True)
 
-        with zipfile.ZipFile(io.BytesIO(file_content)) as zip_file:
+        with zipfile.ZipFile(io.BytesIO(message_dict)) as zip_file:
         # Obtener la lista de archivos dentro del ZIP
             file_list = zip_file.namelist()
             print("Archivos en el ZIP:", file_list)
