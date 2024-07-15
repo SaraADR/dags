@@ -15,7 +15,7 @@ import zipfile
 def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     message = context['dag_run'].conf
-    first_40_values = message[:40]
+    first_40_values = message
     print(f"Received message: {first_40_values}")
     
     # Directorio temporal para descomprimir los archivos
