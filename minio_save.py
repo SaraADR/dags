@@ -1,3 +1,4 @@
+import io
 import tempfile
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -39,15 +40,16 @@ def process_kafka_message(**context):
         # Crear los subdirectorios temporales
         os.makedirs(temp_unzip_path, exist_ok=True)
         os.makedirs(temp_zip_path, exist_ok=True)
-        
-        # Guardar el contenido del archivo zip en un archivo temporal
-        zip_filename = os.path.join(temp_zip_path, 'temp_file.zip')
-        with open(zip_filename, 'wb') as f:
-              f.write(file_content.encode() if isinstance(file_content, str) else file_content)
 
-        # Descomprimir el archivo zip
-        with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
-            zip_ref.extractall(temp_unzip_path)
+        with zipfile.ZipFile(io.BytesIO(message)) as zip_file:
+        # Obtener la lista de archivos dentro del ZIP
+            file_list = zip_file.namelist()
+            print("Archivos en el ZIP:", file_list)
+
+            for file_name in file_list:
+                with zip_file.open(file_name) as file:
+                    content = file.read()
+                    print(f"Contenido del archivo {file_name}: {content[:10]}...")  
 
 
         print(f"Se han creado los temporales")
