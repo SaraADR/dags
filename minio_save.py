@@ -56,10 +56,11 @@ def save_to_minio(file_name, content):
     s3_client = boto3.client(
         's3',
         endpoint_url=f'http://storage-minio.default.svc.cluster.local:9000',
-        aws_access_key_id="dMxwH6VwKyUrjeX38J3y",
-        aws_secret_access_key="vgtcFgEp7zeWftjSh7pAnZsYCKn2DIkAoRfQlvzD",
+        aws_access_key_id=connection.aws_access_key_id,
+        aws_secret_access_key=connection.aws_secret_access_key,
         config=Config(signature_version='s3v4')
     )
+
 
     bucket_name = 'avincis-test'  # Reemplaza esto con tu bucket de MinIO
 
