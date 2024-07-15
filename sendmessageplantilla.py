@@ -57,7 +57,7 @@ def render_template(message_dict):
             jinja_template = Template(template_str)
         email_data = {
             'nombre': data.get('to', 'default@example.com'),
-            'dato1': data.get('DATO', 'DATO'),
+            'subject': data.get('subject', 'No subject'),
             'dato2': data.get('templateId', 'No Subject'),
             'cc' : data.get('cc', 'default@example.com'),  # Extracting CC field
             'bcc' : data.get('bcc', 'default@example.com')
