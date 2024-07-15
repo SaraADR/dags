@@ -12,46 +12,55 @@ import zipfile
 #     secret_key="vgtcFgEp7zeWftjSh7pAnZsYCKn2DIkAoRfQlvzD",
 #     secure=False
 # )
+
+
 def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     message = context['dag_run'].conf
-    first_40_values = message
-    print(f"Received message: {first_40_values}")
     
-    # Directorio temporal para descomprimir los archivos
-    temp_unzip_path = "./dags/repo/temp/unzip"
-    temp_zip_path = "./dags/repo/temp/zip"
+    # Imprimir el mensaje completo para ver su contenido
+    print(f"Received message: {message}")
+    
+    # Verificar que la clave 'file_content' esté presente en el mensaje
+    if 'file_content' in message:
+        # Mostrar los primeros 40 caracteres del contenido del archivo
+        first_40_values = message['file_content'][:40]
+        print(f"Received file content (first 40 bytes): {first_40_values}")
+    else:
+        raise KeyError("The key 'file_content' was not found in the message.")
 
-    # Crear los directorios temporales si no existen
-    os.makedirs(temp_unzip_path, exist_ok=True)
-    os.makedirs(temp_zip_path, exist_ok=True)
-    
-    # Guardar el contenido del archivo zip en un archivo temporal
-    zip_filename = os.path.join(temp_zip_path, 'temp_file.zip')
-    with open(zip_filename, 'wb') as f:
-        f.write(message['file_content'])
+    # Crear un directorio temporal utilizando el módulo tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_unzip_path = os.path.join(temp_dir, 'unzip')
+        temp_zip_path = os.path.join(temp_dir, 'zip')
 
-    # Descomprimir el archivo zip
-    with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
-        zip_ref.extractall(temp_unzip_path)
-    
-    # # Subir archivos descomprimidos a MinIO
-    # for extracted_file in os.listdir(temp_unzip_path):
-    #     extracted_file_path = os.path.join(temp_unzip_path, extracted_file)
-    #     if extracted_file.endswith(".pdf") or extracted_file.endswith(".docx"):
-    #         with open(extracted_file_path, 'rb') as file_data:
-    #             file_stat = os.stat(extracted_file_path)
-    #             minio_client.put_object(
-    #                 "avincis-test",
-    #                 extracted_file,
-    #                 file_data,
-    #                 file_stat.st_size
-    #             )
-    
-    # Limpiar los directorios temporales después de procesar el archivo zip
-    os.remove(zip_filename)
-    for extracted_file in os.listdir(temp_unzip_path):
-        os.remove(os.path.join(temp_unzip_path, extracted_file))
+        # Crear los subdirectorios temporales
+        os.makedirs(temp_unzip_path, exist_ok=True)
+        os.makedirs(temp_zip_path, exist_ok=True)
+        
+        # Guardar el contenido del archivo zip en un archivo temporal
+        zip_filename = os.path.join(temp_zip_path, 'temp_file.zip')
+        with open(zip_filename, 'wb') as f:
+            f.write(message['file_content'])
+
+        # Descomprimir el archivo zip
+        with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
+            zip_ref.extractall(temp_unzip_path)
+        
+        # # Subir archivos descomprimidos a MinIO
+        # for extracted_file in os.listdir(temp_unzip_path):
+        #     extracted_file_path = os.path.join(temp_unzip_path, extracted_file)
+        #     if extracted_file.endswith(".pdf") or extracted_file.endswith(".docx"):
+        #         with open(extracted_file_path, 'rb') as file_data:
+        #             file_stat = os.stat(extracted_file_path)
+        #             minio_client.put_object(
+        #                 "avincis-test",
+        #                 extracted_file,
+        #                 file_data,
+        #                 file_stat.st_size
+        #             )
+        
+        # Los directorios temporales se limpiarán automáticamente al salir del bloque 'with'
 
 
 # Definir el DAG
