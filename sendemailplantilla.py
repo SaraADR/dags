@@ -58,7 +58,7 @@ def render_template(message_dict):
         email_data = {
             'nombre': data.get('to', 'default@example.com'),
             'subject': data.get('subject', 'No subject'),
-            'dato2': data.get('templateId', 'No Subject'),
+            'dato2': data.get('dato2', 'No Subject'),
             'cc' : data.get('cc', 'default@example.com'),  # Extracting CC field
             'bcc' : data.get('bcc', 'default@example.com')
         }
