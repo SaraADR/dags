@@ -1,7 +1,6 @@
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
-from minio import Minio
 import os
 import zipfile
 
