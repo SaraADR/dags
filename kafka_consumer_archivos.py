@@ -13,6 +13,21 @@ from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 import tempfile
+from kafka import KafkaConsumer
+from process_and_upload import process_message  # Importamos la nueva función
+
+# To consume latest messages and auto-commit offsets
+consumer = KafkaConsumer('my_topic',
+                         group_id='my_group',
+                         bootstrap_servers=['localhost:9092'],
+                         value_deserializer=lambda m: json.loads(m.decode('utf-8')))
+
+for message in consumer:
+    print(f"Received message: {message.value}")
+    # Process the message here
+    process_message(message.value)  # Llamamos a la función process_message
+
+
 
 def consumer_function(message, prefix, **kwargs):
     print("Esto es el mensaje")
@@ -106,6 +121,13 @@ def process_zip_file(**kwargs):
                         print(f"Error decoding Zip")
                 if videos and images is None:
                     print(f"No va a seguir ningun ciclo")
+
+
+   #A partir de este codigo print(f"No va a seguir ningun ciclo")  en contenido del archivo comprobar si lo que entra es lo que yo necesito,que es  llamar hacer un trigger dag a mi documento (crear uno) ejemplo es el (minio_save) 
+# en el archivo que debo crear tengo que recibir el contenido que viene de consumer, coger el contenido, enviarselo al docker, recoger la vuelta del docker, subirlo a minio y ya esta.
+
+
+
 
                                   
     except KeyError:
