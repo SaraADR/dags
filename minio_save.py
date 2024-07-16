@@ -1,4 +1,5 @@
 import io
+import json
 import tempfile
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -10,51 +11,16 @@ import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 
-def process_kafka_message(**context):
-    # Extraer el mensaje del contexto de Airflow
-    message = context['dag_run'].conf
-
-
-    if message:
-        file_content = message['message']
-        # Mostrar los primeros 40 caracteres del contenido del archivo
-        first_40_values = file_content[:40]
-        print(f"Received file content (first 40 bytes): {first_40_values}")
-    else:
-        raise KeyError("The key 'file_content' was not found in the message.")
-
-    message_dict = ast.literal_eval(message['message'])
-    # Crear un directorio temporal utilizando el módulo tempfile
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_unzip_path = os.path.join(temp_dir, 'unzip')
-        temp_zip_path = os.path.join(temp_dir, 'zip')
-
-        # Crear los subdirectorios temporales
-        os.makedirs(temp_unzip_path, exist_ok=True)
-        os.makedirs(temp_zip_path, exist_ok=True)
-
-        with zipfile.ZipFile(io.BytesIO(message_dict)) as zip_file:
-        # Obtener la lista de archivos dentro del ZIP
-            file_list = zip_file.namelist()
-            print("Archivos en el ZIP:", file_list)
-
-            for file_name in file_list:
-                with zip_file.open(file_name) as file:
-                    content = file.read()
-                    print(f"Contenido del archivo {file_name}: {content[:10]}...")  
-                    save_to_minio(file_name, content)
-
-        print(f"Se han creado los temporales")
-
 
 def save_to_minio(file_name, content):
     # Obtener la conexión de MinIO desde Airflow
     connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
     s3_client = boto3.client(
         's3',
-        endpoint_url=f'http://storage-minio.default.svc.cluster.local:9000',
-        aws_access_key_id=connection.aws_access_key_id,
-        aws_secret_access_key=connection.aws_secret_access_key,
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
         config=Config(signature_version='s3v4')
     )
 
@@ -94,13 +60,6 @@ dag = DAG(
     default_args=default_args,
     description='A simple DAG to save documents to MinIO',
     schedule_interval=timedelta(days=1),
-)
-
-save_task = PythonOperator(
-    task_id='save_to_minio_task',
-    provide_context=True,
-    python_callable=process_kafka_message,
-    dag=dag,
 )
 
 
