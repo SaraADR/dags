@@ -16,7 +16,7 @@ def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     message = context['dag_run'].conf
 
-
+    unique_id = str(uuid.uuid4())
     if message:
         file_content = message['message']
         # Mostrar los primeros 40 caracteres del contenido del archivo
@@ -44,12 +44,12 @@ def process_kafka_message(**context):
                 with zip_file.open(file_name) as file:
                     content = file.read()
                     print(f"Contenido del archivo {file_name}: {content[:10]}...")  
-                    save_to_minio(file_name, content)
+                    save_to_minio(file_name, content, unique_id)
 
         print(f"Se han creado los temporales")
 
 
-def save_to_minio(file_name, content):
+def save_to_minio(file_name, content, unique_id):
     # Obtener la conexión de MinIO desde Airflow
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
@@ -69,7 +69,7 @@ def save_to_minio(file_name, content):
     except s3_client.exceptions.NoSuchBucket:
         s3_client.create_bucket(Bucket=bucket_name)
 
-    unique_id = str(uuid.uuid4())
+    
     # Subir el archivo a MinIO
     s3_client.put_object(
         Bucket=bucket_name,
