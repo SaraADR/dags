@@ -13,11 +13,7 @@ from airflow.hooks.base_hook import BaseHook
 def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     message = context['dag_run'].conf
-    
-    # Parse the message content
-    message_dict = ast.literal_eval(message['message'])
 
-    # Verificar que la clave 'file_content' esté presente en el mensaje
     if message:
         file_content = message['message']
         # Mostrar los primeros 40 caracteres del contenido del archivo
