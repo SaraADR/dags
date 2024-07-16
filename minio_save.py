@@ -62,7 +62,8 @@ def save_to_minio(file_name, content):
     )
 
 
-    bucket_name = 'avincis-test'  # Reemplaza esto con tu bucket de MinIO
+    bucket_name = 'avincis-test'  
+
 
     # Crear el bucket si no existe
     try:
@@ -81,7 +82,6 @@ def save_to_minio(file_name, content):
 
 
 
-# Definir el DAG
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -99,7 +99,6 @@ dag = DAG(
     schedule_interval=timedelta(days=1),
 )
 
-# Definir la tarea
 save_task = PythonOperator(
     task_id='save_to_minio_task',
     provide_context=True,
@@ -107,5 +106,5 @@ save_task = PythonOperator(
     dag=dag,
 )
 
-# Establecer las dependencias del DAG
+
 save_task
