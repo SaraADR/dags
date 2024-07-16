@@ -61,6 +61,12 @@ dag = DAG(
     description='A simple DAG to save documents to MinIO',
     schedule_interval=timedelta(days=1),
 )
+minio_task = PythonOperator(
+    task_id='minio_task',
+    python_callable=save_to_minio,
+    provide_context=True,
+    dag=dag,
+)
 
 
-save_task
+minio_task
