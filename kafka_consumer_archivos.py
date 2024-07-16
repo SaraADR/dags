@@ -107,16 +107,27 @@ def process_zip_file(**kwargs):
                 if videos and images is None:
                     print(f"No va a seguir ningun ciclo")
 
+# A partir de este codigo print(f"No va a seguir ningun ciclo")  en contenido del archivo comprobar si {
+#   "boundingBox":{    
+#     "x_min": 604592.0659992056,
+#     "x_max": 604744.9679992045,
+#     "y_min": 4742773.29511746,
+#     "y_max": 4742861.794117461,
+#     "z_min": 677.375,
+#     "z_max": 702.05
+#   },
+#   "annotation":{
+#     "x": 604604.944, 
+#     "y": 4742852.381, 
+#     "z": 1.7210693359375,
+#     "title": "Anotación usuario"
+#   }# lo que entra es lo que yo necesito,que es  llamar hacer un trigger dag a mi documento (process_and_upload.py) ejemplo es el (minio_save) 
+# en el archivo que debo crear tengo que recibir el contenido que viene de consumer, coger el contenido,
+# enviarselo al docker, recoger la vuelta del docker, subirlo a minio y ya esta. y luego probarlo en airflow. todo esta montado ya solo debo añadir esta seccion
+# }
 
 
-
-   #A partir de este codigo print(f"No va a seguir ningun ciclo")  en contenido del archivo comprobar si lo que entra es lo que yo necesito,que es  llamar hacer un trigger dag a mi documento (crear uno) ejemplo es el (minio_save) 
-    # en el archivo que debo crear tengo que recibir el contenido que viene de consumer, coger el contenido, enviarselo al docker, recoger la vuelta del docker, subirlo a minio y ya esta.
-
-
-
-
-                                  
+                       
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")
