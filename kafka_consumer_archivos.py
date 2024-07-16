@@ -1,3 +1,4 @@
+import ast
 import io
 import json
 import os
@@ -11,7 +12,7 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
-
+import tempfile
 
 def consumer_function(message, prefix, **kwargs):
     print("Esto es el mensaje")
@@ -60,19 +61,53 @@ def process_zip_file(**kwargs):
         first_40_values = value_pulled[:40]
         print("First 40 values:", first_40_values)
 
-        try:
 
-            trigger = TriggerDagRunOperator(
-                task_id='trigger_email_handler_inner',
-                trigger_dag_id='save_documents_to_minio',
-                conf={'message': value_pulled}, 
-                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                dag=dag,
-            )
-            trigger.execute(context=kwargs)
-            Variable.delete("value")
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON: {e}")
+        message_dict = ast.literal_eval(value_pulled)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_unzip_path = os.path.join(temp_dir, 'unzip')
+            temp_zip_path = os.path.join(temp_dir, 'zip')
+
+            # Crear los subdirectorios temporales
+            os.makedirs(temp_unzip_path, exist_ok=True)
+            os.makedirs(temp_zip_path, exist_ok=True)
+
+            with zipfile.ZipFile(io.BytesIO(message_dict)) as zip_file:
+            # Obtener la lista de archivos dentro del ZIP
+                file_list = zip_file.namelist()
+                print("Archivos en el ZIP:", file_list)
+
+                videos = []
+                images = []
+
+                for file_name in file_list:
+                    with zip_file.open(file_name) as file:
+                        content = file.read()
+                        print(f"Contenido del archivo {file_name}: {content[:10]}...")  
+
+                    if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
+                        videos.append(file_name)
+                    elif file_name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+                        images.append(file_name)
+
+                if videos and images is not None:
+                    try:
+                        print(f"va a seguir el ciclo de detección de elementos")
+                        trigger = TriggerDagRunOperator(
+                        task_id='trigger_email_handler_inner',
+                        trigger_dag_id='save_documents_to_minio',
+                        conf={'message': value_pulled}, 
+                        execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                        dag=dag,
+                    )
+                        trigger.execute(context=kwargs)
+                        Variable.delete("value")
+                    except zipfile.BadZipFile:
+                        print(f"Error decoding Zip")
+                if videos and images is None:
+                    print(f"No va a seguir ningun ciclo")
+
+                                  
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")

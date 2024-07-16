@@ -14,6 +14,7 @@ def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     message = context['dag_run'].conf
 
+
     if message:
         file_content = message['message']
         # Mostrar los primeros 40 caracteres del contenido del archivo
