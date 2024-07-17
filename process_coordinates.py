@@ -62,7 +62,7 @@ def process_and_upload(**kwargs):
     
     # MinIO client configuration
     minio_client = Minio(
-        "play.min.io",  # Replace with your MinIO endpoint
+        "locationtest:9001",  # Replace with your MinIO endpoint
         access_key="xsytzGmjdOucIZrhUa7G",  # Replace with your access key
         secret_key="JBRFy79EJajDNLiZzkehJz9rY7wSHcruHgWTcz7M",  # Replace with your secret key
         secure=True
