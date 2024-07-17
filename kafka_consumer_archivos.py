@@ -14,6 +14,72 @@ from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 import tempfile
 
+
+# Función para leer el archivo de coordenadas
+def read_coordinates(file_path):
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    return data
+
+# Función para llamar al contenedor Docker y generar el PDF
+def generate_pdf(coordinates):
+    command = f"docker exec e28a773e8a67bedd2a5006965e2bb6afc88f49d652bcfab0dfc1b77b5b3dd191 generate_pdf_script.py --coords '{json.dumps(coordinates)}'"
+    subprocess.run(command, shell=True, check=True)
+
+# Función para subir el PDF a MinIO y obtener el ID
+def upload_to_minio(pdf_path, bucket_name, minio_client):
+    try:
+        pdf_id = pdf_path.split('/')[-1]
+        minio_client.fput_object(
+            bucket_name, pdf_id, pdf_path,
+        )
+        return pdf_id
+    except S3Error as exc:
+        print("error occurred.", exc)
+        return None
+
+# Nueva función para procesar coordenadas y subir el PDF
+def process_coordinates_and_upload(file_path):
+    # Leer las coordenadas
+    coordinates = read_coordinates(file_path)
+    
+    # Generar el PDF
+    generate_pdf(coordinates)
+    
+    # Configuración de MinIO
+    minio_client = Minio(
+        "play.min.io",
+        access_key="xsytzGmjdOucIZrhUa7G",
+        secret_key="JBRFy79EJajDNLiZzkehJz9rY7wSHcruHgWTcz7M",
+        secure=True
+    )
+
+    # Ruta al PDF generado
+    pdf_path = "/path/to/generated_pdf.pdf"
+    
+    # Nombre del bucket en MinIO
+    bucket_name = "your-bucket-name"
+
+    # Subir el PDF a MinIO y obtener el ID
+    pdf_id = upload_to_minio(pdf_path, bucket_name, minio_client)
+
+    if pdf_id:
+        print(f"PDF uploaded successfully. MinIO ID: {pdf_id}")
+    else:
+        print("Failed to upload PDF to MinIO.")
+
+# Código original de consumo de mensajes Kafka
+def consume_kafka_messages():
+    # Lógica para consumir mensajes de Kafka
+    # Supongamos que obtienes el archivo 'inputs.json'
+    file_path = "/mnt/data/inputs.json"
+    
+    # Llamar a la función para procesar y subir el PDF
+    process_coordinates_and_upload(file_path)
+
+# Llamar a la función de consumir mensajes
+consume_kafka_messages()
+
 def consumer_function(message, prefix, **kwargs):
     print("Esto es el mensaje")
     print(f"{message}")
@@ -107,6 +173,8 @@ def process_zip_file(**kwargs):
                 if videos and images is None:
                     print(f"No va a seguir ningun ciclo")
 
+
+
 # A partir de este codigo print(f"No va a seguir ningun ciclo")  en contenido del archivo comprobar si {
 #   "boundingBox":{    
 #     "x_min": 604592.0659992056,
@@ -126,6 +194,7 @@ def process_zip_file(**kwargs):
 # enviarselo al docker, recoger la vuelta del docker, subirlo a minio y ya esta. y luego probarlo en airflow. todo esta montado ya solo debo añadir esta seccion
 # }
 
+#Crear un apartado mas donde si entra dos coordenadas en un archivo que llame al docker id(e28a773e8a67bedd2a5006965e2bb6afc88f49d652bcfab0dfc1b77b5b3dd191) y que saque el pdf y el pdf guardarlo en minio y minio tiene que devolver un id 
 
                        
     except KeyError:
