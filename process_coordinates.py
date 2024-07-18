@@ -7,7 +7,6 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 import os
 import zipfile
-import ast
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
@@ -16,38 +15,47 @@ def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     message = context['dag_run'].conf
 
+    if not message:
+        raise KeyError("No message found in the DAG run configuration.")
+    
+    try:
+        # Asegurarse de que el mensaje esté en formato JSON
+        message_dict = json.loads(message['message'])
+    except (KeyError, json.JSONDecodeError):
+        raise ValueError("The key 'message' was not found or the message is not in valid JSON format.")
+
     unique_id = str(uuid.uuid4())
-    if message:
-        file_content = message['message']
+
+    if message_dict:
+        file_content = message_dict.get('file_content')
+        if not file_content:
+            raise KeyError("The key 'file_content' was not found in the JSON message.")
+
         # Mostrar los primeros 40 caracteres del contenido del archivo
         first_40_values = file_content[:40]
         print(f"Received file content (first 40 bytes): {first_40_values}")
-    else:
-        raise KeyError("The key 'file_content' was not found in the message.")
 
-    message_dict = ast.literal_eval(message['message'])
-    # Crear un directorio temporal utilizando el módulo tempfile
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_unzip_path = os.path.join(temp_dir, 'unzip')
-        temp_zip_path = os.path.join(temp_dir, 'zip')
+        # Crear un directorio temporal utilizando el módulo tempfile
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_unzip_path = os.path.join(temp_dir, 'unzip')
+            temp_zip_path = os.path.join(temp_dir, 'zip')
 
-        # Crear los subdirectorios temporales
-        os.makedirs(temp_unzip_path, exist_ok=True)
-        os.makedirs(temp_zip_path, exist_ok=True)
+            # Crear los subdirectorios temporales
+            os.makedirs(temp_unzip_path, exist_ok=True)
+            os.makedirs(temp_zip_path, exist_ok=True)
 
-        with zipfile.ZipFile(io.BytesIO(message_dict)) as zip_file:
-        # Obtener la lista de archivos dentro del ZIP
-            file_list = zip_file.namelist()
-            print("Archivos en el ZIP:", file_list)
+            with zipfile.ZipFile(io.BytesIO(file_content.encode('latin1'))) as zip_file:
+                # Obtener la lista de archivos dentro del ZIP
+                file_list = zip_file.namelist()
+                print("Archivos en el ZIP:", file_list)
 
-            for file_name in file_list:
-                with zip_file.open(file_name) as file:
-                    content = file.read()
-                    print(f"Contenido del archivo {file_name}: {content[:10]}...")  
-                    save_to_minio(file_name, content, unique_id)
+                for file_name in file_list:
+                    with zip_file.open(file_name) as file:
+                        content = file.read()
+                        print(f"Contenido del archivo {file_name}: {content[:10]}...")
+                        save_to_minio(file_name, content, unique_id)
 
-        print(f"Se han creado los temporales")
-
+            print(f"Se han creado los temporales")
 
 def save_to_minio(file_name, content, unique_id):
     # Obtener la conexión de MinIO desde Airflow
@@ -61,7 +69,7 @@ def save_to_minio(file_name, content, unique_id):
         config=Config(signature_version='s3v4')
     )
 
-    bucket_name = 'locationtest'  
+    bucket_name = 'locationtest'
 
     # Crear el bucket si no existe
     try:
@@ -69,7 +77,6 @@ def save_to_minio(file_name, content, unique_id):
     except s3_client.exceptions.NoSuchBucket:
         s3_client.create_bucket(Bucket=bucket_name)
 
-    
     # Subir el archivo a MinIO
     s3_client.put_object(
         Bucket=bucket_name,
@@ -78,9 +85,6 @@ def save_to_minio(file_name, content, unique_id):
         Tagging=f"unique_id={unique_id}"
     )
     print(f'{file_name} subido correctamente a MinIO.')
-
-
-
 
 default_args = {
     'owner': 'airflow',
@@ -105,6 +109,5 @@ save_task = PythonOperator(
     python_callable=process_kafka_message,
     dag=dag,
 )
-
 
 save_task
