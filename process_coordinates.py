@@ -95,7 +95,7 @@ default_args = {
 dag = DAG(
     'save_coordinates_to_minio',
     default_args=default_args,
-    description='A simple DAG to save documents to MinIO',
+    description='Un DAG para almacenar coordenadas en Minio',
     schedule_interval=timedelta(days=1),
 )
 
