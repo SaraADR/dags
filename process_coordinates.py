@@ -1,94 +1,110 @@
+import io
+import json
+import tempfile
+import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
-from minio import Minio
-from minio.error import S3Error
-import json
-import subprocess
+import os
+import zipfile
+import ast
+import boto3
+from botocore.client import Config
+from airflow.hooks.base_hook import BaseHook
 
-# Default args for the DAG
+def process_kafka_message(**context):
+    # Extraer el mensaje del contexto de Airflow
+    message = context['dag_run'].conf
+
+    unique_id = str(uuid.uuid4())
+    if message:
+        file_content = message['message']
+        # Mostrar los primeros 40 caracteres del contenido del archivo
+        first_40_values = file_content[:40]
+        print(f"Received file content (first 40 bytes): {first_40_values}")
+    else:
+        raise KeyError("The key 'file_content' was not found in the message.")
+
+    message_dict = ast.literal_eval(message['message'])
+    # Crear un directorio temporal utilizando el módulo tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_unzip_path = os.path.join(temp_dir, 'unzip')
+        temp_zip_path = os.path.join(temp_dir, 'zip')
+
+        # Crear los subdirectorios temporales
+        os.makedirs(temp_unzip_path, exist_ok=True)
+        os.makedirs(temp_zip_path, exist_ok=True)
+
+        with zipfile.ZipFile(io.BytesIO(message_dict)) as zip_file:
+        # Obtener la lista de archivos dentro del ZIP
+            file_list = zip_file.namelist()
+            print("Archivos en el ZIP:", file_list)
+
+            for file_name in file_list:
+                with zip_file.open(file_name) as file:
+                    content = file.read()
+                    print(f"Contenido del archivo {file_name}: {content[:10]}...")  
+                    save_to_minio(file_name, content, unique_id)
+
+        print(f"Se han creado los temporales")
+
+
+def save_to_minio(file_name, content, unique_id):
+    # Obtener la conexión de MinIO desde Airflow
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
+
+    bucket_name = 'locationtest'  
+
+    # Crear el bucket si no existe
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+    except s3_client.exceptions.NoSuchBucket:
+        s3_client.create_bucket(Bucket=bucket_name)
+
+    
+    # Subir el archivo a MinIO
+    s3_client.put_object(
+        Bucket=bucket_name,
+        Key=file_name,
+        Body=io.BytesIO(content),
+        Tagging=f"unique_id={unique_id}"
+    )
+    print(f'{file_name} subido correctamente a MinIO.')
+
+
+
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
+    'start_date': datetime(2024, 7, 15),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
 
-# Initialize the DAG
 dag = DAG(
-    'process_and_upload_dag',
+    'save_coordinates_to_minio',
     default_args=default_args,
-    description='A simple DAG to process coordinates and upload PDF to MinIO',
+    description='A simple DAG to save documents to MinIO',
     schedule_interval=timedelta(days=1),
-    start_date=datetime(2023, 1, 1),
-    catchup=False,
 )
 
-# Function to read coordinates from file
-def read_coordinates(file_path):
-    with open(file_path, 'r') as f:
-        data = json.load(f)
-    return data
-
-# Function to call Docker container and generate the PDF
-def generate_pdf(coordinates):
-    command = f"docker exec e28a773e8a67bedd2a5006965e2bb6afc88f49d652bcfab0dfc1b77b5b3dd191 generate_pdf_script.py --coords '{json.dumps(coordinates)}'"
-    subprocess.run(command, shell=True, check=True)
-
-# Function to upload the PDF to MinIO and get the ID
-def upload_to_minio(pdf_path, bucket_name, minio_client):
-    try:
-        pdf_id = pdf_path.split('/')[-1]
-        minio_client.fput_object(
-            bucket_name, pdf_id, pdf_path,
-        )
-        return pdf_id
-    except S3Error as exc:
-        print("error occurred.", exc)
-        return None
-
-# Main function to process coordinates and upload PDF
-def process_and_upload(**kwargs):
-    # Path to the coordinates file (ensure this path is accessible)
-    coordinates_file = "/path/to/inputs.json"
-
-    # Read the coordinates
-    coordinates = read_coordinates(coordinates_file)
-    
-    # Generate the PDF
-    generate_pdf(coordinates)
-    
-    # MinIO client configuration
-    minio_client = Minio(
-        "locationtest:9001",  # Replace with your MinIO endpoint
-        access_key="xsytzGmjdOucIZrhUa7G",  # Replace with your access key
-        secret_key="JBRFy79EJajDNLiZzkehJz9rY7wSHcruHgWTcz7M",  # Replace with your secret key
-        secure=True
-    )
-
-    # Path to the generated PDF (ensure this matches the Docker script output)
-    pdf_path = "/path/to/generated_pdf.pdf"
-    
-    # MinIO bucket name
-    bucket_name = "locationtest"
-
-    # Upload the PDF to MinIO and get the ID
-    pdf_id = upload_to_minio(pdf_path, bucket_name, minio_client)
-
-    if pdf_id:
-        print(f"PDF uploaded successfully. MinIO ID: {pdf_id}")
-    else:
-        print("Failed to upload PDF to MinIO.")
-
-# Define the task
-process_and_upload_task = PythonOperator(
-    task_id='process_and_upload',
-    python_callable=process_and_upload,
+save_task = PythonOperator(
+    task_id='process_coordinates',
     provide_context=True,
+    python_callable=process_kafka_message,
     dag=dag,
 )
 
-# Set the task in the DAG
-process_and_upload_task
+
+save_task
