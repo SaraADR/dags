@@ -164,16 +164,9 @@ def process_json_file(**kwargs):
         if not value_pulled:
             print("No data to process")
             raise AirflowSkipException("No data to process")
-        
-        # Decodificar bytes si es necesario
-        if isinstance(value_pulled, bytes):
-            value_pulled = value_pulled.decode('utf-8').strip()
-            print("pasa por aqui")
-            
 
+        print(f" (tipo: {type(value_pulled)}): {value_pulled}")
         print(f"Content of JSON file: {value_pulled}")
-
-        value_pulled = value_pulled.decode('utf-8').strip()
         # Intentar cargar el JSON
         try:
             json_content = json.loads(value_pulled)
