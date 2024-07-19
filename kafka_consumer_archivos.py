@@ -155,28 +155,38 @@ def handle_unknown_file(**kwargs):
     print("Unknown file type")
     Variable.set("key", None)   
 
+import json
+
 def process_json_file(**kwargs):
     try:
         value_pulled = Variable.get("value")
         print("Processing JSON file")
         
-        # Convertir el contenido de bytes a cadena de texto
+        # Verificar el tipo de dato
         if isinstance(value_pulled, bytes):
-            value_pulled = value_pulled.decode('utf-8')
-        
+            value_pulled = value_pulled.decode('utf-8').strip()  # Decodificar y eliminar espacios adicionales
+
         print(f"Content of JSON file: {value_pulled}")
 
-        # Suponemos que el valor es un JSON válido en formato string
-        json_content = json.loads(value_pulled)
-        print(f"Processed JSON content: {json_content}")
+        # Intentar cargar el JSON
+        try:
+            json_content = json.loads(value_pulled)
+            print(f"Processed JSON content: {json_content}")
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+            raise AirflowSkipException("The file content is not a valid JSON")
 
     except KeyError:
         print("Variable value does not exist")
-        raise AirflowSkipException("Variable value does not exist") 
-    except json.JSONDecodeError:
-        print("The file content is not a valid JSON")
-        raise AirflowSkipException("The file content is not a valid JSON")
-    Variable.set("key", None)
+        raise AirflowSkipException("Variable value does not exist")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        raise AirflowSkipException("An unexpected error occurred")
+    finally:
+        Variable.set("key", None)
+
+
+
 default_args = {
     'owner': 'airflow',
     'depends_onpast': False,
