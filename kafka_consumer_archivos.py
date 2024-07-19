@@ -167,6 +167,11 @@ def process_json_file(**kwargs):
 
         print(f" (tipo: {type(value_pulled)}): {value_pulled}")
         print(f"Content of JSON file: {value_pulled}")
+
+        if value_pulled.startswith("b'") and value_pulled.endswith("'"):
+            value_pulled = value_pulled[2:-1]
+            print("Stripped byte representation from string")
+            
         # Intentar cargar el JSON
         try:
             json_content = json.loads(value_pulled)
