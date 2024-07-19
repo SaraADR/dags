@@ -21,7 +21,7 @@ def consumer_function(message, prefix, **kwargs):
 
     if message is not None:
         nombre = message.key()
-        valor= message.value()
+        valor = message.value()
         Variable.set("key", nombre)
         Variable.set("value", valor)
     else:
@@ -29,9 +29,7 @@ def consumer_function(message, prefix, **kwargs):
         Variable.set("value", None)  
 
 
-    
 def choose_branch(**kwargs):
-
     nombre_fichero = Variable.get("key")
     print(f"{nombre_fichero}")
 
@@ -48,20 +46,20 @@ def choose_branch(**kwargs):
         return 'process_png_task'
     elif file_extension == '.mp4' or file_extension == '.avi' or file_extension == '.mov':
         return 'process_video_task'
+    elif file_extension == '.json':
+        return 'process_json_task'
     elif file_extension == 'no_message_task':
         return 'no_message_task'
     else:
         return 'unknown_or_none_file_task'
-    
 
-    
+
 def process_zip_file(**kwargs):
     try:
         value_pulled = Variable.get("value")
         print("Processing ZIP file")
         first_40_values = value_pulled[:40]
         print("First 40 values:", first_40_values)
-
 
         message_dict = ast.literal_eval(value_pulled)
 
@@ -74,7 +72,7 @@ def process_zip_file(**kwargs):
             os.makedirs(temp_zip_path, exist_ok=True)
 
             with zipfile.ZipFile(io.BytesIO(message_dict)) as zip_file:
-            # Obtener la lista de archivos dentro del ZIP
+                # Obtener la lista de archivos dentro del ZIP
                 file_list = zip_file.namelist()
                 print("Archivos en el ZIP:", file_list)
 
@@ -95,42 +93,18 @@ def process_zip_file(**kwargs):
                     try:
                         print(f"va a seguir el ciclo de detección de elementos")
                         trigger = TriggerDagRunOperator(
-                        task_id='trigger_email_handler_inner',
-                        trigger_dag_id='save_documents_to_minio',
-                        conf={'message': value_pulled}, 
-                        execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                        dag=dag,
-                    )
+                            task_id='trigger_email_handler_inner',
+                            trigger_dag_id='save_documents_to_minio',
+                            conf={'message': value_pulled}, 
+                            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                            dag=dag,
+                        )
                         trigger.execute(context=kwargs)
                         Variable.delete("value")
                     except zipfile.BadZipFile:
                         print(f"Error decoding Zip")
                 if videos and images is None:
                     print(f"No va a seguir ningun ciclo")
-
-
-
-# A partir de este codigo print(f"No va a seguir ningun ciclo")  en contenido del archivo comprobar si {
-#   "boundingBox":{    
-#     "x_min": 604592.0659992056,
-#     "x_max": 604744.9679992045,
-#     "y_min": 4742773.29511746,
-#     "y_max": 4742861.794117461,
-#     "z_min": 677.375,
-#     "z_max": 702.05
-#   },
-#   "annotation":{
-#     "x": 604604.944, 
-#     "y": 4742852.381, 
-#     "z": 1.7210693359375,
-#     "title": "Anotación usuario"
-#   }# lo que entra es lo que yo necesito,que es  llamar hacer un trigger dag a mi documento (process_and_upload.py) ejemplo es el (minio_save) 
-# en el archivo que debo crear tengo que recibir el contenido que viene de consumer, coger el contenido,
-# enviarselo al docker, recoger la vuelta del docker, subirlo a minio y ya esta. y luego probarlo en airflow. todo esta montado ya solo debo añadir esta seccion
-# }
-
-#Crear un apartado mas donde si entra dos coordenadas en un archivo que llame al docker id(e28a773e8a67bedd2a5006965e2bb6afc88f49d652bcfab0dfc1b77b5b3dd191) y que saque el pdf y el pdf guardarlo en minio y minio tiene que devolver un id 
-
                        
     except KeyError:
         print("Variable value does not exist")
@@ -181,7 +155,23 @@ def handle_unknown_file(**kwargs):
     print("Unknown file type")
     Variable.set("key", None)   
 
+def process_json_file(**kwargs):
+    try:
+        value_pulled = Variable.get("value")
+        print("Processing JSON file")
+        print(f"Content of JSON file: {value_pulled}")
 
+        # Suponemos que el valor es un JSON válido en formato string
+        json_content = json.loads(value_pulled)
+        print(f"Processed JSON content: {json_content}")
+
+    except KeyError:
+        print("Variable value does not exist")
+        raise AirflowSkipException("Variable value does not exist") 
+    except json.JSONDecodeError:
+        print("The file content is not a valid JSON")
+        raise AirflowSkipException("The file content is not a valid JSON")
+    Variable.set("key", None)   
 
 default_args = {
     'owner': 'airflow',
@@ -219,6 +209,7 @@ choose_branch_task = BranchPythonOperator(
     provide_context=True,
     dag=dag,
 )
+
 process_zip_task = PythonOperator(
     task_id='process_zip_task',
     python_callable=process_zip_file,
@@ -254,6 +245,13 @@ process_video_task = PythonOperator(
     dag=dag,
 )
 
+process_json_task = PythonOperator(
+    task_id='process_json_task',
+    python_callable=process_json_file,
+    provide_context=True,
+    dag=dag,
+)
+
 unknown_or_none_file_task = PythonOperator(
     task_id='unknown_or_none_file_task',
     python_callable=handle_unknown_file,
@@ -262,4 +260,12 @@ unknown_or_none_file_task = PythonOperator(
 )
 
 consume_from_topic >> choose_branch_task
-choose_branch_task >> [process_zip_task, process_tiff_task, process_jpg_task, process_png_task, process_video_task, unknown_or_none_file_task]
+choose_branch_task >> [
+    process_zip_task,
+    process_tiff_task,
+    process_jpg_task,
+    process_png_task,
+    process_video_task,
+    process_json_task,
+    unknown_or_none_file_task
+]
