@@ -1,12 +1,10 @@
 import io
-import json
 import tempfile
 import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 import os
-import zipfile
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
@@ -18,49 +16,42 @@ def process_kafka_message(**context):
     if not message:
         raise KeyError("No message found in the DAG run configuration.")
     
-    try:
-        # Asegurarse de que el mensaje esté en formato JSON
-        message_dict = json.loads(message['message'])
-    except (KeyError, json.JSONDecodeError):
-        raise ValueError("The key 'message' was not found or the message is not in valid JSON format.")
+    # Si el mensaje no es un JSON, se toma como string directamente
+    message_content = message.get('message', None)
+    
+    if not message_content:
+        raise ValueError("No valid 'message' key found in the DAG run configuration.")
 
     unique_id = str(uuid.uuid4())
 
-    if message_dict:
-        file_content = message_dict.get('file_content')
-        if not file_content:
-            raise KeyError("The key 'file_content' was not found in the JSON message.")
+    if message_content:
+        # Suponemos que el contenido del archivo viene como una cadena codificada en latin1
+        file_bytes = message_content.encode('latin1')
 
-        # Mostrar los primeros 40 caracteres del contenido del archivo
-        first_40_values = file_content[:40]
-        print(f"Received file content (first 40 bytes): {first_40_values}")
+        # Mostrar los primeros 40 bytes del contenido del archivo para verificación
+        print(f"Received file content (first 40 bytes): {file_bytes[:40]}")
 
         # Crear un directorio temporal utilizando el módulo tempfile
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_unzip_path = os.path.join(temp_dir, 'unzip')
-            temp_zip_path = os.path.join(temp_dir, 'zip')
+            temp_pdf_path = os.path.join(temp_dir, 'file.pdf')
 
-            # Crear los subdirectorios temporales
-            os.makedirs(temp_unzip_path, exist_ok=True)
-            os.makedirs(temp_zip_path, exist_ok=True)
+            # Guardar el contenido en un archivo PDF temporal
+            with open(temp_pdf_path, 'wb') as temp_pdf_file:
+                temp_pdf_file.write(file_bytes)
 
-            with zipfile.ZipFile(io.BytesIO(file_content.encode('latin1'))) as zip_file:
-                # Obtener la lista de archivos dentro del ZIP
-                file_list = zip_file.namelist()
-                print("Archivos en el ZIP:", file_list)
+            print(f"PDF temporal creado en {temp_pdf_path}")
 
-                for file_name in file_list:
-                    with zip_file.open(file_name) as file:
-                        content = file.read()
-                        print(f"Contenido del archivo {file_name}: {content[:10]}...")
-                        save_to_minio(file_name, content, unique_id)
+            # Subir el PDF a MinIO
+            save_to_minio(temp_pdf_path, unique_id)
 
-            print(f"Se han creado los temporales")
+            print(f"PDF subido a MinIO con ID único {unique_id}")
 
-def save_to_minio(file_name, content, unique_id):
+def save_to_minio(file_path, unique_id):
     # Obtener la conexión de MinIO desde Airflow
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
+
+    # Crear el cliente de MinIO/S3 con las credenciales y configuración necesarias
     s3_client = boto3.client(
         's3',
         endpoint_url=extra['endpoint_url'],
@@ -70,6 +61,7 @@ def save_to_minio(file_name, content, unique_id):
     )
 
     bucket_name = 'locationtest'
+    file_name = os.path.basename(file_path)
 
     # Crear el bucket si no existe
     try:
@@ -77,11 +69,15 @@ def save_to_minio(file_name, content, unique_id):
     except s3_client.exceptions.NoSuchBucket:
         s3_client.create_bucket(Bucket=bucket_name)
 
+    # Leer el contenido del archivo desde el sistema de archivos
+    with open(file_path, 'rb') as file:
+        file_content = file.read()
+
     # Subir el archivo a MinIO
     s3_client.put_object(
         Bucket=bucket_name,
         Key=file_name,
-        Body=io.BytesIO(content),
+        Body=file_content,
         Tagging=f"unique_id={unique_id}"
     )
     print(f'{file_name} subido correctamente a MinIO.')
