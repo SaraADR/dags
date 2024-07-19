@@ -14,11 +14,10 @@ def process_kafka_message(**context):
     # Extraer el mensaje del contexto de Airflow
     try:
         message = context['dag_run'].conf
+        if not message:
+            raise KeyError("No message found in the DAG run configuration.")
     except KeyError:
         raise KeyError("No configuration found in the DAG run configuration.")
-    
-    if not message:
-        raise KeyError("No message found in the DAG run configuration.")
     
     try:
         # Si el mensaje no es un JSON, se toma como string directamente
