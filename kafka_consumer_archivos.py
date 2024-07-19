@@ -161,9 +161,13 @@ def process_json_file(**kwargs):
         value_pulled = Variable.get("value")
         print("Processing JSON file")
         
-        # Verificar el tipo de dato
+        if not value_pulled:
+            print("No data to process")
+            raise AirflowSkipException("No data to process")
+        
+        # Decodificar bytes si es necesario
         if isinstance(value_pulled, bytes):
-            value_pulled = value_pulled.decode('utf-8').strip()  # Decodificar y eliminar espacios adicionales
+            value_pulled = value_pulled.decode('utf-8').strip()
 
         print(f"Content of JSON file: {value_pulled}")
 
@@ -173,6 +177,7 @@ def process_json_file(**kwargs):
             print(f"Processed JSON content: {json_content}")
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
+            print(f"Value pulled: {value_pulled}")  # Añadir esta línea para verificar el contenido
             raise AirflowSkipException("The file content is not a valid JSON")
 
     except KeyError:
