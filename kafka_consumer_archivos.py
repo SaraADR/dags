@@ -165,27 +165,16 @@ def process_json_file(**kwargs):
             print("No data to process")
             raise AirflowSkipException("No data to process")
 
-        print(f" (tipo: {type(value_pulled)}): {value_pulled}")
-        print(f"Content of JSON file: {value_pulled}")
-
-        # Si value_pulled parece una cadena con representación de bytes, limpiar el contenido
         if isinstance(value_pulled, str) and value_pulled.startswith("b'") and value_pulled.endswith("'"):
             value_pulled = value_pulled[2:-1]
-            print("Stripped byte representation from string")
-        
-        # Limpiar caracteres especiales
-        value_pulled = value_pulled.replace('\\r', '').replace('\\n', '').strip()
-        print(f"Value pulled after cleaning (type: {type(value_pulled)}): {value_pulled}")
+            value_pulled = value_pulled.replace('\\r', '').replace('\\n', '').strip()
 
-
-
-        # Intentar cargar el JSON
         try:
             json_content = json.loads(value_pulled)
             print(f"Processed JSON content: {json_content}")
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
-            print(f"Value pulled: {value_pulled}")  # Añadir esta línea para verificar el contenido
+            print(f"Value pulled: {value_pulled}")  
             raise AirflowSkipException("The file content is not a valid JSON")
 
     except KeyError:
