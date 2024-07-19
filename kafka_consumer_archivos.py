@@ -165,6 +165,7 @@ def process_json_file(**kwargs):
             print("No data to process")
             raise AirflowSkipException("No data to process")
 
+        #En el caso de que el json sea visto como objeto lo limpiamos
         if isinstance(value_pulled, str) and value_pulled.startswith("b'") and value_pulled.endswith("'"):
             value_pulled = value_pulled[2:-1]
             value_pulled = value_pulled.replace('\\r', '').replace('\\n', '').strip()
