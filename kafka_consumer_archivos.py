@@ -156,6 +156,8 @@ def handle_unknown_file(**kwargs):
     Variable.set("key", None)   
 
 
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+
 def process_json_file(**kwargs):
     try:
         value_pulled = Variable.get("value")
@@ -165,19 +167,28 @@ def process_json_file(**kwargs):
             print("No data to process")
             raise AirflowSkipException("No data to process")
 
-        #En el caso de que el json sea visto como objeto lo limpiamos
+        # En el caso de que el json sea visto como objeto lo limpiamos
         if isinstance(value_pulled, str) and value_pulled.startswith("b'") and value_pulled.endswith("'"):
             value_pulled = value_pulled[2:-1]
             value_pulled = value_pulled.replace('\\r', '').replace('\\n', '').strip()
 
-        try:
-            json_content = json.loads(value_pulled)
-            print(f"Processed JSON content: {json_content}")
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON: {e}")
-            print(f"Value pulled: {value_pulled}")  
-            raise AirflowSkipException("The file content is not a valid JSON")
+        json_content = json.loads(value_pulled)
+        print(f"Processed JSON content: {json_content}")
 
+        # Agregar trigger para enviar datos al DAG 'save_coordinates_to_minio'
+        trigger = TriggerDagRunOperator(
+            task_id='trigger_save_coordinates',
+            trigger_dag_id='save_coordinates_to_minio',
+            conf={'message': json_content}, 
+            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+            dag=dag,
+        )
+        trigger.execute(context=kwargs)
+
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        print(f"Value pulled: {value_pulled}")  
+        raise AirflowSkipException("The file content is not a valid JSON")
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")
