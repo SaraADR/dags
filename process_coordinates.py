@@ -11,7 +11,6 @@ from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 
 def process_kafka_message(**context):
-    # Extraer el mensaje del contexto de Airflow
     try:
         message = context['dag_run'].conf
         if not message:
@@ -20,37 +19,38 @@ def process_kafka_message(**context):
         raise KeyError("No configuration found in the DAG run configuration.")
     
     try:
-        # Si el mensaje no es un JSON, se toma como string directamente
         message_content = message.get('message', None)
+        if not message_content:
+            raise ValueError("No valid 'message' key found in the DAG run configuration.")
     except KeyError:
-        raise ValueError("No valid 'message' key found in the DAG run configuration.")
-    
-    if not message_content:
         raise ValueError("No valid 'message' key found in the DAG run configuration.")
 
     unique_id = str(uuid.uuid4())
 
-    if message_content:
-        # Suponemos que el contenido del archivo viene como una cadena codificada en latin1
-        file_bytes = message_content.encode('latin1')
+    # Verificar si el contenido del mensaje es un diccionario y convertir a string si es necesario
+    if isinstance(message_content, dict):
+        # Aquí podrías transformar el diccionario a JSON o procesarlo de otra manera si es necesario
+        file_bytes = json.dumps(message_content).encode('utf-8')
+    elif isinstance(message_content, str):
+        file_bytes = message_content.encode('utf-8')
+    else:
+        raise ValueError("The message content must be a string or a dictionary.")
 
-        # Mostrar los primeros 40 bytes del contenido del archivo para verificación
-        print(f"Received file content (first 40 bytes): {file_bytes[:40]}")
+    # Continúa con la creación del PDF y la carga a MinIO
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_pdf_path = os.path.join(temp_dir, 'file.pdf')
 
-        # Crear un directorio temporal utilizando el módulo tempfile
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_pdf_path = os.path.join(temp_dir, 'file.pdf')
+        # Guardar el contenido en un archivo PDF temporal
+        with open(temp_pdf_path, 'wb') as temp_pdf_file:
+            temp_pdf_file.write(file_bytes)
 
-            # Guardar el contenido en un archivo PDF temporal
-            with open(temp_pdf_path, 'wb') as temp_pdf_file:
-                temp_pdf_file.write(file_bytes)
+        print(f"PDF temporal creado en {temp_pdf_path}")
 
-            print(f"PDF temporal creado en {temp_pdf_path}")
+        # Subir el PDF a MinIO
+        save_to_minio(temp_pdf_path, unique_id)
 
-            # Subir el PDF a MinIO
-            save_to_minio(temp_pdf_path, unique_id)
+        print(f"PDF subido a MinIO con ID único {unique_id}")
 
-            print(f"PDF subido a MinIO con ID único {unique_id}")
 
 def save_to_minio(file_path, unique_id):
     # Obtener la conexión de MinIO desde Airflow
