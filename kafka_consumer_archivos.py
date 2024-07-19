@@ -159,6 +159,11 @@ def process_json_file(**kwargs):
     try:
         value_pulled = Variable.get("value")
         print("Processing JSON file")
+        
+        # Convertir el contenido de bytes a cadena de texto
+        if isinstance(value_pulled, bytes):
+            value_pulled = value_pulled.decode('utf-8')
+        
         print(f"Content of JSON file: {value_pulled}")
 
         # Suponemos que el valor es un JSON válido en formato string
@@ -171,8 +176,7 @@ def process_json_file(**kwargs):
     except json.JSONDecodeError:
         print("The file content is not a valid JSON")
         raise AirflowSkipException("The file content is not a valid JSON")
-    Variable.set("key", None)   
-
+    Variable.set("key", None)
 default_args = {
     'owner': 'airflow',
     'depends_onpast': False,
