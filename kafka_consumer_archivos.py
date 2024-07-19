@@ -173,7 +173,7 @@ def process_json_file(**kwargs):
 
         print(f"Content of JSON file: {value_pulled}")
 
-        value_pulled = value_pulled.value().decode('utf-8')
+        value_pulled = value_pulled.decode('utf-8').strip()
         # Intentar cargar el JSON
         try:
             json_content = json.loads(value_pulled)
