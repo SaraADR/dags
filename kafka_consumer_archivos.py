@@ -168,10 +168,17 @@ def process_json_file(**kwargs):
         print(f" (tipo: {type(value_pulled)}): {value_pulled}")
         print(f"Content of JSON file: {value_pulled}")
 
-        if value_pulled.startswith("b'") and value_pulled.endswith("'"):
+        # Si value_pulled parece una cadena con representación de bytes, limpiar el contenido
+        if isinstance(value_pulled, str) and value_pulled.startswith("b'") and value_pulled.endswith("'"):
             value_pulled = value_pulled[2:-1]
             print("Stripped byte representation from string")
-            
+        
+        # Limpiar caracteres especiales
+        value_pulled = value_pulled.replace('\\r', '').replace('\\n', '').strip()
+        print(f"Value pulled after cleaning (type: {type(value_pulled)}): {value_pulled}")
+
+
+
         # Intentar cargar el JSON
         try:
             json_content = json.loads(value_pulled)
