@@ -168,9 +168,12 @@ def process_json_file(**kwargs):
         # Decodificar bytes si es necesario
         if isinstance(value_pulled, bytes):
             value_pulled = value_pulled.decode('utf-8').strip()
+            print("pasa por aqui")
+            
 
         print(f"Content of JSON file: {value_pulled}")
 
+        value_pulled = value_pulled.value().decode('utf-8')
         # Intentar cargar el JSON
         try:
             json_content = json.loads(value_pulled)
