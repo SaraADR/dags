@@ -37,7 +37,7 @@ def trigger_email_handler(**kwargs):
     if value_pulled is not None and value_pulled != 'null':
         try:
             msg_json = json.loads(value_pulled)
-
+            print(msg_json)
             if msg_json.get('jobs') == 'automaps':
                 trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
