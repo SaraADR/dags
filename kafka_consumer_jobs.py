@@ -39,7 +39,8 @@ def trigger_email_handler(**kwargs):
         try:
             msg_json = json.loads(value_pulled)
             print(msg_json)
-            if msg_json.get('jobs') == 'automaps':
+
+            if msg_json.get('job') == 'automaps':
                 trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
                 trigger_dag_id='algorithm_automaps',
@@ -50,7 +51,7 @@ def trigger_email_handler(**kwargs):
             trigger.execute(context=kwargs)
             Variable.delete("mensaje_save")
             
-            if msg_json.get('jobs') == 'create_fire':
+            if msg_json.get('job') == 'create_fire':
                 trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
                 trigger_dag_id='create_fire',
