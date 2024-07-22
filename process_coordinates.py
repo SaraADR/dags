@@ -88,19 +88,6 @@ def save_to_minio(file_path, unique_id):
     )
     print(f'{file_name} subido correctamente a MinIO.')
 
-    docker_task = DockerOperator(
-    task_id='generate_pdf',
-    image='your_docker_image',  # Reemplaza con el nombre de tu imagen Docker
-    api_version='auto',
-    auto_remove=True,
-    command='python generate_pdf.py /data/{{ ti.xcom_pull(task_ids="process_kafka_message")[0] }} /data/output.pdf',
-    docker_url='unix://var/run/docker.sock',
-    network_mode='bridge',
-    volumes=['/tmp:/data'],
-    dag=dag,
-)
-
-
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
