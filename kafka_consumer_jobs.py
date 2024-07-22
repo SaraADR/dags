@@ -16,41 +16,55 @@ def consumer_function(message, prefix, **kwargs):
         if msg_value:
             try:
                 msg_json = json.loads(msg_value)
-                print(msg_json)
+                Variable.set("mensaje_save", msg_json)
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
         else:
             print("Empty message received")
-        Variable.set("my_variable_key", None)        
+        Variable.set("mensaje_save", None)        
         return None  
     else:
-        Variable.set("my_variable_key", None)        
+        Variable.set("mensaje_save", None)        
 
 def trigger_email_handler(**kwargs):
     try:
-        value_pulled = Variable.get("my_variable_key")
+        value_pulled = Variable.get("mensaje_save")
     except KeyError:
-        print("Variable my_variable_key does not exist")
-        raise AirflowSkipException("Variable my_variable_key does not exist")
+        print("Variable mensaje_save does not exist")
+        raise AirflowSkipException("Variable mensaje_save does not exist")
     
 
     if value_pulled is not None and value_pulled != 'null':
         try:
+            msg_json = json.loads(value_pulled)
 
-            trigger = TriggerDagRunOperator(
+            if msg_json.get('jobs') == 'automaps':
+                trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
-                trigger_dag_id='send_email_plantilla',
+                trigger_dag_id='algorithm_automaps',
                 conf={'message': value_pulled}, 
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                 dag=dag,
             )
             trigger.execute(context=kwargs)
-            Variable.delete("my_variable_key")
+            Variable.delete("mensaje_save")
+            
+            if msg_json.get('jobs') == 'create_fire':
+                trigger = TriggerDagRunOperator(
+                task_id='trigger_email_handler_inner',
+                trigger_dag_id='create_fire',
+                conf={'message': value_pulled}, 
+                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                dag=dag,
+            )
+            trigger.execute(context=kwargs)
+            Variable.delete("mensaje_save")
+            
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:
         print("No message pulled from XCom")
-        Variable.delete("my_variable_key")
+        Variable.delete("mensaje_save")
 
 
 default_args = {
