@@ -4,6 +4,7 @@ import tempfile
 import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.providers.docker.operators.docker import DockerOperator
 from datetime import datetime, timedelta
 import os
 import boto3
@@ -36,21 +37,12 @@ def process_kafka_message(**context):
     else:
         raise ValueError("The message content must be a string or a dictionary.")
 
-    # Continúa con la creación del PDF y la carga a MinIO
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_pdf_path = os.path.join(temp_dir, 'file.pdf')
+    temp_data_path = os.path.join(tempfile.gettempdir(), f"{unique_id}_data.json")
 
-        # Guardar el contenido en un archivo PDF temporal
-        with open(temp_pdf_path, 'wb') as temp_pdf_file:
-            temp_pdf_file.write(file_bytes)
+    with open(temp_data_path, 'wb') as temp_data_file:
+        temp_data_file.write(file_bytes)
 
-        print(f"PDF temporal creado en {temp_pdf_path}")
-
-        # Subir el PDF a MinIO
-        save_to_minio(temp_pdf_path, unique_id)
-
-        print(f"PDF subido a MinIO con ID único {unique_id}")
-
+    return temp_data_path, unique_id
 
 def save_to_minio(file_path, unique_id):
     # Obtener la conexión de MinIO desde Airflow
@@ -105,11 +97,31 @@ dag = DAG(
     schedule_interval=timedelta(days=1),
 )
 
-save_task = PythonOperator(
-    task_id='process_coordinates',
+process_message_task = PythonOperator(
+    task_id='process_kafka_message',
     provide_context=True,
     python_callable=process_kafka_message,
     dag=dag,
 )
 
-save_task
+docker_task = DockerOperator(
+    task_id='generate_pdf',
+    image='pdf-generator',  # Reemplaza con el nombre de tu imagen Docker
+    api_version='auto',
+    auto_remove=True,
+    command='python generate_pdf.py /data/{{ ti.xcom_pull(task_ids="process_kafka_message")[0] }} /data/output.pdf',
+    docker_url='unix://var/run/docker.sock',
+    network_mode='bridge',
+    volumes=['/tmp:/data'],
+    dag=dag,
+)
+
+save_to_minio_task = PythonOperator(
+    task_id='save_to_minio',
+    provide_context=True,
+    python_callable=save_to_minio,
+    op_args=['/tmp/output.pdf', '{{ ti.xcom_pull(task_ids="process_kafka_message")[1] }}'],
+    dag=dag,
+)
+
+process_message_task >> docker_task >> save_to_minio_task
