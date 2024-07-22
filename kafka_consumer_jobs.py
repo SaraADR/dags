@@ -29,6 +29,7 @@ def consumer_function(message, prefix, **kwargs):
 def trigger_email_handler(**kwargs):
     try:
         value_pulled = Variable.get("mensaje_save")
+        print(f"pulled {value_pulled}")
     except KeyError:
         print("Variable mensaje_save does not exist")
         raise AirflowSkipException("Variable mensaje_save does not exist")
