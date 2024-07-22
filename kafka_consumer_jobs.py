@@ -64,9 +64,9 @@ default_args = {
 }
 
 dag = DAG(
-    'kafka_consumer_trigger_dag',
+    'kafka_consumer_jobs_dag',
     default_args=default_args,
-    description='DAG que consume mensajes de Kafka y dispara otro DAG si destination=email',
+    description='DAG que consume mensajes de la tabla de jobs',
     schedule_interval='*/3 * * * *',
     catchup=False
 )
