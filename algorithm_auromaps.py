@@ -18,11 +18,11 @@ def print_message(**context):
     print(f"Perimeter: {perimeter}")
 
 
-    input_message = json.loads(menssage_str)
-    from_user = input_message['from_user']
+    input_message = json.loads(menssage_str.get('from_user'))
+    
      
     # Imprime las propiedades
-    print(f"from_user: {from_user}")
+    print(f"from_user: {input_message}")
 
 
 default_args = {
