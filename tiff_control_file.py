@@ -3,11 +3,13 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 import ast
+import json
 
 
 def print_message(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
+
 
 
 def process_metadata(**kwargs):
@@ -19,6 +21,7 @@ def process_metadata(**kwargs):
   
     # Imprimir los metadatos en formato JSON
     print(f"Metadata received:\n{json.dumps(metadata_dict, indent=4)}")
+
 
 def parse_metadata(metadata):
     data = {}
