@@ -50,18 +50,9 @@ convert_to_pdf = DockerOperator(
     api_version='auto',
     auto_remove=True,
     command='/input/process_coordinates.py /output/process_coordinates.pdf',
-    network_mode='bridge',
     volumes=[
-        {
-            'source': '/path/to/input',
-            'target': '/input',
-            'type': 'bind'
-        },
-        {
-            'source': '/path/to/output',
-            'target': '/output',
-            'type': 'bind'
-        }
+        '/path/to/input:/input',
+        '/path/to/output:/output'
     ],
     dag=dag,
 )
