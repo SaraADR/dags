@@ -21,13 +21,13 @@ def process_metadata(**kwargs):
     print(f"Metadata received:\n{json.dumps(metadata_dict, indent=4)}")
 
 def parse_metadata(metadata):
-        data = {}
+    data = {}
         # Cada línea representa una clave-valor en el formato "Clave : Valor"
-        for line in metadata.splitlines():
-            if ' : ' in line:
-                key, value = line.split(' : ', 1)
-                data[key.strip()] = value.strip()
-return data
+    for line in metadata.splitlines():
+        if ' : ' in line:
+            key, value = line.split(' : ', 1)
+            data[key.strip()] = value.strip()
+    return data
 
 
 
