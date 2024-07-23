@@ -14,7 +14,7 @@ default_args = {
 
 # Crear DAG
 dag = DAG(
-    'process_coordinates',
+    'save_coordinates_to_minio',
     default_args=default_args,
     description='DAG to process coordinates, convert to PDF and upload to MinIO',
     schedule_interval=None,
