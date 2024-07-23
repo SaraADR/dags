@@ -10,6 +10,13 @@ def print_message(**context):
     print(f"Received message: {message}")
 
 
+def process_metadata(**kwargs):
+    ti = kwargs['ti']
+    metadata = ti.xcom_pull(task_ids='run_docker')
+    print(f"Metadata received: {metadata}")
+
+
+
 
 default_args = {
     'owner': 'airflow',
@@ -29,7 +36,6 @@ dag = DAG(
     catchup=False
 )
 
-# Task para imprimir el mensaje
 print_message_task = PythonOperator(
     task_id='print_message',
     python_callable=print_message,
@@ -37,13 +43,20 @@ print_message_task = PythonOperator(
     dag=dag,
 )
 
-# Task para ejecutar el comando Docker de forma remota
 run_docker_task = SSHOperator(
     task_id='run_docker',
-    ssh_conn_id='ssh_docker',  # El ID de la conexión SSH configurada en Airflow
+    ssh_conn_id='ssh_docker',
     command='docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example1.1.0_missionId.txt -u /images/img-20230924140747117-ter.tiff',
+    dag=dag,
+    do_xcom_push=True,
+)
+
+
+process_metadata_task = PythonOperator(
+    task_id='process_metadata',
+    python_callable=process_metadata,
+    provide_context=True,
     dag=dag,
 )
 
-# Definir la secuencia de ejecución de las tareas
-print_message_task >> run_docker_task
+print_message_task >> run_docker_task >> process_metadata_task
