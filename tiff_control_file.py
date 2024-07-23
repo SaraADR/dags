@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.providers.ssh.operators.ssh import SSHOperator
 import ast
 
 
@@ -29,7 +30,7 @@ dag = DAG(
     catchup=False
 )
 
-# Manda correo
+# Task para imprimir el mensaje
 print_message_task = PythonOperator(
     task_id='print_message',
     python_callable=print_message,
@@ -37,5 +38,13 @@ print_message_task = PythonOperator(
     dag=dag,
 )
 
+# Task para ejecutar el comando Docker de forma remota
+run_docker_task = SSHOperator(
+    task_id='run_docker',
+    ssh_conn_id='ssh_docker',  # El ID de la conexión SSH configurada en Airflow
+    command='docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example1.1.0_missionId.txt -u /images/img-20240604122025858-ter.tiff',
+    dag=dag,
+)
 
-print_message_task
+# Definir la secuencia de ejecución de las tareas
+print_message_task >> run_docker_task
