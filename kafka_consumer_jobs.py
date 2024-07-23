@@ -45,9 +45,8 @@ def trigger_email_handler(**kwargs):
                 trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
                 trigger_dag_id='algorithm_automaps',
-                conf={'message': value_pulled}, 
+                conf={'message': msg_json}, 
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                run_id=unique_run_id,
                 dag=dag,
             )
             trigger.execute(context=kwargs)
@@ -57,10 +56,9 @@ def trigger_email_handler(**kwargs):
                 trigger = TriggerDagRunOperator(
                 task_id='trigger_email_handler_inner',
                 trigger_dag_id='create_fire',
-                conf={'message': value_pulled}, 
+                conf={'message': msg_json}, 
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                dag=dag,
-                run_id=unique_run_id,
+                dag=dag
             )
             trigger.execute(context=kwargs)
             Variable.delete("mensaje_save")
