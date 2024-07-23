@@ -192,7 +192,7 @@ def process_json_file(**kwargs):
         # Agregar trigger para enviar datos al DAG 'save_coordinates_to_minio'
         trigger = TriggerDagRunOperator(
             task_id='trigger_save_coordinates',
-            trigger_dag_id='save_coordinates_to_minio',
+            trigger_dag_id='kafka_to_minio_pipeline',
             conf={'message': json_content}, 
             execution_date=datetime.now().replace(tzinfo=timezone.utc),
             dag=dag,
