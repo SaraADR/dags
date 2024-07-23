@@ -41,7 +41,7 @@ print_message_task = PythonOperator(
 run_docker_task = SSHOperator(
     task_id='run_docker',
     ssh_conn_id='ssh_docker',  # El ID de la conexión SSH configurada en Airflow
-    command='docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example1.1.0_missionId.txt -u /images/img-20240604122025858-ter.tiff',
+    command='docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example1.1.0_missionId.txt -u /images/img-20230924140747117-ter.tiff',
     dag=dag,
 )
 
