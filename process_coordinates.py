@@ -1,5 +1,5 @@
 from airflow import DAG
-from airflow.operators.bash import BashOperator
+from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 import boto3
@@ -16,7 +16,7 @@ default_args = {
 dag = DAG(
     'save_coordinates_to_minio',
     default_args=default_args,
-    description='DAG to process coordinates, convert to PDF and upload to MinIO',
+    description='Pipeline to process Kafka messages, convert to PDF and upload to MinIO',
     schedule_interval=None,
 )
 
@@ -34,10 +34,24 @@ def upload_to_minio_task(**kwargs):
     object_name = 'process_coordinates.pdf'
     upload_to_minio(output_file, bucket_name, object_name)
 
-# Definir tareas
-convert_to_pdf = BashOperator(
+# Tarea para ejecutar kafka_consumer_archivos.py
+run_kafka_consumer = BashOperator(
+    task_id='run_kafka_consumer',
+    bash_command='python /path/to/kafka_consumer_archivos.py',
+    dag=dag,
+)
+
+# Tarea para convertir el archivo a PDF usando DockerOperator
+convert_to_pdf = DockerOperator(
     task_id='convert_to_pdf',
-    bash_command='docker-compose run --rm pdf_converter /input/process_coordinates.py /output/process_coordinates.pdf',
+    image='pdf_converter_image',  # Asegúrate de construir esta imagen antes
+    container_name='pdf_converter',
+    api_version='auto',
+    auto_remove=True,
+    command='/input/process_coordinates.py /output/process_coordinates.pdf',
+    docker_url='unix://var/run/docker.sock',
+    network_mode='bridge',
+    volumes=['/path/to/input:/input', '/path/to/output:/output'],
     dag=dag,
 )
 
@@ -48,4 +62,4 @@ upload_pdf_to_minio = PythonOperator(
 )
 
 # Definir el flujo de tareas
-convert_to_pdf >> upload_pdf_to_minio
+run_kafka_consumer >> convert_to_pdf >> upload_pdf_to_minio
