@@ -49,8 +49,8 @@ def trigger_email_handler(**kwargs):
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                 dag=dag,
             )
-            trigger.execute(context=kwargs)
-            Variable.delete("mensaje_save")
+                trigger.execute(context=kwargs)
+                Variable.delete("mensaje_save")
             
             if msg_json.get('job') == 'create_fire':
                 trigger = TriggerDagRunOperator(
