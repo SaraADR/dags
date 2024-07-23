@@ -6,9 +6,19 @@ import ast
 
 def print_message(**context):
     message = context['dag_run'].conf
-    print(f"Received message: {message}")
-    message_dict = ast.literal_eval(message['message'])
-    print(f"Received message: {message_dict}")
+    input_data_str = message['message']['input_data']
+    menssage_str = message['message']
+
+    input_data = json.loads(input_data_str)
+    input_message = json.loads(menssage_str)
+    location = input_data['input']['location']
+    perimeter = input_data['input']['perimeter']
+    from_user = input_message['from_user']
+    
+    # Imprime las propiedades
+    print(f"Location: {location}")
+    print(f"Perimeter: {perimeter}")
+    print(f"from_user: {from_user}")
 
 
 default_args = {
