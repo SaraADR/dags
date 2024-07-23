@@ -43,7 +43,7 @@ def trigger_email_handler(**kwargs):
 
             if msg_json.get('job') == 'automaps':
                 trigger = TriggerDagRunOperator(
-                task_id='trigger_email_handler_inner',
+                task_id='trigger_automaps_handler_inner',
                 trigger_dag_id='algorithm_automaps',
                 conf={'message': msg_json}, 
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
@@ -54,7 +54,7 @@ def trigger_email_handler(**kwargs):
             
             if msg_json.get('job') == 'create_fire':
                 trigger = TriggerDagRunOperator(
-                task_id='trigger_email_handler_inner',
+                task_id='trigger_fire_handler_inner',
                 trigger_dag_id='create_fire',
                 conf={'message': msg_json}, 
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
