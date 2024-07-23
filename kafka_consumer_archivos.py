@@ -119,6 +119,20 @@ def process_tiff_file(**kwargs):
     try:
         value_pulled = Variable.get("value")
         print("Processing TIFF file")
+
+        try:
+            print(f"va a seguir el ciclo de detección de elementos")
+            trigger = TriggerDagRunOperator(
+                    task_id='trigger_email_handler_inner',
+                    trigger_dag_id='tiff_control',
+                    conf={'message': value_pulled}, 
+                    execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                    dag=dag,
+                )                        
+            trigger.execute(context=kwargs)
+            Variable.delete("value")
+        except zipfile.BadZipFile:
+            print(f"Error decoding Zip")
     except KeyError:
         print("Variable value does not exist")
         raise AirflowSkipException("Variable value does not exist")    

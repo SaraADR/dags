@@ -20,8 +20,8 @@ def consumer_function(message, prefix, **kwargs):
                 print(f"Error decoding JSON: {e}")
         else:
             print("Empty message received")
-            Variable.set("mensaje_save", None)        
-            return None  
+        Variable.set("mensaje_save", None)        
+        return None  
     else:
         Variable.set("mensaje_save", None)        
 
