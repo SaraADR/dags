@@ -4,6 +4,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 import ast
 import json
+import base64
 
 
 def print_message(**context):
