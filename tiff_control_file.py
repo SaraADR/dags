@@ -9,7 +9,7 @@ import base64
 
 def print_message(**context):
     message = context['dag_run'].conf
-    if message is not null:
+    if message is not None:
         print(f"El mensaje se ha recibido correctamente")
 
 
