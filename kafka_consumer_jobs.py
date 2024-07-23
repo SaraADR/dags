@@ -15,13 +15,14 @@ def consumer_function(message, prefix, **kwargs):
         print(f"message2: {msg_value}")
         if msg_value:
             try:
+                print(f"message4: {msg_value}")
                 Variable.set("mensaje_save", msg_value)
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
         else:
             print("Empty message received")
-        Variable.set("mensaje_save", None)        
-        return None  
+            Variable.set("mensaje_save", None)        
+            return None  
     else:
         Variable.set("mensaje_save", None)        
 
