@@ -8,8 +8,7 @@ import ast
 def print_message(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
-    message_dict = ast.literal_eval(message['message'])
-    print(f"Received message: {message_dict}")
+
 
 
 default_args = {
