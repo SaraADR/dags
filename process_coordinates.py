@@ -1,6 +1,5 @@
 from airflow import DAG
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 import boto3
@@ -15,7 +14,7 @@ default_args = {
 
 # Crear DAG
 dag = DAG(
-    'save_coordinates_to_minio',
+    'kafka_to_minio_pipeline',
     default_args=default_args,
     description='Pipeline to process Kafka messages, convert to PDF and upload to MinIO',
     schedule_interval=None,
@@ -52,7 +51,11 @@ convert_to_pdf = DockerOperator(
     command='/input/process_coordinates.py /output/process_coordinates.pdf',
     docker_url='unix://var/run/docker.sock',
     network_mode='bridge',
-    volumes=['/path/to/input:/input', '/path/to/output:/output'],
+    mount_tmp_dir=False,
+    mounts=[
+        '/path/to/input:/input',
+        '/path/to/output:/output'
+    ],
     dag=dag,
 )
 
