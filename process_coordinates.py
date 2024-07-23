@@ -42,7 +42,6 @@ run_kafka_consumer = BashOperator(
     dag=dag,
 )
 
-
 # Tarea para convertir el archivo a PDF usando DockerOperator
 convert_to_pdf = DockerOperator(
     task_id='convert_to_pdf',
@@ -51,9 +50,19 @@ convert_to_pdf = DockerOperator(
     api_version='auto',
     auto_remove=True,
     command='/input/process_coordinates.py /output/process_coordinates.pdf',
-    docker_url='unix://var/run/docker.sock',
     network_mode='bridge',
-    volumes=['/path/to/input:/input', '/path/to/output:/output'],
+    volumes=[
+        {
+            'source': '/path/to/input',
+            'target': '/input',
+            'type': 'bind'
+        },
+        {
+            'source': '/path/to/output',
+            'target': '/output',
+            'type': 'bind'
+        }
+    ],
     dag=dag,
 )
 
