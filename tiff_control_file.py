@@ -15,6 +15,21 @@ def process_metadata(**kwargs):
     metadata = ti.xcom_pull(task_ids='run_docker')
     print(f"Metadata received: {metadata}")
 
+    def parse_metadata(metadata):
+        data = {}
+        # Cada línea representa una clave-valor en el formato "Clave : Valor"
+        for line in metadata.splitlines():
+            if ' : ' in line:
+                key, value = line.split(' : ', 1)
+                data[key.strip()] = value.strip()
+    return data
+
+    # Aplicar la función de análisis
+    metadata_dict = parse_metadata(metadata)
+    
+    # Imprimir los metadatos en formato JSON
+    print(f"Metadata received:\n{json.dumps(metadata_dict, indent=4)}"
+
 
 
 
