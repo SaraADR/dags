@@ -10,14 +10,18 @@ def print_message(**context):
     menssage_str = message['message']
 
     input_data = json.loads(input_data_str)
-    input_message = json.loads(menssage_str)
+
     location = input_data['input']['location']
     perimeter = input_data['input']['perimeter']
-    from_user = input_message['from_user']
-    
     # Imprime las propiedades
     print(f"Location: {location}")
     print(f"Perimeter: {perimeter}")
+
+
+    input_message = json.loads(menssage_str)
+    from_user = input_message['from_user']
+     
+    # Imprime las propiedades
     print(f"from_user: {from_user}")
 
 
