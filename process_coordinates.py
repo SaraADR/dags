@@ -3,6 +3,7 @@ from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 import boto3
+from airflow.operators.bash import BashOperator
 import os
 
 # Definir parámetros del DAG
