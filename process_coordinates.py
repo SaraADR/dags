@@ -100,7 +100,7 @@ default_args = {
 }
 
 dag = DAG(
-    'save_coordinates_to_minio',
+    'kafka_to_minio_pipeline',
     default_args=default_args,
     description='Un DAG para almacenar coordenadas en Minio',
     schedule_interval=timedelta(days=1),
