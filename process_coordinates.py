@@ -52,6 +52,7 @@ def process_kafka_message(**context):
         print(f"PDF subido a MinIO con ID único {unique_id}")
 
 
+
 def save_to_minio(file_path, unique_id):
     # Obtener la conexión de MinIO desde Airflow
     connection = BaseHook.get_connection('minio_conn')
