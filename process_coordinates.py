@@ -41,6 +41,7 @@ run_kafka_consumer = BashOperator(
     dag=dag,
 )
 
+
 # Tarea para convertir el archivo a PDF usando DockerOperator
 convert_to_pdf = DockerOperator(
     task_id='convert_to_pdf',
