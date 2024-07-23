@@ -9,7 +9,8 @@ import base64
 
 def print_message(**context):
     message = context['dag_run'].conf
-    print(f"Received message: {message}")
+    if message is not null:
+        print(f"El mensaje se ha recibido correctamente")
 
 
 
@@ -26,6 +27,12 @@ def process_metadata(**kwargs):
     # Imprimir los metadatos en formato JSON
     print(f"Metadata received:\n{json.dumps(metadata_dict, indent=4)}")
 
+     # Imprimir específicamente el campo "Gimbal Tilt"
+    gimbal_tilt = metadata_dict.get("Gimbal Tilt")
+    if gimbal_tilt:
+        print(f"Gimbal Tilt: {gimbal_tilt}")
+    else:
+        print("Gimbal Tilt not found in metadata.")
 
 def parse_metadata(metadata):
     data = {}
