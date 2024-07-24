@@ -8,6 +8,8 @@ from requests.auth import HTTPBasicAuth
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData
 from sqlalchemy.orm import sessionmaker
+from geoalchemy2.shape import to_shape
+
 
 def print_message(**context):
     message = context['dag_run'].conf
@@ -46,23 +48,22 @@ def create_fire(**context):
 
 def create_mission(fire, job):
     print(fire)
+    print(job)
     db_conn = BaseHook.get_connection('biobd')
     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
     engine = create_engine(connection_string)
     Session = sessionmaker(bind=engine)
     session = Session()
-    # mapping = {
-    #     'name': 'name',
-    #     'start': 'start_date',
-    #     'position': 'geometry',
-    #     'type_id': 'type_id',
-    # }
+    
+    # Convert GeoJSON to WKT
+    geojson_data = fire['position']
+    geometry = shape(geojson_data).wkt
 
     values_to_insert = {
         'name': fire['name'],
         'start_date': fire['start'],
-        'geometry': json.dumps(fire['position']),  # Assuming you want to store it as a JSON string
-        'type_id': 3,  # Assuming type_id is fixed as 3 for fires
+        'geometry': geometry,  
+        'type_id': 3, 
     }
 
     metadata = MetaData(bind=engine)
