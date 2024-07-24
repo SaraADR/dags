@@ -7,8 +7,15 @@ import ast
 def print_message(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
-    message_dict = ast.literal_eval(message['message'])
-    print(f"Received message: {message_dict}")
+
+def create_fire(**context):
+    message = context['dag_run'].conf
+    print(f"Received message: {message}")
+    input_data_str = message['message']['input_data']
+    input_data = json.loads(input_data_str)
+    print(input_data)
+    print(input_data['fire'])
+
 
 
 
@@ -38,5 +45,12 @@ print_message_task = PythonOperator(
     dag=dag,
 )
 
+atc_create_fire_task = PythonOperator(
+    task_id='atc_create_fire',
+    python_callable=create_fire,
+    provide_context=True,
+    dag=dag,
+)
 
-print_message_task
+
+print_message_task >> atc_create_fire_task
