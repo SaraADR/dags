@@ -51,14 +51,12 @@ def create_mission(fire, job):
     engine = create_engine(connection_string)
     Session = sessionmaker(bind=engine)
     session = Session()
-
-
-    mapping = {
-        'name': 'name',
-        'start': 'start_date',
-        'position': 'geometry',
-        'type_id': 'type_id',
-    }
+    # mapping = {
+    #     'name': 'name',
+    #     'start': 'start_date',
+    #     'position': 'geometry',
+    #     'type_id': 'type_id',
+    # }
 
     values_to_insert = {
         'name': fire['name'],
@@ -68,7 +66,7 @@ def create_mission(fire, job):
     }
 
     metadata = MetaData(bind=engine)
-    missions = Table('missions.mss_mission', metadata, autoload=True)
+    missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
 
     # Insertar los datos
