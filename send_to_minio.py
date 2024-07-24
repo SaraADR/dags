@@ -13,6 +13,6 @@ def upload_file_to_minio(file_path, bucket_name, object_name):
 
 if __name__ == "__main__":
     file_path = '/app/data/sample.pdf'
-    bucket_name = 'pdf-bucket'
+    bucket_name = 'locationtest'
     object_name = 'sample.pdf'
     upload_file_to_minio(file_path, bucket_name, object_name)
