@@ -38,7 +38,7 @@ def process_kafka_message(**context):
 
     # Continúa con la creación del PDF y la carga a MinIO
     with tempfile.TemporaryDirectory() as temp_dir:
-        temp_pdf_path = os.path.join(temp_dir, 'file.pdf')
+        temp_pdf_path = os.path.join(temp_dir, 'coordinates.pdf')
 
         # Guardar el contenido en un archivo PDF temporal
         with open(temp_pdf_path, 'wb') as temp_pdf_file:
