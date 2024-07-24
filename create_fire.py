@@ -61,7 +61,7 @@ def create_mission(fire, job):
     }
 
     metadata = MetaData(bind=engine)
-    missions = Table('missions.mss_missions', metadata, autoload=True)
+    missions = Table('missions.mss_mission', metadata, autoload=True)
 
 
     # Insertar los datos
