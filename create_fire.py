@@ -65,7 +65,8 @@ def create_mission(fire, job):
         'start_date': fire['start'],
         'geometry': geometry,  
         'type_id': 3, 
-        'status_id': 13
+        'status_id': 1,
+        'id': fire['id']
     }
 
     metadata = MetaData(bind=engine)
