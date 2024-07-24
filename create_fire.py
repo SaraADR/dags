@@ -47,7 +47,7 @@ def create_fire(**context):
 def create_mission(fire, job):
     print(fire)
     db_conn = BaseHook.get_connection('biobd')
-    connection_string = f"{db_conn.conn_type}://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/missions"
+    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
     engine = create_engine(connection_string)
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -61,7 +61,7 @@ def create_mission(fire, job):
     }
 
     metadata = MetaData(bind=engine)
-    missions = Table('missions', metadata, autoload=True)
+    missions = Table('missions.mss_missions', metadata, autoload=True)
 
 
     # Insertar los datos
