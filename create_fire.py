@@ -57,13 +57,15 @@ def create_mission(fire, job):
     
     # Convert GeoJSON to WKT
     geojson_data = fire['position']
-    geometry = shape(geojson_data).wkt
+    geometry = geojson_to_wkt(geojson_data)
+
 
     values_to_insert = {
         'name': fire['name'],
         'start_date': fire['start'],
         'geometry': geometry,  
         'type_id': 3, 
+        'status_id': 13
     }
 
     metadata = MetaData(bind=engine)
@@ -77,7 +79,21 @@ def create_mission(fire, job):
     session.close()
 
 
+def geojson_to_wkt(geojson):
+        x = geojson['x']
+        y = geojson['y']
+        z = geojson['z']
 
+        # Convert x and y to float if they are strings
+        x = float(x) if x is not None else None
+        y = float(y) if y is not None else None
+        if z is not None:
+            z = float(z) if z is not None else None
+            return f"POINT ({x} {y} {z})"
+        return f"POINT ({x} {y})"
+    
+    else:
+        raise ValueError(f"Unsupported GeoJSON type: {geom_type}")
 
 
 
