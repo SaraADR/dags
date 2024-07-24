@@ -84,7 +84,7 @@ dag = DAG(
     'kafka_consumer_jobs_dag',
     default_args=default_args,
     description='DAG que consume mensajes de la tabla de jobs',
-    schedule_interval='*/3 * * * *',
+    schedule_interval='*/1 * * * *',
     catchup=False
 )
 
