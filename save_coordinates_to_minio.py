@@ -8,19 +8,29 @@ import os
 def save_coordinates(data):
     # Convertir JSON a PDF usando Docker
     client = docker.from_env()
-    with open('data.json', 'w') as f:
+    
+    # Crear archivos temporales para input y output
+    input_file = 'data.json'
+    output_dir = 'output'
+    output_file = os.path.join(output_dir, 'data.pdf')
+
+    with open(input_file, 'w') as f:
         json.dump(data, f)
-    
-    os.makedirs('output', exist_ok=True)
-    
-    client.containers.run(
-        image="json_to_pdf_converter",  # Nombre de la imagen de Docker
-        volumes={
-            os.path.abspath('data.json'): {'bind': '/input/data.json', 'mode': 'ro'},
-            os.path.abspath('output'): {'bind': '/output', 'mode': 'rw'}
-        },
-        remove=True
-    )
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    try:
+        client.containers.run(
+            image="json_to_pdf_converter",  # Nombre de la imagen de Docker
+            volumes={
+                os.path.abspath(input_file): {'bind': '/input/data.json', 'mode': 'ro'},
+                os.path.abspath(output_dir): {'bind': '/output', 'mode': 'rw'}
+            },
+            remove=True
+        )
+    except docker.errors.ContainerError as e:
+        print(f"Error al ejecutar el contenedor Docker: {e}")
+        return
 
     # Configuración del cliente de MinIO
     minio_client = Minio(
@@ -33,9 +43,9 @@ def save_coordinates(data):
     # Subir PDF a MinIO
     try:
         result = minio_client.fput_object(
-            "bucket-name",  # Nombre del bucket
+            "locationtest",  # Nombre del bucket
             "data.pdf",     # Nombre del archivo en MinIO
-            "output/data.pdf" # Ruta del archivo PDF generado
+            output_file     # Ruta del archivo PDF generado
         )
         print(f"PDF subido exitosamente a MinIO. ETag: {result.etag}")
     except S3Error as e:

@@ -1,4 +1,3 @@
-# convert_json_to_pdf.py
 import json
 from fpdf import FPDF
 
