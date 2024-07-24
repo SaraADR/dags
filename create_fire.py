@@ -6,7 +6,8 @@ import json
 import requests
 from requests.auth import HTTPBasicAuth
 from airflow.hooks.base import BaseHook
-
+from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData
+from sqlalchemy.orm import sessionmaker
 
 def print_message(**context):
     message = context['dag_run'].conf
@@ -33,6 +34,8 @@ def create_fire(**context):
         if response.status_code == 200:
             print("Solicitud exitosa:")
             print(response.json())
+
+            create_mission(response, input_data_str)
         else:
             print(f"Error en la solicitud: {response.status_code}")
             print(response.text)
@@ -41,7 +44,31 @@ def create_fire(**context):
         print("No es de tipo incendios")    
 
 
+def create_mission(fire, job):
+    print(fire)
+    db_conn = BaseHook.get_connection('biobd')
+    connection_string = f"{db_conn.conn_type}://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/missions"
+    engine = create_engine(connection_string)
+    Session = sessionmaker(bind=engine)
+    session = Session()
 
+
+    mapping = {
+        'name': 'name',
+        'start': 'start_date',
+        'position': 'geometry',
+        'type_id': 'type_id',
+    }
+
+    metadata = MetaData(bind=engine)
+    missions = Table('missions', metadata, autoload=True)
+
+
+    # Insertar los datos
+    insert_stmt = missions.insert().values(values_to_insert)
+    session.execute(insert_stmt)
+    session.commit()
+    session.close()
 
 
 
