@@ -60,6 +60,7 @@ def process_kafka_message(**context):
 
         print(f"PDF temporal creado en {temp_pdf_path}")
 
+
         # Subir el PDF a MinIO
         save_to_minio(temp_pdf_path, unique_id)
 
