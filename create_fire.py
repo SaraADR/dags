@@ -8,7 +8,7 @@ from requests.auth import HTTPBasicAuth
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData
 from sqlalchemy.orm import sessionmaker
-from geoalchemy2.shape import to_shape
+
 
 
 def print_message(**context):
