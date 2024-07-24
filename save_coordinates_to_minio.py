@@ -9,7 +9,9 @@ import os
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
+
 import docker  # Necesario para la interacción con Docker
+
 
 def process_kafka_message(**context):
     try:
