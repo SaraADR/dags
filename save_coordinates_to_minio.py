@@ -10,9 +10,6 @@ import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 
-import docker  # Necesario para la interacción con Docker
-
-
 def process_kafka_message(**context):
     try:
         message = context['dag_run'].conf
@@ -33,40 +30,27 @@ def process_kafka_message(**context):
     # Verificar si el contenido del mensaje es un diccionario y convertir a string si es necesario
     if isinstance(message_content, dict):
         # Aquí podrías transformar el diccionario a JSON o procesarlo de otra manera si es necesario
-        message_content = json.dumps(message_content)
-    elif not isinstance(message_content, str):
+        file_bytes = json.dumps(message_content).encode('utf-8')
+    elif isinstance(message_content, str):
+        file_bytes = message_content.encode('utf-8')
+    else:
         raise ValueError("The message content must be a string or a dictionary.")
-    
+
+    # Continúa con la creación del PDF y la carga a MinIO
     with tempfile.TemporaryDirectory() as temp_dir:
-        temp_json_path = os.path.join(temp_dir, 'file.json')
         temp_pdf_path = os.path.join(temp_dir, 'file.pdf')
 
-        # Guardar el contenido en un archivo JSON temporal
-        with open(temp_json_path, 'w') as temp_json_file:
-            temp_json_file.write(message_content)
-        
-        print(f"JSON temporal creado en {temp_json_path}")
-
-        # Ejecutar el contenedor Docker para transformar el JSON en PDF
-        client = docker.from_env()
-        container = client.containers.run(
-            image='json-to-pdf-transformer',  # Reemplazar con el nombre de la imagen Docker
-            volumes={temp_dir: {'bind': '/data', 'mode': 'rw'}},
-            command=f"transform-json-to-pdf /data/file.json /data/file.pdf",
-            detach=True
-        )
-        container.wait()  # Esperar a que el contenedor termine de ejecutarse
-        container_logs = container.logs().decode('utf-8')
-        print(container_logs)
-        container.remove()  # Eliminar el contenedor
+        # Guardar el contenido en un archivo PDF temporal
+        with open(temp_pdf_path, 'wb') as temp_pdf_file:
+            temp_pdf_file.write(file_bytes)
 
         print(f"PDF temporal creado en {temp_pdf_path}")
-
 
         # Subir el PDF a MinIO
         save_to_minio(temp_pdf_path, unique_id)
 
         print(f"PDF subido a MinIO con ID único {unique_id}")
+
 
 def save_to_minio(file_path, unique_id):
     # Obtener la conexión de MinIO desde Airflow
