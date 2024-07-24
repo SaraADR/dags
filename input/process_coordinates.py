@@ -30,7 +30,7 @@ def upload_to_minio(output_file, bucket_name, object_name):
 
 def upload_to_minio_task(**kwargs):
     output_file = '/output/process_coordinates.pdf'
-    bucket_name = 'my-bucket'
+    bucket_name = 'locationtest'
     object_name = 'process_coordinates.pdf'
     upload_to_minio(output_file, bucket_name, object_name)
 
