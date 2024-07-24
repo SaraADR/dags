@@ -61,9 +61,9 @@ def create_mission(fire, job):
     }
 
     values_to_insert = {
-        'name': fire_data['name'],
-        'start_date': fire_data['start'],
-        'geometry': json.dumps(fire_data['position']),  # Assuming you want to store it as a JSON string
+        'name': fire['name'],
+        'start_date': fire['start'],
+        'geometry': json.dumps(fire['position']),  # Assuming you want to store it as a JSON string
         'type_id': 3,  # Assuming type_id is fixed as 3 for fires
     }
 
