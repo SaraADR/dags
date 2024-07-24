@@ -91,7 +91,7 @@ def geojson_to_wkt(geojson):
         if z is not None:
             z = float(z) if z is not None else None
             return f"POINT ({x} {y} {z})"
-        return f"POINT ({x} {y})"
+        return f"POINT ({x} {y} {0})"
 
 
 
