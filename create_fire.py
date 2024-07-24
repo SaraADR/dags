@@ -2,13 +2,49 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import ast
+import json
+import requests
+from requests.auth import HTTPBasicAuth
+from airflow.hooks.base import BaseHook
 
 
 def print_message(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
-    message_dict = ast.literal_eval(message['message'])
-    print(f"Received message: {message_dict}")
+
+def create_fire(**context):
+    message = context['dag_run'].conf
+    print(f"Received message: {message}")
+    input_data_str = message['message']['input_data']
+    input_data = json.loads(input_data_str)
+    print(input_data)
+    print(input_data['fire'])
+    print(input_data['type_id'])
+
+
+    if(input_data['type_id'] == 3):
+        #LLAMAR AL ATC
+        print("Es de tipo incendios") 
+        conn = BaseHook.get_connection('atc_services_connection') 
+        auth = (conn.login, conn.password)
+        # URL del servicio
+        url = f"{conn.host}/rest/FireService/save"
+        response = requests.post(url, json=input_data['fire'], auth=auth)
+        if response.status_code == 200:
+            print("Solicitud exitosa:")
+            print(response.json())
+        else:
+            print(f"Error en la solicitud: {response.status_code}")
+            print(response.text)
+    else:
+        #POR AHORA NADA
+        print("No es de tipo incendios")    
+
+
+
+
+
+
 
 
 
@@ -38,5 +74,12 @@ print_message_task = PythonOperator(
     dag=dag,
 )
 
+atc_create_fire_task = PythonOperator(
+    task_id='atc_create_fire',
+    python_callable=create_fire,
+    provide_context=True,
+    dag=dag,
+)
 
-print_message_task
+
+print_message_task >> atc_create_fire_task
