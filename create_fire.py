@@ -91,9 +91,6 @@ def geojson_to_wkt(geojson):
             z = float(z) if z is not None else None
             return f"POINT ({x} {y} {z})"
         return f"POINT ({x} {y})"
-    
-    else:
-        raise ValueError(f"Unsupported GeoJSON type: {geom_type}")
 
 
 
