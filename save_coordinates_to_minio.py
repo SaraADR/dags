@@ -9,8 +9,6 @@ import os
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
-import docker
-from docker.errors import DockerException
 
 def process_kafka_message(**context):
     try:
@@ -29,47 +27,37 @@ def process_kafka_message(**context):
 
     unique_id = str(uuid.uuid4())
 
+    # Verificar si el contenido del mensaje es un diccionario y convertir a string si es necesario
     if isinstance(message_content, dict):
-        message_content = json.dumps(message_content)
-    elif not isinstance(message_content, str):
+        # Aquí podrías transformar el diccionario a JSON o procesarlo de otra manera si es necesario
+        file_bytes = json.dumps(message_content).encode('utf-8')
+    elif isinstance(message_content, str):
+        file_bytes = message_content.encode('utf-8')
+    else:
         raise ValueError("The message content must be a string or a dictionary.")
-    
+
+    # Continúa con la creación del PDF y la carga a MinIO
     with tempfile.TemporaryDirectory() as temp_dir:
-        temp_json_path = os.path.join(temp_dir, 'file.json')
         temp_pdf_path = os.path.join(temp_dir, 'file.pdf')
 
-        with open(temp_json_path, 'w') as temp_json_file:
-            temp_json_file.write(message_content)
-        
-        print(f"JSON temporal creado en {temp_json_path}")
-
-        try:
-            client = docker.from_env()
-            container = client.containers.run(
-                image='json-to-pdf-transformer',
-                volumes={temp_dir: {'bind': '/data', 'mode': 'rw'}},
-                command=f"transform-json-to-pdf /data/file.json /data/file.pdf",
-                detach=True
-            )
-            container.wait()
-            container_logs = container.logs().decode('utf-8')
-            print(container_logs)
-            container.remove()
-        except DockerException as e:
-            raise RuntimeError(f"Error while running Docker container: {e}")
-        except Exception as e:
-            raise RuntimeError(f"General error: {e}")
+        # Guardar el contenido en un archivo PDF temporal
+        with open(temp_pdf_path, 'wb') as temp_pdf_file:
+            temp_pdf_file.write(file_bytes)
 
         print(f"PDF temporal creado en {temp_pdf_path}")
 
+        # Subir el PDF a MinIO
         save_to_minio(temp_pdf_path, unique_id)
 
         print(f"PDF subido a MinIO con ID único {unique_id}")
 
+
 def save_to_minio(file_path, unique_id):
+    # Obtener la conexión de MinIO desde Airflow
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
 
+    # Crear el cliente de MinIO/S3 con las credenciales y configuración necesarias
     s3_client = boto3.client(
         's3',
         endpoint_url=extra['endpoint_url'],
@@ -81,14 +69,17 @@ def save_to_minio(file_path, unique_id):
     bucket_name = 'locationtest'
     file_name = os.path.basename(file_path)
 
+    # Crear el bucket si no existe
     try:
         s3_client.head_bucket(Bucket=bucket_name)
     except s3_client.exceptions.NoSuchBucket:
         s3_client.create_bucket(Bucket=bucket_name)
 
+    # Leer el contenido del archivo desde el sistema de archivos
     with open(file_path, 'rb') as file:
         file_content = file.read()
 
+    # Subir el archivo a MinIO
     s3_client.put_object(
         Bucket=bucket_name,
         Key=file_name,
