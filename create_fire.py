@@ -55,30 +55,61 @@ def create_mission(fire, job):
     Session = sessionmaker(bind=engine)
     session = Session()
     
-    # Convert GeoJSON to WKT
-    geojson_data = fire['position']
-    geometry = geojson_to_wkt(geojson_data)
+    try:
+        # Convert GeoJSON to WKT
+        geojson_data = fire['position']
+        geometry = geojson_to_wkt(geojson_data)
 
 
-    values_to_insert = {
-        'name': fire['name'],
-        'start_date': fire['start'],
-        'geometry': geometry,  
-        'type_id': 3, 
-        'status_id': 1,
-        'id': fire['id']
-    }
+        values_to_insert = {
+            'name': fire['name'],
+            'start_date': fire['start'],
+            'geometry': geometry,  
+            'type_id': 3, 
+            'status_id': 1,
+            'id': fire['id']
+        }
 
-    metadata = MetaData(bind=engine)
-    missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+        metadata = MetaData(bind=engine)
+        missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
+        # Insertar los datos
+        insert_stmt = missions.insert().values(values_to_insert)
+        session.execute(insert_stmt)
+        session.commit()
+        session.close()
 
-    # Insertar los datos
-    insert_stmt = missions.insert().values(values_to_insert)
-    session.execute(insert_stmt)
-    session.commit()
-    session.close()
+        insert_relation_mission_fire(fire['id'], fire['id'])
+    except Exception as e:
+        session.rollback()
+        print("error durante el guardado de la misión")       
 
+def insert_relation_mission_fire(id_mission, id_fire):
+    db_conn = BaseHook.get_connection('biobd')
+    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+    engine = create_engine(connection_string)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+ 
+    try:
+      
+        values_to_insert = {
+            'mission_id': id_mission,
+            'fire_id': id_fire
+        }
+
+        metadata = MetaData(bind=engine)
+        missions = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+
+        # Insertar los datos
+        insert_stmt = missions.insert().values(values_to_insert)
+        session.execute(insert_stmt)
+        session.commit()
+        session.close()
+
+    except Exception as e:
+        session.rollback()
+        print("error durante el guardado de la relacion mision-incendio") 
 
 def geojson_to_wkt(geojson):
         x = geojson['x']
