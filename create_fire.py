@@ -35,7 +35,7 @@ def create_fire(**context):
             print("Solicitud exitosa:")
             print(response.json())
 
-            create_mission(response, input_data_str)
+            create_mission(response.json(), input_data_str)
         else:
             print(f"Error en la solicitud: {response.status_code}")
             print(response.text)
