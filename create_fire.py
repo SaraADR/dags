@@ -35,7 +35,7 @@ def create_fire(**context):
             print("Solicitud exitosa:")
             print(response.json())
 
-            createmission(response, input_data_str)
+            create_mission(response, input_data_str)
         else:
             print(f"Error en la solicitud: {response.status_code}")
             print(response.text)
@@ -58,7 +58,6 @@ def create_mission(fire, job):
         'start': 'start_date',
         'position': 'geometry',
         'type_id': 'type_id',
-
     }
 
     metadata = MetaData(bind=engine)
