@@ -16,7 +16,7 @@ def consumer_function(message, prefix, **kwargs):
         if msg_value:
             try:
                 msg_json = json.loads(msg_value)
-                if msg_json.get('destination') == 'email' and msg_json.get('status') == 'pending':
+                if msg_json.get('destination') == 'ignis' and msg_json.get('status') == 'pending':
                     Variable.set("my_variable_key", msg_json)
                     return msg_json 
             except json.JSONDecodeError as e:
