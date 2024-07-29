@@ -84,6 +84,28 @@ def create_mission(fire, job):
         session.rollback()
         print("error durante el guardado de la misión")       
 
+
+def send_notification(title, message):
+    url = "https://fcm.googleapis.com/fcm/send"
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'key=YOUR_SERVER_KEY'
+    }
+    payload = {
+        'to': '/topics/all',  # O a un topic específico
+        'notification': {
+            'title': title,
+            'body': message
+        }
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    if response.status_code == 200:
+        print("Notification sent successfully")
+    else:
+        print(f"Failed to send notification: {response.status_code}")
+        print(response.text)
+
+
 def insert_relation_mission_fire(id_mission, id_fire):
     db_conn = BaseHook.get_connection('biobd')
     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
@@ -105,6 +127,8 @@ def insert_relation_mission_fire(id_mission, id_fire):
         insert_stmt = missions.insert().values(values_to_insert)
         session.execute(insert_stmt)
         session.commit()
+        # Enviar notificación
+        send_notification("Nueva Misión Creada", f"Se ha creado una nueva misión con ID {id_mission}")
         session.close()
 
     except Exception as e:
