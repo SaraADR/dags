@@ -57,7 +57,7 @@ def create_mission(fire, job):
     try:
         # Convert GeoJSON to WKT
         geojson_data = fire['position']
-        geometry = geojson_to_wkt(geojson_data)
+        geometry = geojson_data
 
 
         values_to_insert = {
