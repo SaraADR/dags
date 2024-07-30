@@ -10,7 +10,6 @@ from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData
 from sqlalchemy.orm import sessionmaker
 
 
-
 def print_message(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
@@ -125,7 +124,7 @@ def geojson_to_wkt(geojson):
         return f"POINT ({x} {y} {0})"
 
 
-def send_notification(mission_id, message, status="null"):
+def send_notification(destination, message, status=None):
     db_conn = BaseHook.get_connection('biobd')
     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
     engine = create_engine(connection_string)
@@ -134,10 +133,10 @@ def send_notification(mission_id, message, status="null"):
 
     try:
         values_to_insert = {
-            'mission_id': mission_id,
-            'message': json.dumps(message),
-            'status': status,
-            'created_at': datetime.now()
+            'destination': destination,
+            'data': json.dumps(message),
+            'status' : status,
+            # 'created_at': datetime.now()
         }
 
         metadata = MetaData(bind=engine)
@@ -155,8 +154,8 @@ def send_notification(mission_id, message, status="null"):
 
 def process_notification(**context):
     mission_id = context['task_instance'].xcom_pull(task_ids='atc_create_fire')['id']
-    message = {"text": "Nueva misión creada", "details": "Detalles adicionales"}
-    send_notification(mission_id, message)
+    message = {"notify": "Misión de incendios creada con id " + mission_id}
+    send_notification("ignis", message)
 
 
 default_args = {
