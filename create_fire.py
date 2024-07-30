@@ -63,7 +63,7 @@ def create_mission(fire, job):
         values_to_insert = {
             'name': fire['name'],
             'start_date': fire['start'],
-            'geometry': geometry,  
+            'geometry': None,  
             'type_id': 3, 
             'status_id': 1,
             # 'id': fire['id']
