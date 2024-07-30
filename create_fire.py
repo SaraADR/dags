@@ -125,6 +125,39 @@ def geojson_to_wkt(geojson):
         return f"POINT ({x} {y} {0})"
 
 
+def send_notification(mission_id, message, status="enviada"):
+    db_conn = BaseHook.get_connection('biobd')
+    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+    engine = create_engine(connection_string)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        values_to_insert = {
+            'mission_id': mission_id,
+            'message': json.dumps(message),
+            'status': status,
+            'created_at': datetime.now()
+        }
+
+        metadata = MetaData(bind=engine)
+        notifications = Table('notifications', metadata, schema='missions', autoload_with=engine)
+
+        # Insertar los datos
+        insert_stmt = notifications.insert().values(values_to_insert)
+        session.execute(insert_stmt)
+        session.commit()
+        session.close()
+        print("Notificación enviada y guardada en la base de datos.")
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante el envío de la notificación: {e}")
+
+def process_notification(**context):
+    mission_id = context['task_instance'].xcom_pull(task_ids='atc_create_fire')['id']
+    message = {"text": "Nueva misión creada", "details": "Detalles adicionales"}
+    send_notification(mission_id, message)
+
 
 default_args = {
     'owner': 'airflow',
