@@ -57,7 +57,7 @@ def create_mission(fire, job):
     try:
         # Convert GeoJSON to WKT
         geojson_data = fire['position']
-        geometry = geojson_data
+        geometry = "{ \"type\": \"Point\", \"crs\": { \"type\": \"name\", \"properties\": {\"name\": \"urn:ogc:def:crs:EPSG::4326\" } }, \"coordinates\": [ {positionx}, {positiony}, {positionz} ] }".format(fire['position']['x'], fire['position']['y'], fire['position']['z'])
 
 
         values_to_insert = {
