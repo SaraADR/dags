@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData
 from sqlalchemy.orm import sessionmaker
 
 
+
 def print_message(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
@@ -57,7 +58,7 @@ def create_mission(fire, job):
     try:
         # Convert GeoJSON to WKT
         geojson_data = fire['position']
-        geometry = "{ \"type\": \"Point\", \"crs\": { \"type\": \"name\", \"properties\": {\"name\": \"urn:ogc:def:crs:EPSG::4326\" } }, \"coordinates\": [ {positionx}, {positiony}, {positionz} ] }".format(fire['position']['x'], fire['position']['y'], fire['position']['z'])
+        geometry = geojson_to_wkt(geojson_data)
 
 
         values_to_insert = {
@@ -66,7 +67,7 @@ def create_mission(fire, job):
             'geometry': geometry,  
             'type_id': 3, 
             'status_id': 1,
-            # 'id': fire['id']
+            'id': fire['id']
         }
 
         metadata = MetaData(bind=engine)
@@ -74,15 +75,11 @@ def create_mission(fire, job):
 
         # Insertar los datos
         insert_stmt = missions.insert().values(values_to_insert)
-        mission_id = session.execute(insert_stmt)
+        session.execute(insert_stmt)
         session.commit()
         session.close()
 
-        insert_relation_mission_fire(mission_id, fire['id'])
-        # mission_id = context['task_instance'].xcom_pull(task_ids='atc_create_fire')['id']
-        message = {"notify": "Misión de incendios creada con id " + mission_id}
-        send_notification("ignis", message)
-
+        insert_relation_mission_fire(fire['id'], fire['id'])
     except Exception as e:
         session.rollback()
         print("error durante el guardado de la misión")       
@@ -128,36 +125,6 @@ def geojson_to_wkt(geojson):
         return f"POINT ({x} {y} {0})"
 
 
-def send_notification(destination, message, status=None):
-    db_conn = BaseHook.get_connection('biobd')
-    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-    engine = create_engine(connection_string)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
-    try:
-        values_to_insert = {
-            'destination': destination,
-            'data': json.dumps(message),
-            'status' : status,
-            # 'created_at': datetime.now()
-        }
-
-        metadata = MetaData(bind=engine)
-        notifications = Table('notifications', metadata, schema='missions', autoload_with=engine)
-
-        # Insertar los datos
-        insert_stmt = notifications.insert().values(values_to_insert)
-        session.execute(insert_stmt)
-        session.commit()
-        session.close()
-        print("Notificación enviada y guardada en la base de datos.")
-    except Exception as e:
-        session.rollback()
-        print(f"Error durante el envío de la notificación: {e}")
-
-
-
 
 default_args = {
     'owner': 'airflow',
@@ -172,7 +139,7 @@ default_args = {
 dag = DAG(
     'create_fire',
     default_args=default_args,
-    description='DAG que crea objeto incendio',
+    description='DAG que envia emails',
     schedule_interval=None,
     catchup=False
 )
@@ -193,5 +160,4 @@ atc_create_fire_task = PythonOperator(
 )
 
 
-# print_message_task >> atc_create_fire_task
-atc_create_fire_task
+print_message_task >> atc_create_fire_task
