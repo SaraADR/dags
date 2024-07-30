@@ -66,7 +66,7 @@ def create_mission(fire, job):
             'geometry': geometry,  
             'type_id': 3, 
             'status_id': 1,
-            'id': fire['id']
+            # 'id': fire['id']
         }
 
         metadata = MetaData(bind=engine)
@@ -74,11 +74,15 @@ def create_mission(fire, job):
 
         # Insertar los datos
         insert_stmt = missions.insert().values(values_to_insert)
-        session.execute(insert_stmt)
+        mission_id = session.execute(insert_stmt)
         session.commit()
         session.close()
 
-        insert_relation_mission_fire(fire['id'], fire['id'])
+        insert_relation_mission_fire(mission_id, fire['id'])
+        # mission_id = context['task_instance'].xcom_pull(task_ids='atc_create_fire')['id']
+        message = {"notify": "Misión de incendios creada con id " + mission_id}
+        send_notification("ignis", message)
+
     except Exception as e:
         session.rollback()
         print("error durante el guardado de la misión")       
@@ -152,10 +156,7 @@ def send_notification(destination, message, status=None):
         session.rollback()
         print(f"Error durante el envío de la notificación: {e}")
 
-def process_notification(**context):
-    mission_id = context['task_instance'].xcom_pull(task_ids='atc_create_fire')['id']
-    message = {"notify": "Misión de incendios creada con id " + mission_id}
-    send_notification("ignis", message)
+
 
 
 default_args = {
@@ -171,7 +172,7 @@ default_args = {
 dag = DAG(
     'create_fire',
     default_args=default_args,
-    description='DAG que envia emails',
+    description='DAG que crea objeto incendio',
     schedule_interval=None,
     catchup=False
 )
@@ -192,4 +193,5 @@ atc_create_fire_task = PythonOperator(
 )
 
 
-print_message_task >> atc_create_fire_task
+# print_message_task >> atc_create_fire_task
+atc_create_fire_task
