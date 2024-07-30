@@ -75,8 +75,8 @@ def create_mission(fire, job):
 
         # Insertar los datos
         insert_stmt = missions.insert().values(values_to_insert)
-        id_insercion = session.execute(insert_stmt)
-        print(id_insercion)
+        result = session.execute(insert_stmt)
+        print(result.inserted_primary_key)
         session.commit()
         session.close()
 
