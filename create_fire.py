@@ -125,7 +125,7 @@ def geojson_to_wkt(geojson):
         return f"POINT ({x} {y} {0})"
 
 
-def send_notification(mission_id, message, status="enviada"):
+def send_notification(mission_id, message, status="null"):
     db_conn = BaseHook.get_connection('biobd')
     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
     engine = create_engine(connection_string)
