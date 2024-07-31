@@ -12,31 +12,22 @@ def print_message(**context):
     if message is not None:
         print(f"El mensaje se ha recibido correctamente")
 
-
-
-def process_metadata(**kwargs):
-    ti = kwargs['ti']
-    metadata = ti.xcom_pull(task_ids='run_docker')
-    print(f"Metadata received: {metadata}")
-
-    decoded_bytes = base64.b64decode(metadata)
-    decoded_str = decoded_bytes.decode('utf-8')
-    # Aplicar la función de análisis
-    metadata_dict = parse_metadata(decoded_str)
-  
-    # Imprimir los metadatos en formato JSON
-    print(f"Metadata received:\n{json.dumps(metadata_dict, indent=4)}")
-
-     # Imprimir específicamente el campo "Gimbal Tilt"
-    gimbal_tilt = metadata_dict.get("Gimbal Tilt")
-    if gimbal_tilt:
-        print(f"Gimbal Tilt: {gimbal_tilt}")
+# Define the actions based on the last digit of Gimbal Tilt
+def handle_gimbal_tilt(gimbal_tilt):
+    last_digit = gimbal_tilt[-1]  # Get the last character
+    if last_digit == '1':
+        print("Gimbal Tilt ends with 1: Creating resource.")
+    elif last_digit == '5':
+        print("Gimbal Tilt ends with 5: Waiting...")
+    elif last_digit == '9':
+        print("Gimbal Tilt ends with 9: Closing operation.")
     else:
-        print("Gimbal Tilt not found in metadata.")
+        print(f"Gimbal Tilt ends with {last_digit}: No specific action defined.")
 
+# Define a function to parse metadata
 def parse_metadata(metadata):
     data = {}
-        # Cada línea representa una clave-valor en el formato "Clave : Valor"
+    # Each line represents a key-value pair in the format "Key : Value"
     for line in metadata.splitlines():
         if ' : ' in line:
             key, value = line.split(' : ', 1)
@@ -44,6 +35,30 @@ def parse_metadata(metadata):
     return data
 
 
+
+# Function to process metadata
+def process_metadata(**kwargs):
+    ti = kwargs['ti']
+    metadata = ti.xcom_pull(task_ids='run_docker')
+    print(f"Metadata received: {metadata}")
+
+    decoded_bytes = base64.b64decode(metadata)
+    decoded_str = decoded_bytes.decode('utf-8')
+    # Apply the parse function
+    metadata_dict = parse_metadata(decoded_str)
+
+    # Print the metadata in JSON format
+    print(f"Metadata received:\n{json.dumps(metadata_dict, indent=4)}")
+
+    # Specifically print the "Gimbal Tilt" field and handle actions
+    gimbal_tilt = metadata_dict.get("Gimbal Tilt")
+    if gimbal_tilt:
+        print(f"Gimbal Tilt: {gimbal_tilt}")
+        handle_gimbal_tilt(gimbal_tilt)
+    else:
+        print("Gimbal Tilt not found in metadata.")
+
+# Define default arguments for the DAG
 
 default_args = {
     'owner': 'airflow',
@@ -55,6 +70,7 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
+# Define the DAG
 dag = DAG(
     'tiff_control',
     default_args=default_args,
@@ -63,9 +79,10 @@ dag = DAG(
     catchup=False
 )
 
+# Define the tasks
 print_message_task = PythonOperator(
     task_id='print_message',
-    python_callable=print_message,
+    python_callable=lambda **context: print("El mensaje se ha recibido correctamente"),
     provide_context=True,
     dag=dag,
 )
@@ -78,7 +95,6 @@ run_docker_task = SSHOperator(
     do_xcom_push=True,
 )
 
-
 process_metadata_task = PythonOperator(
     task_id='process_metadata',
     python_callable=process_metadata,
@@ -86,4 +102,5 @@ process_metadata_task = PythonOperator(
     dag=dag,
 )
 
+# Define task dependencies
 print_message_task >> run_docker_task >> process_metadata_task
