@@ -6,13 +6,9 @@ import requests
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import insert
 
 # Función para imprimir un mensaje desde la configuración del DAG
-def print_message(**context):
-    message = context['dag_run'].conf
-    print(f"Received message: {message}")
-
-# Función para crear una misión en la base de datos
 def create_mission(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
@@ -43,10 +39,10 @@ def create_mission(**context):
         metadata = MetaData(bind=engine)
         missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
-        # Inserción de la nueva misión
-        insert_stmt = missions.insert().values(values_to_insert)
+        # Inserción de la nueva misión con RETURNING
+        insert_stmt = insert(missions).values(values_to_insert).returning(missions.c.id)
         result = session.execute(insert_stmt)
-        mission_id = result.inserted_primary_key[0]
+        mission_id = result.scalar()  # Recupera el valor del ID insertado
         session.commit()
         session.close()
 
