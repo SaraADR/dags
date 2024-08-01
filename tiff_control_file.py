@@ -1,10 +1,51 @@
 from datetime import datetime, timedelta
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
-import ast
-import json
+from airflow.hooks.base import BaseHook
+import boto3
+from botocore.client import Config
 import base64
+import json
+import os
+
+# Función para manejar la conexión a MinIO y subir archivos
+def save_to_minio(file_path, unique_id):
+    # Obtener la conexión de MinIO desde Airflow
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
+
+    # Crear el cliente de MinIO/S3 con las credenciales y configuración necesarias
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
+
+    bucket_name = 'locationtest'
+    file_name = os.path.basename(file_path)
+
+    # Crear el bucket si no existe
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+    except s3_client.exceptions.NoSuchBucket:
+        s3_client.create_bucket(Bucket=bucket_name)
+
+    # Leer el contenido del archivo desde el sistema de archivos
+    with open(file_path, 'rb') as file:
+        file_content = file.read()
+
+    # Subir el archivo a MinIO
+    s3_client.put_object(
+        Bucket=bucket_name,
+        Key=file_name,
+        Body=file_content,
+        Tagging=f"unique_id={unique_id}"
+    )
+    print(f'{file_name} subido correctamente a MinIO.')
 
 
 def print_message(**context):
