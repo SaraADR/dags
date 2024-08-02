@@ -10,7 +10,7 @@ import json
 import os
 
 # Función para manejar la conexión a MinIO y subir archivos
-def save_to_minio(file_path, unique_id):
+def save_to_minio(unique_id):
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
 
@@ -23,15 +23,15 @@ def save_to_minio(file_path, unique_id):
     )
 
     bucket_name = 'locationtest'
-    file_name = os.path.basename(file_path)
+    file_name = f'image_{unique_id}.tiff'  # Usamos unique_id para el nombre del archivo
 
     try:
         s3_client.head_bucket(Bucket=bucket_name)
     except s3_client.exceptions.NoSuchBucket:
         s3_client.create_bucket(Bucket=bucket_name)
 
-    with open(file_path, 'rb') as file:
-        file_content = file.read()
+    # Suponiendo que el contenido del archivo se obtiene de alguna manera
+    file_content = b''  # Placeholder para el contenido del archivo
 
     s3_client.put_object(
         Bucket=bucket_name,
@@ -42,13 +42,13 @@ def save_to_minio(file_path, unique_id):
     print(f'{file_name} subido correctamente a MinIO.')
 
 # Define the actions based on the last digit of Gimbal Tilt
-def handle_gimbal_tilt(gimbal_tilt, file_path):
+def handle_gimbal_tilt(gimbal_tilt):
     last_digit = gimbal_tilt[-1]  # Get the last character
-    unique_id = "unique_value"  # Assuming a placeholder for unique_id
+    unique_id = "unique_value"  # Placeholder para un identificador único
 
     if last_digit == '1':
         print("Gimbal Tilt ends with 1: Creating resource and uploading to MinIO.")
-        save_to_minio(file_path, unique_id)
+        save_to_minio(unique_id)
     elif last_digit == '5':
         print("Gimbal Tilt ends with 5: Waiting, not uploading.")
     elif last_digit == '9':
@@ -71,23 +71,17 @@ def process_metadata(**kwargs):
     metadata = ti.xcom_pull(task_ids='run_docker')
     print(f"Metadata received: {metadata}")
 
-    # Decode the metadata from base64
     decoded_bytes = base64.b64decode(metadata)
     decoded_str = decoded_bytes.decode('utf-8')
     metadata_dict = parse_metadata(decoded_str)
 
     print(f"Metadata received:\n{json.dumps(metadata_dict, indent=4)}")
 
-    # Extract "Gimbal Tilt" field
     gimbal_tilt = metadata_dict.get("Gimbal Tilt")
-
-    # Define the path or the logic to find the TIFF file.
-    # Assuming a fixed path or pattern in a known directory.
-    file_path = "/path/to/known/location/img-20230924140747117-ter.tiff"
 
     if gimbal_tilt:
         print(f"Gimbal Tilt: {gimbal_tilt}")
-        handle_gimbal_tilt(gimbal_tilt, file_path)
+        handle_gimbal_tilt(gimbal_tilt)
     else:
         print("Gimbal Tilt not found in metadata.")
 
