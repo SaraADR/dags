@@ -71,14 +71,19 @@ def process_metadata(**kwargs):
     metadata = ti.xcom_pull(task_ids='run_docker')
     print(f"Metadata received: {metadata}")
 
+    # Decode the metadata from base64
     decoded_bytes = base64.b64decode(metadata)
     decoded_str = decoded_bytes.decode('utf-8')
     metadata_dict = parse_metadata(decoded_str)
 
     print(f"Metadata received:\n{json.dumps(metadata_dict, indent=4)}")
 
+    # Extract "Gimbal Tilt" field
     gimbal_tilt = metadata_dict.get("Gimbal Tilt")
-    file_path = "/path/to/image.tiff"  # Ruta de ejemplo; ajusta según tu contexto
+
+    # Define the path or the logic to find the TIFF file.
+    # Assuming a fixed path or pattern in a known directory.
+    file_path = "/path/to/known/location/img-20230924140747117-ter.tiff"
 
     if gimbal_tilt:
         print(f"Gimbal Tilt: {gimbal_tilt}")
