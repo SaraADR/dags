@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
@@ -12,11 +11,9 @@ import os
 
 # Función para manejar la conexión a MinIO y subir archivos
 def save_to_minio(file_path, unique_id):
-    # Obtener la conexión de MinIO desde Airflow
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
 
-    # Crear el cliente de MinIO/S3 con las credenciales y configuración necesarias
     s3_client = boto3.client(
         's3',
         endpoint_url=extra['endpoint_url'],
@@ -28,17 +25,14 @@ def save_to_minio(file_path, unique_id):
     bucket_name = 'locationtest'
     file_name = os.path.basename(file_path)
 
-    # Crear el bucket si no existe
     try:
         s3_client.head_bucket(Bucket=bucket_name)
     except s3_client.exceptions.NoSuchBucket:
         s3_client.create_bucket(Bucket=bucket_name)
 
-    # Leer el contenido del archivo desde el sistema de archivos
     with open(file_path, 'rb') as file:
         file_content = file.read()
 
-    # Subir el archivo a MinIO
     s3_client.put_object(
         Bucket=bucket_name,
         Key=file_name,
@@ -47,35 +41,29 @@ def save_to_minio(file_path, unique_id):
     )
     print(f'{file_name} subido correctamente a MinIO.')
 
-
-def print_message(**context):
-    message = context['dag_run'].conf
-    if message is not None:
-        print(f"El mensaje se ha recibido correctamente")
-
 # Define the actions based on the last digit of Gimbal Tilt
-def handle_gimbal_tilt(gimbal_tilt):
+def handle_gimbal_tilt(gimbal_tilt, file_path):
     last_digit = gimbal_tilt[-1]  # Get the last character
+    unique_id = "unique_value"  # Assuming a placeholder for unique_id
+
     if last_digit == '1':
-        print("Gimbal Tilt ends with 1: Creating resource.")
+        print("Gimbal Tilt ends with 1: Creating resource and uploading to MinIO.")
+        save_to_minio(file_path, unique_id)
     elif last_digit == '5':
-        print("Gimbal Tilt ends with 5: Waiting...")
+        print("Gimbal Tilt ends with 5: Waiting, not uploading.")
     elif last_digit == '9':
-        print("Gimbal Tilt ends with 9: Closing operation.")
+        print("Gimbal Tilt ends with 9: Closing operation, not uploading.")
     else:
-        print(f"Gimbal Tilt ends with {last_digit}: No specific action defined.")
+        print(f"Gimbal Tilt ends with {last_digit}: No specific action defined, not uploading.")
 
 # Define a function to parse metadata
 def parse_metadata(metadata):
     data = {}
-    # Each line represents a key-value pair in the format "Key : Value"
     for line in metadata.splitlines():
         if ' : ' in line:
             key, value = line.split(' : ', 1)
             data[key.strip()] = value.strip()
     return data
-
-
 
 # Function to process metadata
 def process_metadata(**kwargs):
@@ -85,22 +73,20 @@ def process_metadata(**kwargs):
 
     decoded_bytes = base64.b64decode(metadata)
     decoded_str = decoded_bytes.decode('utf-8')
-    # Apply the parse function
     metadata_dict = parse_metadata(decoded_str)
 
-    # Print the metadata in JSON format
     print(f"Metadata received:\n{json.dumps(metadata_dict, indent=4)}")
 
-    # Specifically print the "Gimbal Tilt" field and handle actions
     gimbal_tilt = metadata_dict.get("Gimbal Tilt")
+    file_path = "/path/to/image.tiff"  # Ruta de ejemplo; ajusta según tu contexto
+
     if gimbal_tilt:
         print(f"Gimbal Tilt: {gimbal_tilt}")
-        handle_gimbal_tilt(gimbal_tilt)
+        handle_gimbal_tilt(gimbal_tilt, file_path)
     else:
         print("Gimbal Tilt not found in metadata.")
 
 # Define default arguments for the DAG
-
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
