@@ -6,6 +6,10 @@ import requests
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
+from airflow import DAG
+from airflow.operators.postgres_operator import PostgresOperator
+from airflow.utils.dates import days_ago
+from airflow.utils.trigger_rule import TriggerRule
 
 # Función para imprimir un mensaje desde la configuración del DAG
 def print_message(**context):
@@ -210,5 +214,29 @@ process_notification_task = PythonOperator(
     dag=dag,
 )
 
+# Tarea para actualizar el estado a 'FINISHED'
+update_status_finished = PostgresOperator(
+    task_id='update_status_finished',
+    postgres_conn_id='biobd',
+    sql="""
+        UPDATE public.jobs
+        SET status = 'FINISHED'
+        WHERE id = '{{ ti.xcom_pull(task_ids="print_message", key="message_id") }}';
+    """,
+    dag=dag,
+)
+
+# Tarea para actualizar el estado a 'ERROR'
+update_status_error = PostgresOperator(
+    task_id='update_status_error',
+    postgres_conn_id='biobd',
+    sql="""
+        UPDATE public.jobs
+        SET status = 'ERROR'
+        WHERE id = '{{ ti.xcom_pull(task_ids="print_message", key="message_id") }}';
+    """,
+    trigger_rule=TriggerRule.ONE_FAILED,
+    dag=dag,
+)
 # Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task >> process_notification_task
+print_message_task >> create_mission_task >> process_notification_task >> update_status_finished >> update_status_error
