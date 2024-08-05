@@ -30,11 +30,11 @@ def create_mission(**context):
 
         # Transformación de la posición GeoJSON a WKT
         geojson_data = input_data['fire']['position']
-        geometry = geojson_to_wkt(geojson_data)
+        # geometry = geojson_to_wkt(geojson_data)
         values_to_insert = {
             'name': input_data['fire']['name'],
             'start_date': input_data['fire']['start'],
-            'geometry': geometry,
+            'geometry': None,
             'type_id': 3, 
             'status_id': 1
         }
