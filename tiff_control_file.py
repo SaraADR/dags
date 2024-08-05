@@ -130,4 +130,4 @@ process_metadata_task = PythonOperator(
 )
 
 # Define task dependencies
-print_message_task >> run_docker_task >> process_metadata_task*
+print_message_task >> run_docker_task >> process_metadata_task
