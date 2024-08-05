@@ -8,7 +8,7 @@ from botocore.client import Config
 import base64
 import json
 import os
-import pyexiftool
+
 
 # Función para manejar la conexión a MinIO y subir archivos
 def save_to_minio(unique_id):
