@@ -20,7 +20,7 @@ default_args = {
 
 # Define the DAG
 dag = DAG(
-    'fetch_image_from_minio',
+    'search_on_minio',
     default_args=default_args,
     description='A DAG to fetch images and metadata from MinIO',
     schedule_interval=None,  # This DAG will be triggered manually
