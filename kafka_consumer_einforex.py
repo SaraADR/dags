@@ -7,7 +7,7 @@ from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 from datetime import datetime, timedelta
 from airflow.hooks.base import BaseHook
-from sqlalchemy import create_engine, Table, MetaData
+from sqlalchemy import create_engine, Table, MetaData,  select, and_
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
 import pytz
@@ -52,6 +52,8 @@ def trigger_email_handler(**kwargs):
                 Session = sessionmaker(bind=engine)
                 session = Session()
 
+                print("Conexión a la base de datos establecida correctamente")
+
                 metadata = MetaData(bind=engine)
                 fire = Table('fire', metadata, schema='public', autoload_with=engine)
                 comunidadautonomageometry = Table('comunidadautonomageometry', metadata, schema='public', autoload_with=engine)
@@ -84,6 +86,7 @@ def trigger_email_handler(**kwargs):
                     )
                 ).order_by(fire.c.id.desc())
 
+                print("Ejecutando la consulta")
                 # Ejecutar la consulta
                 result = session.execute(query)
 
