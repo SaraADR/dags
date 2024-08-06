@@ -67,7 +67,7 @@ def trigger_email_handler(**kwargs):
 
                 print("Ejecutando la consulta")
                 # Ejecutar la consulta
-                result = session.execute(query, {'search_id': search_id})
+                result = session.execute(query, {'search_id': msg_json.get('id')})
 
                 customer_id = 'AVINCIS'
                 # Procesar y mostrar el resultado
@@ -77,7 +77,7 @@ def trigger_email_handler(**kwargs):
                     customer_id = row[-1] 
                     print(f"customer_id: {customer_id}")
                 else:
-                    print(f"No se encontró ningún registro con id = {search_id}")
+                    print(f"No se encontró ningún registro con id = {msg_json.get('id')}")
 
             except Exception as e:
                 session.rollback()
