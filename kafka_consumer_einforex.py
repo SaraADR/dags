@@ -49,10 +49,11 @@ def trigger_email_handler(**kwargs):
             Session = sessionmaker(bind=engine)
             session = Session()
 
-            if(msg_json.get('start') is not null):
+            #Pasamos las fechas de timestamp a datetime
+            if(msg_json.get('start') is not None):
                 start_date  = convert_millis_to_datetime(msg_json.get('start'))
 
-            if(msg_json.get('creation_timestamp') is not null):
+            if(msg_json.get('creation_timestamp') is not None):
                 creation_date  = convert_millis_to_datetime(msg_json.get('creation_timestamp'))    
 
             mss_mission_insert = {
