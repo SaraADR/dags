@@ -66,7 +66,7 @@ def save_to_minio(file_path, unique_id):
         config=Config(signature_version='s3v4')
     )
 
-    bucket_name = 'locationtest'
+    bucket_name = 'prueba_crear_bucker_dag'
     file_name = os.path.basename(file_path)
 
     # Crear el bucket si no existe
