@@ -53,16 +53,9 @@ def create_mission(**context):
 
         print(f"Misión creada con ID: {mission_id}")
 
-        # Almacenar el job_id en XCom
-        context['ti'].xcom_push(key='job_id', value=job_id.get('id'))
-
-        job_id = message['message']['job_id']
-        context['task_instance'].xcom_push(key='job_id', value=job_id)
-
         # Almacenar mission_id en XCom para ser utilizado por otras tareas
-
-        # input_data['mission_id'] = mission_id
-        # context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+        input_data['mission_id'] = mission_id
+        context['task_instance'].xcom_push(key='mission_id', value=mission_id)
         
         # Crear el incendio relacionado
         create_fire(input_data)
@@ -224,8 +217,8 @@ update_status_task = PostgresOperator(
     postgres_conn_id='biobd',  
     sql="""
         UPDATE public.jobs
-        SET status = 'FINISHED'
-        WHERE id = '{{ ti.xcom_pull(task_ids="create_mission", key="job_id") }}';
+        SET status = 'ok'
+        WHERE id = '{{ ti.xcom_pull(task_ids="create_mission", key="message_id") }}';
     """,
     dag=dag,
 )
