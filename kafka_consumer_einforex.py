@@ -54,37 +54,15 @@ def trigger_email_handler(**kwargs):
 
                 print("Conexión a la base de datos establecida correctamente")
 
-                metadata = MetaData(bind=engine)
-                fire = Table('fire', metadata, schema='einforex_fleet', autoload_with=engine)
-                comunidadautonomageometry = Table('comunidadautonomageometry', metadata, schema='einforex_fleet', autoload_with=engine)
-                customer_comunidadautonoma = Table('customer_comunidadautonoma', metadata, schema='einforex_fleet', autoload_with=engine)
-                comunidadautonoma = Table('comunidadautonoma', metadata, schema='einforex_fleet', autoload_with=engine)
-  
-                #Consulta
-                query = select([
-                    fire.c.id,
-                    fire.c.name,
-                    fire.c.position,
-                    comunidadautonomageometry.c.id.label('cag_id'),
-                    comunidadautonoma.c.displayname,
-                    customer_comunidadautonoma.c.customer_id
-                ]).select_from(
-                    fire.join(
-                        comunidadautonomageometry,
-                        and_(
-                            st_contains(
-                                st_setsrid(comunidadautonomageometry.c.geometry, 4326),
-                                fire.c.position
-                            )
-                        )
-                    ).join(
-                        customer_comunidadautonoma,
-                        customer_comunidadautonoma.c.comunidadautonoma_id == comunidadautonomageometry.c.id
-                    ).join(
-                        comunidadautonoma,
-                        comunidadautonomageometry.c.id == comunidadautonoma.c.id
-                    )
-                ).order_by(fire.c.id.desc())
+                    # Definir la consulta SQL cruda
+                query = text("""
+                    SELECT f.id, f.name, f.position, cag.id AS cag_id, ca.displayname, cca.customer_id
+                    FROM fire f
+                    LEFT JOIN comunidadautonomageometry cag ON st_contains(st_setsrid(cag.geometry, 4326), f.position)
+                    LEFT JOIN customer_comunidadautonoma cca ON cca.comunidadautonoma_id = cag.id
+                    LEFT JOIN comunidadautonoma ca ON cag.id = ca.id
+                    ORDER BY f.id DESC
+                """)
 
                 print("Ejecutando la consulta")
                 # Ejecutar la consulta
