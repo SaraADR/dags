@@ -33,6 +33,7 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
+
 dag = DAG(
     'create_bucket_in_minio',
     default_args=default_args,
