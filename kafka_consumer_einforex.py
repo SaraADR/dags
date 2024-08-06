@@ -10,7 +10,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
-
+import pytz
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
