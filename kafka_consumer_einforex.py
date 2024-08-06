@@ -46,14 +46,15 @@ def trigger_email_handler(**kwargs):
             # Session = sessionmaker(bind=engine)
             # session = Session()
 
-            # mss_mission_insert = {
-            #     'name': msg_json.get('name', 'noname'),
-            #     'start_date': data.get('start', datetime.now()),
-            #     'geometry': data.get('position'),
-            #     'type_id': 3,
-            #     'customer_id': 'infoca',
-            #     'creationtimestamp': data.get('creation_timestamp')
-            # }
+            mss_mission_insert = {
+                'name': msg_json.get('name', 'noname'),
+                'start_date': data.get('start', datetime.now()),
+                'geometry': data.get('position'),
+                'type_id': 3,
+                'customer_id': 'infoca',
+                'creationtimestamp': data.get('creation_timestamp')
+            }
+            print(mss_mission_insert)
 
             # metadata = MetaData(bind=engine)
             # missions_fire = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
