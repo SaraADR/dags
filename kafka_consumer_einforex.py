@@ -86,6 +86,12 @@ def trigger_email_handler(**kwargs):
 
 
 def convert_millis_to_datetime(millis):
+    try:
+        # Convertir millis a entero
+        millis = int(millis)
+    except ValueError:
+        raise ValueError(f"Invalid millisecond value: {millis}")
+
     seconds = millis / 1000.0
     dt_utc = datetime.fromtimestamp(seconds, pytz.utc)
     return dt_utc
