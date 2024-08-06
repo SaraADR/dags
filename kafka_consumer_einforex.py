@@ -95,7 +95,7 @@ def trigger_email_handler(**kwargs):
 
                     mss_mission_fire_insert = {
                         'mission_id': mission_id,
-                        'fire_id': msg_json.get('id'),,
+                        'fire_id': msg_json.get('id'),
                         'ignition_timestamp': msg_json.get(start_date, datetime.now())
                     }
                 
