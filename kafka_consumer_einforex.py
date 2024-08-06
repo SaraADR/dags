@@ -55,10 +55,10 @@ def trigger_email_handler(**kwargs):
                 print("Conexión a la base de datos establecida correctamente")
 
                 metadata = MetaData(bind=engine)
-                fire = Table('fire', metadata, schema='public', autoload_with=engine)
-                comunidadautonomageometry = Table('comunidadautonomageometry', metadata, schema='public', autoload_with=engine)
-                customer_comunidadautonoma = Table('customer_comunidadautonoma', metadata, schema='public', autoload_with=engine)
-                comunidadautonoma = Table('comunidadautonoma', metadata, schema='public', autoload_with=engine)
+                fire = Table('fire', metadata, schema='einforex_fleet', autoload_with=engine)
+                comunidadautonomageometry = Table('comunidadautonomageometry', metadata, schema='einforex_fleet', autoload_with=engine)
+                customer_comunidadautonoma = Table('customer_comunidadautonoma', metadata, schema='einforex_fleet', autoload_with=engine)
+                comunidadautonoma = Table('comunidadautonoma', metadata, schema='einforex_fleet', autoload_with=engine)
   
                 #Consulta
                 query = select([
