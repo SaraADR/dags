@@ -84,7 +84,7 @@ default_args = {
 }
 
 dag = DAG(
-    'kafka_consumer_jobs_dag',
+    'kafka_consumer_einforex_dag',
     default_args=default_args,
     description='DAG que consume mensajes de la tabla de jobs',
     schedule_interval='*/1 * * * *',
