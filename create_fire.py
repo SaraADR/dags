@@ -5,6 +5,7 @@ import json
 import requests
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
+from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -36,7 +37,8 @@ def create_mission(**context):
             'start_date': input_data['fire']['start'],
             'geometry': None,
             'type_id': 3, 
-            'status_id': 1
+            'status_id': 1,
+            'customer_id': 'infoca',
         }
 
         # Metadatos y tabla de misión en la base de datos
@@ -210,5 +212,18 @@ process_notification_task = PythonOperator(
     dag=dag,
 )
 
+# Actualiza bd
+update_status_task = PostgresOperator(
+    task_id='update_status',
+    postgres_conn_id='biobd',  
+    sql="""
+        UPDATE public.jobs
+        SET status = 'FINISHED'
+        WHERE id = '{{ ti.xcom_pull(task_ids="create_mission", key="mission_id") }}';
+    """,
+    dag=dag,
+)
+
+
 # Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task >> process_notification_task
+print_message_task >> create_mission_task  >> process_notification_task >> update_status_task
