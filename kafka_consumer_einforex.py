@@ -10,7 +10,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
-
+import pytz
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
@@ -43,39 +43,94 @@ def trigger_email_handler(**kwargs):
             msg_json = json.loads(value_pulled)
             print(msg_json)
             
-            db_conn = BaseHook.get_connection('biobd')
-            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-            engine = create_engine(connection_string)
-            Session = sessionmaker(bind=engine)
-            session = Session()
+            try:
+                #Insertamos la mision
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
 
-            mss_mission_insert = {
-                'name': msg_json.get('name', 'noname'),
-                'start_date': msg_json.get('start', datetime.now()),
-                'geometry': msg_json.get('position'),
-                'type_id': 3,
-                'customer_id': 'infoca',
-                'creationtimestamp': msg_json.get('creation_timestamp'),
-                'status_id': 1
-            }
-            print(mss_mission_insert)
+                #Pasamos las fechas de timestamp a datetime
+                if(msg_json.get('start') is not None):
+                    start_date  = convert_millis_to_datetime(msg_json.get('start'))
 
-            metadata = MetaData(bind=engine)
-            mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+                if(msg_json.get('creation_timestamp') is not None):
+                    creation_date  = convert_millis_to_datetime(msg_json.get('creation_timestamp'))    
 
-            # Inserción de la relación
-            insert_stmt = mission.insert().values(mss_mission_insert)
-            session.execute(insert_stmt)
-            session.commit()
-            session.close()
+                mss_mission_insert = {
+                    'name': msg_json.get('name', 'noname'),
+                    'start_date': msg_json.get(start_date, datetime.now()),
+                    'geometry': msg_json.get('position'),
+                    'type_id': 3,
+                    'customer_id': 'infoca',
+                    'creationtimestamp': creation_date,
+                    'status_id': 1
+                }
+                
 
+                metadata = MetaData(bind=engine)
+                mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+
+                # Inserción 
+                insert_stmt = mission.insert().values(mss_mission_insert)
+                #Guardamos el resultado para traer el id
+                result = session.execute(insert_stmt)
+                session.commit()
+                session.close()
+
+                mission_id = result.inserted_primary_key[0]
+                print(f"Misión creada con ID: {mission_id}")
+            except Exception as e:
+                session.rollback()
+                print(f"Error durante el guardado de la misión: {str(e)}")
+
+            try:
+                if (mission_id is not None):
+                    #Insertamos la mision_fire
+                    db_conn = BaseHook.get_connection('biobd')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                    engine = create_engine(connection_string)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
+
+                    mss_mission_fire_insert = {
+                        'mission_id': mission_id,
+                        'fire_id': msg_json.get('id'),
+                        'ignition_timestamp': msg_json.get(start_date, datetime.now())
+                    }
+                
+
+                    metadata = MetaData(bind=engine)
+                    mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+
+                    # Inserción de la relación
+                    insert_stmt = mission_fire.insert().values(mss_mission_fire_insert)
+                    session.execute(insert_stmt)
+                    session.commit()
+                    session.close()
+            except Exception as e:
+                session.rollback()
+                print(f"Error durante el guardado de la misión: {str(e)}")
             Variable.delete("mensaje_save")
-            
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
+            Variable.delete("mensaje_save")
     else:
         print("No message pulled from XCom")
         Variable.delete("mensaje_save")
+
+
+def convert_millis_to_datetime(millis):
+    try:
+        # Convertir millis a entero
+        millis = int(millis)
+    except ValueError:
+        raise ValueError(f"Invalid millisecond value: {millis}")
+
+    seconds = millis / 1000.0
+    dt_utc = datetime.fromtimestamp(seconds, pytz.utc)
+    return dt_utc
 
 
 default_args = {
