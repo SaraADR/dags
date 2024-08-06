@@ -152,7 +152,7 @@ def send_notification(mission_id, message, status="enviada"):
 
         # Metadatos y tabla de notificaciones en la base de datos
         metadata = MetaData(bind=engine)
-        notifications = Table('notifications', metadata, schema='missions', autoload_with=engine)
+        notifications = Table('jobs', metadata, schema='missions', autoload_with=engine)
 
         # Inserción de la notificación
         insert_stmt = notifications.insert().values(values_to_insert)
