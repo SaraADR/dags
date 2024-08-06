@@ -48,11 +48,11 @@ def trigger_email_handler(**kwargs):
 
             mss_mission_insert = {
                 'name': msg_json.get('name', 'noname'),
-                'start_date': data.get('start', datetime.now()),
-                'geometry': data.get('position'),
+                'start_date': msg_json.get('start', datetime.now()),
+                'geometry': msg_json.get('position'),
                 'type_id': 3,
                 'customer_id': 'infoca',
-                'creationtimestamp': data.get('creation_timestamp')
+                'creationtimestamp': msg_json.get('creation_timestamp')
             }
             print(mss_mission_insert)
 
