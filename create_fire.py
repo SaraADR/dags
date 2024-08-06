@@ -164,14 +164,6 @@ def send_notification(mission_id, message, status="enviada"):
         session.rollback()
         print(f"Error durante el envío de la notificación: {e}")
 
-# Función para procesar una notificación después de la creación de una misión
-def process_notification(**context):
-    # Recuperar mission_id del contexto
-    mission_id = context['task_instance'].xcom_pull(key='mission_id')
-    message = {"text": "Nueva misión creada", "details": "Detalles adicionales"}
-    # Enviar la notificación
-    send_notification(mission_id, message)
-
 
     # Función para actualizar el estado de la misión en caso de éxito
 def on_success_callback(context):
@@ -244,13 +236,13 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-process_notification_task = PythonOperator(
+update_database_state = PythonOperator(
     task_id='process_notification',
-    python_callable=process_notification,
+    python_callable=update_mission_status,
     provide_context=True,
     dag=dag,
 )
 
 
 # Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task >> process_notification_task
+print_message_task >> create_mission_task >> update_database_state
