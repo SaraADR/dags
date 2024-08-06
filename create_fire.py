@@ -218,7 +218,7 @@ update_status_task = PostgresOperator(
     sql="""
         UPDATE public.jobs
         SET status = 'FINISHED'
-        WHERE id = '{{ id_mission }}';
+        WHERE id = '{{ ti.xcom_pull(task_ids="create_mission", key="mission_id") }}';
     """,
     dag=dag,
 )
