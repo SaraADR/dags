@@ -40,11 +40,11 @@ def trigger_email_handler(**kwargs):
             msg_json = json.loads(value_pulled)
             print(msg_json)
             
-            # db_conn = BaseHook.get_connection('biobd')
-            # connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-            # engine = create_engine(connection_string)
-            # Session = sessionmaker(bind=engine)
-            # session = Session()
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
 
             mss_mission_insert = {
                 'name': msg_json.get('name', 'noname'),
@@ -52,18 +52,19 @@ def trigger_email_handler(**kwargs):
                 'geometry': msg_json.get('position'),
                 'type_id': 3,
                 'customer_id': 'infoca',
-                'creationtimestamp': msg_json.get('creation_timestamp')
+                'creationtimestamp': msg_json.get('creation_timestamp'),
+                'status_id': 1
             }
             print(mss_mission_insert)
 
-            # metadata = MetaData(bind=engine)
-            # missions_fire = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+            metadata = MetaData(bind=engine)
+            mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
-            # # Inserción de la relación
-            # insert_stmt = missions_fire.insert().values(mss_mission_insert)
-            # session.execute(insert_stmt)
-            # session.commit()
-            # session.close()
+            # Inserción de la relación
+            insert_stmt = mission.insert().values(mss_mission_insert)
+            session.execute(insert_stmt)
+            session.commit()
+            session.close()
 
             Variable.delete("mensaje_save")
             
