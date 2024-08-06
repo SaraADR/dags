@@ -85,29 +85,29 @@ def trigger_email_handler(**kwargs):
                 print(f"Error durante el guardado de la misión: {str(e)}")
 
             try:
-            if (mission_id is not None):
-                #Insertamos la mision_fire
-                db_conn = BaseHook.get_connection('biobd')
-                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                engine = create_engine(connection_string)
-                Session = sessionmaker(bind=engine)
-                session = Session()
+                if (mission_id is not None):
+                    #Insertamos la mision_fire
+                    db_conn = BaseHook.get_connection('biobd')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                    engine = create_engine(connection_string)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
 
-                mss_mission_fire_insert = {
-                    'mission_id': mission_id,
-                    'fire_id': msg_json.get('id'),,
-                    'ignition_timestamp': msg_json.get(start_date, datetime.now())
-                }
-            
+                    mss_mission_fire_insert = {
+                        'mission_id': mission_id,
+                        'fire_id': msg_json.get('id'),,
+                        'ignition_timestamp': msg_json.get(start_date, datetime.now())
+                    }
+                
 
-                metadata = MetaData(bind=engine)
-                mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+                    metadata = MetaData(bind=engine)
+                    mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
 
-                # Inserción de la relación
-                insert_stmt = mission.insert().values(mss_mission_fire_insert)
-                session.execute(insert_stmt)
-                session.commit()
-                session.close()
+                    # Inserción de la relación
+                    insert_stmt = mission.insert().values(mss_mission_fire_insert)
+                    session.execute(insert_stmt)
+                    session.commit()
+                    session.close()
             except Exception as e:
                 session.rollback()
                 print(f"Error durante el guardado de la misión: {str(e)}")
