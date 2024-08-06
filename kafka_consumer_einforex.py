@@ -43,6 +43,8 @@ def trigger_email_handler(**kwargs):
             msg_json = json.loads(value_pulled)
             print(msg_json)
             
+            try:
+            #Insertamos la mision
             db_conn = BaseHook.get_connection('biobd')
             connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
             engine = create_engine(connection_string)
@@ -65,7 +67,7 @@ def trigger_email_handler(**kwargs):
                 'creationtimestamp': creation_date,
                 'status_id': 1
             }
-            print(mss_mission_insert)
+            
 
             metadata = MetaData(bind=engine)
             mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
@@ -76,8 +78,40 @@ def trigger_email_handler(**kwargs):
             session.commit()
             session.close()
 
-            Variable.delete("mensaje_save")
+            mission_id = result.inserted_primary_key[0]
+            print(f"Misión creada con ID: {mission_id}")
+            except Exception as e:
+                session.rollback()
+                print(f"Error durante el guardado de la misión: {str(e)}")
+
+            try:
+            if (mission_id is not None):
+                #Insertamos la mision_fire
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
+
+                mss_mission_fire_insert = {
+                    'mission_id': mission_id,
+                    'fire_id': msg_json.get('id'),,
+                    'ignition_timestamp': msg_json.get(start_date, datetime.now())
+                }
             
+
+                metadata = MetaData(bind=engine)
+                mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+
+                # Inserción de la relación
+                insert_stmt = mission.insert().values(mss_mission_fire_insert)
+                session.execute(insert_stmt)
+                session.commit()
+                session.close()
+            except Exception as e:
+                session.rollback()
+                print(f"Error durante el guardado de la misión: {str(e)}")
+            Variable.delete("mensaje_save")
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:
