@@ -74,7 +74,7 @@ def trigger_email_handler(**kwargs):
 
                 # Inserción de la relación
                 insert_stmt = mission.insert().values(mss_mission_insert)
-                session.execute(insert_stmt)
+                result = session.execute(insert_stmt)
                 session.commit()
                 session.close()
 
