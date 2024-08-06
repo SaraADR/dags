@@ -5,11 +5,8 @@ import json
 import requests
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
+from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
-from airflow import DAG
-from airflow.operators.postgres_operator import PostgresOperator
-from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
 
 # Función para imprimir un mensaje desde la configuración del DAG
 def print_message(**context):
@@ -152,7 +149,7 @@ def send_notification(mission_id, message, status="enviada"):
 
         # Metadatos y tabla de notificaciones en la base de datos
         metadata = MetaData(bind=engine)
-        notifications = Table('jobs', metadata, schema='missions', autoload_with=engine)
+        notifications = Table('notifications', metadata, schema='missions', autoload_with=engine)
 
         # Inserción de la notificación
         insert_stmt = notifications.insert().values(values_to_insert)
@@ -164,42 +161,28 @@ def send_notification(mission_id, message, status="enviada"):
         session.rollback()
         print(f"Error durante el envío de la notificación: {e}")
 
-
-    # Función para actualizar el estado de la misión en caso de éxito
-def on_success_callback(context):
+# Función para procesar una notificación después de la creación de una misión
+def process_notification(**context):
+    # Recuperar mission_id del contexto
     mission_id = context['task_instance'].xcom_pull(key='mission_id')
-    update_mission_status(mission_id, 'FINISHED')
+    message = {"text": "Nueva misión creada", "details": "Detalles adicionales"}
+    # Enviar la notificación
+    send_notification(mission_id, message)
 
-# Función para actualizar el estado de la misión en caso de fallo
-def on_failure_callback(context):
-    mission_id = context['task_instance'].xcom_pull(key='mission_id')
-    update_mission_status(mission_id, 'ERROR')
 
-# Función para actualizar el estado de la misión en la base de datos
-def update_mission_status(mission_id, status):
-    db_conn = BaseHook.get_connection('biobd')
-    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-    engine = create_engine(connection_string)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
+    # Función para actualizar el estado del JOB en la base de datos
+def update_job_status(job_id, status, session):
     try:
-        # Metadatos y tabla de misión en la base de datos
-        metadata = MetaData(bind=engine)
-        missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
-
-        # Actualización del estado de la misión
-        update_stmt = missions.update().where(missions.c.id == mission_id).values(status_id=status)
+        metadata = MetaData(bind=session.bind)
+        jobs = Table('jobs', metadata, schema='missions', autoload_with=session.bind)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status)
         session.execute(update_stmt)
         session.commit()
-        session.close()
-
-        print(f"Estado de la misión {mission_id} actualizado a {status}")
-
+        print(f"Job {job_id} status updated to {status}")
     except Exception as e:
         session.rollback()
-        print(f"Error al actualizar el estado de la misión: {e}")
-        raise
+        print(f"Error updating job status: {e}")
+
 
 # Configuración por defecto para el DAG
 default_args = {
@@ -236,13 +219,24 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-update_database_state = PythonOperator(
+process_notification_task = PythonOperator(
     task_id='process_notification',
-    python_callable=update_mission_status,
+    python_callable=process_notification,
     provide_context=True,
     dag=dag,
 )
 
+# Actualiza bd
+update_status_task = PostgresOperator(
+    task_id='update_job_status',
+    postgres_conn_id='biobd',  
+    sql="""
+        UPDATE public.jobs
+        SET status = 'ok'
+        WHERE id = '{{ ti.xcom_pull(task_ids="print_message", key="message_id") }}';
+    """,
+    dag=dag,
+)
 
 # Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task >> update_database_state
+print_message_task >> create_mission_task >> process_notification_task >> update_status_task
