@@ -217,8 +217,8 @@ update_status_task = PostgresOperator(
     postgres_conn_id='biobd',  
     sql="""
         UPDATE public.jobs
-        SET status = 'ok'
-        WHERE id = '{{ ti.xcom_pull(task_ids="create_mission", key="message_id") }}';
+        SET status = 'FINISHED'
+        WHERE id = '{{ ti.xcom_pull(task_ids="create_mission", key="mission_id") }}';
     """,
     dag=dag,
 )
