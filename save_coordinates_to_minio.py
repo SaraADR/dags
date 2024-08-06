@@ -51,6 +51,7 @@ def process_kafka_message(**context):
 
         print(f"PDF subido a MinIO con ID único {unique_id}")
 
+
 def save_to_minio(file_path, unique_id):
     # Obtener la conexión de MinIO desde Airflow
     connection = BaseHook.get_connection('minio_conn')
@@ -65,11 +66,14 @@ def save_to_minio(file_path, unique_id):
         config=Config(signature_version='s3v4')
     )
 
-    bucket_name = 'prueba_bucket'
+    bucket_name = 'locationtest'
     file_name = os.path.basename(file_path)
 
-    # Crear el bucket directamente sin verificar si existe
-    s3_client.create_bucket(Bucket=bucket_name)
+    # Crear el bucket si no existe
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+    except s3_client.exceptions.NoSuchBucket:
+        s3_client.create_bucket(Bucket=bucket_name)
 
     # Leer el contenido del archivo desde el sistema de archivos
     with open(file_path, 'rb') as file:
