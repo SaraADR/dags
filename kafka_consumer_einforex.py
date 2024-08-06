@@ -69,6 +69,7 @@ def trigger_email_handler(**kwargs):
                 # Ejecutar la consulta
                 result = session.execute(query, {'search_id': search_id})
 
+                customer_id = 'AVINCIS'
                 # Procesar y mostrar el resultado
                 row = result.fetchone()  
                 if row:
@@ -77,7 +78,6 @@ def trigger_email_handler(**kwargs):
                     print(f"customer_id: {customer_id}")
                 else:
                     print(f"No se encontró ningún registro con id = {search_id}")
-                    customer_id = 'AVINCIS'
 
             except Exception as e:
                 session.rollback()
