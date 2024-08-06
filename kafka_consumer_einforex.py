@@ -2,11 +2,14 @@ import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 from datetime import datetime, timedelta
+from airflow.hooks.base import BaseHook
+from sqlalchemy import create_engine, Table, MetaData
+from airflow.providers.postgres.operators.postgres import PostgresOperator
+from sqlalchemy.orm import sessionmaker
 
 
 def consumer_function(message, prefix, **kwargs):
