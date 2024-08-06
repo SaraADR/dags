@@ -72,8 +72,9 @@ def trigger_email_handler(**kwargs):
                 metadata = MetaData(bind=engine)
                 mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
-                # Inserción de la relación
+                # Inserción 
                 insert_stmt = mission.insert().values(mss_mission_insert)
+                #Guardamos el resultado para traer el id
                 result = session.execute(insert_stmt)
                 session.commit()
                 session.close()
@@ -104,7 +105,7 @@ def trigger_email_handler(**kwargs):
                     mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
 
                     # Inserción de la relación
-                    insert_stmt = mission.insert().values(mss_mission_fire_insert)
+                    insert_stmt = mission_fire.insert().values(mss_mission_fire_insert)
                     session.execute(insert_stmt)
                     session.commit()
                     session.close()
