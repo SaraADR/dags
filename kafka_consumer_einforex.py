@@ -49,13 +49,19 @@ def trigger_email_handler(**kwargs):
             Session = sessionmaker(bind=engine)
             session = Session()
 
+            if(msg_json.get('start') is not null):
+                start_date  = convert_millis_to_datetime(msg_json.get('start'))
+
+            if(msg_json.get('creation_timestamp') is not null):
+                creation_date  = convert_millis_to_datetime(msg_json.get('creation_timestamp'))    
+
             mss_mission_insert = {
                 'name': msg_json.get('name', 'noname'),
-                'start_date': msg_json.get('start', datetime.now()),
+                'start_date': msg_json.get(start_date, datetime.now()),
                 'geometry': msg_json.get('position'),
                 'type_id': 3,
                 'customer_id': 'infoca',
-                'creationtimestamp': msg_json.get('creation_timestamp'),
+                'creationtimestamp': creation_date,
                 'status_id': 1
             }
             print(mss_mission_insert)
@@ -76,6 +82,12 @@ def trigger_email_handler(**kwargs):
     else:
         print("No message pulled from XCom")
         Variable.delete("mensaje_save")
+
+
+def convert_millis_to_datetime(millis):
+    seconds = millis / 1000.0
+    dt_utc = datetime.fromtimestamp(seconds, pytz.utc)
+    return dt_utc
 
 
 default_args = {
