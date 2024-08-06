@@ -139,7 +139,7 @@ def update_mission_status(mission_id, status):
 
         # Metadatos y tabla de misión en la base de datos
         metadata = MetaData(bind=engine)
-        missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+        missions = Table('jobs', metadata, schema='missions', autoload_with=engine)
 
         # Actualización del estado de la misión
         update_stmt = missions.update().where(missions.c.id == mission_id).values(status=status)
