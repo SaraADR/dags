@@ -61,12 +61,13 @@ def trigger_email_handler(**kwargs):
                     LEFT JOIN comunidadautonomageometry cag ON st_contains(st_setsrid(cag.geometry, 4326), f.position)
                     LEFT JOIN customer_comunidadautonoma cca ON cca.comunidadautonoma_id = cag.id
                     LEFT JOIN comunidadautonoma ca ON cag.id = ca.id
+                    WHERE f.id = :search_id
                     ORDER BY f.id DESC
                 """)
 
                 print("Ejecutando la consulta")
                 # Ejecutar la consulta
-                result = session.execute(query)
+                result = session.execute(query, {'search_id':  msg_json.get('id')})              
 
                 for row in result:
                     print(row)
