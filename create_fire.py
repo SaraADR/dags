@@ -218,11 +218,11 @@ update_status_task = PostgresOperator(
     sql="""
         UPDATE public.jobs
         SET status = 'FINISHED'
-        WHERE id = '{{ ti.xcom_pull(task_ids="print_message", key="id_mission") }}';
+        WHERE id = '{{ id_mission }}';
     """,
     dag=dag,
 )
 
 
 # Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task >> update_status_task >> process_notification_task
+print_message_task >> create_mission_task  >> process_notification_task >> update_status_task
