@@ -38,7 +38,7 @@ def create_mission(**context):
             'geometry': None,
             'type_id': 3, 
             'status_id': 1,
-            'customer_id': 'infoca',
+            'customer_id': 'BABCOCK',
         }
 
         # Metadatos y tabla de misión en la base de datos
