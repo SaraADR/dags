@@ -42,76 +42,129 @@ def trigger_email_handler(**kwargs):
         try:
             msg_json = json.loads(value_pulled)
             print(msg_json)
-            
+
+            #Query para extraer el customer_id
             try:
-                #Insertamos la mision
-                db_conn = BaseHook.get_connection('biobd')
-                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                # Establecer conexión a la base de datos
+                db_conn = BaseHook.get_connection('einforex_db')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/einforex"
                 engine = create_engine(connection_string)
                 Session = sessionmaker(bind=engine)
                 session = Session()
 
-                #Pasamos las fechas de timestamp a datetime
-                if(msg_json.get('start') is not None):
-                    start_date  = convert_millis_to_datetime(msg_json.get('start'))
-
-                if(msg_json.get('creation_timestamp') is not None):
-                    creation_date  = convert_millis_to_datetime(msg_json.get('creation_timestamp'))    
-
-                mss_mission_insert = {
-                    'name': msg_json.get('name', 'noname'),
-                    'start_date': msg_json.get(start_date, datetime.now()),
-                    'geometry': msg_json.get('position'),
-                    'type_id': 3,
-                    'customer_id': 'infoca',
-                    'creationtimestamp': creation_date,
-                    'status_id': 1
-                }
-                
-
                 metadata = MetaData(bind=engine)
-                mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+                fire = Table('fire', metadata, schema='public', autoload_with=engine)
+                comunidadautonomageometry = Table('comunidadautonomageometry', metadata, schema='public', autoload_with=engine)
+                customer_comunidadautonoma = Table('customer_comunidadautonoma', metadata, schema='public', autoload_with=engine)
+                comunidadautonoma = Table('comunidadautonoma', metadata, schema='public', autoload_with=engine)
+  
+                #Consulta
+                query = select([
+                    fire.c.id,
+                    fire.c.name,
+                    fire.c.position,
+                    comunidadautonomageometry.c.id.label('cag_id'),
+                    comunidadautonoma.c.displayname,
+                    customer_comunidadautonoma.c.customer_id
+                ]).select_from(
+                    fire.join(
+                        comunidadautonomageometry,
+                        and_(
+                            st_contains(
+                                st_setsrid(comunidadautonomageometry.c.geometry, 4326),
+                                fire.c.position
+                            )
+                        )
+                    ).join(
+                        customer_comunidadautonoma,
+                        customer_comunidadautonoma.c.comunidadautonoma_id == comunidadautonomageometry.c.id
+                    ).join(
+                        comunidadautonoma,
+                        comunidadautonomageometry.c.id == comunidadautonoma.c.id
+                    )
+                ).order_by(fire.c.id.desc())
 
-                # Inserción 
-                insert_stmt = mission.insert().values(mss_mission_insert)
-                #Guardamos el resultado para traer el id
-                result = session.execute(insert_stmt)
-                session.commit()
+                # Ejecutar la consulta
+                result = session.execute(query)
+
+                for row in result:
+                    print(row)
                 session.close()
 
-                mission_id = result.inserted_primary_key[0]
-                print(f"Misión creada con ID: {mission_id}")
             except Exception as e:
                 session.rollback()
-                print(f"Error durante el guardado de la misión: {str(e)}")
+                print(f"Error durante la busqueda del customer_id: {str(e)}")
 
-            try:
-                if (mission_id is not None):
-                    #Insertamos la mision_fire
-                    db_conn = BaseHook.get_connection('biobd')
-                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                    engine = create_engine(connection_string)
-                    Session = sessionmaker(bind=engine)
-                    session = Session()
+            
+            # try:
+            #     #Insertamos la mision
+            #     db_conn = BaseHook.get_connection('biobd')
+            #     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            #     engine = create_engine(connection_string)
+            #     Session = sessionmaker(bind=engine)
+            #     session = Session()
 
-                    mss_mission_fire_insert = {
-                        'mission_id': mission_id,
-                        'fire_id': msg_json.get('id'),
-                        'ignition_timestamp': msg_json.get(start_date, datetime.now())
-                    }
+            #     #Pasamos las fechas de timestamp a datetime
+            #     if(msg_json.get('start') is not None):
+            #         start_date  = convert_millis_to_datetime(msg_json.get('start'))
+
+            #     if(msg_json.get('creation_timestamp') is not None):
+            #         creation_date  = convert_millis_to_datetime(msg_json.get('creation_timestamp'))    
+
+            #     mss_mission_insert = {
+            #         'name': msg_json.get('name', 'noname'),
+            #         'start_date': msg_json.get(start_date, datetime.now()),
+            #         'geometry': msg_json.get('position'),
+            #         'type_id': 3,
+            #         'customer_id': 'infoca',
+            #         'creationtimestamp': creation_date,
+            #         'status_id': 1
+            #     }
                 
 
-                    metadata = MetaData(bind=engine)
-                    mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+            #     metadata = MetaData(bind=engine)
+            #     mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
-                    # Inserción de la relación
-                    insert_stmt = mission_fire.insert().values(mss_mission_fire_insert)
-                    session.execute(insert_stmt)
-                    session.commit()
-                    session.close()
-            except Exception as e:
-                session.rollback()
-                print(f"Error durante el guardado de la misión: {str(e)}")
+            #     # Inserción 
+            #     insert_stmt = mission.insert().values(mss_mission_insert)
+            #     #Guardamos el resultado para traer el id
+            #     result = session.execute(insert_stmt)
+            #     session.commit()
+            #     session.close()
+
+            #     mission_id = result.inserted_primary_key[0]
+            #     print(f"Misión creada con ID: {mission_id}")
+            # except Exception as e:
+            #     session.rollback()
+            #     print(f"Error durante el guardado de la misión: {str(e)}")
+
+            # try:
+            #     if (mission_id is not None):
+            #         #Insertamos la mision_fire
+            #         db_conn = BaseHook.get_connection('biobd')
+            #         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            #         engine = create_engine(connection_string)
+            #         Session = sessionmaker(bind=engine)
+            #         session = Session()
+
+            #         mss_mission_fire_insert = {
+            #             'mission_id': mission_id,
+            #             'fire_id': msg_json.get('id'),
+            #             'ignition_timestamp': msg_json.get(start_date, datetime.now())
+            #         }
+                
+
+            #         metadata = MetaData(bind=engine)
+            #         mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+
+            #         # Inserción de la relación
+            #         insert_stmt = mission_fire.insert().values(mss_mission_fire_insert)
+            #         session.execute(insert_stmt)
+            #         session.commit()
+            #         session.close()
+            # except Exception as e:
+            #     session.rollback()
+            #     print(f"Error durante el guardado de la misión: {str(e)}")
             Variable.delete("mensaje_save")
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
