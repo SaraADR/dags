@@ -56,9 +56,12 @@ def create_mission(**context):
 
         print(f"Misión creada con ID: {mission_id}")
 
-        # # Almacenar mission_id en XCom para ser utilizado por otras tareas
-        # input_data['mission_id'] = mission_id
-        # context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+        #  Almacenar mission_id en XCom para ser utilizado por otras tareas
+        input_data['mission_id'] = mission_id
+        context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+
+        # Crear el incendio relacionado
+        create_fire(input_data)
 
         # Update job status to 'FINISHED'
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
@@ -67,9 +70,7 @@ def create_mission(**context):
         session.commit()
         print(f"Job ID {job_id} status updated to FINISHED")
         
-        # Crear el incendio relacionado
-        create_fire(input_data)
-        
+       
     except Exception as e:
         session.rollback()
         print(f"Error durante el guardado de la misión: {str(e)}")
@@ -221,18 +222,5 @@ process_notification_task = PythonOperator(
     dag=dag,
 )
 
-# Actualiza bd
-update_status_task = PostgresOperator(
-    task_id='update_status',
-    postgres_conn_id='biobd',  
-    sql="""
-        UPDATE public.jobs
-        SET status = 'FINISHED'
-        WHERE id = '{{ ti.xcom_pull(task_ids="create_mission", key="mission_id") }}';
-    """,
-    dag=dag,
-)
-
-
 # Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task  >> process_notification_task >> update_status_task
+print_message_task >> create_mission_task  >> process_notification_task
