@@ -20,6 +20,8 @@ def create_mission(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
     print(input_data)
+    job_id = message['message']['id']  # Extracting job_id from the message
+
 
     try:
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
@@ -54,9 +56,16 @@ def create_mission(**context):
 
         print(f"Misión creada con ID: {mission_id}")
 
-        # Almacenar mission_id en XCom para ser utilizado por otras tareas
-        input_data['mission_id'] = mission_id
-        context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+        # # Almacenar mission_id en XCom para ser utilizado por otras tareas
+        # input_data['mission_id'] = mission_id
+        # context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+
+        # Update job status to 'FINISHED'
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to FINISHED")
         
         # Crear el incendio relacionado
         create_fire(input_data)
