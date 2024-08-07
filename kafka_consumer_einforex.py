@@ -126,6 +126,7 @@ def trigger_email_handler(**kwargs):
             except Exception as e:
                 session.rollback()
                 print(f"Error durante el guardado de la misión: {str(e)}")
+                raise Exception("Error durante el guardado del estado de la misión")
 
             try:
                 if (mission_id is not None):
@@ -153,7 +154,40 @@ def trigger_email_handler(**kwargs):
                     session.close()
             except Exception as e:
                 session.rollback()
-                print(f"Error durante el guardado de la misión: {str(e)}")
+                print(f"Error durante el guardado de la relacion mission fire: {str(e)}")
+                raise Exception("Error durante el guardado de la relacion mission fire")
+
+            try:
+                if (mission_id is not None):
+                    #Insertamos la mision_fire
+                    db_conn = BaseHook.get_connection('biobd')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                    engine = create_engine(connection_string)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
+
+                    mss_mission_history_state_insert = {
+                        'mission_id': mission_id,
+                        'status_id': 1,
+                        'updatetimestamp': datetime.now(),
+                        'source': 'ALGORITHM',
+                        'username': 'ALGORITHM'
+                    }
+                
+
+                    metadata = MetaData(bind=engine)
+                    mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
+
+                    # Inserción de la relación
+                    insert_stmt = mission_status_history.insert().values(mss_mission_history_state_insert)
+                    session.execute(insert_stmt)
+                    session.commit()
+                    session.close()
+            except Exception as e:
+                session.rollback()
+                print(f"Error durante el guardado del estado de la misión: {str(e)}")   
+                raise Exception("Error durante el guardado del estado de la misión")
+
             Variable.delete("mensaje_save")
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
