@@ -37,10 +37,10 @@ def create_mission(**context):
         values_to_insert = {
             'name': input_data['fire']['name'],
             'start_date': input_data['fire']['start'],
-            'geometry': None,
-            'type_id': 3, 
-            'status_id': 1,
-            'customer_id': 'BABCOCK',
+            'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
+            'type_id': input_data['type_id'],
+            'status_id': 1, #TODO REVISIÓN DE STATUS
+            'customer_id': input_data ['customer_id'],
         }
 
         # Metadatos y tabla de misión en la base de datos
@@ -59,6 +59,9 @@ def create_mission(**context):
         #  Almacenar mission_id en XCom para ser utilizado por otras tareas
         input_data['mission_id'] = mission_id
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+
+        #TODO insertar status,mission_id en mission_status_history
+        #Igual hay que insertar el usuario
 
         # Crear el incendio relacionado
         create_fire(input_data)
