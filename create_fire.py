@@ -20,6 +20,8 @@ def create_mission(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
     print(input_data)
+    job_id = message['message']['id']  # Extracting job_id from the message
+
 
     try:
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
@@ -35,10 +37,10 @@ def create_mission(**context):
         values_to_insert = {
             'name': input_data['fire']['name'],
             'start_date': input_data['fire']['start'],
-            'geometry': None,
-            'type_id': 3, 
-            'status_id': 1,
-            'customer_id': 'BABCOCK',
+            'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
+            'type_id': input_data['type_id'],
+            'status_id': 1, #TODO REVISIÓN DE STATUS
+            'customer_id': input_data ['customer_id'],
         }
 
         # Metadatos y tabla de misión en la base de datos
@@ -54,13 +56,24 @@ def create_mission(**context):
 
         print(f"Misión creada con ID: {mission_id}")
 
-        # Almacenar mission_id en XCom para ser utilizado por otras tareas
+        #  Almacenar mission_id en XCom para ser utilizado por otras tareas
         input_data['mission_id'] = mission_id
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
-        
+
+        #TODO insertar status,mission_id en mission_status_history
+        #Igual hay que insertar el usuario
+
         # Crear el incendio relacionado
         create_fire(input_data)
+
+        # Update job status to 'FINISHED'
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to FINISHED")
         
+       
     except Exception as e:
         session.rollback()
         print(f"Error durante el guardado de la misión: {str(e)}")
@@ -212,18 +225,5 @@ process_notification_task = PythonOperator(
     dag=dag,
 )
 
-# Actualiza bd
-update_status_task = PostgresOperator(
-    task_id='update_status',
-    postgres_conn_id='biobd',  
-    sql="""
-        UPDATE public.jobs
-        SET status = 'FINISHED'
-        WHERE id = '{{ ti.xcom_pull(task_ids="create_mission", key="mission_id") }}';
-    """,
-    dag=dag,
-)
-
-
 # Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task  >> process_notification_task >> update_status_task
+print_message_task >> create_mission_task  >> process_notification_task

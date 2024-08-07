@@ -1,21 +1,17 @@
-FROM python:3.9-slim
+# Usa una imagen base que tenga Python y las dependencias necesarias
+FROM python:3.8-slim
 
-# Instalar dependencias necesarias
-RUN apt-get update && apt-get install -y \
-    wkhtmltopdf \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Instalar pdfkit y Flask
-RUN pip install pdfkit Flask
-
-# Copiar el script de transformación y el servidor Flask
-COPY transform.py /app/transform.py
-COPY server.py /app/server.py
-
+# Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
-# Exponer el puerto para el servidor Flask
-EXPOSE 5000
+# Copia el archivo de requerimientos (si tienes dependencias de Python)
+COPY requirements.txt .
 
-CMD ["python", "server.py"]
+# Instala las dependencias
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia el script Python en el contenedor
+COPY generate_pdf.py .
+
+# Define el punto de entrada del contenedor
+ENTRYPOINT ["python", "generate_pdf.py"]
