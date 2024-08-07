@@ -62,6 +62,15 @@ def create_mission(**context):
 
         #TODO insertar status,mission_id en mission_status_history
         #Igual hay que insertar el usuario
+        # Inserción en la tabla mission_status_history
+        mission_status_history = Table('mission_status_history', metadata, schema='missions', autoload_with=engine)
+        status_history_insert = mission_status_history.insert().values({
+            'mission_id': mission_id,
+            'status': 'status_id',  # Reemplaza 'some_status' con el valor de estado apropiado
+            'timestamp': datetime.now()
+        })
+        session.execute(status_history_insert)
+        session.commit()
 
         # Crear el incendio relacionado
         create_fire(input_data)
