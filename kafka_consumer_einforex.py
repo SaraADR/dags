@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 import pytz
 
 def consumer_function(message, prefix, **kwargs):
+    Variable.set("mensaje_save", None)   
     if message is not None:
         msg_value = message.value().decode('utf-8')
         print(f"message2: {msg_value}")

@@ -13,16 +13,14 @@ def print_message(**context):
 
     location = input_data['input']['location']
     perimeter = input_data['input']['perimeter']
+    emails = input_data['input']['emails']
     # Imprime las propiedades
     print(f"Location: {location}")
     print(f"Perimeter: {perimeter}")
+    print(f"Emails: {emails}")    
 
-
-    input_message = json.loads(menssage_str.get('from_user'))
     
-     
-    # Imprime las propiedades
-    print(f"from_user: {input_message}")
+
 
 
 default_args = {
