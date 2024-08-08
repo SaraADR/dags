@@ -7,6 +7,9 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from datetime import datetime, timedelta, timezone
+
 
 # Función para imprimir un mensaje desde la configuración del DAG
 def print_message(**context):
@@ -37,7 +40,8 @@ def create_mission(**context):
         values_to_insert = {
             'name': input_data['fire']['name'],
             'start_date': input_data['fire']['start'],
-            'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
+            # 'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
+            
             'type_id': input_data['type_id'],
             'status_id': 1, #TODO REVISIÓN DE STATUS
             'customer_id': input_data ['customer_id'],
@@ -84,6 +88,15 @@ def create_mission(**context):
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to RETRY")
+
+        if job_id.get('job') == 'RETRY':
+                trigger = TriggerDagRunOperator(
+                task_id='retry_create_fire',
+                trigger_dag_id='algorithm_automaps',
+                conf={'message': job_id}, 
+                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                dag=dag,
+            )
 
 # Función para crear un incendio a través del servicio ATC
 def create_fire(input_data):
