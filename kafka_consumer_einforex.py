@@ -46,7 +46,7 @@ def trigger_email_handler(**kwargs):
     if(value_pulled is not None and value_pulled != 'null' and  msg_json.get('lastupdate') is not None):
         updateMission(msg_json)
 
-    else if(value_pulled is not None and value_pulled != 'null' and  msg_json.get('lastupdate') is None):
+    elif(value_pulled is not None and value_pulled != 'null' and  msg_json.get('lastupdate') is None):
         createMissionMissionFireAndHistoryStatus(msg_json)
         
     else:
