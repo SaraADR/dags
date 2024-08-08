@@ -49,7 +49,7 @@ def updateMission(msg_json):
             # Definir la consulta SQL cruda
             query = text("""
                     SELECT mission_id, fire_id
-                    FROM mss_mission_fire f
+                    FROM missions.mss_mission_fire f
                     WHERE fire_id = :search_id
             """)
 
