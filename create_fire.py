@@ -41,8 +41,6 @@ def create_mission(**context):
             'type_id': input_data['type_id'],
             'status_id': 1, #TODO REVISIÓN DE STATUS
             'customer_id': input_data ['customer_id'],
-            'execution_date': datetime.now()  # Adding current timestamp for execution_date
-
         }
 
         # Metadatos y tabla de misión en la base de datos
