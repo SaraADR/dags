@@ -77,7 +77,7 @@ def updateMission(msg_json):
                     update_query = text("""
                         UPDATE missions.mss_mission
                         SET end_date = :end_date
-                        WHERE mission_id = :mission_id
+                        WHERE id = :mission_id
                     """)
                     session.execute(update_query, {'end_date': end_date, 'mission_id': mission_id})
                     session.commit()
