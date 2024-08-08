@@ -22,6 +22,10 @@ def consumer_function(message, prefix, **kwargs):
             try:
                 mensaje_save = Variable.get("mensaje_save", default_var="[]")
                 mensaje_list = json.loads(mensaje_save)
+
+                if not isinstance(mensaje_list, list):
+                    mensaje_list = []  # Si no es una lista, inicialízala como tal
+                    
                 mensaje_list.append(msg_value)
                 Variable.set("mensaje_save", json.dumps(mensaje_list))
             except json.JSONDecodeError as e:
