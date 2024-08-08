@@ -22,7 +22,7 @@ def consumer_function(message, prefix, **kwargs):
                 if(msg_json.get('lastupdate') is not None):
                     updateMission(msg_json)
 
-                elif(  msg_json.get('lastupdate') is None):
+                elif(msg_json.get('lastupdate') is None):
                     createMissionMissionFireAndHistoryStatus(msg_json)
 
             except json.JSONDecodeError as e:
@@ -33,7 +33,64 @@ def consumer_function(message, prefix, **kwargs):
      
 
 def updateMission(msg_json):
-    print(f"Updatemission {msg_json}")
+        
+        print(f"Actualizar {msg_json}")
+
+        try:
+            # Establecer conexión a la base de datos
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session() 
+
+            print("Conexión a la base de datos establecida correctamente")
+
+            # Definir la consulta SQL cruda
+            query = text("""
+                    SELECT mission_id, fire_id
+                    FROM mss_mission_fire f
+                    WHERE fire_id = :search_id
+            """)
+
+            print("Ejecutando la consulta")
+            # Ejecutar la consulta
+            result = session.execute(query, {'search_id': msg_json.get('id')})
+
+            mission_id = 0
+            # Procesar y mostrar el resultado
+            row = result.fetchone()  
+            if row:
+                print(row)
+                mission_id = row[1] 
+                print(f"mission_id: {mission_id}")
+            else:
+                print(f"No se encontró ningún registro con id = {msg_json.get('id')}")
+
+
+
+            if mission_id:
+                # Actualizar el campo finish en la tabla mss_mission
+                end_timestamp = msg_json.get('end')
+                if end_timestamp:
+                    end_date = convert_millis_to_datetime(end_timestamp)
+                    update_query = text("""
+                        UPDATE missions.mss_mission
+                        SET end_date = :end_date
+                        WHERE mission_id = :mission_id
+                    """)
+                    session.execute(update_query, {'end_date': end_date, 'mission_id': mission_id})
+                    session.commit()
+                    print(f"Campo 'end_date' actualizado a {end_date} para mission_id: {mission_id}")
+
+        except Exception as e:
+            session.rollback()
+            print(f"Error durante la actualización del campo 'finish': {str(e)}")
+
+
+
+
+
 
 def createMissionMissionFireAndHistoryStatus(msg_json):
     try:
@@ -229,7 +286,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
     max_messages=30,
-    max_batch_size=5,
+    max_batch_size=30,
     dag=dag,
 )
 
