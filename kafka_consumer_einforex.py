@@ -285,8 +285,8 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
-    max_messages=30,
-    max_batch_size=30,
+    max_messages=50,
+    max_batch_size=50,
     dag=dag,
 )
 
