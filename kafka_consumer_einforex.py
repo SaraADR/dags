@@ -13,45 +13,47 @@ from sqlalchemy.orm import sessionmaker
 import pytz
 
 def consumer_function(message, prefix, **kwargs):
-    Variable.set("mensaje_save", None)   
+
     if message is not None:
         msg_value = message.value().decode('utf-8')
         print(f"message2: {msg_value}")
+
         if msg_value:
             try:
-                print(f"message4: {msg_value}")
-                Variable.set("mensaje_save", msg_value)
+                mensaje_save = Variable.get("mensaje_save", default_var="[]")
+                mensaje_list = json.loads(mensaje_save)
+                mensaje_list.append(msg_value)
+                Variable.set("mensaje_save", json.dumps(mensaje_list))
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
         else:
             print("Empty message received")
-            Variable.set("mensaje_save", None)        
-            return None  
-    else:
-        Variable.set("mensaje_save", None)        
+            return None   
 
 
 #Se encarga de enviar al flujo correcto cada cosa
 def trigger_email_handler(**kwargs):
+
     try:
-        value_pulled = Variable.get("mensaje_save")
+        value_pulled = Variable.get("mensaje_save", default_var="[]")
+        mensaje_list = json.loads(value_pulled)
         print(f"pulled {value_pulled}")
     except KeyError:
         print("Variable mensaje_save does not exist")
         raise AirflowSkipException("Variable mensaje_save does not exist")
 
-    msg_json = json.loads(value_pulled)
-    print(msg_json)
 
-    if(value_pulled is not None and value_pulled != 'null' and  msg_json.get('lastupdate') is not None):
-        updateMission(msg_json)
+    for value_pulled in mensaje_list:
+        msg_json = json.loads(value_pulled)
+        print(msg_json)
+        if value_pulled is not None and value_pulled != 'null' and msg_json.get('lastupdate') is not None:
+            updateMission(msg_json)
+        elif value_pulled is not None and value_pulled != 'null' and msg_json.get('lastupdate') is None:
+            createMissionMissionFireAndHistoryStatus(msg_json)
+        else:
+            print("No message pulled from XCom")
 
-    elif(value_pulled is not None and value_pulled != 'null' and  msg_json.get('lastupdate') is None):
-        createMissionMissionFireAndHistoryStatus(msg_json)
-        
-    else:
-        print("No message pulled from XCom")
-        Variable.delete("mensaje_save")
+    Variable.set("mensaje_save", default_var="[]")
 
 
 def updateMission(msg_json):
