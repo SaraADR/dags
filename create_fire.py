@@ -62,6 +62,8 @@ def create_mission(**context):
 
         #TODO insertar status,mission_id en mission_status_history
         #Igual hay que insertar el usuario
+        # Inserción en la tabla mission_status_history
+
 
         # Crear el incendio relacionado
         create_fire(input_data)
@@ -77,6 +79,11 @@ def create_mission(**context):
     except Exception as e:
         session.rollback()
         print(f"Error durante el guardado de la misión: {str(e)}")
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='RETRY')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to RETRY")
 
 # Función para crear un incendio a través del servicio ATC
 def create_fire(input_data):
