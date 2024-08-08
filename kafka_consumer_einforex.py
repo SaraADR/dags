@@ -62,7 +62,7 @@ def updateMission(msg_json):
             row = result.fetchone()  
             if row:
                 print(row)
-                mission_id = row[1] 
+                mission_id = row[0] 
                 print(f"mission_id: {mission_id}")
             else:
                 print(f"No se encontró ningún registro con id = {msg_json.get('id')}")
