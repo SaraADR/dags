@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from datetime import datetime, timedelta
 from airflow.hooks.base import BaseHook
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 import pytz
 
