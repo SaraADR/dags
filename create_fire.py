@@ -41,7 +41,7 @@ def create_mission(**context):
             'name': input_data['fire']['name'],
             'start_date': input_data['fire']['start'],
             # 'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
-            
+            'geometry': 11,
             'type_id': input_data['type_id'],
             'status_id': 1, #TODO REVISIÓN DE STATUS
             'customer_id': input_data ['customer_id'],
