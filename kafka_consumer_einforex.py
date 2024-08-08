@@ -60,11 +60,11 @@ def consumer_function(message, prefix, **kwargs):
 
 
 def updateMission(msg_json):
-    print("Updatemission " + msg_json)
+    print(f"Updatemission {msg_json}")
 
 def createMissionMissionFireAndHistoryStatus(msg_json):
     try:
-        print("Create " + msg_json)
+        print(f"Create {msg_json}")
 
     #     #Query para extraer el customer_id
     #     try:
