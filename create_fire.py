@@ -158,6 +158,25 @@ def geojson_to_wkt(geojson):
 
     return f"POINT ({x} {y} {z})"
 
+# Función para procesar una notificación después de la creación de una misión
+def process_notification(**context):
+    try:
+        # Recuperar mission_id del contexto
+        mission_id = context['task_instance'].xcom_pull(key='mission_id')
+        print(f"Recuperado mission_id: {mission_id}")
+
+        if not mission_id:
+            raise ValueError("No se pudo recuperar el mission_id de XCom")
+
+        message = {"text": "Nueva misión creada", "details": "Detalles adicionales"}
+        print(f"Mensaje a enviar: {message}")
+
+        # Enviar la notificación
+        send_notification(mission_id, message)
+        print("Notificación enviada con éxito.")
+    except Exception as e:
+        print(f"Error en process_notification: {e}")
+
 # Función para enviar una notificación y almacenarla en la base de datos
 def send_notification(mission_id, message, status="enviada"):
     db_conn = BaseHook.get_connection('biobd')
@@ -167,6 +186,8 @@ def send_notification(mission_id, message, status="enviada"):
     session = Session()
 
     try:
+        print(f"Enviando notificación para mission_id: {mission_id}")
+
         values_to_insert = {
             'mission_id': mission_id,
             'message': json.dumps(message),
@@ -188,13 +209,6 @@ def send_notification(mission_id, message, status="enviada"):
         session.rollback()
         print(f"Error durante el envío de la notificación: {e}")
 
-# Función para procesar una notificación después de la creación de una misión
-def process_notification(**context):
-    # Recuperar mission_id del contexto
-    mission_id = context['task_instance'].xcom_pull(key='mission_id')
-    message = {"text": "Nueva misión creada", "details": "Detalles adicionales"}
-    # Enviar la notificación
-    send_notification(mission_id, message)
 
 # Configuración por defecto para el DAG
 default_args = {
