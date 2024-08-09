@@ -5,8 +5,11 @@ import json
 import requests
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
+from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
+
 
 # Función para imprimir un mensaje desde la configuración del DAG
 def print_message(**context):
@@ -32,6 +35,7 @@ def create_mission(**context):
 
         # Transformación de la posición GeoJSON a WKT
         geojson_data = input_data['fire']['position']
+        # geometry = geojson_to_wkt(geojson_data)
         values_to_insert = {
             'name': input_data['fire']['name'],
             'start_date': input_data['fire']['start'],
@@ -63,9 +67,6 @@ def create_mission(**context):
         session.commit()
         print(f"Estado de la misión {mission_id} registrado en mss_mission_status_history.")
 
-        # Enviar notificación y almacenarla en la base de datos
-        send_notification(mission_id, {"text": "Nueva misión creada", "details": "Detalles adicionales"})
-
         # Almacenar mission_id en XCom para ser utilizado por otras tareas
         input_data['mission_id'] = mission_id
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
@@ -89,34 +90,6 @@ def create_mission(**context):
         session.commit()
         print(f"Job ID {job_id} status updated to RETRY")
 
-# Función para enviar una notificación y almacenarla en la base de datos
-def send_notification(mission_id, message, status="enviada"):
-    try:
-        db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
-
-        values_to_insert = {
-            'mission_id': mission_id,
-            'data': json.dumps(message),
-            'status': status,
-        }
-
-        # Metadatos y tabla de notificaciones en la base de datos
-        metadata = MetaData(bind=engine)
-        notifications = Table('notifications', metadata, schema='missions', autoload_with=engine)
-
-        # Inserción de la notificación
-        insert_stmt = notifications.insert().values(values_to_insert)
-        session.execute(insert_stmt)
-        session.commit()
-        session.close()
-        print("Notificación enviada y guardada en la base de datos.")
-    except Exception as e:
-        session.rollback()
-        print(f"Error durante el envío de la notificación: {e}")
 
 # Función para crear un incendio a través del servicio ATC
 def create_fire(input_data):
@@ -172,6 +145,18 @@ def insert_relation_mission_fire(id_mission, id_fire):
     except Exception as e:
         session.rollback()
         print(f"Error durante la relación misión-incendio: {str(e)}")
+
+# Función para convertir coordenadas GeoJSON a WKT
+def geojson_to_wkt(geojson):
+    x = geojson['x']
+    y = geojson['y']
+    z = geojson.get('z', 0)  # Proporcionar un valor predeterminado de 0 para z
+
+    x = float(x) if x is not None else None
+    y = float(y) if y is not None else None
+    z = float(z) if z is not None else 0
+
+    return f"POINT ({x} {y} {z})"
 
 # Configuración por defecto para el DAG
 default_args = {
