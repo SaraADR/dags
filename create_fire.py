@@ -192,7 +192,6 @@ def send_notification(mission_id, message, status="enviada"):
             'mission_id': mission_id,
             'message': json.dumps(message),
             'status': status,
-            'created_at': datetime.now()
         }
 
         # Metadatos y tabla de notificaciones en la base de datos
