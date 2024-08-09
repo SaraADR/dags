@@ -25,7 +25,6 @@ def create_mission(**context):
     print(input_data)
     job_id = message['message']['id']  # Extracting job_id from the message
 
-
     try:
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
         db_conn = BaseHook.get_connection('biobd')
@@ -43,7 +42,7 @@ def create_mission(**context):
             'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
             'type_id': input_data['type_id'],
             'status_id': 1, #TODO REVISIÓN DE STATUS
-            'customer_id': input_data ['customer_id'],
+            'customer_id': input_data['customer_id'],
         }
 
         # Metadatos y tabla de misión en la base de datos
@@ -55,18 +54,23 @@ def create_mission(**context):
         result = session.execute(insert_stmt)
         mission_id = result.inserted_primary_key[0]
         session.commit()
-        session.close()
-
         print(f"Misión creada con ID: {mission_id}")
 
-        #  Almacenar mission_id en XCom para ser utilizado por otras tareas
+        # Inserción en la tabla mss_mission_status_history
+        mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
+        status_history_values = {
+            'mission_id': mission_id,
+            'status_id': 1,  # Asumiendo que el status inicial es 1, ajusta si es necesario
+            'created_at': datetime.now(timezone.utc)
+        }
+        insert_status_stmt = mission_status_history.insert().values(status_history_values)
+        session.execute(insert_status_stmt)
+        session.commit()
+        print(f"Estado de la misión {mission_id} registrado en mss_mission_status_history.")
+
+        # Almacenar mission_id en XCom para ser utilizado por otras tareas
         input_data['mission_id'] = mission_id
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
-
-        #TODO insertar status,mission_id en mission_status_history
-        #Igual hay que insertar el usuario
-        # Inserción en la tabla mission_status_history
-
 
         # Crear el incendio relacionado
         create_fire(input_data)
@@ -77,8 +81,7 @@ def create_mission(**context):
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to FINISHED")
-        
-       
+
     except Exception as e:
         session.rollback()
         print(f"Error durante el guardado de la misión: {str(e)}")
