@@ -67,6 +67,22 @@ def create_mission(**context):
         session.commit()
         print(f"Estado de la misión {mission_id} registrado en mss_mission_status_history.")
 
+        # Inserción en la tabla enviar una notificación y almacenarla en la base de datos
+        notifications = Table('notifications', metadata, schema='missions', autoload_with=engine)
+        values_to_insert = {
+            'mission_id': mission_id,
+            'message': json.dumps(message),
+            'created_at': datetime.now() 
+        }
+        insert_stmt = notifications.insert().values(values_to_insert)
+        session.execute(insert_stmt)
+        session.commit()
+        session.close()
+        print("Notificación enviada y guardada en la base de datos.")
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante el envío de la notificación: {e}")
+        
         # Almacenar mission_id en XCom para ser utilizado por otras tareas
         input_data['mission_id'] = mission_id
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
@@ -159,42 +175,42 @@ def geojson_to_wkt(geojson):
     return f"POINT ({x} {y} {z})"
 
 # Función para enviar una notificación y almacenarla en la base de datos
-def send_notification(mission_id, message, status="enviada"):
-    db_conn = BaseHook.get_connection('biobd')
-    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-    engine = create_engine(connection_string)
-    Session = sessionmaker(bind=engine)
-    session = Session()
+# def send_notification(mission_id, message, status="enviada"):
+#     db_conn = BaseHook.get_connection('biobd')
+#     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+#     engine = create_engine(connection_string)
+#     Session = sessionmaker(bind=engine)
+#     session = Session()
 
-    try:
-        values_to_insert = {
-            'mission_id': mission_id,
-            'message': json.dumps(message),
-            'status': status,
-            'created_at': datetime.now()
-        }
+#     try:
+#         values_to_insert = {
+#             'mission_id': mission_id,
+#             'message': json.dumps(message),
+#             'status': status,
+#             'created_at': datetime.now()
+#         }
 
-        # Metadatos y tabla de notificaciones en la base de datos
-        metadata = MetaData(bind=engine)
-        notifications = Table('notifications', metadata, schema='missions', autoload_with=engine)
+#         # Metadatos y tabla de notificaciones en la base de datos
+#         metadata = MetaData(bind=engine)
+#         notifications = Table('notifications', metadata, schema='missions', autoload_with=engine)
 
-        # Inserción de la notificación
-        insert_stmt = notifications.insert().values(values_to_insert)
-        session.execute(insert_stmt)
-        session.commit()
-        session.close()
-        print("Notificación enviada y guardada en la base de datos.")
-    except Exception as e:
-        session.rollback()
-        print(f"Error durante el envío de la notificación: {e}")
+#         # Inserción de la notificación
+#         insert_stmt = notifications.insert().values(values_to_insert)
+#         session.execute(insert_stmt)
+#         session.commit()
+#         session.close()
+#         print("Notificación enviada y guardada en la base de datos.")
+#     except Exception as e:
+#         session.rollback()
+#         print(f"Error durante el envío de la notificación: {e}")
 
-# Función para procesar una notificación después de la creación de una misión
-def process_notification(**context):
-    # Recuperar mission_id del contexto
-    mission_id = context['task_instance'].xcom_pull(key='mission_id')
-    message = {"text": "Nueva misión creada", "details": "Detalles adicionales"}
-    # Enviar la notificación
-    send_notification(mission_id, message)
+# # Función para procesar una notificación después de la creación de una misión
+# def process_notification(**context):
+#     # Recuperar mission_id del contexto
+#     mission_id = context['task_instance'].xcom_pull(key='mission_id')
+#     message = {"text": "Nueva misión creada", "details": "Detalles adicionales"}
+#     # Enviar la notificación
+#     send_notification(mission_id, message)
 
 # Configuración por defecto para el DAG
 default_args = {
