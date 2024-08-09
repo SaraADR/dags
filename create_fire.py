@@ -247,12 +247,13 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-process_notification_task = PythonOperator(
-    task_id='process_notification',
-    python_callable=process_notification,
-    provide_context=True,
-    dag=dag,
-)
+# process_notification_task = PythonOperator(
+#     task_id='process_notification',
+#     python_callable=process_notification,
+#     provide_context=True,
+#     dag=dag,
+# )
 
 # Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task  >> process_notification_task
+print_message_task >> create_mission_task  
+# >> process_notification_task
