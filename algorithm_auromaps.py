@@ -20,9 +20,6 @@ def print_message(**context):
     print(f"Emails: {emails}")    
 
     
-
-
-
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
