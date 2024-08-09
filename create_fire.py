@@ -9,6 +9,7 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import insert
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -63,9 +64,9 @@ def create_mission(**context):
         input_data['mission_id'] = mission_id
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
 
-        #TODO insertar status,mission_id en mission_status_history
+        #TODO insertar status,mission_id en mission_status_history# Inserción en la tabla mission_status_history
         #Igual hay que insertar el usuario
-        # Inserción en la tabla mission_status_history
+        
 
 
         # Crear el incendio relacionado
@@ -87,6 +88,19 @@ def create_mission(**context):
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to RETRY")
+
+def update_mission_status_history(mission_id, status, engine):
+    # Define the table using SQLAlchemy metadata
+    metadata = MetaData()
+    mission_status_history = Table('mission_status_history', metadata, autoload_with=engine)
+
+    # Create an insert statement
+    stmt = insert(mission_status_history).values(mission_id=mission_id, status=status, timestamp=datetime.now())
+
+    # Execute the insert statement
+    with engine.connect() as connection:
+        connection.execute(stmt)
+    print(f"Inserted status {status} for mission_id {mission_id} into mission_status_history.")
 
 
 # Función para crear un incendio a través del servicio ATC
