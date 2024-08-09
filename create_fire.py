@@ -9,7 +9,6 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import insert
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -58,28 +57,16 @@ def create_mission(**context):
         session.commit()
         session.close()
 
-        #PRINT PARA VERIFICAR SI LA MISIÓN SE HA CREADO CORRECTAMENTE
         print(f"Misión creada con ID: {mission_id}")
-
-        # Inserción en la tabla mss_mission_status_history
-        status_history_table = Table('mss_mission_status_history', MetaData(), autoload_with=engine)
-        status_insert_stmt = status_history_table.insert().values(mission_id=mission_id, status='NEW', timestamp=datetime.now())
-        session.execute(status_insert_stmt)
-        session.commit()
-
-        # Print para verificar si la inserción fue exitosa
-        print(f"Inserción en mss_mission_status_history exitosa para mission_id: {mission_id}")
-
-
-        
 
         #  Almacenar mission_id en XCom para ser utilizado por otras tareas
         input_data['mission_id'] = mission_id
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
 
-        #TODO insertar status,mission_id en mission_status_history# Inserción en la tabla mission_status_history
+        #TODO insertar status,mission_id en mission_status_history
         #Igual hay que insertar el usuario
-        
+        # Inserción en la tabla mission_status_history
+
 
         # Crear el incendio relacionado
         create_fire(input_data)
