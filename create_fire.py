@@ -190,7 +190,7 @@ def send_notification(mission_id, message, status="enviada"):
 
         values_to_insert = {
             'mission_id': mission_id,
-            'message': json.dumps(message),
+            'data': json.dumps(message),
             'status': status,
         }
 
