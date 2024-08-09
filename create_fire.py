@@ -61,7 +61,6 @@ def create_mission(**context):
         status_history_values = {
             'mission_id': mission_id,
             'status_id': 1,  # Asumiendo que el status inicial es 1, ajusta si es necesario
-            'created_at': datetime.now(timezone.utc)
         }
         insert_status_stmt = mission_status_history.insert().values(status_history_values)
         session.execute(insert_status_stmt)
