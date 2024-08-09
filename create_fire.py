@@ -58,7 +58,20 @@ def create_mission(**context):
         session.commit()
         session.close()
 
+        #PRINT PARA VERIFICAR SI LA MISIÓN SE HA CREADO CORRECTAMENTE
         print(f"Misión creada con ID: {mission_id}")
+
+        # Inserción en la tabla mss_mission_status_history
+        status_history_table = Table('mss_mission_status_history', MetaData(), autoload_with=engine)
+        status_insert_stmt = status_history_table.insert().values(mission_id=mission_id, status='NEW', timestamp=datetime.now())
+        session.execute(status_insert_stmt)
+        session.commit()
+
+        # Print para verificar si la inserción fue exitosa
+        print(f"Inserción en mss_mission_status_history exitosa para mission_id: {mission_id}")
+
+
+        
 
         #  Almacenar mission_id en XCom para ser utilizado por otras tareas
         input_data['mission_id'] = mission_id
@@ -67,7 +80,6 @@ def create_mission(**context):
         #TODO insertar status,mission_id en mission_status_history# Inserción en la tabla mission_status_history
         #Igual hay que insertar el usuario
         
-
 
         # Crear el incendio relacionado
         create_fire(input_data)
@@ -88,19 +100,6 @@ def create_mission(**context):
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to RETRY")
-
-def update_mission_status_history(mission_id, status, engine):
-    # Define the table using SQLAlchemy metadata
-    metadata = MetaData()
-    mission_status_history = Table('mission_status_history', metadata, autoload_with=engine)
-
-    # Create an insert statement
-    stmt = insert(mission_status_history).values(mission_id=mission_id, status=status, timestamp=datetime.now())
-
-    # Execute the insert statement
-    with engine.connect() as connection:
-        connection.execute(stmt)
-    print(f"Inserted status {status} for mission_id {mission_id} into mission_status_history.")
 
 
 # Función para crear un incendio a través del servicio ATC
