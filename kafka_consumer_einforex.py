@@ -103,150 +103,150 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
 
         print(msg_json.get('start'))
 
-        # #Query para extraer el customer_id
-        # try:
-        #     # Establecer conexión a la base de datos
-        #     db_conn = BaseHook.get_connection('einforex_db')
-        #     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/einforex"
-        #     engine = create_engine(connection_string)
-        #     Session = sessionmaker(bind=engine)
-        #     session = Session()
+        #Query para extraer el customer_id
+        try:
+            # Establecer conexión a la base de datos
+            db_conn = BaseHook.get_connection('einforex_db')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/einforex"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
 
-        #     print("Conexión a la base de datos establecida correctamente")
+            print("Conexión a la base de datos establecida correctamente")
 
-        #     # Definir la consulta SQL cruda
-        #     query = text("""
-        #             SELECT f.id, f.name, f.position, cag.id AS cag_id, ca.displayname, cca.customer_id
-        #             FROM fire f
-        #             LEFT JOIN comunidadautonomageometry cag ON st_contains(st_setsrid(cag.geometry, 4326), f.position)
-        #             LEFT JOIN customer_comunidadautonoma cca ON cca.comunidadautonoma_id = cag.id
-        #             LEFT JOIN comunidadautonoma ca ON cag.id = ca.id
-        #             WHERE f.id = :search_id
-        #             ORDER BY f.id DESC
-        #     """)
+            # Definir la consulta SQL cruda
+            query = text("""
+                    SELECT f.id, f.name, f.position, cag.id AS cag_id, ca.displayname, cca.customer_id
+                    FROM fire f
+                    LEFT JOIN comunidadautonomageometry cag ON st_contains(st_setsrid(cag.geometry, 4326), f.position)
+                    LEFT JOIN customer_comunidadautonoma cca ON cca.comunidadautonoma_id = cag.id
+                    LEFT JOIN comunidadautonoma ca ON cag.id = ca.id
+                    WHERE f.id = :search_id
+                    ORDER BY f.id DESC
+            """)
 
-        #     print("Ejecutando la consulta")
-        #     # Ejecutar la consulta
-        #     result = session.execute(query, {'search_id': msg_json.get('id')})
+            print("Ejecutando la consulta")
+            # Ejecutar la consulta
+            result = session.execute(query, {'search_id': msg_json.get('id')})
 
-        #     customer_id = 'AVINCIS'
-        #     # Procesar y mostrar el resultado
-        #     row = result.fetchone()  
-        #     if row:
-        #         print(row)
-        #         customer_id = row[-1] 
-        #         print(f"customer_id: {customer_id}")
-        #     else:
-        #         print(f"No se encontró ningún registro con id = {msg_json.get('id')}")
+            customer_id = 'AVINCIS'
+            # Procesar y mostrar el resultado
+            row = result.fetchone()  
+            if row:
+                print(row)
+                customer_id = row[-1] 
+                print(f"customer_id: {customer_id}")
+            else:
+                print(f"No se encontró ningún registro con id = {msg_json.get('id')}")
 
-        # except Exception as e:
-        #     session.rollback()
-        #     print(f"Error durante la busqueda del customer_id: {str(e)}")
+        except Exception as e:
+            session.rollback()
+            print(f"Error durante la busqueda del customer_id: {str(e)}")
 
             
-        # try:
-        #     #Insertamos la mision
-        #     db_conn = BaseHook.get_connection('biobd')
-        #     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        #     engine = create_engine(connection_string)
-        #     Session = sessionmaker(bind=engine)
-        #     session = Session()
+        try:
+            #Insertamos la mision
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
 
      
-        #     #Pasamos las fechas de timestamp a datetime
-        #     if(msg_json.get('start') is not None):
-        #         start_date  = convert_millis_to_datetime(msg_json.get('start'))
+            #Pasamos las fechas de timestamp a datetime
+            if(msg_json.get('start') is not None):
+                start_date  = convert_millis_to_datetime(msg_json.get('start'))
 
-        #     if(msg_json.get('creation_timestamp') is not None):
-        #         creation_date  = convert_millis_to_datetime(msg_json.get('creation_timestamp'))    
+            if(msg_json.get('creation_timestamp') is not None):
+                creation_date  = convert_millis_to_datetime(msg_json.get('creation_timestamp'))    
 
-        #     mss_mission_insert = {
-        #         'name': msg_json.get('name', 'noname'),
-        #         'start_date': msg_json.get(start_date, datetime.now()),
-        #         'geometry': msg_json.get('position'),
-        #         'type_id': 3,
-        #         'customer_id': customer_id,
-        #         'creationtimestamp': creation_date,
-        #         'status_id': 1
-        #     }
+            mss_mission_insert = {
+                'name': msg_json.get('name', 'noname'),
+                'start_date': msg_json.get(start_date, datetime.now()),
+                'geometry': msg_json.get('position'),
+                'type_id': 3,
+                'customer_id': customer_id,
+                'creationtimestamp': creation_date,
+                'status_id': 1
+            }
             
 
-            # metadata = MetaData(bind=engine)
-            # mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+            metadata = MetaData(bind=engine)
+            mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
-            # # Inserción 
-            # insert_stmt = mission.insert().values(mss_mission_insert)
-            # #Guardamos el resultado para traer el id
-            # result = session.execute(insert_stmt)
-            # session.commit()
-            # session.close()
+            # Inserción 
+            insert_stmt = mission.insert().values(mss_mission_insert)
+            #Guardamos el resultado para traer el id
+            result = session.execute(insert_stmt)
+            session.commit()
+            session.close()
 
-            # mission_id = result.inserted_primary_key[0]
-            # print(f"Misión creada con ID: {mission_id}")
-        # except Exception as e:
-        #     session.rollback()
-        #     print(f"Error durante el guardado de la misión: {str(e)}")
-        #     raise Exception("Error durante el guardado del estado de la misión")
+            mission_id = result.inserted_primary_key[0]
+            print(f"Misión creada con ID: {mission_id}")
+        except Exception as e:
+            session.rollback()
+            print(f"Error durante el guardado de la misión: {str(e)}")
+            raise Exception("Error durante el guardado del estado de la misión")
 
-        # try:
-        #     if (mission_id is not None):
-        #         #Insertamos la mision_fire
-        #         db_conn = BaseHook.get_connection('biobd')
-        #         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        #         engine = create_engine(connection_string)
-        #         Session = sessionmaker(bind=engine)
-        #         session = Session()
+        try:
+            if (mission_id is not None):
+                #Insertamos la mision_fire
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
 
-        #         mss_mission_fire_insert = {
-        #             'mission_id': mission_id,
-        #             'fire_id': msg_json.get('id'),
-        #             'ignition_timestamp': msg_json.get(start_date, datetime.now())
-        #         }
+                mss_mission_fire_insert = {
+                    'mission_id': mission_id,
+                    'fire_id': msg_json.get('id'),
+                    'ignition_timestamp': msg_json.get(start_date, datetime.now())
+                }
             
 
-        #         metadata = MetaData(bind=engine)
-        #         mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+                metadata = MetaData(bind=engine)
+                mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
 
-        #         # Inserción de la relación
-        #         insert_stmt = mission_fire.insert().values(mss_mission_fire_insert)
-        #         session.execute(insert_stmt)
-        #         session.commit()
-        #         session.close()
-        # except Exception as e:
-        #     session.rollback()
-        #     print(f"Error durante el guardado de la relacion mission fire: {str(e)}")
-        #     raise Exception("Error durante el guardado de la relacion mission fire")
+                # Inserción de la relación
+                insert_stmt = mission_fire.insert().values(mss_mission_fire_insert)
+                session.execute(insert_stmt)
+                session.commit()
+                session.close()
+        except Exception as e:
+            session.rollback()
+            print(f"Error durante el guardado de la relacion mission fire: {str(e)}")
+            raise Exception("Error durante el guardado de la relacion mission fire")
 
-        # try:
-        #     if (mission_id is not None):
-        #         #Insertamos la mision_fire
-        #         db_conn = BaseHook.get_connection('biobd')
-        #         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        #         engine = create_engine(connection_string)
-        #         Session = sessionmaker(bind=engine)
-        #         session = Session()
+        try:
+            if (mission_id is not None):
+                #Insertamos la mision_fire
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
 
-        #         mss_mission_history_state_insert = {
-        #             'mission_id': mission_id,
-        #             'status_id': 1,
-        #             'updatetimestamp': datetime.now(),
-        #             'source': 'ALGORITHM',
-        #             'username': 'ALGORITHM'
-        #         }
+                mss_mission_history_state_insert = {
+                    'mission_id': mission_id,
+                    'status_id': 1,
+                    'updatetimestamp': datetime.now(),
+                    'source': 'ALGORITHM',
+                    'username': 'ALGORITHM'
+                }
             
 
-        #         metadata = MetaData(bind=engine)
-        #         mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
+                metadata = MetaData(bind=engine)
+                mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
 
-        #         # Inserción de la relación
-        #         insert_stmt = mission_status_history.insert().values(mss_mission_history_state_insert)
-        #         session.execute(insert_stmt)
-        #         session.commit()
-        #         session.close()
-        # except Exception as e:
-        #     session.rollback()
-        #     print(f"Error durante el guardado del estado de la misión: {str(e)}")   
-        #     raise Exception("Error durante el guardado del estado de la misión")
+                # Inserción de la relación
+                insert_stmt = mission_status_history.insert().values(mss_mission_history_state_insert)
+                session.execute(insert_stmt)
+                session.commit()
+                session.close()
+        except Exception as e:
+            session.rollback()
+            print(f"Error durante el guardado del estado de la misión: {str(e)}")   
+            raise Exception("Error durante el guardado del estado de la misión")
 
  
     except json.JSONDecodeError as e:
