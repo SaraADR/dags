@@ -9,7 +9,6 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -55,7 +54,7 @@ def create_mission(**context):
         result = session.execute(insert_stmt)
         mission_id = result.inserted_primary_key[0]
         session.commit()
-        print(f"Misión creada con ID: {missionl_id}")
+        print(f"Misión creada con ID: {mission_id}")
 
         # Inserción en la tabla mss_mission_status_history
         mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
@@ -90,7 +89,6 @@ def create_mission(**context):
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to RETRY")
-        raise
 
 
 # Función para crear un incendio a través del servicio ATC
@@ -173,7 +171,7 @@ default_args = {
 
 # Definición del DAG
 dag = DAG(
-    'create_fire',
+    'create_fire_retry',
     default_args=default_args,
     description='DAG que maneja la creación de misiones e incendios',
     schedule_interval=None,
@@ -195,12 +193,6 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-trigger_dag = TriggerDagRunOperator(
-    task_id='retry_create_fire_dag',
-    trigger_dag_id='create_fire_retry',  # Reemplaza con el ID de tu DAG objetivo
-    conf={'message': 'Retry create_mission triggered'},
-    dag=dag,
-)
 
 # Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task >> trigger_dag
+print_message_task >> create_mission_task
