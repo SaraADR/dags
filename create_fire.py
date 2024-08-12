@@ -86,6 +86,15 @@ def create_mission(**context):
         print(f"Error durante el guardado de la misión: {str(e)}")
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
         update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='RETRY')
+        if update_stmt.get('status') == 'RETRY':
+                trigger = TriggerDagRunOperator(
+                task_id='save_documents_to_minio2',
+                trigger_dag_id='save_documents_to_minio',
+                conf={'message': update_stmt}, 
+                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                dag=dag,
+            )
+                
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to RETRY")
