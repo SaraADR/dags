@@ -255,17 +255,27 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
 
 
 
+# Posible error y corrección, timestamps reciben una zona horaria diferente. Precisión del timestamp, los milisegundos deben de estar correctos
 
-def convert_millis_to_datetime(millis):
+
+def convert_millis_to_datetime(millis, is_seconds=False, tz=pytz.utc):
     try:
         # Convertir millis a entero
         millis = int(millis)
     except ValueError:
         raise ValueError(f"Invalid millisecond value: {millis}")
 
-    seconds = millis / 1000.0
-    dt_utc = datetime.fromtimestamp(seconds, pytz.utc)
-    return dt_utc
+    # Convertir según sea necesario
+    if is_seconds:
+        seconds = millis
+    else:
+        seconds = millis / 1000.0
+    
+    # Convertir a datetime en la zona horaria especificada
+    dt_local = datetime.fromtimestamp(seconds, tz)
+    return dt_local
+
+
 
 
 default_args = {
