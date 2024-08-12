@@ -46,7 +46,7 @@ def create_mission(**context):
         }
 
         # Metadatos y tabla de misión en la base de datos
-        metadata = MetaData(bind=engine)
+        metadataa = MetaData(bind=engine)
         missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
         # Inserción de la nueva misión
@@ -89,6 +89,15 @@ def create_mission(**context):
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to RETRY")
+        
+        # Trigger new DAG run for retry
+        trigger = TriggerDagRunOperator(
+            task_id='trigger_create_fire_retry',
+            trigger_dag_id='create_fire_retry',  # The DAG to trigger
+            conf=message,  # Pass the original message as configuration
+            dag=context['dag']
+        )
+        trigger.execute(context)
 
 
 # Función para crear un incendio a través del servicio ATC

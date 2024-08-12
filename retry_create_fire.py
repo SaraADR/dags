@@ -169,30 +169,29 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-# Definición del DAG
-dag = DAG(
+# Definición del DAG de reintento
+retry_dag = DAG(
     'create_fire_retry',
     default_args=default_args,
-    description='DAG que maneja la creación de misiones e incendios',
+    description='DAG de reintento para la creación de misiones e incendios',
     schedule_interval=None,
     catchup=False
 )
 
-# Definición de las tareas del DAG
-print_message_task = PythonOperator(
-    task_id='print_message',
+# Definición de las tareas del DAG de reintento
+retry_print_message_task = PythonOperator(
+    task_id='retry_print_message',
     python_callable=print_message,
     provide_context=True,
-    dag=dag,
+    dag=retry_dag,
 )
 
-create_mission_task = PythonOperator(
-    task_id='create_mission',
+retry_create_mission_task = PythonOperator(
+    task_id='retry_create_mission',
     python_callable=create_mission,
     provide_context=True,
-    dag=dag,
+    dag=retry_dag,
 )
 
-
-# Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task
+# Definición de la secuencia de tareas en el DAG de reintento
+retry_print_message_task >> retry_create_mission_task
