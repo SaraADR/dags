@@ -25,15 +25,13 @@ def retrieve_from_minio(**kwargs):
     """
     # Access the DAG run context
     dag_run = kwargs.get('dag_run')
-    if not dag_run or not dag_run.conf:
-        logger.error("No DAG run or configuration found.")
-        raise KeyError("No configuration found in the DAG run.")
+    if not dag_run:
+        logger.error("No DAG run context found.")
+        raise KeyError("No DAG run context found.")
 
-    # Extract and log the configuration
-    config = dag_run.conf
+    config = dag_run.conf if dag_run.conf else {}
     logger.info("DAG Run Configuration: %s", config)
 
-    # Retrieve unique_id from the configuration
     unique_id = config.get('unique_id')
     if not unique_id:
         logger.error("No valid 'unique_id' key found in the DAG run configuration.")
@@ -46,6 +44,7 @@ def retrieve_from_minio(**kwargs):
     else:
         logger.error(f"File with unique ID {unique_id} not found in MinIO.")
         raise FileNotFoundError(f"No file found in MinIO with unique ID {unique_id}.")
+
 
 def fetch_from_minio(unique_id):
     """
@@ -89,6 +88,7 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
+    'schedule_interval': 1000,
     'retry_delay': timedelta(minutes=5),
 }
 
