@@ -276,8 +276,6 @@ def convert_millis_to_datetime(millis, is_seconds=False, tz=pytz.utc):
     return dt_local
 
 
-
-
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
