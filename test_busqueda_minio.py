@@ -1,3 +1,15 @@
+import io
+import json
+import tempfile
+import uuid
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+from datetime import datetime, timedelta
+import os
+import boto3
+from botocore.client import Config
+from airflow.hooks.base_hook import BaseHook
+
 import logging
 from airflow.hooks.base_hook import BaseHook
 import json
@@ -68,3 +80,30 @@ def fetch_from_minio(unique_id):
     return None
 
 # Ensure to add this function in the appropriate PythonOperator in your Airflow DAG.
+
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2024, 7, 15),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
+
+dag = DAG(
+    'retrieve_file_from_minio',
+    default_args=default_args,
+    description='Un DAG para recuperar archivos de Minio basados en un ID único',
+    schedule_interval=timedelta(days=1),
+)
+
+retrieve_task = PythonOperator(
+    task_id='retrieve_file',
+    provide_context=True,
+    python_callable=retrieve_from_minio,
+    dag=dag,
+)
+
+retrieve_task
