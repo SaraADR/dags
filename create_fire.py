@@ -60,10 +60,8 @@ def create_mission(**context):
         mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
         status_history_values = {
             'mission_id': mission_id,
-            'status_id': 1,
-            'registro' : 'Prueba', # Asumiendo que el status inicial es 1, ajusta si es necesario
+            'status_id': 1,  # Asumiendo que el status inicial es 1, ajusta si es necesario
         }
-        
         insert_status_stmt = mission_status_history.insert().values(status_history_values)
         session.execute(insert_status_stmt)
         session.commit()
