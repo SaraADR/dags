@@ -40,9 +40,6 @@ def create_mission(**context):
             'name': input_data['fire']['name'],
             'start_date': input_data['fire']['start'],
             'ignition' : input_data['fire']['start'],
-            'stabilization': None,
-            'controlled': None,
-            'extinguished': None,
             'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
             'type_id': input_data['type_id'],
             'status_id': 1, #TODO REVISIÓN DE STATUS
@@ -142,7 +139,11 @@ def insert_relation_mission_fire(id_mission, id_fire):
 
         values_to_insert = {
             'mission_id': id_mission,
-            'fire_id': id_fire
+            'fire_id': id_fire,
+            'ignition_timestamp': None,
+            'stabilization_timestamp': None,
+            'controlled_timestamp': None,
+            'extinguishing_timestamp': None,
         }
 
         # Metadatos y tabla de relación misión-incendio en la base de datos
