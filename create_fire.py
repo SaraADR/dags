@@ -47,7 +47,7 @@ def create_mission(**context):
 
         # Metadatos y tabla de misión en la base de datos
         metadata = MetaData(bind=engine)
-        missions = Table('mss_mission', metadata, schema='missions_v2', autoload_with=engine)
+        missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
         # Inserción de la nueva misión
         insert_stmt = missions.insert().values(values_to_insert)
@@ -57,7 +57,7 @@ def create_mission(**context):
         print(f"Misión creada con ID: {mission_id}")
 
         # Inserción en la tabla mss_mission_status_history
-        mission_status_history = Table('mss_mission_status_history', metadata, schema='missions_v2', autoload_with=engine)
+        mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
         status_history_values = {
             'mission_id': mission_id,
             'status_id': 1,  # Asumiendo que el status inicial es 1, ajusta si es necesario
@@ -145,7 +145,7 @@ def insert_relation_mission_fire(id_mission, id_fire):
 
         # Metadatos y tabla de relación misión-incendio en la base de datos
         metadata = MetaData(bind=engine)
-        missions_fire = Table('mss_mission_fire', metadata, schema='missions_v2', autoload_with=engine)
+        missions_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
 
         # Inserción de la relación
         insert_stmt = missions_fire.insert().values(values_to_insert)
