@@ -33,8 +33,6 @@ def create_mission(**context):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        # Transformación de la posición GeoJSON a WKT
-        geojson_data = input_data['fire']['position']
         # geometry = geojson_to_wkt(geojson_data)
         values_to_insert = {
             'name': input_data['fire']['name'],
@@ -55,6 +53,16 @@ def create_mission(**context):
         mission_id = result.inserted_primary_key[0]
         session.commit()
         print(f"Misión creada con ID: {mission_id}")
+
+        if input_data['type_id'] in [2, 4]:
+        # Se asume que en este caso se proporciona un fireId
+            fire_id = input_data['fireId']
+        else:
+        # De lo contrario, crea un nuevo fire a través del servicio ATC como antes
+            fire_id = create_fire(input_data)  # Esta función debería devolver el fire_id
+
+        insert_relation_mission_fire(mission_id, fire_id)
+
 
         # Inserción en la tabla mss_mission_status_history
         mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
