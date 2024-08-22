@@ -95,19 +95,19 @@ def create_mission(**context):
         session.rollback()
         print(f"Error durante el guardado de la misión: {str(e)}")
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='RETRY')
-        session.execute(update_stmt)
-        session.commit()
-        print(f"Job ID {job_id} status updated to RETRY")
+        # update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='RETRY')
+        # session.execute(update_stmt)
+        # session.commit()
+        # print(f"Job ID {job_id} status updated to RETRY")
         
-        # Trigger new DAG run for retry
-        trigger = TriggerDagRunOperator(
-            task_id='trigger_create_fire_retry',
-            trigger_dag_id='create_fire_retry',  # The DAG to trigger
-            conf=message,  # Pass the original message as configuration
-            dag=context['dag']
-        )
-        trigger.execute(context)
+        # # Trigger new DAG run for retry
+        # trigger = TriggerDagRunOperator(
+        #     task_id='trigger_create_fire_retry',
+        #     trigger_dag_id='create_fire_retry',  # The DAG to trigger
+        #     conf=message,  # Pass the original message as configuration
+        #     dag=context['dag']
+        # )
+        # trigger.execute(context)
 
 
 # Función para crear un incendio a través del servicio ATC
