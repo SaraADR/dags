@@ -129,7 +129,7 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
             # Ejecutar la consulta
             result = session.execute(query, {'search_id': msg_json.get('id')})
 
-            customer_id = 'AVINCIS'
+            customer_id = 'BABCOCK'
             # Procesar y mostrar el resultado
             row = result.fetchone()  
             if row:
