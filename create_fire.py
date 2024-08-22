@@ -56,14 +56,11 @@ def create_mission(**context):
         session.commit()
         print(f"Misión creada con ID: {mission_id}")
 
-        if input_data['type_id'] in [2, 4]:
-        # Se asume que en este caso se proporciona un fireId
-            fire_id = input_data['fireId']
+        if input_data['type_id'] == 3:
+            fire_id = create_fire(input_data) 
         else:
-        # De lo contrario, crea un nuevo fire a través del servicio ATC como antes
-            fire_id = create_fire(input_data)   # Esta función debería devolver el fire_id
-        
-        if fire_id > 0:
+            fire_id = input_data['fireId']
+        if not (fire_id == None or fire_id == 0):
             insert_relation_mission_fire(mission_id, fire_id)
 
         # Inserción en la tabla mss_mission_status_history
@@ -81,8 +78,6 @@ def create_mission(**context):
         input_data['mission_id'] = mission_id
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
 
-        # Crear el incendio relacionado
-        create_fire(input_data)
 
         # Update job status to 'FINISHED'
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
@@ -124,9 +119,6 @@ def create_fire(input_data):
             print("Incendio creado con éxito.")
             fire_data = response.json()
             print(fire_data)
-
-            # Relacionar misión con incendio
-            insert_relation_mission_fire(input_data['mission_id'], fire_data['id'])
         else:
             print(f"Error en la creación del incendio: {response.status_code}")
             print(response.text)
