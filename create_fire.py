@@ -33,8 +33,9 @@ def create_mission(**context):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        # geometry = geojson_to_wkt(geojson_data)
-        values_to_insert = {
+        # Iniciando una transacción
+        with session.begin():
+            values_to_insert = {
             'name': input_data['fire']['name'],
             'start_date': input_data['fire']['start'],
             'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
