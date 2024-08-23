@@ -4,7 +4,7 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime
 import boto3
-from botocore.client import Config
+from botocore.client import Config, ClientError
 from airflow.hooks.base_hook import BaseHook
 
 def create_bucket_in_minio(bucket_name):
@@ -29,12 +29,19 @@ def create_bucket_in_minio(bucket_name):
     try:
         s3_client.head_bucket(Bucket=bucket_name)
         logging.info(f"El bucket '{bucket_name}' ya existe.")
-    except s3_client.exceptions.NoSuchBucket:
-        s3_client.create_bucket(Bucket=bucket_name)
-        logging.info(f"Bucket '{bucket_name}' creado exitosamente en MinIO.")
-    except Exception as e:
-        logging.error(f"Error al crear el bucket: {str(e)}")
-        raise
+    except ClientError as e:
+        error_code = int(e.response['Error']['Code'])
+        if error_code == 404:
+            # El bucket no existe, así que procedemos a crearlo
+            try:
+                s3_client.create_bucket(Bucket=bucket_name)
+                logging.info(f"Bucket '{bucket_name}' creado exitosamente en MinIO.")
+            except Exception as create_err:
+                logging.error(f"Error al crear el bucket: {str(create_err)}")
+                raise
+        else:
+            logging.error(f"Error al verificar el bucket: {str(e)}")
+            raise
 
 default_args = {
     'owner': 'airflow',
@@ -56,7 +63,7 @@ dag = DAG(
 create_bucket_task = PythonOperator(
     task_id='create_minio_bucket',
     python_callable=create_bucket_in_minio,
-    op_args=['creacionautomatica'],  # Reemplaza con el nombre del bucket que quieras crear
+    op_args=['your_bucket_name'],  # Reemplaza con el nombre del bucket que quieras crear
     dag=dag,
 )
 
