@@ -27,7 +27,7 @@ def create_bucket_in_minio(bucket_name):
         logging.error(f"Error al crear el cliente de MinIO: {str(e)}")
         raise
 
-    logging.info(f"Intentando crear el bucket '{bucket_name}' en MinIO.")
+    logging.info(f"Creando el bucket '{bucket_name}' en MinIO.")
 
     # Intentar crear el bucket directamente
     try:
@@ -60,7 +60,7 @@ dag = DAG(
 create_bucket_task = PythonOperator(
     task_id='create_minio_bucket',
     python_callable=create_bucket_in_minio,
-    op_args=['prueba'],  # Reemplaza con el nombre del bucket que quieras crear
+    op_args=['bucketCreadoDag'],  # Reemplaza con el nombre del bucket que quieras crear
     dag=dag,
 )
 
