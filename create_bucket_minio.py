@@ -60,7 +60,7 @@ dag = DAG(
 create_bucket_task = PythonOperator(
     task_id='create_minio_bucket',
     python_callable=create_bucket_in_minio,
-    op_args=['your_bucket_name'],  # Reemplaza con el nombre del bucket que quieras crear
+    op_args=['prueba'],  # Reemplaza con el nombre del bucket que quieras crear
     dag=dag,
 )
 
