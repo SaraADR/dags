@@ -2,7 +2,7 @@ import json
 import logging
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from datetime import datetime, timedelta
+from datetime import datetime
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
@@ -43,14 +43,14 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': timedelta(minutes=5),
 }
 
 dag = DAG(
     'create_bucket_in_minio',
     default_args=default_args,
     description='Un DAG para crear un bucket en Minio',
-    schedule_interval=timedelta(days=1),
+    schedule_interval=None,  # No se repite automáticamente
+    catchup=False,  # Evita la ejecución retroactiva de períodos anteriores
 )
 
 create_bucket_task = PythonOperator(
