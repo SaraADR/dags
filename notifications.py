@@ -46,9 +46,9 @@ with DAG(
 
     send_notification_task = PostgresOperator(
         task_id='send_notification',
-        postgres_conn_id='your_postgres_connection',
+        postgres_conn_id='biobd',
         sql="""
-        INSERT INTO notis (destination, data)
+        INSERT INTO public.notifications (destination, data)
         VALUES ('ignis', '{{ task_instance.xcom_pull(task_ids='prepare_notification') }}')
         """,
 )
