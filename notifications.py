@@ -35,6 +35,7 @@ with DAG(
     description='A DAG for sending notifications to the database',
     schedule_interval=None,
     catchup=False,
+    
 ) as dag:
 
     prepare_notification_task = PythonOperator(
