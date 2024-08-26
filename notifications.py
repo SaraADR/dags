@@ -17,7 +17,7 @@ default_args = {
 
 def prepare_notification(**kwargs):
     # Extraer el mensaje y destino de los parámetros
-    message = kwargs.get('message', 'Job created')
+    message = kwargs.get('Prueba de las notificaciones')
     destination = kwargs.get('destination', 'ignis')
 
     # Crear un diccionario con la notificación
