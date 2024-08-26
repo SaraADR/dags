@@ -49,9 +49,8 @@ with DAG(
         postgres_conn_id='your_postgres_connection',
         sql="""
         INSERT INTO notis (destination, data)
-        VALUES ('{{ task_instance.xcom_pull(task_ids='prepare_notification')['destination'] }}', 
-                '{{ task_instance.xcom_pull(task_ids='prepare_notification') }}')
+        VALUES ('ignis', '{{ task_instance.xcom_pull(task_ids='prepare_notification') }}')
         """,
-    )
+)
 
     prepare_notification_task >> send_notification_task

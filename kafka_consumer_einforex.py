@@ -19,6 +19,7 @@ def consumer_function(message, prefix, **kwargs):
                 msg_json = json.loads(msg_value)
                 print(msg_json)
 
+
                 if(msg_json.get('lastupdate') is not None):
                     updateMission(msg_json)
 
@@ -139,6 +140,9 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
             else:
                 print(f"No se encontró ningún registro con id = {msg_json.get('id')}")
 
+            if customer_id is None:
+                customer_id = 'BABCOCK'
+            
         except Exception as e:
             session.rollback()
             print(f"Error durante la busqueda del customer_id: {str(e)}")
