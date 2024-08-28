@@ -122,7 +122,7 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
                     LEFT JOIN comunidadautonomageometry cag ON st_contains(st_setsrid(cag.geometry, 4326), f.position)
                     LEFT JOIN customer_comunidadautonoma cca ON cca.comunidadautonoma_id = cag.id
                     LEFT JOIN comunidadautonoma ca ON cag.id = ca.id
-                    WHERE f.id = :search_id
+                    WHERE f.id = :search_id AND cag.id <> 99
                     ORDER BY f.id DESC
             """)
 
