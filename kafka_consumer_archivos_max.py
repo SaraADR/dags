@@ -23,7 +23,7 @@ def consumer_function(message, prefix, **kwargs):
     if message is not None:
         nombre_fichero = message.key()
         print(f"archivo: {nombre_fichero}")
-        file_extension = os.path.splitext(nombre_fichero)[1].strip().lower().replace("'", "")
+        file_extension = os.path.splitext(nombre_fichero.decode('utf-8'))[1].strip().lower().replace("'", "")
         print(f"Extensión del archivo: {file_extension}")
         
         if file_extension == '.zip':
