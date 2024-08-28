@@ -134,11 +134,5 @@ process_extracted_files_task = PythonOperator(
     dag=dag,
 )
 
-print_minio_ids_task = PythonOperator(
-    task_id='print_minio_ids_task',
-    python_callable=print_minio_ids,
-    provide_context=True,
-    dag=dag,
-)
 
-process_extracted_files_task >> print_minio_ids_task
+process_extracted_files_task 
