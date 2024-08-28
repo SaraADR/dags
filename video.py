@@ -12,9 +12,9 @@ from sqlalchemy.orm import sessionmaker
 
 def process_extracted_files(**kwargs):
     # Obtén los archivos extraídos que se pasan como "conf"
-    video = kwargs['dag_run'].conf.get('video', [])
+    video = kwargs['dag_run'].conf.get('videos', [])
     imagen = kwargs['dag_run'].conf.get('imagen', [])
-    json_content = kwargs['dag_run'].conf.get('json_content', [])
+    json_content = kwargs['dag_run'].conf.get('json')
 
     
     if not json_content:
@@ -42,7 +42,7 @@ def process_extracted_files(**kwargs):
         """)
         result = session.execute(query, {'search_id': id_mission})
         row = result.fetchone()
-
+        mission_inspection_id = result.fetchone()['id']
         if row is None:
             print("El ID no está presente en la tabla mission.mss_mission_inspection")
             # Lo creamos
@@ -87,18 +87,25 @@ def process_extracted_files(**kwargs):
 
         #Creamos el mss_inspection_video
 
+    try:
         query = text("""
-        INSERT INTO missions.mss_inspection_video
+        INSERT INTO mission.mss_inspection_video 
         (mission_inspection_id, resource_id, reviewed)
-        VALUES( :id_video, :id_resource::uuid, false);
+        VALUES (:id_video, :id_resource::uuid, false)
         """)
-        result = session.execute(query, {'id_resource': video_key, 'id_video': row['id']})
-        row = result.fetchone()
+        session.execute(query, {'id_resource': video_key, 'id_video': mission_inspection_id})
+        session.commit()
+        print(f"Video {video_key} registrado en la inspección {mission_inspection_id}")
+    except Exception as e:
+        session.rollback()
+        print(f"Error al insertar video en mss_inspection_video: {str(e)}")
 
 
 
 
-
+    finally:
+        session.close()
+        print("Conexión a la base de datos cerrada correctamente")
 
   
 
