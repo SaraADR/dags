@@ -37,7 +37,7 @@ def process_extracted_files(**kwargs):
 
         query = text("""
             SELECT *
-            FROM mission.mss_mission_inspection
+            FROM missions.mss_mission_inspection
             WHERE mission_id = :search_id
         """)
         result = session.execute(query, {'search_id': id_mission})
@@ -89,7 +89,7 @@ def process_extracted_files(**kwargs):
 
     try:
         query = text("""
-        INSERT INTO mission.mss_inspection_video 
+        INSERT INTO missions.mss_inspection_video 
         (mission_inspection_id, resource_id, reviewed)
         VALUES (:id_video, :id_resource::uuid, false)
         """)
