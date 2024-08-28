@@ -59,6 +59,7 @@ def process_extracted_files(**kwargs):
         print(f"Error durante la busqueda del mission_inspection: {str(e)}")
 
 
+        print(f"row: {row}")
 
     for videos in video:
         connection = BaseHook.get_connection('minio_conn')
