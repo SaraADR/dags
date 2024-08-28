@@ -94,14 +94,14 @@ def process_zip_file(value, **kwargs):
                     if algorithm_id == 'Video':
                         print("Ejecutando lógica para Video")
                         try:
-                            # trigger = TriggerDagRunOperator(
-                            #     task_id='trigger_email_handler_inner',
-                            #     trigger_dag_id='save_documents_to_minio',
-                            #     conf={'message': value_pulled}, 
-                            #     execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                            #     dag=dag,
-                            # )
-                            # trigger.execute(context=kwargs)
+                            trigger = TriggerDagRunOperator(
+                                task_id='trigger_email_handler_inner',
+                                trigger_dag_id='video',
+                                conf={'videos': videos, 'images': images, 'json' : json_content}, 
+                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                                dag=dag,
+                            )
+                            trigger.execute(context=kwargs)
                             print("Ejecutando lógica para Video")
                         except zipfile.BadZipFile:
                             print(f"Error decoding Zip")
