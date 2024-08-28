@@ -23,7 +23,14 @@ def process_extracted_files(**kwargs):
 
     print("Archivos para procesar preparados")
 
-    id_mission = json_content.get('metadata.MissionID')
+    #Accedemos al missionID para poder buscar si ya existe
+    id_mission = None
+    for metadata in json_content['metadata']:
+        if metadata['name'] == 'MissionID':
+            id_mission = metadata['value']
+            break
+
+    print(f"MissionID: {id_mission}")
 
     
     #Comprobamos que no exista un mission_inspection ya creado para esa mision
