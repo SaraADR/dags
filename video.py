@@ -52,13 +52,7 @@ def process_extracted_files(**kwargs):
         mission_inspection_id = result.fetchone()['id']
         if row is None:
             print("El ID no está presente en la tabla mission.mss_mission_inspection")
-            # Lo creamos
-
-            # query = text("""
-            # INSERT INTO missions.mss_mission_inspection
-            # (mission_id, creationtimestamp, capturedate, operator_id, longitude, infrastructure_id)
-            # VALUES(:mission_id, :creation_timestamp, :creation_timestamp, 1, 0.0, 6)
-            #          """)
+            # Lo creamos?
 
 
     except Exception as e:
@@ -69,6 +63,10 @@ def process_extracted_files(**kwargs):
         print(f"row: {row}")
 
     for videos in video:
+
+        video_file_name = videos['file_name']
+        video_content = videos['content']
+
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
@@ -86,11 +84,9 @@ def process_extracted_files(**kwargs):
         s3_client.put_object(
             Bucket=bucket_name,
             Key=video_key,
-            Body=io.BytesIO(videos),
+            Body=io.BytesIO(video_content),
         )
-        print(f'{video_key} subido correctamente a MinIO.')
-
-
+        print(f'{video_file_name} subido correctamente a MinIO.')
 
         #Creamos el mss_inspection_video
 

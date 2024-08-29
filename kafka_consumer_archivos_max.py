@@ -80,9 +80,9 @@ def process_zip_file(value, **kwargs):
                         print(f"Contenido del archivo {file_name}: {content[:10]}...")  
 
                     if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
-                        videos.append(file_name)
+                        videos.append({'file_name': file_name, 'content': content})
                     elif file_name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
-                        images.append(file_name)
+                        images.append({'file_name': file_name, 'content': content})
                     elif file_name.lower().endswith('.json'):
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
