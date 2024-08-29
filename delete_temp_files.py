@@ -25,6 +25,7 @@ dag = DAG(
     schedule_interval=timedelta(days=1),
 )
 
+
 def delete_old_files():
     client = get_minio_client()  # Usamos la función del archivo proporcionado
 
