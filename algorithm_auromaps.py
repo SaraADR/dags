@@ -3,8 +3,8 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 import ast
 import json
-# from reportlab.lib.pagesizes import letter
-# from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 import io
 import json
 import tempfile
@@ -19,7 +19,7 @@ import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 from airflow.operators.email import EmailOperator
-from fpdf import FPDF
+
 
 def process_element(**context, ):
     message = context['dag_run'].conf
@@ -103,14 +103,14 @@ def process_element(**context, ):
 
 def generate_pdf_in_memory(text):
     """Genera un PDF en memoria con el texto proporcionado."""
-    # pdf_buffer = io.BytesIO()
-    # c = canvas.Canvas(pdf_buffer, pagesize=letter)
-    # width, height = letter
+    pdf_buffer = io.BytesIO()
+    c = canvas.Canvas(pdf_buffer, pagesize=letter)
+    width, height = letter
     
-    # c.drawString(100, height - 100, text)
-    # c.save()
+    c.drawString(100, height - 100, text)
+    c.save()
     
-    # pdf_buffer.seek(0)
+    pdf_buffer.seek(0)
     
     return pdf_buffer
 
