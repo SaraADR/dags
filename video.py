@@ -50,8 +50,10 @@ def process_extracted_files(**kwargs):
         """)
         result = session.execute(query, {'search_id': id_mission})
         row = result.fetchone()
-        mission_inspection_id = result.fetchone()['id']
-        if row is None:
+        if row is not None:
+            mission_inspection_id = row[0]  # This will get the first element in the row tuple
+        else:
+            mission_inspection_id = None
             print("El ID no está presente en la tabla mission.mss_mission_inspection")
             # Lo creamos?
 
