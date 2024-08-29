@@ -81,7 +81,7 @@ def process_extracted_files(**kwargs):
         )
 
         bucket_name = 'avincis-test'  
-        video_key = str(uuid.uuid4())
+        video_key = str(uuid.uuid4()) +'/' + video_file_name
 
         # Subir el archivo a MinIO
         s3_client.put_object(
@@ -107,19 +107,11 @@ def process_extracted_files(**kwargs):
         print(f"Error al insertar video en mss_inspection_video: {str(e)}")
 
 
-
-
     finally:
         session.close()
         print("Conexión a la base de datos cerrada correctamente")
 
   
-
-
-
-    
-
-
 
 
 
