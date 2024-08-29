@@ -1,3 +1,4 @@
+import base64
 import json
 import uuid
 from airflow import DAG
@@ -65,7 +66,7 @@ def process_extracted_files(**kwargs):
     for videos in video:
 
         video_file_name = videos['file_name']
-        video_content = videos['content']
+        video_content = base64.b64decode(video['content'])
 
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)

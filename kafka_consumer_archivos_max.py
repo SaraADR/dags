@@ -1,4 +1,5 @@
 import ast
+import base64
 import io
 import json
 import os
@@ -80,7 +81,8 @@ def process_zip_file(value, **kwargs):
                         print(f"Contenido del archivo {file_name}: {content[:10]}...")  
 
                     if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
-                        videos.append({'file_name': file_name, 'content': content})
+                        encoded_content = base64.b64encode(content).decode('utf-8')
+                        videos.append({'file_name': file_name, 'content': encoded_content})
                     elif file_name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
                         images.append({'file_name': file_name, 'content': content})
                     elif file_name.lower().endswith('.json'):
