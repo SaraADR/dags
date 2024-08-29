@@ -24,7 +24,7 @@ def delete_old_files_from_minio():
         config=Config(signature_version='s3v4')
     )
 
-    bucket_name = 'temp-test'
+    bucket_name = 'temp'
     expiration_time = datetime.utcnow() - timedelta(hours=24)
 
     # Listar todos los objetos en el bucket
