@@ -3,8 +3,8 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 import ast
 import json
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
+# from reportlab.lib.pagesizes import letter
+# from reportlab.pdfgen import canvas
 import io
 import json
 import tempfile
@@ -18,7 +18,8 @@ import ast
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
-
+from airflow.operators.email import EmailOperator
+from fpdf import FPDF
 
 def process_element(**context, ):
     message = context['dag_run'].conf
@@ -36,45 +37,80 @@ def process_element(**context, ):
     print(f"Perimeter: {perimeter}")
     print(f"Emails: {emails}")    
 
-    text = context.get('text', 'Esto es un texto dentro del pdf' + 'la localización es la siguiente ' + location + ' y el perimetro este ' + perimeter )
+    text = f"Esto es un texto dentro del pdf. La localización es la siguiente: {location} y el perímetro es: {perimeter}"
     pdf_buffer = generate_pdf_in_memory(text)
 
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
 
-    bucket_name = 'avincis-test'  
-    pdf_key = str(uuid.uuid4()) + '/' + 'pdf_generado' + datetime.now().replace(tzinfo=timezone.utc)
+    try:
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
 
-    # Subir el archivo a MinIO
-    s3_client.put_object(
-        Bucket=bucket_name,
-        Key=pdf_key,
-        Body=pdf_buffer,
-        content_type='application/pdf'
-    )
-    print(f'{pdf_key} subido correctamente a MinIO.')
+        bucket_name = 'avincis-test'  
+        pdf_key = str(uuid.uuid4()) + '/' + 'pdf_generado' + datetime.now().replace(tzinfo=timezone.utc) + '.pdf'
+
+        # Subir el archivo a MinIO
+        s3_client.put_object(
+            Bucket=bucket_name,
+            Key=pdf_key,
+            Body=pdf_buffer,
+            ContentType='application/pdf'
+        )
+        print(f'{pdf_key} subido correctamente a MinIO.')
+    except Exception as e:
+        print(f"Error: {str(e)}")
 
 
+    try:
+        # Configuración del cliente de MinIO
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
 
+        # Obtener el PDF desde MinIO
+        pdf_obj = s3_client.get_object(Bucket=bucket_name, Key=pdf_key)
+        pdf_content = pdf_obj['Body'].read()
+
+        # Enviar correos electrónicos
+        for email in emails:
+            email_operator = EmailOperator(
+                task_id=f'send_email_{email}',
+                to=email,
+                subject='Tu archivo PDF',
+                html_content='<p>Adjunto encontrarás el PDF generado.</p>',
+                files=[pdf_content],  
+                conn_id='test_mailing',
+                dag=context['dag']
+            )
+            email_operator.execute(context)
+    except Exception as e:
+        print(f"Error: {str(e)}")    
+     
+    
 
 
 def generate_pdf_in_memory(text):
     """Genera un PDF en memoria con el texto proporcionado."""
-    pdf_buffer = io.BytesIO()
-    c = canvas.Canvas(pdf_buffer, pagesize=letter)
-    width, height = letter
+    # pdf_buffer = io.BytesIO()
+    # c = canvas.Canvas(pdf_buffer, pagesize=letter)
+    # width, height = letter
     
-    c.drawString(100, height - 100, text)
-    c.save()
+    # c.drawString(100, height - 100, text)
+    # c.save()
     
-    pdf_buffer.seek(0)
+    # pdf_buffer.seek(0)
     
     return pdf_buffer
 
