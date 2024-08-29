@@ -66,7 +66,7 @@ def process_extracted_files(**kwargs):
     for videos in video:
 
         video_file_name = videos['file_name']
-        video_content = base64.b64decode(video['content'])
+        video_content = base64.b64decode(videos['content'])
 
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
