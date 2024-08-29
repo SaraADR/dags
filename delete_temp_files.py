@@ -25,7 +25,7 @@ def delete_old_files_from_minio():
     )
 
     bucket_name = 'temp-test'
-    expiration_time = datetime.utcnow() - timedelta(minutes=1)
+    expiration_time = datetime.utcnow() - timedelta(hours=24)
 
     # Listar todos los objetos en el bucket
     objects = s3_client.list_objects_v2(Bucket=bucket_name)
@@ -45,7 +45,7 @@ def delete_old_files_from_minio():
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 7, 15),
+    'start_date': datetime(2024, 8, 29),  # Fecha específica en la que quieres que se ejecute
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -56,7 +56,8 @@ dag = DAG(
     'delete_old_files_from_minio',
     default_args=default_args,
     description='DAG para eliminar archivos antiguos en MinIO',
-    schedule_interval=timedelta(days=1),
+    schedule_interval=None,  # No se ejecuta periódicamente, solo una vez
+    catchup=False,  # No se ejecuta automáticamente para fechas pasadas
 )
 
 delete_old_files_task = PythonOperator(
