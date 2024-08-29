@@ -29,10 +29,14 @@ def process_element(**context, ):
     input_data = json.loads(input_data_str)
 
     location = input_data['input']['location']
+    print(f"Location: {location}")
     perimeter = input_data['input']['perimeter']
+    print(f"Perimeter: {perimeter}")
     emails = input_data['input']['emails']
+    print(f"Emails: {emails}")    
 
     # Imprime las propiedades
+    print(f"--------------------")    
     print(f"Location: {location}")
     print(f"Perimeter: {perimeter}")
     print(f"Emails: {emails}")    
