@@ -39,7 +39,7 @@ def consumer_function(message, prefix, **kwargs):
         elif file_extension == '.mp4' or file_extension == '.avi' or file_extension == '.mov':
             return 'process_video_task'
         elif file_extension == '.json':
-            return 'process_json_task'
+            process_json_file(message.value())
         elif file_extension == 'no_message_task':
             return 'no_message_task'
         else:
@@ -55,9 +55,6 @@ def process_zip_file(value, **kwargs):
         first_40_values = value_pulled[:20]
         print("First 20 values:", first_40_values)
 
-        # message_dict = ast.literal_eval(value_pulled)
-        # print("message_dict:", message_dict)
-
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_unzip_path = os.path.join(temp_dir, 'unzip')
             temp_zip_path = os.path.join(temp_dir, 'zip')
@@ -67,6 +64,7 @@ def process_zip_file(value, **kwargs):
             os.makedirs(temp_zip_path, exist_ok=True)
 
             with zipfile.ZipFile(io.BytesIO(value_pulled)) as zip_file:
+                
                 # Obtener la lista de archivos dentro del ZIP
                 file_list = zip_file.namelist()
                 print("Archivos en el ZIP:", file_list)
@@ -130,13 +128,48 @@ def process_zip_file(value, **kwargs):
                 elif videos and images is None:
                     print(f"No va a seguir ningun ciclo")
                        
-    except KeyError:
-        print("Variable value does not exist")
-        raise AirflowSkipException("Variable value does not exist")
     except zipfile.BadZipFile:
         print("El archivo no es un ZIP válido")
         raise AirflowSkipException("El archivo no es un ZIP válido")
 
+
+def process_json_file(value, **kwargs):
+    try:
+        value_pulled = value
+        print("Processing JSON file")
+        
+        if not value_pulled:
+            print("No data to process")
+            raise AirflowSkipException("No data to process")
+
+        # En el caso de que el json sea visto como objeto lo limpiamos
+        if isinstance(value_pulled, str) and value_pulled.startswith("b'") and value_pulled.endswith("'"):
+            value_pulled = value_pulled[2:-1]
+            value_pulled = value_pulled.replace('\\r', '').replace('\\n', '').strip()
+
+        json_content = json.loads(value_pulled)
+        print(f"Processed JSON content: {json_content}")
+
+        # Agregar trigger para enviar datos al DAG 'save_coordinates_to_minio'
+        trigger = TriggerDagRunOperator(
+            task_id='trigger_save_coordinates',
+            trigger_dag_id='save_coordinates_to_minio',
+            conf={'message': json_content}, 
+            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+            dag=dag,
+        )
+        trigger.execute(context=kwargs)
+
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        print(f"Value pulled: {value_pulled}")  
+        raise AirflowSkipException("The file content is not a valid JSON")
+    except KeyError:
+        print("Variable value does not exist")
+        raise AirflowSkipException("Variable value does not exist")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        raise AirflowSkipException("An unexpected error occurred")
 
 
 default_args = {
