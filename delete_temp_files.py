@@ -1,17 +1,51 @@
+import json
+import tempfile
+import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 import os
-from minio import Minio
+import boto3
+from botocore.client import Config
+from airflow.hooks.base_hook import BaseHook
 
-# Importamos el archivo que subiste para la configuración de MinIO
-from create_bucket_minio import get_minio_client
+# Función para eliminar archivos antiguos en el bucket de MinIO
+def delete_old_files_from_minio():
+    # Obtener la conexión de MinIO desde Airflow
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
 
-# Definimos el DAG
+    # Crear el cliente de MinIO/S3 con las credenciales y configuración necesarias
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
+
+    bucket_name = 'temp-test'
+    expiration_time = datetime.utcnow() - timedelta(minutes=1)
+
+    # Listar todos los objetos en el bucket
+    objects = s3_client.list_objects_v2(Bucket=bucket_name)
+    
+    if 'Contents' in objects:
+        for obj in objects['Contents']:
+            # Convertir el tiempo de la última modificación al tiempo UTC
+            last_modified = obj['LastModified'].replace(tzinfo=None)
+            # Eliminar el archivo si es más antiguo que 24 horas
+            if last_modified < expiration_time:
+                print(f"Eliminando {obj['Key']}...")
+                s3_client.delete_object(Bucket=bucket_name, Key=obj['Key'])
+                print(f"{obj['Key']} eliminado correctamente.")
+    else:
+        print("No se encontraron objetos en el bucket.")
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2023, 8, 29),
+    'start_date': datetime(2024, 7, 15),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -19,33 +53,16 @@ default_args = {
 }
 
 dag = DAG(
-    'delete_old_files_minio',
+    'delete_old_files_from_minio',
     default_args=default_args,
-    description='DAG que borra archivos de MinIO con más de 24 horas',
+    description='DAG para eliminar archivos antiguos en MinIO',
     schedule_interval=timedelta(days=1),
 )
 
-
-def delete_old_files():
-    client = get_minio_client()  # Usamos la función del archivo proporcionado
-
-    bucket_name = 'temp-test'
-    objects = client.list_objects(bucket_name)
-
-    for obj in objects:
-        # Calculamos la diferencia de tiempo entre ahora y la última modificación del archivo
-        time_diff = datetime.now() - obj.last_modified.replace(tzinfo=None)
-
-        # Si el archivo tiene más de 24 horas, lo borramos
-        if time_diff > timedelta(minutes=1):
-            client.remove_object(bucket_name, obj.object_name)
-            print(f'Archivo {obj.object_name} borrado')
-
-# Definimos la tarea que ejecutará la función anterior
-delete_files_task = PythonOperator(
+delete_old_files_task = PythonOperator(
     task_id='delete_old_files',
-    python_callable=delete_old_files,
+    python_callable=delete_old_files_from_minio,
     dag=dag,
 )
 
-delete_files_task
+delete_old_files_task
