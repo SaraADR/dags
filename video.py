@@ -80,7 +80,7 @@ def process_extracted_files(**kwargs):
             config=Config(signature_version='s3v4')
         )
 
-        bucket_name = 'avincis-test'  
+        bucket_name = 'missions'  
         video_key = str(uuid.uuid4()) +'/' + video_file_name
 
         # Subir el archivo a MinIO

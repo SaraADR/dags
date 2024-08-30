@@ -103,6 +103,7 @@ def process_zip_file(value, **kwargs):
                             )
                             trigger.execute(context=kwargs)
                             print("Ejecutando lógica para Video")
+                            return None
                         except zipfile.BadZipFile:
                             print(f"Error decoding Zip")
 
