@@ -74,7 +74,7 @@ def process_element(**context, ):
 
      
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-        tmp_file.write(pdf_buffer.read())
+        tmp_file.write(pdf_buffer.getvalue())  
         tmp_file_path = tmp_file.name
 
         # Enviar correos electrónicos
@@ -87,7 +87,7 @@ def process_element(**context, ):
                 to=email,
                 subject='Tu archivo PDF',
                 html_content='<p>Adjunto encontrarás el PDF generado.</p>',
-                files=[tmp_file_path],  # Usar la ruta del archivo temporal
+                files=[tmp_file_path],
                 conn_id='test_mailing',
                 dag=context['dag']
             )
