@@ -94,12 +94,15 @@ def process_extracted_files(**kwargs):
         #Creamos el mss_inspection_video
 
     try:
+
+        id_resource_uuid = uuid.UUID(video_key.split('/')[0])
+
         query = text("""
         INSERT INTO missions.mss_inspection_video 
         (mission_inspection_id, resource_id, reviewed)
-        VALUES (:id_video, :id_resource::uuid, false)
+        VALUES (:id_video, :id_resource, false)
         """)
-        session.execute(query, {'id_resource': video_key, 'id_video': mission_inspection_id})
+        session.execute(query, {'id_resource': id_resource_uuid, 'id_video': mission_inspection_id})
         session.commit()
         print(f"Video {video_key} registrado en la inspección {mission_inspection_id}")
     except Exception as e:
