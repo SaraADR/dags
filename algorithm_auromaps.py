@@ -91,6 +91,7 @@ def process_element(**context, ):
 
         # Enviar correos electrónicos
         for email in emails:
+            email = email.replace("'", "")
             email_operator = EmailOperator(
                 task_id=f'send_email_{email}',
                 to=email,
