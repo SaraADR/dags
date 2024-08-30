@@ -112,14 +112,14 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'schedule_interval': 1000,
-    'retry_delay': datetime.timedelta(minutes=5),
+    'retry_delay': datetime(minutes=5),
 }
 
 dag = DAG(
     'heat_map',
     default_args=default_args,
     description='Un DAG para recopilar informacion sobre los mapas de calor en minio',
-    schedule_interval=datetime.timedelta(days=1),
+    schedule_interval=datetime(days=1),
 )
 
 heat_map = PythonOperator(
