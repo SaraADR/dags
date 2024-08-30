@@ -93,7 +93,7 @@ def process_element(**context, ):
         for email in emails:
             email = email.replace("'", "")
             email_operator = EmailOperator(
-                task_id=f'send_email_{email}',
+                task_id=f'send_email_{email.replace("@", "-")}',
                 to=email,
                 subject='Tu archivo PDF',
                 html_content='<p>Adjunto encontrarás el PDF generado.</p>',
