@@ -77,14 +77,14 @@ def process_and_upload_tiff():
     createdJob["inputData"]["ar_incendios"] = "/path/to/incendios.csv"
     createdJob["inputData"]["url_search_fire"] = "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection"
     createdJob["inputData"]["url_fireperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/FireAlgorithm_FirePerimeterService/getByFire?id="
-    createdJob["inputData"]["user"] = "your_username"
-    createdJob["inputData"]["password"] = "your_password"
+    createdJob["inputData"]["user"] = "jose.blanco"
+    createdJob["inputData"]["password"] = "babcock"
 
     # Verificación de los datos añadidos
     print("Datos de entrada modificados:", json.dumps(createdJob, indent=2))
 
     # Ruta del archivo TIFF en la carpeta temporal
-    tiff_file_path = "/path/to/your/temp_file.tiff"  # Cambia este path al correcto
+    tiff_file_path = "D:/tiff-files"  # Cambia este path al correcto
     print(f"Archivo TIFF a subir: {tiff_file_path}")
 
     # Subir el archivo TIFF a MinIO
