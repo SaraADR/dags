@@ -42,7 +42,7 @@ def process_element(**context, ):
     print(f"Perimeter: {perimeter}")
     print(f"Emails: {emails}")    
 
-    text = f"Esto es un texto dentro del pdf. La localización es la siguiente: {location} y el perímetro es: {perimeter}"
+    text = f"Esto es un texto dentro del pdf. /n La localización es la siguiente: {location}"
     pdf_buffer = generate_pdf_in_memory(text)
 
 
