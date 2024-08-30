@@ -103,8 +103,6 @@ def process_and_upload_tiff():
     # Resultado final de createdJob
     print("Resultado final de createdJob:", json.dumps(createdJob, indent=2))
 
-# Llamar a la función principal
-process_and_upload_tiff()
 
 default_args = {
     'owner': 'airflow',
@@ -124,9 +122,11 @@ dag = DAG(
     schedule_interval=datetime.timedelta(days=1),
 )
 
-retrieve_task = PythonOperator(
+heat_map = PythonOperator(
     task_id='heat_map',
     provide_context=True,
-    python_callable=retrieve_from_minio,
+    python_callable=process_and_upload_tiff,
     dag=dag,
 )
+
+heat_map
