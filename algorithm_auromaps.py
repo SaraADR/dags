@@ -33,7 +33,7 @@ def process_element(**context, ):
     print(f"Location: {location}")
     perimeter = input_data['input']['perimeter']
     print(f"Perimeter: {perimeter}")
-    emails = input_data['input'].get('emails')
+    emails = input_data['emails']
     print(f"Emails: {emails}")    
 
     # Imprime las propiedades
@@ -58,7 +58,8 @@ def process_element(**context, ):
         )
 
         bucket_name = 'avincis-test'  
-        pdf_key = str(uuid.uuid4()) + '/' + 'pdf_generado' + datetime.now().replace(tzinfo=timezone.utc) + '.pdf'
+        time = datetime.now().replace(tzinfo=timezone.utc)
+        pdf_key = str(uuid.uuid4()) + '/' + 'automaps_pdf_generado' + time.strftime('%Y-%m-%d %H:%M:%S %Z') + '.pdf'
 
         # Subir el archivo a MinIO
         s3_client.put_object(
