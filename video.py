@@ -93,7 +93,7 @@ def process_extracted_files(**kwargs):
         print(f'{video_file_name} subido correctamente a MinIO.')
 
     #Subimos el archivo JSON
-    json_str = json.dumps(json_content)
+    json_str = json.dumps(json_content).encode('utf-8')
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
     s3_client = boto3.client(
