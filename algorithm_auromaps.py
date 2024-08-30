@@ -97,7 +97,7 @@ def process_element(**context, ):
                 to=email,
                 subject='Tu archivo PDF',
                 html_content='<p>Adjunto encontrarás el PDF generado.</p>',
-                files=[pdf_content],  
+                files=[pdf_buffer],  
                 conn_id='test_mailing',
                 dag=context['dag']
             )
