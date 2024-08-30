@@ -72,23 +72,13 @@ def process_element(**context, ):
     except Exception as e:
         print(f"Error: {str(e)}")
 
+     
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(pdf_buffer.read())
+        tmp_file_path = tmp_file.name
 
+        # Enviar correos electrónicos
     try:
-        # Configuración del cliente de MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
-
-        # Obtener el PDF desde MinIO
-        pdf_obj = s3_client.get_object(Bucket=bucket_name, Key=pdf_key)
-        pdf_content = pdf_obj['Body'].read()
-
         # Enviar correos electrónicos
         for email in emails:
             email = email.replace("'", "")
@@ -97,15 +87,18 @@ def process_element(**context, ):
                 to=email,
                 subject='Tu archivo PDF',
                 html_content='<p>Adjunto encontrarás el PDF generado.</p>',
-                files=[pdf_buffer],  
+                files=[tmp_file_path],  # Usar la ruta del archivo temporal
                 conn_id='test_mailing',
                 dag=context['dag']
             )
             email_operator.execute(context)
     except Exception as e:
         print(f"Error: {str(e)}")    
-     
-    
+    finally:
+        # Eliminar el archivo temporal
+        os.remove(tmp_file_path)
+
+
 
 
 def generate_pdf_in_memory(text):
