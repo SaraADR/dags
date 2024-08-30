@@ -1,9 +1,14 @@
+import datetime
 import os
 import uuid
+from airflow.operators.python import PythonOperator
+from airflow import DAG
 import boto3
 from botocore.client import Config
 import json
 from airflow.hooks.base_hook import BaseHook
+
+from test_busqueda_minio import retrieve_from_minio
 
 def create_minio_client():
     # Obtener la conexión de MinIO desde Airflow
@@ -100,3 +105,28 @@ def process_and_upload_tiff():
 
 # Llamar a la función principal
 process_and_upload_tiff()
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2024, 7, 15),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'schedule_interval': 1000,
+    'retry_delay': datetime.timedelta(minutes=5),
+}
+
+dag = DAG(
+    'heat_map',
+    default_args=default_args,
+    description='Un DAG para recopilar informacion sobre los mapas de calor en minio',
+    schedule_interval=datetime.timedelta(days=1),
+)
+
+retrieve_task = PythonOperator(
+    task_id='heat_map',
+    provide_context=True,
+    python_callable=retrieve_from_minio,
+    dag=dag,
+)
