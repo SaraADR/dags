@@ -115,12 +115,13 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-# Configuración del DAG
+# Configuración del DAG para que se ejecute solo una vez
 dag = DAG(
     'heat_map',
     default_args=default_args,
     description='Un DAG para recopilar información sobre los mapas de calor en MinIO',
-    schedule_interval=timedelta(days=1),
+    schedule_interval=None,  # No se programa para ejecución automática
+    catchup=False,  # Evitar ejecución múltiple si la fecha de inicio es en el pasado
 )
 
 # Definición de la tarea en el DAG
