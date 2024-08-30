@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 
 def process_extracted_files(**kwargs):
-    # Obtén los archivos extraídos que se pasan como "conf"
+    # Obtenemos los archivos extraídos que se pasan como "conf"
     video = kwargs['dag_run'].conf.get('videos', [])
     imagen = kwargs['dag_run'].conf.get('imagen', [])
     json_content = kwargs['dag_run'].conf.get('json')
@@ -34,9 +34,7 @@ def process_extracted_files(**kwargs):
     print(f"MissionID: {id_mission}")
 
     
-    #Comprobamos que no exista un mission_inspection ya creado para esa mision
     try:
-        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
         db_conn = BaseHook.get_connection('biobd')
         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
         engine = create_engine(connection_string)
@@ -51,20 +49,22 @@ def process_extracted_files(**kwargs):
         result = session.execute(query, {'search_id': id_mission})
         row = result.fetchone()
         if row is not None:
-            mission_inspection_id = row[0]  # This will get the first element in the row tuple
+            mission_inspection_id = row[0]  
         else:
             mission_inspection_id = None
             print("El ID no está presente en la tabla mission.mss_mission_inspection")
             # Lo creamos?
 
-
     except Exception as e:
         session.rollback()
         print(f"Error durante la busqueda del mission_inspection: {str(e)}")
+        
 
 
-        print(f"row: {row}")
+    print(f"row: {row}")
 
+
+    #Subimos todos los videos a la carpeta de minIo
     for videos in video:
 
         video_file_name = videos['file_name']
@@ -81,7 +81,8 @@ def process_extracted_files(**kwargs):
         )
 
         bucket_name = 'missions'  
-        video_key = str(uuid.uuid4()) +'/' + video_file_name
+        uuid_key= uuid.uuid4()
+        video_key = str(uuid_key) +'/' + video_file_name
 
         # Subir el archivo a MinIO
         s3_client.put_object(
@@ -91,7 +92,30 @@ def process_extracted_files(**kwargs):
         )
         print(f'{video_file_name} subido correctamente a MinIO.')
 
-        #Creamos el mss_inspection_video
+    #Subimos el archivo JSON
+    json_str = json.dumps(json_content)
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
+
+    bucket_name = 'missions'  
+    uuid_key= uuid.uuid4()
+    json_key = str(uuid_key) +'/' + 'algorithm_result.json'
+
+    # Subir el archivo a MinIO
+    s3_client.put_object(
+        Bucket=bucket_name,
+        Key=json_key,
+        Body=io.BytesIO(json_str),
+        ContentType='application/json'
+    )
+    print(f'{video_file_name} subido correctamente a MinIO.')
 
     try:
 
