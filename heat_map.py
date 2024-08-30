@@ -84,7 +84,7 @@ def process_and_upload_tiff():
     print("Datos de entrada modificados:", json.dumps(createdJob, indent=2))
 
     # Ruta del archivo TIFF en la carpeta temporal
-    tiff_file_path = "recursos/433e21e9-d5ae-4429-b8d0-2e3e36f3f299.tif"  # Cambia este path al correcto
+    tiff_file_path = "dags/recursos/433e21e9-d5ae-4429-b8d0-2e3e36f3f299.tif"  # Cambia este path al correcto
     print(f"Archivo TIFF a subir: {tiff_file_path}")
 
     # Subir el archivo TIFF a MinIO
