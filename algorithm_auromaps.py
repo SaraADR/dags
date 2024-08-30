@@ -28,11 +28,12 @@ def process_element(**context, ):
 
     input_data = json.loads(input_data_str)
 
+    print(f"Todo {input_data['input']}")   
     location = input_data['input']['location']
     print(f"Location: {location}")
     perimeter = input_data['input']['perimeter']
     print(f"Perimeter: {perimeter}")
-    emails = input_data['input']['emails']
+    emails = input_data['input'].get('emails')
     print(f"Emails: {emails}")    
 
     # Imprime las propiedades
@@ -140,7 +141,7 @@ dag = DAG(
 
 # Manda correo
 process_element_task = PythonOperator(
-    task_id='print_message',
+    task_id='process_message',
     python_callable=process_element,
     provide_context=True,
     dag=dag,
