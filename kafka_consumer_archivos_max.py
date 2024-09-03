@@ -221,13 +221,13 @@ dag = DAG(
 
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
-    task_id="consume_from_topic",
+    task_id="consume_from_topic_sftp",
     topics=["sftp"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
-    max_messages=5,
-    max_batch_size=5,
+    max_messages=1,
+    max_batch_size=1,
     dag=dag,
 )
 
