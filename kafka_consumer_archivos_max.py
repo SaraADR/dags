@@ -126,7 +126,7 @@ def process_zip_file(value, **kwargs):
                             trigger = TriggerDagRunOperator(
                                 task_id='trigger_email_handler_inner',
                                 trigger_dag_id='video',
-                                conf={'videos': videos, 'images': images, 'json' : json_content, 'otros' : otros, 'structure': folder_structure}, 
+                                conf={'videos': videos, 'images': images, 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 dag=dag,
                             )
@@ -142,7 +142,7 @@ def process_zip_file(value, **kwargs):
                             trigger = TriggerDagRunOperator(
                                 task_id='trigger_email_handler_inner',
                                 trigger_dag_id='vegetacion',
-                                conf={'videos': videos, 'images': images, 'json' : json_content, 'otros' : otros, 'structure': folder_structure}, 
+                                conf={'videos': videos, 'images': images, 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 dag=dag,
                             )
