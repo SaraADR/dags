@@ -93,14 +93,14 @@ default_args = {
 }
 
 dag = DAG(
-    'retrieve_file_from_minio',
+    'test_busqueda_minio',
     default_args=default_args,
     description='Un DAG para recuperar archivos de Minio basados en un ID único',
     schedule_interval=timedelta(days=1),
 )
 
 retrieve_task = PythonOperator(
-    task_id='retrieve_file',
+    task_id='recuperar_archivos',
     provide_context=True,
     python_callable=retrieve_from_minio,
     dag=dag,

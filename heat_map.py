@@ -1,126 +1,92 @@
-import io
+from datetime import datetime, timedelta, timezone
+from airflow import DAG
+from airflow.operators.python import PythonOperator
 import json
 import tempfile
 import uuid
-from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from datetime import datetime, timedelta
-import os
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
-from airflow.providers.sftp.hooks.sftp import SFTPHook
+import os
+import requests
 
-def download_tiff_from_sftp():
-    sftp_hook = SFTPHook(ftp_conn_id='your_sftp_connection_id')
+# Función principal que procesa los datos de entrada y realiza las tareas solicitadas
+def process_heatmap_data(**context):
+
+    # Simulación de lectura desde la tabla JOBS (input_data)
     
-    remote_file_path = "/remote/path/to/your/filename.tiff"
-    local_file_path = os.path.join(tempfile.gettempdir(), "downloaded_file.tiff")
-    
-    print(f"Descargando archivo desde SFTP: {remote_file_path} a {local_file_path}")
-    
-    sftp_hook.retrieve_file(remote_file_path, local_file_path)
-    
-    return local_file_path
-
-def create_minio_client():
-    print("Obteniendo la conexión de MinIO desde Airflow...")
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-
-    print("Conexión de MinIO obtenida:", json.dumps(extra, indent=2))
-
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
-
-    return s3_client
-
-def upload_tiff_to_minio(tiff_file_path):
-    s3_client = create_minio_client()
-
-    tiff_file_name = str(uuid.uuid4()) + ".tiff"
-    print(f"Generado UUID para el archivo TIFF: {tiff_file_name}")
-
-    bucket_name = "temp"
-
-    try:
-        print(f"Verificando si el bucket '{bucket_name}' existe en MinIO...")
-        s3_client.head_bucket(Bucket=bucket_name)
-        print(f"El bucket '{bucket_name}' ya existe.")
-    except s3_client.exceptions.NoSuchBucket:
-        print(f"El bucket '{bucket_name}' no existe. Creándolo ahora...")
-        s3_client.create_bucket(Bucket=bucket_name)
-        print(f"Bucket '{bucket_name}' creado exitosamente.")
-
-    print(f"Subiendo el archivo {tiff_file_name} a MinIO en el bucket '{bucket_name}'...")
-    s3_client.upload_file(tiff_file_path, bucket_name, tiff_file_name)
-    print(f"Archivo {tiff_file_name} subido exitosamente a MinIO.")
-
-    tiff_file_url = f"{s3_client.meta.endpoint_url}/{bucket_name}/{tiff_file_name}"
-    print(f"URL del archivo TIFF subido: {tiff_file_url}")
-
-    return tiff_file_url
-
-def process_and_upload_tiff():
-    createdJob = {
-        "inputData": {
-            # Otros datos que ya podrían estar
-        }
+    input_data = {
+        "temp_tiff_path": "recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif"  # Ruta al TIFF de Agustín
     }
 
-    print("Añadiendo datos adicionales al inputData...")
+    # Log para verificar que los datos están completos
+    print("Datos completos de entrada para heatmap-incendio:")
+    print(json.dumps(input_data, indent=4))
 
-    createdJob["inputData"]["dir_output"] = "/path/to/output/directory"
-    createdJob["inputData"]["ar_incendios"] = "/path/to/incendios.csv"
-    createdJob["inputData"]["url_search_fire"] = "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection"
-    createdJob["inputData"]["url_fireperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/FireAlgorithm_FirePerimeterService/getByFire?id="
-    createdJob["inputData"]["user"] = "jose.blanco"
-    createdJob["inputData"]["password"] = "babcock"
-
-    print("Datos de entrada modificados:", json.dumps(createdJob, indent=2))
-
-    # Descargar el archivo TIFF desde SFTP
-    tiff_file_path = download_tiff_from_sftp()
-    print(f"Archivo TIFF descargado: {tiff_file_path}")
+    # Simulación de obtener un archivo TIFF de una carpeta temporal (usando el de Agustín)
+    temp_tiff_path = input_data['temp_tiff_path']
 
     # Subir el archivo TIFF a MinIO
-    tiff_file_url = upload_tiff_to_minio(tiff_file_path)
+    try:
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
 
-    notification = {
-        "url": tiff_file_url
+        bucket_name = 'temp'
+        tiff_key = f"{uuid.uuid4()}.tiff"
+
+        s3_client.upload_file(temp_tiff_path, bucket_name, tiff_key)
+        tiff_url = f"{extra['endpoint_url']}/{bucket_name}/{tiff_key}"
+        print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
+        
+    except Exception as e:
+        print(f"Error al subir el TIFF a MinIO: {str(e)}")
+        return
+    
+    # Enviar notificación a "ignis" con la URL del TIFF
+    notification_payload = {
+        "urlTiff": tiff_url
     }
 
-    print("Notificación a Ignis:", json.dumps(notification, indent=2))
+    try:
+        response = requests.post("https://ignis.endpoint.url/notify", json=notification_payload)
+        if response.status_code == 200:
+            print("Notificación enviada correctamente a 'ignis'.")
+        else:
+            print(f"Error al enviar notificación a 'ignis': {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"Error al enviar notificación a 'ignis': {str(e)}")
 
-    createdJob["inputData"]["dir_output"] = tiff_file_url
-
-    print("Resultado final de createdJob:", json.dumps(createdJob, indent=2))
-
+# Configuración del DAG
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 7, 15),
+    'start_date': datetime(2024, 9, 1),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'retry_delay': timedelta(minutes=1),
 }
 
 dag = DAG(
-    'heat_map',
+    'heatmap_incendio_process',
     default_args=default_args,
-    description='Un DAG para recopilar información sobre los mapas de calor en MinIO',
+    description='DAG para procesar datos de heatmap-incendio y enviar TIFF a MinIO',
     schedule_interval=None,
-    catchup=False,
+    catchup=False
 )
 
-heat_map_task = PythonOperator(
-    task_id='heat_map',
-    python_callable=process_and_upload_tiff,
+process_heatmap_task = PythonOperator(
+    task_id='process_heatmap_data',
+    python_callable=process_heatmap_data,
+    provide_context=True,
     dag=dag,
 )
+
+process_heatmap_task
