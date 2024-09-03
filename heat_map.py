@@ -76,19 +76,20 @@ def process_heatmap_data(**context):
  # Función para preparar la notificación
 def prepare_notification(**kwargs):
     # Extraer el mensaje y destino de los parámetros
-    message = kwargs.get('message', 'Job created')
-    destination = kwargs.get('destination', 'ignis')
+
+    task_instance = kwargs['ti']
+    input_data = task_instance.xcom_pull(task_ids='process_heatmap_data')
+
 
     # Crear un diccionario con la notificación
     notification = {
         "type": "job_created",
-        "message": message,
-        "destination": destination
+        "message": "Heatmap data processed and TIFF uploaded",
+        "destination": "ignis",
+        "input_data": input_data
     }
     # Convertirlo a JSON para almacenarlo
     return json.dumps(notification)       
-
-
 
 
 # Configuración del DAG
