@@ -87,7 +87,7 @@ def process_heatmap_data(**context):
             postgres_conn_id='biobd',
             sql=f"""
             INSERT INTO public.notifications (destination, data)
-            VALUES ('ignis', '{notification_json}');
+            VALUES ('ignis', '{notification_json}, {tiff_url}');
             """
         )
         pg_hook.execute(context)
