@@ -91,7 +91,6 @@ def process_zip_file(value, **kwargs):
                         folder_structure[directory] = []
                     folder_structure[directory].append(file_name)
 
-                    print(f"{file_name}: NOMBRE")
                     if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
                         encoded_content = base64.b64encode(content).decode('utf-8')
                         videos.append({'file_name': file_name, 'content': encoded_content, 'directory': directory})
