@@ -218,7 +218,7 @@ dag = DAG(
     'kafka_consumer_archivos_max',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG para archivos',
-    schedule_interval='*/3 * * * *',
+    schedule_interval='*/2 * * * *',
     catchup=False
 )
 
