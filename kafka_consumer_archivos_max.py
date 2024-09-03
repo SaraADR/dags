@@ -80,6 +80,9 @@ def process_zip_file(value, **kwargs):
                 algorithm_id = None
 
                 for file_name in file_list:
+                    if file_name.endswith('/'):
+                        continue
+
                     with zip_file.open(file_name) as file:
                         content = file.read()
                         print(f"Contenido del archivo {file_name}: {content[:10]}...")  
@@ -99,11 +102,8 @@ def process_zip_file(value, **kwargs):
                     elif os.path.basename(file_name).lower() == 'algorithm_result.json':
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
-                        print(f"{content}: CONTENT" )
                         json_content_metadata = json_content.get('metadata', [])
-                        print(f"{json_content_metadata} : METADATA")
                         for metadata in json_content_metadata:
-                            print(f"{metadata.get('name')}")
                             if metadata.get('name') == 'AlgorithmID':
                                 algorithm_id = metadata.get('value')
 
@@ -126,7 +126,6 @@ def process_zip_file(value, **kwargs):
                                 dag=dag,
                             )
                             trigger.execute(context=kwargs)
-                            print("Ejecutando lógica para Video")
                             return None
                         except zipfile.BadZipFile:
                             print(f"Error decoding Zip")
@@ -143,7 +142,6 @@ def process_zip_file(value, **kwargs):
                                 dag=dag,
                             )
                             trigger.execute(context=kwargs)
-                            print("Ejecutando lógica para Video")
                             return None
                         except zipfile.BadZipFile:
                             print(f"Error decoding Zip")
