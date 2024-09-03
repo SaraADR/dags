@@ -54,19 +54,6 @@ def process_heatmap_data(**context):
         print(f"Error al subir el TIFF a MinIO: {str(e)}")
         return
     
-    # Enviar notificación a "ignis" con la URL del TIFF
-    notification_payload = {
-        "urlTiff": tiff_url
-    }
-
-    try:
-        response = requests.post("https://ignis.endpoint.url/notify", json=notification_payload)
-        if response.status_code == 200:
-            print("Notificación enviada correctamente a 'ignis'.")
-        else:
-            print(f"Error al enviar notificación a 'ignis': {response.status_code} - {response.text}")
-    except Exception as e:
-        print(f"Error al enviar notificación a 'ignis': {str(e)}")
     
     # Preparar la notificación para almacenar en la base de datos
     notification_db = {
