@@ -101,6 +101,7 @@ def process_zip_file(value, **kwargs):
                         json_content = json.loads(content)
                         print(f"{content}")
                         for metadata in json_content.get('metadata', []):
+                            print(f"{metadata.get('name')}")
                             if metadata.get('name') == 'AlgorithmID':
                                 algorithm_id = metadata.get('value')
                             break
