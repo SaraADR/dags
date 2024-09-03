@@ -97,7 +97,7 @@ def process_zip_file(value, **kwargs):
                         videos.append({'file_name': file_name, 'content': encoded_content, 'directory': directory})
                     elif file_name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
                         images.append({'file_name': file_name, 'content': content, 'directory': directory})
-                    elif file_name.lower() == 'algorithm_result.json':
+                    elif os.path.basename(file_name).lower() == 'algorithm_result.json':
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
                         for metadata in json_content['metadata']:
