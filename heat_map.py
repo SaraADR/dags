@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
-import tempfile
 import uuid
 import boto3
 from botocore.client import Config
@@ -15,11 +14,11 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 TIFF = './dags/repo/recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif'
 
 
-# Función principal que procesa los datos de entrada y realiza las tareas solicitadas
+# Función principal que procesa los datos de entrada, sube el TIFF, y envía notificaciones
 def process_heatmap_data(**context):
     # Simulación de lectura desde la tabla JOBS (input_data)
     input_data = {
-        "temp_tiff_path": (TIFF),  # Ruta al TIFF 
+        "temp_tiff_path": TIFF,  # Ruta al TIFF 
         "dir_output": "/home/airflow/workspace/output",
         "ar_incendios": "historical_fires.csv",
         "url_search_fire": "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection",
@@ -31,9 +30,6 @@ def process_heatmap_data(**context):
     # Log para verificar que los datos están completos
     print("Datos completos de entrada para heatmap-incendio:")
     print(json.dumps(input_data, indent=4))
-
-    # Simulación de obtener un archivo TIFF de una carpeta temporal (usando el de Agustín)
-    temp_tiff_path = input_data['temp_tiff_path']
 
     # Subir el archivo TIFF a MinIO
     try:
@@ -50,7 +46,7 @@ def process_heatmap_data(**context):
         bucket_name = 'temp'
         tiff_key = f"{uuid.uuid4()}.tiff"
 
-        s3_client.upload_file(temp_tiff_path, bucket_name, tiff_key)
+        s3_client.upload_file(input_data['temp_tiff_path'], bucket_name, tiff_key)
         tiff_url = f"{extra['endpoint_url']}/{bucket_name}/{tiff_key}"
         print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
         
@@ -71,25 +67,34 @@ def process_heatmap_data(**context):
             print(f"Error al enviar notificación a 'ignis': {response.status_code} - {response.text}")
     except Exception as e:
         print(f"Error al enviar notificación a 'ignis': {str(e)}")
-
-
- # Función para preparar la notificación
-def prepare_notification(**kwargs):
-    # Extraer el mensaje y destino de los parámetros
-
-    task_instance = kwargs['ti']
-    input_data = task_instance.xcom_pull(task_ids='process_heatmap_data')
-
-
-    # Crear un diccionario con la notificación
-    notification = {
+    
+    # Preparar la notificación para almacenar en la base de datos
+    notification_db = {
         "type": "job_created",
         "message": "Heatmap data processed and TIFF uploaded",
         "destination": "ignis",
         "input_data": input_data
     }
-    # Convertirlo a JSON para almacenarlo
-    return json.dumps(notification)       
+
+    # Convertir a JSON
+    notification_json = json.dumps(notification_db)
+
+    # Insertar la notificación en la base de datos
+    try:
+        connection = BaseHook.get_connection('biobd')
+        pg_hook = PostgresOperator(
+            task_id='send_notification',
+            postgres_conn_id='biobd',
+            sql=f"""
+            INSERT INTO public.notifications (destination, data)
+            VALUES ('ignis', '{notification_json}');
+            """
+        )
+        pg_hook.execute(context)
+        print("Notificación almacenada correctamente en la base de datos.")
+        
+    except Exception as e:
+        print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
 
 
 # Configuración del DAG
@@ -106,7 +111,7 @@ default_args = {
 dag = DAG(
     'heatmap_incendio_process',
     default_args=default_args,
-    description='DAG para procesar datos de heatmap-incendio y enviar TIFF a MinIO',
+    description='DAG para procesar datos de heatmap-incendio, subir TIFF a MinIO, y enviar notificaciones',
     schedule_interval=None,
     catchup=False
 )
@@ -118,24 +123,5 @@ process_heatmap_task = PythonOperator(
     dag=dag,
 )
 
-# Tarea para preparar la notificación
-prepare_notification_task = PythonOperator(
-    task_id='prepare_notification',
-    python_callable=prepare_notification,
-    provide_context=True,
-    dag=dag,
-)
-
-# Tarea para enviar la notificación a la base de datos
-send_notification_task = PostgresOperator(
-    task_id='send_notification',
-    postgres_conn_id='biobd',
-    sql="""
-    INSERT INTO public.notifications (destination, data)
-    VALUES ('ignis', '{{ task_instance.xcom_pull(task_ids='prepare_notification') }}')
-    """,
-    dag=dag,
-)
-
 # Flujo de tareas
-process_heatmap_task >> prepare_notification_task >> send_notification_task
+process_heatmap_task
