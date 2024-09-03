@@ -109,10 +109,15 @@ def process_zip_file(value, **kwargs):
 
                         print(f"algorithmId en {file_name}: {algorithm_id}")
                     else:
-                        otros.append({'file_name': file_name, 'content': content, 'directory': directory})
+                        encoded_content = base64.b64encode(content).decode('utf-8')
+                        otros.append({'file_name': file_name, 'content': encoded_content, 'directory': directory})
 
 
                 print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
+                print("videos:", videos)
+                print("images:", images)
+                print("otros:", otros)
+
                 if algorithm_id:
                     # Aquí tomas decisiones basadas en el valor de algorithmId
                     if algorithm_id == 'Video':
