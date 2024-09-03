@@ -9,18 +9,23 @@ from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 import os
 import requests
+from airflow.providers.postgres.operators.postgres import PostgresOperator
 
-TIF = './dags/repo/recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif'
+
+TIFF = './dags/repo/recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif'
 
 
 # Función principal que procesa los datos de entrada y realiza las tareas solicitadas
 def process_heatmap_data(**context):
-
     # Simulación de lectura desde la tabla JOBS (input_data)
-    
     input_data = {
-
-        "temp_tiff_path": (TIF)  # Ruta al TIFF de Agustín
+        "temp_tiff_path": (TIFF),  # Ruta al TIFF 
+        "dir_output": "/home/airflow/workspace/output",
+        "ar_incendios": "historical_fires.csv",
+        "url_search_fire": "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection",
+        "url_fireperimeter_service": "https://pre.atcservices.cirpas.gal/rest/FireAlgorithm_FirePerimeterService/getByFire?id=",
+        "user": "usuario",
+        "password": "contraseña"
     }
 
     # Log para verificar que los datos están completos
@@ -67,6 +72,25 @@ def process_heatmap_data(**context):
     except Exception as e:
         print(f"Error al enviar notificación a 'ignis': {str(e)}")
 
+
+ # Función para preparar la notificación
+def prepare_notification(**kwargs):
+    # Extraer el mensaje y destino de los parámetros
+    message = kwargs.get('message', 'Job created')
+    destination = kwargs.get('destination', 'ignis')
+
+    # Crear un diccionario con la notificación
+    notification = {
+        "type": "job_created",
+        "message": message,
+        "destination": destination
+    }
+    # Convertirlo a JSON para almacenarlo
+    return json.dumps(notification)       
+
+
+
+
 # Configuración del DAG
 default_args = {
     'owner': 'airflow',
@@ -93,4 +117,24 @@ process_heatmap_task = PythonOperator(
     dag=dag,
 )
 
-process_heatmap_task
+# Tarea para preparar la notificación
+prepare_notification_task = PythonOperator(
+    task_id='prepare_notification',
+    python_callable=prepare_notification,
+    provide_context=True,
+    dag=dag,
+)
+
+# Tarea para enviar la notificación a la base de datos
+send_notification_task = PostgresOperator(
+    task_id='send_notification',
+    postgres_conn_id='biobd',
+    sql="""
+    INSERT INTO public.notifications (destination, data)
+    VALUES ('ignis', '{{ task_instance.xcom_pull(task_ids='prepare_notification') }}')
+    """,
+    dag=dag,
+)
+
+# Flujo de tareas
+process_heatmap_task >> prepare_notification_task >> send_notification_task
