@@ -100,9 +100,9 @@ def process_zip_file(value, **kwargs):
                     elif os.path.basename(file_name).lower() == 'algorithm_result.json':
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
-                        for metadata in json_content['metadata']:
-                            if metadata['name'] == 'AlgorithmID':
-                                algorithm_id = metadata['value']
+                        for metadata in json_content.get('metadata', []):
+                            if metadata.get('name') == 'AlgorithmID':
+                                algorithm_id = metadata.get('value')
                             break
                         print(f"algorithmId en {file_name}: {algorithm_id}")
                     else:
