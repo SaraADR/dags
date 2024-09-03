@@ -69,8 +69,12 @@ def process_zip_file(value, **kwargs):
                 file_list = zip_file.namelist()
                 print("Archivos en el ZIP:", file_list)
 
+                # Para almacenar la estructura de carpetas y archivos
+                folder_structure = {}
+
                 videos = []
                 images = []
+                otros = []
                 algorithm_id = None
 
                 for file_name in file_list:
@@ -78,16 +82,30 @@ def process_zip_file(value, **kwargs):
                         content = file.read()
                         print(f"Contenido del archivo {file_name}: {content[:10]}...")  
 
+
+                    # Determinar la carpeta a la que pertenece el archivo
+                    directory = os.path.dirname(file_name)
+                    if directory not in folder_structure:
+                        folder_structure[directory] = []
+                    folder_structure[directory].append(file_name)
+
                     if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
                         encoded_content = base64.b64encode(content).decode('utf-8')
-                        videos.append({'file_name': file_name, 'content': encoded_content})
+                        videos.append({'file_name': file_name, 'content': encoded_content, 'directory': directory})
                     elif file_name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
-                        images.append({'file_name': file_name, 'content': content})
-                    elif file_name.lower().endswith('.json'):
+                        images.append({'file_name': file_name, 'content': content, 'directory': directory})
+                    elif file_name.lower() == 'algorithm_result.json':
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
-                        algorithm_id = json_content.get('algorithmId')
+                        for metadata in json_content['metadata']:
+                            if metadata['name'] == 'AlgorithmID':
+                                algorithm_id = metadata['value']
+                            break
                         print(f"algorithmId en {file_name}: {algorithm_id}")
+                    else:
+                        otros.append({'file_name': file_name, 'content': content, 'directory': directory})
+
+                    print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
 
                 if algorithm_id:
                     # Aquí tomas decisiones basadas en el valor de algorithmId
@@ -97,7 +115,7 @@ def process_zip_file(value, **kwargs):
                             trigger = TriggerDagRunOperator(
                                 task_id='trigger_email_handler_inner',
                                 trigger_dag_id='video',
-                                conf={'videos': videos, 'images': images, 'json' : json_content}, 
+                                conf={'videos': videos, 'images': images, 'json' : json_content, 'structure': folder_structure}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 dag=dag,
                             )
@@ -110,7 +128,20 @@ def process_zip_file(value, **kwargs):
 
                     elif algorithm_id == 'Vegetacion':
                         print("Ejecutando lógica para vegetacion")
-                        # Lógica específica para algoritmo_2
+                        try:
+                            trigger = TriggerDagRunOperator(
+                                task_id='trigger_email_handler_inner',
+                                trigger_dag_id='vegetacion',
+                                conf={'videos': videos, 'images': images, 'json' : json_content, 'structure': folder_structure}, 
+                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                                dag=dag,
+                            )
+                            trigger.execute(context=kwargs)
+                            print("Ejecutando lógica para Video")
+                            return None
+                        except zipfile.BadZipFile:
+                            print(f"Error decoding Zip")
+
                     # Agrega más condiciones según sea necesario
 
                 elif videos and images is not None:
@@ -119,7 +150,7 @@ def process_zip_file(value, **kwargs):
                         trigger = TriggerDagRunOperator(
                             task_id='trigger_email_handler_inner',
                             trigger_dag_id='save_documents_to_minio',
-                            conf={'message': value_pulled}, 
+                            conf={'message': value_pulled, 'structure': folder_structure}, 
                             execution_date=datetime.now().replace(tzinfo=timezone.utc),
                             dag=dag,
                         )
