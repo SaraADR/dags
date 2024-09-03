@@ -16,7 +16,7 @@ def process_heatmap_data(**context):
     # Simulación de lectura desde la tabla JOBS (input_data)
     
     input_data = {
-        "temp_tiff_path": "recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif"  # Ruta al TIFF de Agustín
+        "temp_tiff_path": "f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif"  # Ruta al TIFF de Agustín
     }
 
     # Log para verificar que los datos están completos
