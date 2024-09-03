@@ -100,7 +100,7 @@ def process_zip_file(value, **kwargs):
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
                         print(f"{content}: CONTENT" )
-                        json_content_metadata = json.loads(json_content.get('metadata'))
+                        json_content_metadata = json_content.get('metadata', [])
                         print(f"{json_content_metadata} : METADATA")
                         for metadata in json_content_metadata:
                             print(f"{metadata.get('name')}")
