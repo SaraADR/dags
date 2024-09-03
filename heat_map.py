@@ -10,13 +10,17 @@ from airflow.hooks.base_hook import BaseHook
 import os
 import requests
 
+TIF = './dags/repo/recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif'
+
+
 # Función principal que procesa los datos de entrada y realiza las tareas solicitadas
 def process_heatmap_data(**context):
 
     # Simulación de lectura desde la tabla JOBS (input_data)
     
     input_data = {
-        "temp_tiff_path": "AIRFLOW/dags/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif"  # Ruta al TIFF de Agustín
+
+        "temp_tiff_path": (TIF)  # Ruta al TIFF de Agustín
     }
 
     # Log para verificar que los datos están completos
