@@ -91,6 +91,7 @@ def process_zip_file(value, **kwargs):
                         folder_structure[directory] = []
                     folder_structure[directory].append(file_name)
 
+                    print(f"{file_name}: NOMBRE")
                     if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
                         encoded_content = base64.b64encode(content).decode('utf-8')
                         videos.append({'file_name': file_name, 'content': encoded_content, 'directory': directory})
@@ -107,8 +108,8 @@ def process_zip_file(value, **kwargs):
                     else:
                         otros.append({'file_name': file_name, 'content': content, 'directory': directory})
 
-                    print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
 
+                print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
                 if algorithm_id:
                     # Aquí tomas decisiones basadas en el valor de algorithmId
                     if algorithm_id == 'Video':
