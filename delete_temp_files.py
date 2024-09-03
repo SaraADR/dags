@@ -25,7 +25,7 @@ def delete_old_files_from_minio():
     )
 
     bucket_name = 'temp'
-    expiration_time = datetime.utcnow() - timedelta(hours=24)
+    expiration_time = datetime.utcnow() - timedelta(minutes=1)
 
     # Listar todos los objetos en el bucket
     objects = s3_client.list_objects_v2(Bucket=bucket_name)
