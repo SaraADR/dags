@@ -7,11 +7,8 @@ import zipfile
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import BranchPythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
-from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 import tempfile
 
