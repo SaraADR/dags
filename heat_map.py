@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
@@ -7,18 +7,16 @@ import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 import os
-import requests
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 
 
+# Ruta al archivo TIFF que se va a subir a MinIO
 TIFF = './dags/repo/recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif'
 
-
-# Función principal que procesa los datos de entrada, sube el TIFF, y envía notificaciones
 def process_heatmap_data(**context):
-    # Simulación de lectura desde la tabla JOBS (input_data)
+    # Simulación de datos de entrada desde la tabla JOBS
     input_data = {
-        "temp_tiff_path": TIFF,  # Ruta al TIFF 
+        "temp_tiff_path": TIFF,
         "dir_output": "/home/airflow/workspace/output",
         "ar_incendios": "historical_fires.csv",
         "url_search_fire": "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection",
@@ -27,12 +25,13 @@ def process_heatmap_data(**context):
         "password": "contraseña"
     }
 
-    # Log para verificar que los datos están completos
+    # Log para verificar que los datos de entrada son correctos
     print("Datos completos de entrada para heatmap-incendio:")
     print(json.dumps(input_data, indent=4))
 
     # Subir el archivo TIFF a MinIO
     try:
+        # Conexión a MinIO utilizando las credenciales almacenadas en Airflow
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
@@ -43,30 +42,35 @@ def process_heatmap_data(**context):
             config=Config(signature_version='s3v4')
         )
 
+        # Generar un nombre único (uuid) para el archivo en MinIO
         bucket_name = 'temp'
         tiff_key = f"{uuid.uuid4()}.tiff"
 
+        # Subir el archivo TIFF al bucket de MinIO
         s3_client.upload_file(input_data['temp_tiff_path'], bucket_name, tiff_key)
         tiff_url = f"{extra['endpoint_url']}/{bucket_name}/{tiff_key}"
         print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
         
+        #Excepción si hay un error al subir a minio el archivo tiff
     except Exception as e:
         print(f"Error al subir el TIFF a MinIO: {str(e)}")
         return
     
-    
     # Preparar la notificación para almacenar en la base de datos
     notification_db = {
-        "type": "job_created",
+        "type": "heat_map",
         "message": "Heatmap data processed and TIFF uploaded",
         "destination": "ignis",
         "input_data": input_data
     }
 
-    # Convertir a JSON
+    # Añadir la URL del TIFF a la notificación
+    notification_db['urlTiff'] = tiff_url
+
+    # Convertir la notificación a formato JSON
     notification_json = json.dumps(notification_db)
 
-    # Insertar la notificación en la base de datos
+    # Insertar la notificación en la base de datos PostgreSQL
     try:
         connection = BaseHook.get_connection('biobd')
         pg_hook = PostgresOperator(
@@ -74,7 +78,7 @@ def process_heatmap_data(**context):
             postgres_conn_id='biobd',
             sql=f"""
             INSERT INTO public.notifications (destination, data)
-            VALUES ('ignis', '{notification_json}, {tiff_url}');
+            VALUES ('ignis', '{notification_json}');
             """
         )
         pg_hook.execute(context)
@@ -82,7 +86,6 @@ def process_heatmap_data(**context):
         
     except Exception as e:
         print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
-
 
 # Configuración del DAG
 default_args = {
@@ -95,6 +98,7 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
+# Definición del DAG
 dag = DAG(
     'heatmap_incendio_process',
     default_args=default_args,
@@ -103,6 +107,7 @@ dag = DAG(
     catchup=False
 )
 
+# Definición de la tarea principal
 process_heatmap_task = PythonOperator(
     task_id='process_heatmap_data',
     python_callable=process_heatmap_data,
@@ -110,5 +115,5 @@ process_heatmap_task = PythonOperator(
     dag=dag,
 )
 
-# Flujo de tareas
+# Ejecución de la tarea en el DAG
 process_heatmap_task
