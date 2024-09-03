@@ -20,6 +20,11 @@ def consumer_function(message, prefix, **kwargs):
 
     if message is not None:
         nombre_fichero = message.key()
+
+        if nombre_fichero is None:
+            print("El nombre del fichero es None, no se puede procesar")
+            return 'no_message_task'
+        
         print(f"archivo: {nombre_fichero}")
         file_extension = os.path.splitext(nombre_fichero.decode('utf-8'))[1].strip().lower().replace("'", "")
         print(f"Extensión del archivo: {file_extension}")
