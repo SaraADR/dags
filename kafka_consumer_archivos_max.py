@@ -96,9 +96,9 @@ def process_zip_file(value, **kwargs):
 
                     if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
                         encoded_content = base64.b64encode(content).decode('utf-8')
-                        videos.append({'file_name': file_name, 'content': encoded_content, 'directory': directory})
+                        videos.append({'file_name': file_name, 'content': encoded_content})
                     elif file_name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
-                        images.append({'file_name': file_name, 'content': content, 'directory': directory})
+                        images.append({'file_name': file_name, 'content': content})
                     elif os.path.basename(file_name).lower() == 'algorithm_result.json':
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
@@ -110,7 +110,7 @@ def process_zip_file(value, **kwargs):
                         print(f"algorithmId en {file_name}: {algorithm_id}")
                     else:
                         encoded_content = base64.b64encode(content).decode('utf-8')
-                        otros.append({'file_name': file_name, 'content': encoded_content, 'directory': directory})
+                        otros.append({'file_name': file_name, 'content': encoded_content})
 
 
                 print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
