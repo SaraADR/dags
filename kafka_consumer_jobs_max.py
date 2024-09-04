@@ -30,35 +30,28 @@ def process_message(msg_value, kwargs):
             print(msg_json)
             unique_run_id = f"manual__{datetime.utcnow().isoformat()}"
 
-            if msg_json.get('job') == 'automaps':
-                trigger = TriggerDagRunOperator(
-                    task_id='trigger_automaps_handler_inner',
-                    trigger_dag_id='algorithm_automaps',
-                    conf={'message': msg_json}, 
-                    execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                    dag=dag,
-                )
-            elif msg_json.get('job') == 'heatmap-incendios':
-                trigger = TriggerDagRunOperator(
-                task_id='process_heatmap_data',
-                trigger_dag_id='heatmap_incendio_process',
-                conf={'message': msg_json}, 
-                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                dag=dag
-            )
-            elif msg_json.get('job') == 'create_fire':
-                trigger = TriggerDagRunOperator(
-                task_id='trigger_fire_handler_inner',
-                trigger_dag_id='create_fire',
-                conf={'message': msg_json}, 
-                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                dag=dag
-            )  
-            else:
-                print(f"Unrecognized job type: {msg_json.get('job')}")
-                raise AirflowSkipException(f"Unrecognized job type: {msg_json.get('job')}")
+            job = msg_json.get('job')
+            conf = {'message': msg_json}
             
-            trigger.execute(context=kwargs)
+            if job == 'automaps':
+                dag_to_trigger = 'algorithm_automaps'
+            elif job == 'heatmap-incendios':
+                dag_to_trigger = 'heatmap_incendio_process'
+            elif job == 'create_fire':
+                dag_to_trigger = 'create_fire'
+            else:
+                print(f"Unrecognized job type: {job}")
+                raise AirflowSkipException(f"Unrecognized job type: {job}")
+
+            trigger_dag_run = TriggerDagRunOperator(
+                task_id=f'trigger_{job}_handler',
+                trigger_dag_id=dag_to_trigger,
+                conf=conf,
+                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                dag=kwargs['dag']
+            )
+            trigger_dag_run.execute(kwargs)
+
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:
