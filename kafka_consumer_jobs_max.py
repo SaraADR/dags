@@ -16,14 +16,15 @@ def consumer_function(message, prefix, **kwargs):
         print(f"{msg_value}")
         
         if msg_value:
-            process_message(msg_value, kwargs)
+            return msg_value
         else:
             print("Empty message received")      
             return None  
     
 
 
-def process_message(msg_value, kwargs):
+def trigger_dag_run(msg_value, **kwargs):
+    msg_value = kwargs['ti'].xcom_pull(task_ids='consume_from_topic')
     if msg_value is not None and msg_value != 'null':
         try:
             msg_json = json.loads(msg_value)
@@ -81,6 +82,14 @@ dag = DAG(
     
 )
 
+trigger_dag_task = PythonOperator(
+    task_id='trigger_dag_run',
+    python_callable=trigger_dag_run,
+    provide_context=True,
+    dag=dag,
+)
+
+
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic",
@@ -93,4 +102,4 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag
 )
 
-consume_from_topic 
+consume_from_topic >> trigger_dag_task
