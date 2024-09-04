@@ -55,7 +55,7 @@ def trigger_email_handler(**kwargs):
             
             if msg_json.get('job') == 'heatmap-incendios':
                 trigger = TriggerDagRunOperator(
-                task_id='process_heatmap_data',
+                task_id='trigger_heatmap_handler_inner',
                 trigger_dag_id='heatmap_incendio_process',
                 conf={'message': msg_json}, 
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
