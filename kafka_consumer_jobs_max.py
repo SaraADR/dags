@@ -16,7 +16,7 @@ def consumer_function(message, prefix, **kwargs):
         print(f"{msg_value}")
         
         if msg_value:
-            process_message(msg_value)
+            process_message(msg_value, **kwargs)
         else:
             print("Empty message received")      
             return None  
@@ -38,8 +38,6 @@ def process_message(msg_value, **kwargs):
                     execution_date=datetime.now().replace(tzinfo=timezone.utc),
                     dag=dag,
                 )
-                trigger.execute(context=kwargs)
-                Variable.delete("mensaje_save")
             elif msg_json.get('job') == 'heatmap-incendios':
                 trigger = TriggerDagRunOperator(
                 task_id='process_heatmap_data',
@@ -48,8 +46,6 @@ def process_message(msg_value, **kwargs):
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                 dag=dag
             )
-                trigger.execute(context=kwargs)
-                Variable.delete("mensaje_save")
             elif msg_json.get('job') == 'create_fire':
                 trigger = TriggerDagRunOperator(
                 task_id='trigger_fire_handler_inner',
@@ -59,10 +55,10 @@ def process_message(msg_value, **kwargs):
                 dag=dag
             )  
             else:
-                Variable.delete("mensaje_save")
                 print(f"Unrecognized job type: {msg_json.get('job')}")
                 raise AirflowSkipException(f"Unrecognized job type: {msg_json.get('job')}")
-
+            
+            trigger.execute(context=kwargs)
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:
