@@ -1,4 +1,3 @@
-from asyncio.log import logger
 import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -40,7 +39,7 @@ def trigger_email_handler(**kwargs):
         try:
             msg_json = json.loads(value_pulled)
             print(msg_json)
-            unique_run_id = f"manual__{datetime.utcnow().isoformat()}"     
+            unique_run_id = f"manual__{datetime.utcnow().isoformat()}"
 
             if msg_json.get('job') == 'automaps':
                 trigger = TriggerDagRunOperator(
@@ -52,8 +51,7 @@ def trigger_email_handler(**kwargs):
                 )
                 trigger.execute(context=kwargs)
                 Variable.delete("mensaje_save")
-            
-            if msg_json.get('job') == 'heatmap-incendios':
+            elif msg_json.get('job') == 'heatmap-incendios':
                 trigger = TriggerDagRunOperator(
                 task_id='process_heatmap_data',
                 trigger_dag_id='heatmap_incendio_process',
@@ -63,16 +61,14 @@ def trigger_email_handler(**kwargs):
             )
                 trigger.execute(context=kwargs)
                 Variable.delete("mensaje_save")
-
-            if msg_json.get('job') == 'create_fire':
+            elif msg_json.get('job') == 'create_fire':
                 trigger = TriggerDagRunOperator(
                 task_id='trigger_fire_handler_inner',
                 trigger_dag_id='create_fire',
                 conf={'message': msg_json}, 
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                 dag=dag
-            )
-                
+            )  
             else:
                 Variable.delete("mensaje_save")
                 print(f"Unrecognized job type: {msg_json.get('job')}")
