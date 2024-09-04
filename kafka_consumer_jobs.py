@@ -40,9 +40,7 @@ def trigger_email_handler(**kwargs):
         try:
             msg_json = json.loads(value_pulled)
             print(msg_json)
-            unique_run_id = f"manual__{datetime.utcnow().isoformat()}"
-
-        
+            unique_run_id = f"manual__{datetime.utcnow().isoformat()}"     
 
             if msg_json.get('job') == 'automaps':
                 trigger = TriggerDagRunOperator(

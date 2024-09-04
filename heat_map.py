@@ -13,17 +13,23 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 # Ruta al archivo TIFF que se va a subir a MinIO
 TIFF = './dags/repo/recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif'
 
+
 def process_heatmap_data(**context):
-    # Simulación de datos de entrada desde la tabla JOBS
-    input_data = {
-        "temp_tiff_path": TIFF,
-        "dir_output": "/home/airflow/workspace/output",
-        "ar_incendios": "historical_fires.csv",
-        "url_search_fire": "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection",
-        "url_fireperimeter_service": "https://pre.atcservices.cirpas.gal/rest/FireAlgorithm_FirePerimeterService/getByFire?id=",
-        "user": "usuario",
-        "password": "contraseña"
-    }
+
+    message = context['dag_run'].conf
+    input_data_str = message['message']['input_data']
+    from_user = message['message']['from_user']
+    input_data = json.loads(input_data_str)
+
+    
+    input_data ["temp_tiff_path"] = TIFF
+    input_data ["dir_output"] = "/home/airflow/workspace/output"
+    input_data ["ar_incendios"] = "historical_fires.csv"
+    input_data ["url_search_fire"] = "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection"
+    input_data ["url_fireperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/FireAlgorithm_FirePerimeterService/getByFire?id="
+    input_data ["user"] = "usuario"
+    input_data ["password"] = "contraseña"
+
 
     # Log para verificar que los datos de entrada son correctos
     print("Datos completos de entrada para heatmap-incendio:")
@@ -48,7 +54,7 @@ def process_heatmap_data(**context):
 
         # Subir el archivo TIFF al bucket de MinIO
         s3_client.upload_file(input_data['temp_tiff_path'], bucket_name, tiff_key)
-        tiff_url = f"{extra['endpoint_url']}/{bucket_name}/{tiff_key}"
+        tiff_url = f"{"https://minioapi.avincis.cuatrodigital.com"}/{bucket_name}/{tiff_key}"
         print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
         
         #Excepción si hay un error al subir a minio el archivo tiff
@@ -58,14 +64,13 @@ def process_heatmap_data(**context):
     
     # Preparar la notificación para almacenar en la base de datos
     notification_db = {
-        "type": "heat_map",
+        # "type": "heat_map",
         "message": "Heatmap data processed and TIFF uploaded",
-        "destination": "ignis",
-        "input_data": input_data
+        # "destination": "ignis",
+        # "input_data": input_data
+        "to": from_user,
+        'urlTiff': tiff_url
     }
-
-    # Añadir la URL del TIFF a la notificación
-    notification_db['urlTiff'] = tiff_url
 
     # Convertir la notificación a formato JSON
     notification_json = json.dumps(notification_db)
