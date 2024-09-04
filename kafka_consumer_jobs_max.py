@@ -16,16 +16,14 @@ def consumer_function(message, prefix, **kwargs):
         print(f"{msg_value}")
         
         if msg_value:
-            return msg_value
+            process_message(msg_value, kwargs)
         else:
             print("Empty message received")      
             return None  
     
 
 
-def trigger_dag_run(**kwargs):
-    msg_value = kwargs['ti'].xcom_pull(task_ids='consume_from_topic')
-    print('ejecutando trigger dag')
+def process_message(msg_value, kwargs):
     if msg_value is not None and msg_value != 'null':
         try:
             msg_json = json.loads(msg_value)
@@ -45,14 +43,16 @@ def trigger_dag_run(**kwargs):
                 print(f"Unrecognized job type: {job}")
                 raise AirflowSkipException(f"Unrecognized job type: {job}")
 
+
             trigger_dag_run = TriggerDagRunOperator(
                 task_id=f'trigger_{job}_handler',
                 trigger_dag_id=dag_to_trigger,
                 conf=conf,
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                dag=kwargs['dag']
+                dag=dag
             )
             trigger_dag_run.execute(kwargs)
+
 
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
@@ -83,14 +83,6 @@ dag = DAG(
     
 )
 
-trigger_dag_task = PythonOperator(
-    task_id='trigger_dag_run',
-    python_callable=trigger_dag_run,
-    provide_context=True,
-    dag=dag,
-)
-
-
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic",
@@ -103,4 +95,4 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag
 )
 
-consume_from_topic >> trigger_dag_task
+consume_from_topic 
