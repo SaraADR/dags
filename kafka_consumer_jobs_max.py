@@ -85,6 +85,7 @@ dag = DAG(
     description='DAG que consume mensajes de la tabla de jobs',
     schedule_interval='*/1 * * * *',
     catchup=False
+    
 )
 
 consume_from_topic = ConsumeFromTopicOperator(
@@ -97,6 +98,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     max_messages=1,
     max_batch_size=1,
     dag=dag,
+    provide_context=True
 )
 
 consume_from_topic 
