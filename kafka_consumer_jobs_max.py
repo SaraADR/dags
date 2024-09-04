@@ -16,15 +16,14 @@ def consumer_function(message, prefix, **kwargs):
         print(f"{msg_value}")
         
         if msg_value:
-            kwargs['ti'].xcom_push(key='msg_value', value=msg_value)
+            process_message(msg_value)
         else:
             print("Empty message received")      
             return None  
     
 
 
-def process_message(**kwargs):
-    msg_value = kwargs['ti'].xcom_pull(task_ids='consume_from_topic', key='msg_value')
+def process_message(msg_value, **kwargs):
     if msg_value is not None and msg_value != 'null':
         try:
             msg_json = json.loads(msg_value)
@@ -52,11 +51,11 @@ def process_message(**kwargs):
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                 dag=dag
             )
-            trigger_dag_run.execute()
+            trigger_dag_run.execute(context=kwargs)
 
+        except Exception as e:
+            print(f"Error Error Error: {e}")
 
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON: {e}")
     else:
         print("No message pulled from XCom")
         Variable.delete("mensaje_save")
@@ -96,10 +95,4 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag
 )
 
-process_message_task = PythonOperator(
-    task_id='process_message',
-    python_callable=process_message,
-    provide_context=True,
-    dag=dag,
-)
-consume_from_topic >> process_message_task
+consume_from_topic 
