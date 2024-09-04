@@ -60,9 +60,11 @@ def trigger_email_handler(**kwargs):
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                 dag=dag
             )
-            if trigger:  
-               trigger.execute(context=kwargs)
-               Variable.delete("mensaje_save")
+            else:
+                Variable.delete("mensaje_save")
+                print(f"Unrecognized job type: {msg_json.get('job')}")
+                raise AirflowSkipException(f"Unrecognized job type: {msg_json.get('job')}")
+
             
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
