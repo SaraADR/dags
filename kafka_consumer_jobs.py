@@ -52,15 +52,6 @@ def trigger_email_handler(**kwargs):
                 trigger.execute(context=kwargs)
                 Variable.delete("mensaje_save")
             
-            if msg_json.get('job') == 'create_fire':
-                trigger = TriggerDagRunOperator(
-                task_id='trigger_fire_handler_inner',
-                trigger_dag_id='create_fire',
-                conf={'message': msg_json}, 
-                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                dag=dag
-            )
-                
             if msg_json.get('job') == 'heatmap-incendios':
                 trigger = TriggerDagRunOperator(
                 task_id='process_heatmap_data',
@@ -70,10 +61,20 @@ def trigger_email_handler(**kwargs):
                 dag=dag
             )
 
+            if msg_json.get('job') == 'create_fire':
+                trigger = TriggerDagRunOperator(
+                task_id='trigger_fire_handler_inner',
+                trigger_dag_id='create_fire',
+                conf={'message': msg_json}, 
+                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                dag=dag
+            )
+                
+            else:
+                Variable.delete("mensaje_save")
+                print(f"Unrecognized job type: {msg_json.get('job')}")
+                raise AirflowSkipException(f"Unrecognized job type: {msg_json.get('job')}")
 
-            trigger.execute(context=kwargs)
-            Variable.delete("mensaje_save")
-            
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
     else:

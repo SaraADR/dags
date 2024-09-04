@@ -7,11 +7,8 @@ import zipfile
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import BranchPythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
-from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 import tempfile
 
@@ -23,6 +20,11 @@ def consumer_function(message, prefix, **kwargs):
 
     if message is not None:
         nombre_fichero = message.key()
+
+        if nombre_fichero is None:
+            print("El nombre del fichero es None, no se puede procesar")
+            return 'no_message_task'
+        
         print(f"archivo: {nombre_fichero}")
         file_extension = os.path.splitext(nombre_fichero.decode('utf-8'))[1].strip().lower().replace("'", "")
         print(f"Extensión del archivo: {file_extension}")
@@ -78,6 +80,9 @@ def process_zip_file(value, **kwargs):
                 algorithm_id = None
 
                 for file_name in file_list:
+                    if file_name.endswith('/'):
+                        continue
+
                     with zip_file.open(file_name) as file:
                         content = file.read()
                         print(f"Contenido del archivo {file_name}: {content[:10]}...")  
@@ -91,21 +96,27 @@ def process_zip_file(value, **kwargs):
 
                     if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
                         encoded_content = base64.b64encode(content).decode('utf-8')
-                        videos.append({'file_name': file_name, 'content': encoded_content, 'directory': directory})
+                        videos.append({'file_name': file_name, 'content': encoded_content})
                     elif file_name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
-                        images.append({'file_name': file_name, 'content': content, 'directory': directory})
-                    elif file_name.lower() == 'algorithm_result.json':
+                        images.append({'file_name': file_name, 'content': content})
+                    elif os.path.basename(file_name).lower() == 'algorithm_result.json':
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
-                        for metadata in json_content['metadata']:
-                            if metadata['name'] == 'AlgorithmID':
-                                algorithm_id = metadata['value']
-                            break
+                        json_content_metadata = json_content.get('metadata', [])
+                        for metadata in json_content_metadata:
+                            if metadata.get('name') == 'AlgorithmID':
+                                algorithm_id = metadata.get('value')
+
                         print(f"algorithmId en {file_name}: {algorithm_id}")
                     else:
-                        otros.append({'file_name': file_name, 'content': content, 'directory': directory})
+                        encoded_content = base64.b64encode(content).decode('utf-8')
+                        otros.append({'file_name': file_name, 'content': encoded_content})
 
-                    print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
+
+                print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
+                print("videos:", videos)
+                print("images:", images)
+                print("otros:", otros)
 
                 if algorithm_id:
                     # Aquí tomas decisiones basadas en el valor de algorithmId
@@ -115,12 +126,11 @@ def process_zip_file(value, **kwargs):
                             trigger = TriggerDagRunOperator(
                                 task_id='trigger_email_handler_inner',
                                 trigger_dag_id='video',
-                                conf={'videos': videos, 'images': images, 'json' : json_content, 'structure': folder_structure}, 
+                                conf={'videos': videos, 'images': images, 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 dag=dag,
                             )
                             trigger.execute(context=kwargs)
-                            print("Ejecutando lógica para Video")
                             return None
                         except zipfile.BadZipFile:
                             print(f"Error decoding Zip")
@@ -132,12 +142,11 @@ def process_zip_file(value, **kwargs):
                             trigger = TriggerDagRunOperator(
                                 task_id='trigger_email_handler_inner',
                                 trigger_dag_id='vegetacion',
-                                conf={'videos': videos, 'images': images, 'json' : json_content, 'structure': folder_structure}, 
+                                conf={'videos': videos, 'images': images, 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 dag=dag,
                             )
                             trigger.execute(context=kwargs)
-                            print("Ejecutando lógica para Video")
                             return None
                         except zipfile.BadZipFile:
                             print(f"Error decoding Zip")
@@ -218,19 +227,19 @@ dag = DAG(
     'kafka_consumer_archivos_max',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG para archivos',
-    schedule_interval='*/3 * * * *',
+    schedule_interval='*/2 * * * *',
     catchup=False
 )
 
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
-    task_id="consume_from_topic",
-    topics=["archivos"],
+    task_id="consume_from_topic_sftp",
+    topics=["sftp"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
-    max_messages=5,
-    max_batch_size=5,
+    max_messages=1,
+    max_batch_size=1,
     dag=dag,
 )
 

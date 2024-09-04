@@ -85,7 +85,7 @@ def process_element(**context, ):
             email_operator = EmailOperator(
                 task_id=f'send_email_{email.replace("@", "-")}',
                 to=email,
-                subject='Tu archivo PDF',
+                subject='Automaps ha generado un archivo ',
                 html_content='<p>Adjunto encontrarás el PDF generado.</p>',
                 files=[tmp_file_path],
                 conn_id='test_mailing',
