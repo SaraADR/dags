@@ -1,3 +1,4 @@
+from asyncio.log import logger
 import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -41,6 +42,9 @@ def trigger_email_handler(**kwargs):
             print(msg_json)
             unique_run_id = f"manual__{datetime.utcnow().isoformat()}"
 
+            job_type = msg_json.get('job')
+            logger.info(f"Job type: {job_type}")
+
             if msg_json.get('job') == 'automaps':
                 trigger = TriggerDagRunOperator(
                     task_id='trigger_automaps_handler_inner',
@@ -52,7 +56,6 @@ def trigger_email_handler(**kwargs):
                 trigger.execute(context=kwargs)
                 Variable.delete("mensaje_save")
             
-            
             if msg_json.get('job') == 'heatmap-incendios':
                 trigger = TriggerDagRunOperator(
                 task_id='process_heatmap_data',
@@ -63,7 +66,6 @@ def trigger_email_handler(**kwargs):
             )
                 trigger.execute(context=kwargs)
                 Variable.delete("mensaje_save")
-
 
             if msg_json.get('job') == 'create_fire':
                 trigger = TriggerDagRunOperator(
