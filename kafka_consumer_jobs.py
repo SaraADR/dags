@@ -60,8 +60,9 @@ def trigger_email_handler(**kwargs):
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                 dag=dag
             )
-            trigger.execute(context=kwargs)
-            Variable.delete("mensaje_save")
+            if trigger:  
+               trigger.execute(context=kwargs)
+               Variable.delete("mensaje_save")
             
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
