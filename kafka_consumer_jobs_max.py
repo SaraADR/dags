@@ -23,7 +23,7 @@ def consumer_function(message, prefix, **kwargs):
     
 
 
-def trigger_dag_run(msg_value, **kwargs):
+def trigger_dag_run(**kwargs):
     msg_value = kwargs['ti'].xcom_pull(task_ids='consume_from_topic')
     print('ejecutando trigger dag')
     if msg_value is not None and msg_value != 'null':
