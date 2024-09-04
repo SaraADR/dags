@@ -60,6 +60,17 @@ def trigger_email_handler(**kwargs):
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                 dag=dag
             )
+                
+            if msg_json.get('job') == 'heatmap-incendios':
+                trigger = TriggerDagRunOperator(
+                task_id='process_heatmap_data',
+                trigger_dag_id='heatmap_incendio_process',
+                conf={'message': msg_json}, 
+                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                dag=dag
+            )
+
+
             trigger.execute(context=kwargs)
             Variable.delete("mensaje_save")
             
