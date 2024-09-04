@@ -16,14 +16,14 @@ def consumer_function(message, prefix, **kwargs):
         print(f"{msg_value}")
         
         if msg_value:
-            process_message(msg_value, **kwargs)
+            process_message(msg_value, kwargs)
         else:
             print("Empty message received")      
             return None  
     
 
 
-def process_message(msg_value, **kwargs):
+def process_message(msg_value, kwargs):
     if msg_value is not None and msg_value != 'null':
         try:
             msg_json = json.loads(msg_value)
