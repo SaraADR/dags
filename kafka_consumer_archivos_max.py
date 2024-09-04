@@ -132,8 +132,8 @@ def process_zip_file(value, **kwargs):
                             )
                             trigger.execute(context=kwargs)
                             return None
-                        except zipfile.BadZipFile:
-                            print(f"Error decoding Zip")
+                        except Exception as e:
+                            print(f"Task instance incorrecto: {e}")
 
 
                     elif algorithm_id == 'Vegetacion':
@@ -148,8 +148,8 @@ def process_zip_file(value, **kwargs):
                             )
                             trigger.execute(context=kwargs)
                             return None
-                        except zipfile.BadZipFile:
-                            print(f"Error decoding Zip")
+                        except Exception as e:
+                            print(f"Task instance incorrecto: {e}")
 
                     # Agrega más condiciones según sea necesario
 

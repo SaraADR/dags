@@ -54,7 +54,7 @@ def process_message(msg_value, **kwargs):
             trigger_dag_run.execute(context=kwargs)
 
         except Exception as e:
-            print(f"Error Error Error: {e}")
+            print(f"Task instance incorrecto: {e}")
 
     else:
         print("No message pulled from XCom")
