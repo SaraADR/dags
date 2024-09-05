@@ -8,7 +8,8 @@ from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 import os
 from airflow.providers.postgres.operators.postgres import PostgresOperator
-
+import codecs
+import re
 
 # Ruta al archivo TIFF que se va a subir a MinIO
 TIFF = './dags/repo/recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif'
@@ -18,7 +19,7 @@ def process_heatmap_data(**context):
 
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-    from_user = str(message['message']['from_user']).encode('utf-8').decode('unicode_escape')
+    from_user = str(message['message']['from_user']).decode('unicode_escape').encode('utf-8')
     input_data = json.loads(input_data_str)
 
     
@@ -83,7 +84,7 @@ def process_heatmap_data(**context):
             postgres_conn_id='biobd',
             sql=f"""
             INSERT INTO public.notifications (destination, data)
-            VALUES ('ignis', '{notification_json}');
+            VALUES ('ignis', '{notification_json.replace("'", "''")}');
             """
         )
         pg_hook.execute(context)
