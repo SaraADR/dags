@@ -153,8 +153,8 @@ def process_zip_file(value, **kwargs):
                     raise AirflowSkipException("El archivo no contiene un algoritmo controlado")
 
                        
-    except zipfile.BadZipFile:
-        print("El archivo no es un ZIP válido")
+    except zipfile.BadZipFile as e:
+        print(f"El archivo no es un ZIP válido {e}")
         raise AirflowSkipException("El archivo no es un ZIP válido")
 
 
