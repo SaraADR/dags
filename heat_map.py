@@ -71,7 +71,7 @@ def process_heatmap_data(**context):
         "message": "Heatmap data processed and TIFF uploaded",
         # "destination": "ignis",
         # "input_data": input_data
-        "to": "Francisco José Blanco Garza",
+        "to": from_user,
         'urlTiff': tiff_url
     }
 
