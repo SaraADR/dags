@@ -30,16 +30,12 @@ def process_element(**context):
     print(f"Todo {input_data['input']}")   
     location = input_data['input']['location']
     print(f"Location: {location}")
-    perimeter = input_data['input']['perimeter']
-    print(f"Perimeter: {perimeter}")
+    if input_data['input']['perimeter'] is not None:
+        perimeter = input_data['input']['perimeter']
+        print(f"Perimeter: {perimeter}")
     emails = input_data['emails']
     print(f"Emails: {emails}")    
 
-    # Imprime las propiedades
-    print(f"--------------------")    
-    print(f"Location: {location}")
-    print(f"Perimeter: {perimeter}")
-    print(f"Emails: {emails}")    
 
     text = f"La localización es la siguiente: {location}"
     pdf_buffer = generate_pdf_in_memory(text)
