@@ -15,19 +15,18 @@ import tempfile
 
 
 def consumer_function(message, prefix, **kwargs):
-    print("Esto es el mensaje")
-    print(f"{message}")
+
+    print(f"Mensaje: {message}")
 
     if message is not None:
         nombre_fichero = message.key()
 
         if nombre_fichero is None:
-            print("El nombre del fichero es None, no se puede procesar")
+            print("El nombre del fichero es erroneo, no se puede procesar")
             return 'no_message_task'
         
-        print(f"archivo: {nombre_fichero}")
         file_extension = os.path.splitext(nombre_fichero.decode('utf-8'))[1].strip().lower().replace("'", "")
-        print(f"Extensión del archivo: {file_extension}")
+        print(f"archivo: {nombre_fichero}, Extensión del archivo: {file_extension}")
         
         if file_extension == '.zip':
             process_zip_file(message.value())
@@ -52,10 +51,7 @@ def consumer_function(message, prefix, **kwargs):
 def process_zip_file(value, **kwargs):
     try:
         value_pulled = value
-        print("Processing ZIP file")
-
-        first_40_values = value_pulled[:20]
-        print("First 20 values:", first_40_values)
+        print("Procesando ZIP")
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_unzip_path = os.path.join(temp_dir, 'unzip')
@@ -85,14 +81,15 @@ def process_zip_file(value, **kwargs):
 
                     with zip_file.open(file_name) as file:
                         content = file.read()
-                        print(f"Contenido del archivo {file_name}: {content[:10]}...")  
-
 
                     # Determinar la carpeta a la que pertenece el archivo
                     directory = os.path.dirname(file_name)
                     if directory not in folder_structure:
                         folder_structure[directory] = []
                     folder_structure[directory].append(file_name)
+
+
+        # ¿ES NECESARIO TENER TODOS LOS TIPOS O CON PASAR A BASE64 Y QUITARLO A LA VUELTA NOS VALE?
 
                     if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
                         encoded_content = base64.b64encode(content).decode('utf-8')
@@ -106,7 +103,6 @@ def process_zip_file(value, **kwargs):
                         for metadata in json_content_metadata:
                             if metadata.get('name') == 'AlgorithmID':
                                 algorithm_id = metadata.get('value')
-
                         print(f"algorithmId en {file_name}: {algorithm_id}")
                     else:
                         encoded_content = base64.b64encode(content).decode('utf-8')
@@ -121,53 +117,41 @@ def process_zip_file(value, **kwargs):
                 if algorithm_id:
                     # Aquí tomas decisiones basadas en el valor de algorithmId
                     if algorithm_id == 'PowerLineVideoAnalisysRGB':
+                        trigger_dag_name = 'video'
                         print("Ejecutando lógica para Video")
-                        try:
-                            trigger = TriggerDagRunOperator(
-                                task_id='trigger_email_handler_inner',
-                                trigger_dag_id='video',
-                                conf={'videos': videos, 'images': images, 'json' : json_content, 'otros' : otros}, 
-                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                                dag=dag,
-                            )
-                            trigger.execute(context=kwargs)
-                            return None
-                        except Exception as e:
-                            print(f"Task instance incorrecto: {e}")
-
-
-                    elif algorithm_id == 'Vegetacion':
+                    elif algorithm_id == 'PowerLineCloudAnalisys':   
+                        trigger_dag_name = 'vegetacion'
                         print("Ejecutando lógica para vegetacion")
+                    elif videos and images is not None: 
+                        try:
+                            print(f"va a seguir el ciclo de detección de elementos")
+                            trigger = TriggerDagRunOperator(
+                                task_id='trigger_email_handler_inner',
+                                trigger_dag_id='save_documents_to_minio',
+                                conf={'message': value_pulled, 'structure': folder_structure}, 
+                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                                dag=dag,
+                            )
+                            trigger.execute(context=kwargs)
+                        except Exception as e:
+                            print(f"Task instance incorrecto: {e}")
+
+                    if trigger_dag_name is not None:
                         try:
                             trigger = TriggerDagRunOperator(
                                 task_id='trigger_email_handler_inner',
-                                trigger_dag_id='vegetacion',
+                                trigger_dag_id=trigger_dag_name,
                                 conf={'videos': videos, 'images': images, 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 dag=dag,
                             )
                             trigger.execute(context=kwargs)
-                            return None
                         except Exception as e:
                             print(f"Task instance incorrecto: {e}")
 
-                    # Agrega más condiciones según sea necesario
+                else:
+                    raise AirflowSkipException("El archivo no contiene un algoritmo controlado")
 
-                elif videos and images is not None:
-                    try:
-                        print(f"va a seguir el ciclo de detección de elementos")
-                        trigger = TriggerDagRunOperator(
-                            task_id='trigger_email_handler_inner',
-                            trigger_dag_id='save_documents_to_minio',
-                            conf={'message': value_pulled, 'structure': folder_structure}, 
-                            execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                            dag=dag,
-                        )
-                        trigger.execute(context=kwargs)
-                    except zipfile.BadZipFile:
-                        print(f"Error decoding Zip")
-                elif videos and images is None:
-                    print(f"No va a seguir ningun ciclo")
                        
     except zipfile.BadZipFile:
         print("El archivo no es un ZIP válido")
