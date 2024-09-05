@@ -18,7 +18,7 @@ def process_heatmap_data(**context):
 
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-    from_user = (message['message']['from_user']).decode('unicode_escape').encode('utf-8')
+    from_user = (message['message']['from_user'])
     input_data = json.loads(input_data_str)
 
     
@@ -68,7 +68,7 @@ def process_heatmap_data(**context):
         "message": "Heatmap data processed and TIFF uploaded",
         # "destination": "ignis",
         # "input_data": input_data
-        "to": from_user,
+        "to": "Francisco José Blanco Garza",
         'urlTiff': tiff_url
     }
 
