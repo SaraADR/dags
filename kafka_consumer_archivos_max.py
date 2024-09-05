@@ -21,6 +21,7 @@ def consumer_function(message, prefix, **kwargs):
     if message is not None:
         nombre_fichero = message.key()
 
+
         if nombre_fichero is None:
             print("El nombre del fichero es erroneo, no se puede procesar")
             return 'no_message_task'
@@ -52,6 +53,7 @@ def process_zip_file(value, **kwargs):
     try:
         value_pulled = value
         print("Procesando ZIP")
+        print(f"Tipo de value_pulled: {type(value_pulled)}")
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_unzip_path = os.path.join(temp_dir, 'unzip')
@@ -156,7 +158,9 @@ def process_zip_file(value, **kwargs):
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido {e}")
         raise AirflowSkipException("El archivo no es un ZIP válido")
-
+    except Exception as e:
+        print(f"Error general: {e}")
+        raise
 
 def process_json_file(value, **kwargs):
     try:
