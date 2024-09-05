@@ -9,7 +9,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowSkipException,AirflowTaskTerminated
 import tempfile
 
 
@@ -152,7 +152,7 @@ def process_zip_file(value, **kwargs):
                             print(f"Task instance incorrecto: {e}")
 
                 else:
-                    raise AirflowSkipException("El archivo no contiene un algoritmo controlado")
+                    raise AirflowTaskTerminated("El archivo no contiene un algoritmo controlado")
 
                        
     except zipfile.BadZipFile as e:
