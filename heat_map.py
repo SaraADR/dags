@@ -18,7 +18,7 @@ def process_heatmap_data(**context):
 
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-    from_user = (message['message']['from_user'])
+    from_user = str(message['message']['from_user']).encode('utf-8')
     input_data = json.loads(input_data_str)
 
     
