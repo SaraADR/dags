@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-import ast
 import json
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -13,15 +12,15 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
 import os
-import zipfile
-import ast
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 from airflow.operators.email import EmailOperator
+from sqlalchemy import create_engine, Table, MetaData
+from airflow.hooks.base import BaseHook
+from sqlalchemy.orm import sessionmaker
 
-
-def process_element(**context, ):
+def process_element(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
     menssage_str = message['message']
@@ -99,8 +98,42 @@ def process_element(**context, ):
         os.remove(tmp_file_path)
 
 
+    
+
+def change_state_job(**context):
+    message = context['dag_run'].conf
+    job_id = message['message']['id']
+    print(f"jobid {job_id}" )
+
+    try:
+   
+        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        
+       
+
+        # Update job status to 'FINISHED'
+        metadata = MetaData(bind=engine)
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to FINISHED")
+
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante el guardado del estado del job: {str(e)}")
+
+ 
 
 
+
+#Metodo auxiliar que genera un pdf en memoria (luego conectara con el docker)
 def generate_pdf_in_memory(text):
     """Genera un PDF en memoria con el texto proporcionado."""
     pdf_buffer = io.BytesIO()
@@ -142,5 +175,12 @@ process_element_task = PythonOperator(
     dag=dag,
 )
 
+#Cambia estado de job
+change_state_task = PythonOperator(
+    task_id='change_state_job',
+    python_callable=change_state_job,
+    provide_context=True,
+    dag=dag,
+)
 
-process_element_task
+process_element_task >> change_state_task
