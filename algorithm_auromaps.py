@@ -30,7 +30,7 @@ def process_element(**context):
     print(f"Todo {input_data['input']}")   
     location = input_data['input']['location']
     print(f"Location: {location}")
-    if input_data['input']['perimeter'] is not None:
+    if 'perimeter' in input_data['input'] and input_data['input']['perimeter'] is not None:
         perimeter = input_data['input']['perimeter']
         print(f"Perimeter: {perimeter}")
     emails = input_data['emails']
