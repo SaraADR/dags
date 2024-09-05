@@ -19,7 +19,7 @@ def process_heatmap_data(**context):
 
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-    from_user = str(message['message']['from_user']).encode('utf-8').decode('unicode_escape')
+    from_user = str(message['message']['from_user']).encode('utf-8')
     input_data = json.loads(input_data_str)
 
     
@@ -71,12 +71,12 @@ def process_heatmap_data(**context):
         "message": "Heatmap data processed and TIFF uploaded",
         # "destination": "ignis",
         # "input_data": input_data
-        "to": from_user,
+        "to": "Francisco José Blanco Garza",
         'urlTiff': tiff_url
     }
 
     # Convertir la notificación a formato JSON
-    notification_json = json.dumps(notification_db)
+    notification_json = json.dumps(notification_db, ensure_ascii=False)
 
     # Insertar la notificación en la base de datos PostgreSQL
     try:
