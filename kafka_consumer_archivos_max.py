@@ -120,7 +120,7 @@ def process_zip_file(value, **kwargs):
 
                 if algorithm_id:
                     # Aquí tomas decisiones basadas en el valor de algorithmId
-                    if algorithm_id == 'Video':
+                    if algorithm_id == 'PowerLineVideoAnalisysRGB':
                         print("Ejecutando lógica para Video")
                         try:
                             trigger = TriggerDagRunOperator(
