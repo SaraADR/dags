@@ -19,7 +19,7 @@ def process_heatmap_data(**context):
 
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-    from_user = str(message['message']['from_user']).decode('unicode_escape').encode('utf-8')
+    from_user = str(message['message']['from_user']).encode('utf-8')
     input_data = json.loads(input_data_str)
 
     
@@ -35,6 +35,8 @@ def process_heatmap_data(**context):
     # Log para verificar que los datos de entrada son correctos
     print("Datos completos de entrada para heatmap-incendio:")
     print(json.dumps(input_data, indent=4))
+
+
 
     # Subir el archivo TIFF a MinIO
     try:
@@ -74,7 +76,7 @@ def process_heatmap_data(**context):
     }
 
     # Convertir la notificación a formato JSON
-    notification_json = json.dumps(notification_db)
+    notification_json = json.dumps(notification_db, ensure_ascii=False)
 
     # Insertar la notificación en la base de datos PostgreSQL
     try:
@@ -84,7 +86,7 @@ def process_heatmap_data(**context):
             postgres_conn_id='biobd',
             sql=f"""
             INSERT INTO public.notifications (destination, data)
-            VALUES ('ignis', '{notification_json.replace("'", "''")}');
+            VALUES ('ignis', '{notification_json}');
             """
         )
         pg_hook.execute(context)
