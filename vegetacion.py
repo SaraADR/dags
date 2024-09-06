@@ -18,7 +18,7 @@ def process_extracted_files(**kwargs):
     imagen = kwargs['dag_run'].conf.get('imagen', [])
     otros = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
-    folder_structure = kwargs['dag_run'].conf.get('structure', {})
+
     
     if not json_content:
         print("Ha habido un error con el traspaso de los documentos")
@@ -34,7 +34,8 @@ def process_extracted_files(**kwargs):
             break
 
     print(f"MissionID: {id_mission}")
-    print(f"folder_structure: {folder_structure}")
+
+    print(f"otros: {otros}")
     
     try:
         db_conn = BaseHook.get_connection('biobd')
