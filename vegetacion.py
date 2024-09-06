@@ -47,7 +47,7 @@ def process_extracted_files(**kwargs):
         
         match = re.match(r'resources/(cloud[^/]+)/', file_name)
         if match:
-            folder_name = match.group(1)  # 'cloud-20220723123021-col', 'cloudCut-20220723123021-1-col', etc.
+            folder_name = match.group(1) 
             grouped_files[folder_name].append(file_info)
 
     # Mostramos los archivos agrupados por carpetas
@@ -55,17 +55,6 @@ def process_extracted_files(**kwargs):
         print(f"Carpeta: {folder}")
         for file_info in files:
             print(f"  Archivo: {file_info['file_name']}")
-
-    # Aquí podrías procesar los archivos según la carpeta
-    # Ejemplo: realizar diferentes acciones dependiendo de la carpeta
-    for folder, files in grouped_files.items():
-        if "cloudCut" in folder:
-            print(f"Procesando archivos de {folder} para análisis de corte...")
-            # Lógica específica para cloudCut
-        else:
-            print(f"Procesando archivos de {folder} para análisis general...")
-            # Lógica específica para cloud
-
 
 
     try:
@@ -95,6 +84,17 @@ def process_extracted_files(**kwargs):
         
     print(f"row: {row}")
 
+    # procesamos los archivos según la carpeta
+
+    for folder, files in grouped_files.items():
+        if "cloudCut" in folder:
+            print(f"Procesando archivos de {folder} para análisis de corte...")
+            print(files)
+            # Lógica específica para cloudCut
+        else:
+            print(f"Procesando archivos de {folder} para análisis general...")
+            print(files)
+            # Lógica específica para cloud
 
 
 default_args = {
