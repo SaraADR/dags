@@ -94,7 +94,7 @@ def process_extracted_files(**kwargs):
                     childanduuid.append('child', unique_id_child)
                 else:
                     childanduuid.append('parent', unique_id_child)
-                    
+
                 connection = BaseHook.get_connection('minio_conn')
                 extra = json.loads(connection.extra)
                 s3_client = boto3.client(
@@ -122,6 +122,7 @@ def process_extracted_files(**kwargs):
 
 
 
+    print(childanduuid)
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
