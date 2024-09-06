@@ -114,7 +114,7 @@ def process_extracted_files(**kwargs):
                         Key=actual_child_key,
                         Body=io.BytesIO(content_bytes),
                     )
-                    print(f'{file_name} subido correctamente a MinIO.')
+                    print(f'{os.path.basename(file['file_name'])} subido correctamente a MinIO.')
 
             except Exception as e:
                 print(f"Error al insertar en minio: {str(e)}")
@@ -147,7 +147,7 @@ def process_extracted_files(**kwargs):
                         Key=actual_key,
                         Body=io.BytesIO(content_bytes),
                     )
-                    print(f'{file_name} subido correctamente a MinIO.')
+                    print(f'{os.path.basename(file['file_name'])} subido correctamente a MinIO.')
 
             except Exception as e:
                 print(f"Error al insertar en minio: {str(e)}")
