@@ -91,9 +91,9 @@ def process_extracted_files(**kwargs):
                 
                 unique_id_child = str(uuid.uuid4())
                 if "cloudCut" in folder:
-                    childanduuid.append('child', unique_id_child)
+                      childanduuid.append(['child', unique_id_child])
                 else:
-                    childanduuid.append('parent', unique_id_child)
+                      childanduuid.append(['parent', unique_id_child])
 
                 connection = BaseHook.get_connection('minio_conn')
                 extra = json.loads(connection.extra)
