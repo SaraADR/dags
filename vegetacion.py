@@ -88,13 +88,67 @@ def process_extracted_files(**kwargs):
 
     for folder, files in grouped_files.items():
         if "cloudCut" in folder:
+            #Subimos los hijos
             print(f"Procesando archivos de {folder} para análisis de corte...")
-            print(files)
-            # Lógica específica para cloudCut
+
+            try:
+                
+                unique_id_child = str(uuid.uuid4())
+                connection = BaseHook.get_connection('minio_conn')
+                extra = json.loads(connection.extra)
+                s3_client = boto3.client(
+                    's3',
+                    endpoint_url=extra['endpoint_url'],
+                    aws_access_key_id=extra['aws_access_key_id'],
+                    aws_secret_access_key=extra['aws_secret_access_key'],
+                    config=Config(signature_version='s3v4')
+                )
+                bucket_name = 'avincis-test'  
+
+                for file in files:
+                    actual_child_key = str(unique_id_child) +'/' + file['file_name']
+                    # Subir el archivo a MinIO
+                    s3_client.put_object(
+                        Bucket=bucket_name,
+                        Key=actual_child_key,
+                        Body=io.BytesIO(file['content']),
+                    )
+                    print(f'{file_name} subido correctamente a MinIO.')
+
+            except Exception as e:
+                print(f"Error al insertar en minio: {str(e)}")
+
+
         else:
+            #Subimos el padre
             print(f"Procesando archivos de {folder} para análisis general...")
-            print(files)
-            # Lógica específica para cloud
+            
+            try:
+                
+                unique_id = str(uuid.uuid4())
+                connection = BaseHook.get_connection('minio_conn')
+                extra = json.loads(connection.extra)
+                s3_client = boto3.client(
+                    's3',
+                    endpoint_url=extra['endpoint_url'],
+                    aws_access_key_id=extra['aws_access_key_id'],
+                    aws_secret_access_key=extra['aws_secret_access_key'],
+                    config=Config(signature_version='s3v4')
+                )
+                bucket_name = 'avincis-test'  
+
+                for file in files:
+                    actual_key = str(unique_id) +'/' + file['file_name']
+                    # Subir el archivo a MinIO
+                    s3_client.put_object(
+                        Bucket=bucket_name,
+                        Key=actual_key,
+                        Body=io.BytesIO(file['content']),
+                    )
+                    print(f'{file_name} subido correctamente a MinIO.')
+
+            except Exception as e:
+                print(f"Error al insertar en minio: {str(e)}")
 
 
 default_args = {
