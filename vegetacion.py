@@ -95,7 +95,6 @@ def process_extracted_files(**kwargs):
 
     #Subimos el algorithm_result a la carpeta del padre
     try:
-        json_str = json.dumps(json_content).encode('utf-8')
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
@@ -152,32 +151,44 @@ def process_extracted_files(**kwargs):
     print(f"row: {row}")
     
 
-    #Subimos los datos a las tablas correspondientes
+    #Sacamos el BBOX y Subimos los datos a las tablas correspondientes
+    bbox_parent = None
+    for resource in json_content['executionResources']:
+        for data_item in resource['data']:
+            if data_item['name'] == 'BBOX':
+                bbox = data_item['value']
+                reference_system = data_item['ReferenceSystem']
+    if bbox:
+        # Construir el POLYGON usando los valores de BBOX
+        polygon_wkt = f"SRID={reference_system};POLYGON(({bbox['westBoundLongitude']} {bbox['southBoundLatitude']}, {bbox['eastBoundLongitude']} {bbox['southBoundLatitude']}, {bbox['eastBoundLongitude']} {bbox['nortBoundLatitude']}, {bbox['westBoundLongitude']} {bbox['nortBoundLatitude']}, {bbox['westBoundLongitude']} {bbox['southBoundLatitude']}))"
+        print(polygon_wkt)
 
-    try:
+        try:
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
+        
+            query = text("""
+                INSERT INTO missions.mss_inspection_vegetation_parent
+                (mission_inspection_id, resource_id, geometry)
+                VALUES(:minspectionId, :id_resource, :geometry)
+                RETURNING id;  
+                """)
+            print(f'minspectionId {mission_inspection_id} + idRecurso {parent}')
+            result = session.execute(query, {'id_resource': parent, 'minspectionId': mission_inspection_id, 'geometry': polygon_wkt})
+            inserted_id = result.fetchone()[0]
+            session.commit()
+            print(f"Registro insertado correctamente con ID: {inserted_id}")
 
-        db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
-    
-        query = text("""
-            INSERT INTO missions.mss_inspection_vegetation_parent
-            (mission_inspection_id, resource_id, geometry)
-            VALUES(:minspectionId, :id_resource, :geometry)
-            RETURNING id;  
-            """)
-        print(f'minspectionId {mission_inspection_id} + idRecurso {parent}')
-        result = session.execute(query, {'id_resource': parent, 'minspectionId': mission_inspection_id, 'geometry': 'SRID=25829;POLYGON ((603067.82 4739032.36, 603634.54 4739032.36, 603634.54 4737037.27, 603067.82 4737037.27, 603067.82 4739032.36))'})
-        inserted_id = result.fetchone()[0]
-        session.commit()
-        print(f"Registro insertado correctamente con ID: {inserted_id}")
+            print(f"mss_inspection_vegetation_parent subido correctamente")
+        except Exception as e:
+            session.rollback()
+            print(f"Error al insertar video en mss_inspection_vegetation_parent: {str(e)}")
+    else:
+        print("No se encontró BBOX en el JSON.")
 
-        print(f"mss_inspection_vegetation_parent subido correctamente")
-    except Exception as e:
-        session.rollback()
-        print(f"Error al insertar video en mss_inspection_vegetation_parent: {str(e)}")
 
 
     try:
