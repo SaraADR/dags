@@ -169,7 +169,7 @@ def process_extracted_files(**kwargs):
             RETURNING id;  
             """)
         print(f'minspectionId {mission_inspection_id} + idRecurso {parent}')
-        session.execute(query, {'id_resource': parent, 'minspectionId': mission_inspection_id, 'geometry': 'SRID=25829;POLYGON ((603067.82 4739032.36, 603634.54 4739032.36, 603634.54 4737037.27, 603067.82 4737037.27, 603067.82 4739032.36))'})
+        result = session.execute(query, {'id_resource': parent, 'minspectionId': mission_inspection_id, 'geometry': 'SRID=25829;POLYGON ((603067.82 4739032.36, 603634.54 4739032.36, 603634.54 4737037.27, 603067.82 4737037.27, 603067.82 4739032.36))'})
         inserted_id = result.fetchone()[0]
         session.commit()
         print(f"Registro insertado correctamente con ID: {inserted_id}")
