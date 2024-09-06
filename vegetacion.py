@@ -121,6 +121,7 @@ def process_extracted_files(**kwargs):
 
 
     print(childanduuid)
+    print(parent)
 
     #Buscamos el mission_inspection correspondiente a estos archivos
     try:
@@ -149,6 +150,7 @@ def process_extracted_files(**kwargs):
         print(f"Error durante la busqueda del mission_inspection: {str(e)}")
         
     print(f"row: {row}")
+    
 
     #Subimos los datos a las tablas correspondientes
 
@@ -166,6 +168,7 @@ def process_extracted_files(**kwargs):
             VALUES(:minspectionId, :id_resource, :geometry)
             RETURNING id;  
             """)
+        print(f'minspectionId {mission_inspection_id} + idRecurso {parent}')
         session.execute(query, {'id_resource': parent, 'minspectionId': mission_inspection_id, 'geometry': 'SRID=25829;POLYGON ((603067.82 4739032.36, 603634.54 4739032.36, 603634.54 4737037.27, 603067.82 4737037.27, 603067.82 4739032.36))'})
         inserted_id = result.fetchone()[0]
         session.commit()
@@ -186,7 +189,7 @@ def process_extracted_files(**kwargs):
             INSERT INTO missions.mss_inspection_vegetation_child
             ( vegetation_parent_id, resource_id, review_status_id, geometry)
             VALUES( :parentId, :id_resource, :reviewStatus, :geometry);
-            """)
+            """)      
             session.execute(query, {'parentId': inserted_id, 'id_resource': unique_id, 'reviewStatus': 2,'geometry': 'SRID=25829;POLYGON ((603067.82 4739032.36, 603634.54 4739032.36, 603634.54 4737037.27, 603067.82 4737037.27, 603067.82 4739032.36))'})
             session.commit()
             print(f"mss_inspection_vegetation_child subido correctamente")
