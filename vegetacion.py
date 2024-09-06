@@ -196,6 +196,9 @@ def process_extracted_files(**kwargs):
     except Exception as e:
         session.rollback()
         print(f"Error al insertar video en mss_inspection_vegetation_child: {str(e)}")
+    finally:
+        session.close()
+        print("Conexión a la base de datos cerrada correctamente")
 
 
 
