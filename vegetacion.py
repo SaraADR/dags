@@ -153,8 +153,8 @@ def process_extracted_files(**kwargs):
                 print(f"Error al insertar en minio: {str(e)}")
 
 
-            print(unique_id_child)
-            print(unique_id)
+        print(unique_id_child)
+        print(unique_id)
 
 default_args = {
     'owner': 'airflow',
