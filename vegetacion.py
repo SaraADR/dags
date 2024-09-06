@@ -136,14 +136,14 @@ def process_extracted_files(**kwargs):
                     config=Config(signature_version='s3v4')
                 )
                 bucket_name = 'avincis-test'  
-
+                content_bytes = base64.b64decode(file['content'])
                 for file in files:
                     actual_key = str(unique_id) +'/' + file['file_name']
                     # Subir el archivo a MinIO
                     s3_client.put_object(
                         Bucket=bucket_name,
                         Key=actual_key,
-                        Body=io.BytesIO(file['content']),
+                        Body=io.BytesIO(content_bytes),
                     )
                     print(f'{file_name} subido correctamente a MinIO.')
 
