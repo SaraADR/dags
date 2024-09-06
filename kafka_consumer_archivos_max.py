@@ -89,15 +89,12 @@ def process_zip_file(value, **kwargs):
                         folder_structure[directory] = []
                     folder_structure[directory].append(file_name)
 
+                    print(file_name)
 
         # ¿ES NECESARIO TENER TODOS LOS TIPOS O CON PASAR A BASE64 Y QUITARLO A LA VUELTA NOS VALE?
 
-                    if file_name.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv')):
-                        encoded_content = base64.b64encode(content).decode('utf-8')
-                        videos.append({'file_name': file_name, 'content': encoded_content})
-                    elif file_name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
-                        images.append({'file_name': file_name, 'content': content})
-                    elif os.path.basename(file_name).lower() == 'algorithm_result.json':
+
+                    if os.path.basename(file_name).lower() == 'algorithm_result.json' or file_name == 'algorithm_result.json':
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
                         json_content_metadata = json_content.get('metadata', [])
