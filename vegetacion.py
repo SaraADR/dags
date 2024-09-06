@@ -85,15 +85,16 @@ def process_extracted_files(**kwargs):
     print(f"row: {row}")
 
     # procesamos los archivos según la carpeta
-
+    childanduuid = []
     for folder, files in grouped_files.items():
-        if "cloudCut" in folder:
-            #Subimos los hijos
-            print(f"Procesando archivos de {folder} para análisis de corte...")
-
             try:
                 
                 unique_id_child = str(uuid.uuid4())
+                if "cloudCut" in folder:
+                    childanduuid.append('child', unique_id_child)
+                else:
+                    childanduuid.append('parent', unique_id_child)
+                    
                 connection = BaseHook.get_connection('minio_conn')
                 extra = json.loads(connection.extra)
                 s3_client = boto3.client(
@@ -120,41 +121,6 @@ def process_extracted_files(**kwargs):
                 print(f"Error al insertar en minio: {str(e)}")
 
 
-        else:
-            #Subimos el padre
-            print(f"Procesando archivos de {folder} para análisis general...")
-            
-            try:
-                
-                unique_id = str(uuid.uuid4())
-                connection = BaseHook.get_connection('minio_conn')
-                extra = json.loads(connection.extra)
-                s3_client = boto3.client(
-                    's3',
-                    endpoint_url=extra['endpoint_url'],
-                    aws_access_key_id=extra['aws_access_key_id'],
-                    aws_secret_access_key=extra['aws_secret_access_key'],
-                    config=Config(signature_version='s3v4')
-                )
-                bucket_name = 'avincis-test'  
-         
-                for file in files:
-                    content_bytes = base64.b64decode(file['content'])
-                    actual_key = str(unique_id) +'/' + os.path.basename(file['file_name']) 
-                    # Subir el archivo a MinIO
-                    s3_client.put_object(
-                        Bucket=bucket_name,
-                        Key=actual_key,
-                        Body=io.BytesIO(content_bytes),
-                    )
-                    print(f'{os.path.basename(file['file_name'])} subido correctamente a MinIO.')
-
-            except Exception as e:
-                print(f"Error al insertar en minio: {str(e)}")
-
-
-        print(unique_id_child)
-        print(unique_id)
 
 default_args = {
     'owner': 'airflow',
