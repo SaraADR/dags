@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -11,6 +12,8 @@ from airflow.hooks.base_hook import BaseHook
 import io
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
+from collections import defaultdict
+
 
 def process_extracted_files(**kwargs):
     # Obtenemos los archivos extraídos que se pasan como "conf"
@@ -35,8 +38,36 @@ def process_extracted_files(**kwargs):
 
     print(f"MissionID: {id_mission}")
 
-    print(f"otros: {otros}")
+
+    grouped_files = defaultdict(list)
     
+    # Agrupamos 'otros' por carpetas utilizando regex para extraer el prefijo de la carpeta
+    for file_info in otros:
+        file_name = file_info['file_name']
+        
+        match = re.match(r'resources/(cloud[^/]+)/', file_name)
+        if match:
+            folder_name = match.group(1)  # 'cloud-20220723123021-col', 'cloudCut-20220723123021-1-col', etc.
+            grouped_files[folder_name].append(file_info)
+
+    # Mostramos los archivos agrupados por carpetas
+    for folder, files in grouped_files.items():
+        print(f"Carpeta: {folder}")
+        for file_info in files:
+            print(f"  Archivo: {file_info['file_name']}")
+
+    # Aquí podrías procesar los archivos según la carpeta
+    # Ejemplo: realizar diferentes acciones dependiendo de la carpeta
+    for folder, files in grouped_files.items():
+        if "cloudCut" in folder:
+            print(f"Procesando archivos de {folder} para análisis de corte...")
+            # Lógica específica para cloudCut
+        else:
+            print(f"Procesando archivos de {folder} para análisis general...")
+            # Lógica específica para cloud
+
+
+
     try:
         db_conn = BaseHook.get_connection('biobd')
         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
@@ -63,136 +94,6 @@ def process_extracted_files(**kwargs):
         print(f"Error durante la busqueda del mission_inspection: {str(e)}")
         
     print(f"row: {row}")
-
-
-
-    # #Subimos el archivo JSON
-    # json_str = json.dumps(json_content).encode('utf-8')
-    # connection = BaseHook.get_connection('minio_conn')
-    # extra = json.loads(connection.extra)
-    # s3_client = boto3.client(
-    #     's3',
-    #     endpoint_url=extra['endpoint_url'],
-    #     aws_access_key_id=extra['aws_access_key_id'],
-    #     aws_secret_access_key=extra['aws_secret_access_key'],
-    #     config=Config(signature_version='s3v4')
-    # )
-
-    # bucket_name = 'missions'  
-    # uuid_key= uuid.uuid4()
-    # json_key = str(uuid_key) +'/' + 'algorithm_result.json'
-
-    # # Subir el archivo a MinIO
-    # s3_client.put_object(
-    #     Bucket=bucket_name,
-    #     Key=json_key,
-    #     Body=io.BytesIO(json_str),
-    #     ContentType='application/json'
-    # )
-    # print(f'algorithm_result.json subido correctamente a MinIO.')
-
-
-
-    # #Subimos EL PADRE a minIO
-    # for otro in otros:
-    #     otro_file_name = otro['file_name']
-    #     otro_content = otro['content']
-    #     directory = folder_structure.get(os.path.dirname(otro_file_name), "")
-    #     #if directory is parent
-
-    #     connection = BaseHook.get_connection('minio_conn')
-    #     extra = json.loads(connection.extra)
-    #     s3_client = boto3.client(
-    #         's3',
-    #         endpoint_url=extra['endpoint_url'],
-    #         aws_access_key_id=extra['aws_access_key_id'],
-    #         aws_secret_access_key=extra['aws_secret_access_key'],
-    #         config=Config(signature_version='s3v4')
-    #     )
-
-    #     bucket_name = 'missions'  
-    #     uuid_key= uuid.uuid4()
-    #     key = str(uuid_key) +'/' + otro_file_name
-
-    #     # Subir el archivo a MinIO
-    #     s3_client.put_object(
-    #         Bucket=bucket_name,
-    #         Key=key,
-    #         Body=io.BytesIO(otro_content),
-    #     )
-    #     print(f'{otro_file_name} subido correctamente a MinIO.')
-
-    # try:
-
-    #     id_resource_uuid = uuid_key
-
-    #     query = text("""
-    #     INSERT INTO missions.mss_inspection_vegetation_parent
-    #     (mission_inspection_id, resource_id, geometry)
-    #     VALUES (:mission_inspection_id, :id_resource, :geometry)
-    #     """)
-    #     session.execute(query, {'mission_inspection_id': mission_inspection_id,'id_resource': id_resource_uuid, 'geometry': '1234'})
-    #     session.commit()
-    #     print(f"Video {key} registrado en la inspección {mission_inspection_id}")
-    # except Exception as e:
-    #     session.rollback()
-    #     print(f"Error al insertar en mss_inspection_vegetation_parent: {str(e)}")
-
-    # finally:
-    #     session.close()
-    #     print("Conexión a la base de datos cerrada correctamente")
-
-  
-    #     #Subimos LOS HIJOS
-    # for otro in otros:
-    #     otro_file_name = otro['file_name']
-    #     otro_content = otro['content']
-    #     directory = folder_structure.get(os.path.dirname(otro_file_name), "")
-    #     #if directory is parent
-
-    #     connection = BaseHook.get_connection('minio_conn')
-    #     extra = json.loads(connection.extra)
-    #     s3_client = boto3.client(
-    #         's3',
-    #         endpoint_url=extra['endpoint_url'],
-    #         aws_access_key_id=extra['aws_access_key_id'],
-    #         aws_secret_access_key=extra['aws_secret_access_key'],
-    #         config=Config(signature_version='s3v4')
-    #     )
-
-    #     bucket_name = 'missions'  
-    #     uuid_key= uuid.uuid4()
-    #     key = str(uuid_key) +'/' + otro_file_name
-
-    #     # Subir el archivo a MinIO
-    #     s3_client.put_object(
-    #         Bucket=bucket_name,
-    #         Key=key,
-    #         Body=io.BytesIO(otro_content),
-    #     )
-    #     print(f'{otro_file_name} subido correctamente a MinIO.')
-
-    # try:
-
-    #     id_resource_uuid = uuid_key
-
-    #     query = text("""
-    #     INSERT INTO missions.mss_inspection_vegetation_parent
-    #     (mission_inspection_id, resource_id, geometry)
-    #     VALUES (:mission_inspection_id, :id_resource, :geometry)
-    #     """)
-    #     session.execute(query, {'mission_inspection_id': mission_inspection_id,'id_resource': id_resource_uuid, 'geometry': '1234'})
-    #     session.commit()
-    #     print(f"Video {key} registrado en la inspección {mission_inspection_id}")
-    # except Exception as e:
-    #     session.rollback()
-    #     print(f"Error al insertar en mss_inspection_vegetation_parent: {str(e)}")
-
-    # finally:
-    #     session.close()
-    #     print("Conexión a la base de datos cerrada correctamente")
-
-
 
 
 
