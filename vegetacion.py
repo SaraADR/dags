@@ -107,7 +107,7 @@ def process_extracted_files(**kwargs):
           
                 for file in files:
                     content_bytes = base64.b64decode(file['content'])
-                    actual_child_key = str(unique_id_child) +'/' + file['file_name']
+                    actual_child_key = str(unique_id_child) +'/' +  os.path.basename(file['file_name']) 
                     # Subir el archivo a MinIO
                     s3_client.put_object(
                         Bucket=bucket_name,
@@ -140,7 +140,7 @@ def process_extracted_files(**kwargs):
          
                 for file in files:
                     content_bytes = base64.b64decode(file['content'])
-                    actual_key = str(unique_id) +'/' + file['file_name']
+                    actual_key = str(unique_id) +'/' + os.path.basename(file['file_name']) 
                     # Subir el archivo a MinIO
                     s3_client.put_object(
                         Bucket=bucket_name,
@@ -152,6 +152,9 @@ def process_extracted_files(**kwargs):
             except Exception as e:
                 print(f"Error al insertar en minio: {str(e)}")
 
+
+            print(unique_id_child)
+            print(unique_id)
 
 default_args = {
     'owner': 'airflow',
