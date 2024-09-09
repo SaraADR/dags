@@ -63,7 +63,7 @@ def process_element(**context):
                 print(f"Error durante la busqueda del mission_inspection: {str(e)}")
 
 
-
+            index = 1
             for resource in resources:
                 data = resource.get('data')
 
@@ -82,7 +82,8 @@ def process_element(**context):
 
                         bucket_name = 'temp'  
                         time = datetime.now().replace(tzinfo=timezone.utc)
-                        pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + time.strftime('%Y-%m-%d %H:%M:%S %Z') + '.png'
+                        pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + index + '.png'
+                        index = index + 1
                         decoded_data = fix_base64_padding(data)
                         decoded_bytes = base64.b64decode(decoded_data)
                         print(decoded_bytes)
