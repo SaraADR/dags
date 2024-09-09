@@ -207,7 +207,7 @@ def process_extracted_files(**kwargs):
             query = text("""
             INSERT INTO missions.mss_inspection_vegetation_child
             ( vegetation_parent_id, resource_id, review_status_id, geometry)
-            VALUES( :parentId, :id_resource, :reviewStatus, :geometry);
+            VALUES( :parentId, :id_resource, :reviewStatus, :geometry) RETURNING id;;
             """)      
             result = session.execute(query, {'parentId': inserted_id, 'id_resource': unique_id, 'reviewStatus': 2,'geometry': polygon})
             new_inserted_id  = result.fetchone()[0]
