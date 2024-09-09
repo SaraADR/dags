@@ -230,21 +230,27 @@ def get_idmission(data):
     return None
 
 
-def get_bbox_for_path(data, path_to_find):
+def get_bbox_for_child(data, path_contains):
+    # Iterar sobre los recursos en executionResources
     for resource in data['executionResources']:
-        if resource['name'] == 'children':
-            if path_to_find in resource['path']:
-                for item in resource['data']:
-                    if item['name'] == 'BBOX':
-                        return item['value'] 
+        for item in resource['data']:
+            if item['name'] == 'children':
+                for child in item['value']:
+                    if path_contains in child['path']:
+                        for child_item in child['data']:
+                            if child_item['name'] == 'BBOX':
+                                return child_item['value']
     return None
 
-def get_referenceSystem_for_path(data, path_to_find):
+def get_referenceSystem_for_path(data, path_contains):
     for resource in data['executionResources']:
-        if resource['path'] == path_to_find:
-            for item in resource['data']:
-                if item['name'] == 'BBOX':
-                    return item['ReferenceSystem']
+        for item in resource['data']:
+            if item['name'] == 'children':
+                for child in item['value']:
+                    if path_contains in child['path']:
+                        for child_item in child['data']:
+                            if child_item['name'] == 'BBOX':
+                                return item['ReferenceSystem']
     return None
 
 def get_conflicts_for_path(data, path_to_find):
