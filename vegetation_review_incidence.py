@@ -65,6 +65,7 @@ def process_element(**context):
 
             for resource in resources:
                 data = resource.get('data')
+                print(data)
                 if data:
                     #Subimos a esa carpeta los nuevos elementos
                     try:
