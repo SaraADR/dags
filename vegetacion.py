@@ -187,7 +187,7 @@ def process_extracted_files(**kwargs):
 
     #Guardar los hijos dentro de mss_inspection_vegetation_child
     try:
-        for index, folder, unique_id in  enumerate(childanduuid):
+        for index, (folder, unique_id) in  enumerate(childanduuid):
             print(f"Procesando carpeta: {folder}")
             print(f"ID del Child: {unique_id}")
 
