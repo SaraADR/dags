@@ -246,12 +246,14 @@ def process_extracted_files(**kwargs):
 
                         # Extraer los datos que te interesan
                         alert_level = conflict_data.get('AlertLevel', None)
-                        center_coords = conflict_data.get('CenterCords', None)
-                        reference_system = conflict_data.get('ReferenceSystem', None)
                         detected_obj_type = conflict_data.get('DetectedObjType', None)
                         impact = conflict_data.get('Impact', None)
                         line_height = conflict_data.get('LineHeight', None)
                         distance = conflict_data.get('Distance', None)
+
+                        if conflict_item['name'] == 'CenterCords':
+                            center_coords = conflict_item['value']
+                            reference_system = conflict_item['ReferenceSystem']
 
                         if center_coords and 'lat' in center_coords and 'lon' in center_coords:
                             lat = center_coords['lat']
