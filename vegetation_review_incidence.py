@@ -83,9 +83,10 @@ def process_element(**context):
                         bucket_name = 'temp'  
                         time = datetime.now().replace(tzinfo=timezone.utc)
                         pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + time.strftime('%Y-%m-%d %H:%M:%S %Z') + '.png'
-                        decoded_bytes = base64.b64decode(data)
+                        decoded_data = fix_base64_padding(data)
+                        decoded_bytes = base64.b64decode(decoded_data)
                         print(decoded_bytes)
-                        
+
                         # Subir el archivo a MinIO
                         s3_client.put_object(
                             Bucket=bucket_name,
@@ -148,7 +149,9 @@ def process_element(**context):
      
 
 
-    
+def fix_base64_padding(data):
+    # Asegura que la longitud de la cadena sea un múltiplo de 4
+    return data + '=' * (-len(data) % 4)
 
 def change_state_job(**context):
     message = context['dag_run'].conf
