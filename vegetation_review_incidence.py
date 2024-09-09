@@ -17,31 +17,37 @@ from sqlalchemy.orm import sessionmaker
 def process_element(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-
+    
+    # Convertir la cadena de input_data en un diccionario
     input_data = json.loads(input_data_str)
-    if input_data.get('data') is not None :
-        # Verifica si conflict_id existe y no es None
-        conflict_id = input_data['resources']['data'].get('conflict_id')
+
+    # Verifica si el JSON contiene la clave "resources"
+    if 'resources' in input_data:
+        resources = input_data['resources']
+
+        # Iterar sobre la lista de recursos y acceder a los datos
+        # Acceder a conflict_id y review_status si existen
+        conflict_id = input_data.get('conflict_id')
         if conflict_id is not None:
             print(f"conflict_id: {conflict_id}")
         else:
             print("conflict_id no está presente o es None")
-
-        # Verifica si review_status existe y no es None
-        review_status = input_data['resources']['data'].get('review_status')
+        
+        review_status = input_data.get('review_status')
         if review_status is not None:
             print(f"review_status: {review_status}")
         else:
             print("review_status no está presente o es None")
 
-        # Verifica si data existe y no es None
-        data = input_data['resources']['data'].get('data')
-        if data is not None:
-            print(f"data: {data}")
-        else:
-            print("data no está presente o es None")
-    else : 
-         print("El mensaje no es correcto, no se puede realizar la subida de los datos entregados")
+        for resource in resources:
+            data = resource.get('data')
+            if data:
+                print(f"data: {data}")
+            else:
+                print("data no está presente o es None")
+           
+    else:
+        print("El mensaje no es correcto, no se puede realizar la subida de los datos entregados")
     #Buscar el child correspondiente y traernos su carpeta de recursos
     # try:
     #     connection = BaseHook.get_connection('minio_conn')
