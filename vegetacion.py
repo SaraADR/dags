@@ -241,6 +241,7 @@ def process_extracted_files(**kwargs):
             if conflicts:
                 for conflict in conflicts:
                     conflict_data = {}
+                    center_coords = None
                     for conflict_item in conflict['data']:
                         conflict_data[conflict_item['name']] = conflict_item['value']
 
@@ -253,7 +254,7 @@ def process_extracted_files(**kwargs):
 
                         if conflict_item['name'] == 'CenterCords':
                             center_coords = conflict_item['value']
-                            reference_system = conflict_item['ReferenceSystem']
+                            reference_system = conflict_item.get('ReferenceSystem', None)
 
                         if center_coords and 'lat' in center_coords and 'lon' in center_coords:
                             lat = center_coords['lat']
@@ -316,7 +317,7 @@ def get_conflicts_for_path(data, path_contains):
             for item in resource['data']:
                 if item['name'] == 'conflicts':
                     return item['value']
-    return None
+    return []
 
 
 default_args = {
