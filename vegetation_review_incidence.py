@@ -1,9 +1,7 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
 import io
 import json
 import tempfile
@@ -11,11 +9,7 @@ import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta
-import os
-import boto3
-from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
-from airflow.operators.email import EmailOperator
 from sqlalchemy import create_engine, Table, MetaData
 from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
