@@ -82,7 +82,7 @@ def fetch_from_minio(unique_id):
 
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2024, 7, 15),
     'email_on_failure': False,

@@ -25,7 +25,7 @@ def send_telegram_message():
         raise Exception(f"Error sending message: {response.text}")
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'start_date': days_ago(1),
 }
 

@@ -28,8 +28,7 @@ def process_message(msg_value, **kwargs):
         try:
             msg_json = json.loads(msg_value)
             print(msg_json)
-            unique_run_id = f"manual__{datetime.utcnow().isoformat()}"
-
+            
             job = msg_json.get('job')
             conf = {'message': msg_json}
             
@@ -39,6 +38,8 @@ def process_message(msg_value, **kwargs):
                 dag_to_trigger = 'heatmap_incendio_process'
             elif job == 'create_fire':
                 dag_to_trigger = 'create_fire'
+            elif job == 'vegetation-review-incidence':
+                dag_to_trigger = 'vegetation_review_incidence'
             else:
                 print(f"Unrecognized job type: {job}")
                 raise AirflowSkipException(f"Unrecognized job type: {job}")
@@ -65,7 +66,7 @@ def process_message(msg_value, **kwargs):
 
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2024, 7, 7),
     'email_on_failure': False,

@@ -321,7 +321,7 @@ def get_conflicts_for_path(data, path_contains):
 
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2024, 8, 8),
     'email_on_failure': False,

@@ -97,7 +97,7 @@ def process_heatmap_data(**context):
 
 # Configuración del DAG
 default_args = {
-    'owner': 'airflow',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime(2024, 9, 1),
     'email_on_failure': False,

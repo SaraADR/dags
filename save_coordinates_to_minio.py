@@ -81,7 +81,7 @@ def save_to_minio(file_path, unique_id):
     print(f'{file_name} subido correctamente a MinIO.')
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2024, 7, 15),
     'email_on_failure': False,

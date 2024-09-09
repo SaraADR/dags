@@ -41,7 +41,7 @@ def create_bucket_in_minio(bucket_name):
         raise
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2024, 7, 15),
     'email_on_failure': False,
