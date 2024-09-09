@@ -157,6 +157,7 @@ def process_extracted_files(**kwargs):
         polygon_wkt = f"SRID={reference_system};POLYGON(({bbox['westBoundLongitude']} {bbox['southBoundLatitude']}, {bbox['eastBoundLongitude']} {bbox['southBoundLatitude']}, {bbox['eastBoundLongitude']} {bbox['nortBoundLatitude']}, {bbox['westBoundLongitude']} {bbox['nortBoundLatitude']}, {bbox['westBoundLongitude']} {bbox['southBoundLatitude']}))"
         print(polygon_wkt)
 
+        #Guardamos el padre en mss_inspection_vegetation_parent
         try:
             db_conn = BaseHook.get_connection('biobd')
             connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
@@ -184,18 +185,15 @@ def process_extracted_files(**kwargs):
         print("No se encontró BBOX en el JSON.")
 
 
-
+    #Guardar los hijos dentro de mss_inspection_vegetation_child
     try:
-        for folder, unique_id in childanduuid:
+        for index, folder, unique_id in  enumerate(childanduuid):
             print(f"Procesando carpeta: {folder}")
             print(f"ID del Child: {unique_id}")
 
             bbox = get_bbox_for_child(json_content, folder)
-            print(bbox)
             reference = get_referenceSystem_for_path(json_content,folder)
-            print(reference)
             
-            print("SACANDO POLYGON")
             if bbox:
                 west = bbox['westBoundLongitude']
                 east = bbox['eastBoundLongitude']
@@ -204,22 +202,77 @@ def process_extracted_files(**kwargs):
 
                 # Crear la geometría POLYGON
                 polygon = f"SRID={reference};POLYGON(({west} {north}, {east} {north}, {east} {south}, {west} {south}, {west} {north}))"
-
+                print(f"Generado POLYGON: {polygon}")
 
             query = text("""
             INSERT INTO missions.mss_inspection_vegetation_child
             ( vegetation_parent_id, resource_id, review_status_id, geometry)
             VALUES( :parentId, :id_resource, :reviewStatus, :geometry);
             """)      
-            session.execute(query, {'parentId': inserted_id, 'id_resource': unique_id, 'reviewStatus': 2,'geometry': polygon})
+            result = session.execute(query, {'parentId': inserted_id, 'id_resource': unique_id, 'reviewStatus': 2,'geometry': polygon})
+            new_inserted_id  = result.fetchone()[0]
             session.commit()
-            print(f"mss_inspection_vegetation_child subido correctamente")
+            print(f"mss_inspection_vegetation_child subido correctamente con ID: {new_inserted_id}")
+            childanduuid[index].append(new_inserted_id)
+
+
     except Exception as e:
         session.rollback()
         print(f"Error al insertar video en mss_inspection_vegetation_child: {str(e)}")
     finally:
         session.close()
         print("Conexión a la base de datos cerrada correctamente")
+
+
+
+    #Guardamos los conflictos de cada hijo
+    try:
+        for folder, unique_id, inserted_id in childanduuid:
+            print(f"Procesando carpeta: {folder}")
+            print(f"ID del Child: {unique_id}")
+
+            conflicts = get_conflicts_for_path(json_content, folder)
+            print(conflicts)
+
+            
+            print("SACANDO POLYGON")
+            if conflicts:
+                for conflict in conflicts:
+                    conflict_data = {}
+                    for conflict_item in conflict['data']:
+                        conflict_data[conflict_item['name']] = conflict_item['value']
+
+                        # Extraer los datos que te interesan
+                        alert_level = conflict_data.get('AlertLevel', None)
+                        center_coords = conflict_data.get('CenterCords', None)
+                        reference_system = conflict_data.get('ReferenceSystem', None)
+                        detected_obj_type = conflict_data.get('DetectedObjType', None)
+                        impact = conflict_data.get('Impact', None)
+                        line_height = conflict_data.get('LineHeight', None)
+                        distance = conflict_data.get('Distance', None)
+
+                        if center_coords and 'lat' in center_coords and 'lon' in center_coords:
+                            lat = center_coords['lat']
+                            lon = center_coords['lon']
+                            point_geometry = f"SRID={reference_system};POINT({lon} {lat})"
+                        else:
+                            point_geometry = None
+
+                        query = text("""
+                        INSERT INTO missions.mss_inspection_vegetation_conflict
+                        ( vegetation_child_id, resource_id, impact, obj_detected_type, line_height, alertlevel, distance, geometry, review_status_id)
+                        VALUES( :vegchild_id, NULL, :impact, :detected_type, :line_height, :alert_level, :distance, :geometry, :rev_status);
+                        """)      
+                        session.execute(query, {'vegchild_id': inserted_id, 'impact': impact, 'detected_type': detected_obj_type,'line_height': line_height, 'alert_level': alert_level, 'distance': distance, 'geometry': point_geometry, 'rev_status': 1})
+                        session.commit()
+                        print(f"mss_inspection_vegetation_conflict subido correctamente")
+    except Exception as e:
+        session.rollback()
+        print(f"Error al insertar video en mss_inspection_vegetation_child: {str(e)}")
+    finally:
+        session.close()
+        print("Conexión a la base de datos cerrada correctamente")
+
 
 
 
@@ -253,9 +306,9 @@ def get_referenceSystem_for_path(data, path_contains):
                                 return child_item.get('ReferenceSystem', None)
     return None
 
-def get_conflicts_for_path(data, path_to_find):
+def get_conflicts_for_path(data, path_contains):
     for resource in data['executionResources']:
-        if resource['path'] == path_to_find:
+        if path_contains in resource['path'] and resource['tag'] == 'pointCloud LiDAR cut':
             for item in resource['data']:
                 if item['name'] == 'conflicts':
                     return item['value']
