@@ -66,7 +66,6 @@ def process_element(**context):
             for resource in resources:
                 data = resource.get('data')
                 if data:
-                    print(f"data: {data}")
                     #Subimos a esa carpeta los nuevos elementos
                     try:
                         connection = BaseHook.get_connection('minio_conn')
@@ -81,7 +80,7 @@ def process_element(**context):
 
                         bucket_name = 'temp'  
                         time = datetime.now().replace(tzinfo=timezone.utc)
-                        pdf_key = resource_id + '/' + 'vegetation_review_incidence' + time.strftime('%Y-%m-%d %H:%M:%S %Z') + '.png'
+                        pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + time.strftime('%Y-%m-%d %H:%M:%S %Z') + '.png'
                         decoded_bytes = base64.b64decode(data)
 
                         # Subir el archivo a MinIO
@@ -111,7 +110,7 @@ def process_element(**context):
 
                     query = text("""
                         UPDATE missions.mss_inspection_vegetation_conflict
-                        SET review_status = :new_review_status
+                        SET review_status_id = :new_review_status
                         WHERE id = :conflict_id
                         RETURNING *;
                     """)
