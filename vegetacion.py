@@ -28,12 +28,7 @@ def process_extracted_files(**kwargs):
     print("Archivos para procesar preparados")
 
     #Accedemos al missionID para poder buscar si ya existe
-    id_mission = None
-    for metadata in json_content['metadata']:
-        if metadata['name'] == 'MissionID':
-            id_mission = metadata['value']
-            break
-
+    id_mission = get_idmission(json_content)
     print(f"MissionID: {id_mission}")
 
 
@@ -152,7 +147,6 @@ def process_extracted_files(**kwargs):
     
 
     #Sacamos el BBOX y Subimos los datos a las tablas correspondientes
-    bbox_parent = None
     for resource in json_content['executionResources']:
         for data_item in resource['data']:
             if data_item['name'] == 'BBOX':
@@ -196,12 +190,24 @@ def process_extracted_files(**kwargs):
             print(f"Procesando carpeta: {folder}")
             print(f"ID del Child: {unique_id}")
 
+            bbox = get_bbox_for_path(json_content, folder)
+            reference = get_referenceSystem_for_path(json_content,folder)
+            if bbox:
+                west = bbox['westBoundLongitude']
+                east = bbox['eastBoundLongitude']
+                south = bbox['southBoundLatitude']
+                north = bbox['nortBoundLatitude']
+
+                # Crear la geometría POLYGON
+                polygon = f"SRID={reference};POLYGON(({west} {north}, {east} {north}, {east} {south}, {west} {south}, {west} {north}))"
+
+
             query = text("""
             INSERT INTO missions.mss_inspection_vegetation_child
             ( vegetation_parent_id, resource_id, review_status_id, geometry)
             VALUES( :parentId, :id_resource, :reviewStatus, :geometry);
             """)      
-            session.execute(query, {'parentId': inserted_id, 'id_resource': unique_id, 'reviewStatus': 2,'geometry': 'SRID=25829;POLYGON ((603067.82 4739032.36, 603634.54 4739032.36, 603634.54 4737037.27, 603067.82 4737037.27, 603067.82 4739032.36))'})
+            session.execute(query, {'parentId': inserted_id, 'id_resource': unique_id, 'reviewStatus': 2,'geometry': polygon})
             session.commit()
             print(f"mss_inspection_vegetation_child subido correctamente")
     except Exception as e:
@@ -212,6 +218,38 @@ def process_extracted_files(**kwargs):
         print("Conexión a la base de datos cerrada correctamente")
 
 
+
+def get_idmission(data):
+    for metadata in data['metadata']:
+        if metadata['name'] == 'MissionID':
+            return metadata['value']
+    return None
+
+
+def get_bbox_for_path(data, path_to_find):
+    for resource in data['executionResources']:
+        if resource['name'] == 'children':
+            if path_to_find in resource['path']:
+                for item in resource['data']:
+                    if item['name'] == 'BBOX':
+                        return item['value'] 
+    return None
+
+def get_referenceSystem_for_path(data, path_to_find):
+    for resource in data['executionResources']:
+        if resource['path'] == path_to_find:
+            for item in resource['data']:
+                if item['name'] == 'BBOX':
+                    return item['ReferenceSystem']
+    return None
+
+def get_conflicts_for_path(data, path_to_find):
+    for resource in data['executionResources']:
+        if resource['path'] == path_to_find:
+            for item in resource['data']:
+                if item['name'] == 'conflicts':
+                    return item['value']
+    return None
 
 
 default_args = {
