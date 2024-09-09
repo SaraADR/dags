@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime, timedelta, timezone
+import io
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
@@ -65,7 +66,7 @@ def process_element(**context):
 
             for resource in resources:
                 data = resource.get('data')
-                print(data)
+
                 if data:
                     #Subimos a esa carpeta los nuevos elementos
                     try:
@@ -83,12 +84,13 @@ def process_element(**context):
                         time = datetime.now().replace(tzinfo=timezone.utc)
                         pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + time.strftime('%Y-%m-%d %H:%M:%S %Z') + '.png'
                         decoded_bytes = base64.b64decode(data)
-
+                        print(decoded_bytes)
+                        
                         # Subir el archivo a MinIO
                         s3_client.put_object(
                             Bucket=bucket_name,
                             Key=pdf_key,
-                            Body=decoded_bytes,
+                            Body=io.BytesIO(decoded_bytes),
                         )
                         print(f'{pdf_key} subido correctamente a MinIO.')
                     except Exception as e:
