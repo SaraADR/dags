@@ -191,10 +191,10 @@ def process_extracted_files(**kwargs):
             print(f"ID del Child: {unique_id}")
 
             bbox = get_bbox_for_child(json_content, folder)
-            reference = get_referenceSystem_for_path(json_content,folder)
-
             print(bbox)
+            reference = get_referenceSystem_for_path(json_content,folder)
             print(reference)
+            
             print("SACANDO POLYGON")
             if bbox:
                 west = bbox['westBoundLongitude']
@@ -250,7 +250,7 @@ def get_referenceSystem_for_path(data, path_contains):
                     if path_contains in child['path']:
                         for child_item in child['data']:
                             if child_item['name'] == 'BBOX':
-                                return item['ReferenceSystem']
+                                return child_item.get('ReferenceSystem', None)
     return None
 
 def get_conflicts_for_path(data, path_to_find):
