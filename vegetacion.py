@@ -71,7 +71,7 @@ def process_extracted_files(**kwargs):
                     aws_secret_access_key=extra['aws_secret_access_key'],
                     config=Config(signature_version='s3v4')
                 )
-                bucket_name = 'avincis-test'  
+                bucket_name = 'temp'  
           
                 for file in files:
                     content_bytes = base64.b64decode(file['content'])
