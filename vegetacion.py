@@ -100,7 +100,7 @@ def process_extracted_files(**kwargs):
             config=Config(signature_version='s3v4')
         )
 
-        bucket_name = 'avincis-test'  
+        bucket_name = 'temp'  
         json_key = parent +'/' + 'algorithm_result.json'
 
         # Subir el archivo a MinIO
