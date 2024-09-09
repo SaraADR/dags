@@ -192,6 +192,10 @@ def process_extracted_files(**kwargs):
 
             bbox = get_bbox_for_path(json_content, folder)
             reference = get_referenceSystem_for_path(json_content,folder)
+
+            print(bbox)
+            print(reference)
+            print("SACANDO POLYGON")
             if bbox:
                 west = bbox['westBoundLongitude']
                 east = bbox['eastBoundLongitude']
