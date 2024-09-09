@@ -21,13 +21,12 @@ def process_element(**context):
 
     input_data = json.loads(input_data_str)
 
-    print(f"Todo {input_data['resources']}")   
-    conflict_id = input_data['resources']['conflict_id']
+    conflict_id = input_data['resources']['data']['conflict_id']
     print(f"conflict_id: {conflict_id}")
-    review_status = input_data['resources']['review_status']
+    review_status = input_data['resources']['data']['review_status']
     print(f"review_status: {review_status}")
 
-    data = input_data['resources']['data']
+    data = input_data['resources']['data']['data']
     print(f"data: {data}")
 
     #Buscar el child correspondiente y traernos su carpeta de recursos
