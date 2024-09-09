@@ -190,7 +190,7 @@ def process_extracted_files(**kwargs):
             print(f"Procesando carpeta: {folder}")
             print(f"ID del Child: {unique_id}")
 
-            bbox = get_bbox_for_path(json_content, folder)
+            bbox = get_bbox_for_child(json_content, folder)
             reference = get_referenceSystem_for_path(json_content,folder)
 
             print(bbox)
