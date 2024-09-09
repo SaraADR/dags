@@ -17,18 +17,31 @@ from sqlalchemy.orm import sessionmaker
 def process_element(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-    menssage_str = message['message']
 
     input_data = json.loads(input_data_str)
+    if input_data.get('data') is not None :
+        # Verifica si conflict_id existe y no es None
+        conflict_id = input_data['resources']['data'].get('conflict_id')
+        if conflict_id is not None:
+            print(f"conflict_id: {conflict_id}")
+        else:
+            print("conflict_id no está presente o es None")
 
-    conflict_id = input_data['resources']['data']['conflict_id']
-    print(f"conflict_id: {conflict_id}")
-    review_status = input_data['resources']['data']['review_status']
-    print(f"review_status: {review_status}")
+        # Verifica si review_status existe y no es None
+        review_status = input_data['resources']['data'].get('review_status')
+        if review_status is not None:
+            print(f"review_status: {review_status}")
+        else:
+            print("review_status no está presente o es None")
 
-    data = input_data['resources']['data']['data']
-    print(f"data: {data}")
-
+        # Verifica si data existe y no es None
+        data = input_data['resources']['data'].get('data')
+        if data is not None:
+            print(f"data: {data}")
+        else:
+            print("data no está presente o es None")
+    else : 
+         print("El mensaje no es correcto, no se puede realizar la subida de los datos entregados")
     #Buscar el child correspondiente y traernos su carpeta de recursos
     # try:
     #     connection = BaseHook.get_connection('minio_conn')
