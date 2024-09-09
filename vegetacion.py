@@ -187,7 +187,8 @@ def process_extracted_files(**kwargs):
 
     #Guardar los hijos dentro de mss_inspection_vegetation_child
     try:
-        for index, (folder, unique_id) in  enumerate(childanduuid):
+        index = 0
+        for folder, unique_id in childanduuid:
             print(f"Procesando carpeta: {folder}")
             print(f"ID del Child: {unique_id}")
 
@@ -214,6 +215,7 @@ def process_extracted_files(**kwargs):
             session.commit()
             print(f"mss_inspection_vegetation_child subido correctamente con ID: {new_inserted_id}")
             childanduuid[index].append(new_inserted_id)
+            index = index +1
 
 
     except Exception as e:
@@ -268,7 +270,7 @@ def process_extracted_files(**kwargs):
                         print(f"mss_inspection_vegetation_conflict subido correctamente")
     except Exception as e:
         session.rollback()
-        print(f"Error al insertar video en mss_inspection_vegetation_child: {str(e)}")
+        print(f"Error al insertar video en mss_inspection_vegetation_conflicts: {str(e)}")
     finally:
         session.close()
         print("Conexión a la base de datos cerrada correctamente")
