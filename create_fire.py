@@ -175,7 +175,7 @@ def geojson_to_wkt(geojson):
 
 # Configuración por defecto para el DAG
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2023, 1, 1),
     'email_on_failure': False,

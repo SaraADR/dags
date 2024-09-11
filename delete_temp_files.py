@@ -43,7 +43,7 @@ def delete_old_files_from_minio():
         print("No se encontraron objetos en el bucket.")
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime(2024, 8, 29),  # Fecha específica en la que quieres que se ejecute
     'email_on_failure': False,

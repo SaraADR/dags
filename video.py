@@ -143,7 +143,7 @@ def process_extracted_files(**kwargs):
 
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2024, 8, 8),
     'email_on_failure': False,

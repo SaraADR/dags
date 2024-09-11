@@ -82,7 +82,7 @@ def trigger_email_handler(**kwargs):
 
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2024, 7, 7),
     'email_on_failure': False,
