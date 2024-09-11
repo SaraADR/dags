@@ -12,7 +12,7 @@ import codecs
 import re
 
 # Ruta al archivo TIFF que se va a subir a MinIO
-TIFF = './dags/repo/recursos/f496d404-85d9-4c66-9b16-1e5fd9da85b9.tif'
+TIFF = './dags/repo/recursos/tests-geonetwork-_0026_4740004_611271.tif'
 
 
 def process_heatmap_data(**context):
