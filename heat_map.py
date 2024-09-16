@@ -16,31 +16,44 @@ TIFF = './dags/repo/recursos/tests-geonetwork-_0026_4740004_611271.tif'
 
 
 def process_heatmap_data(**context):
+    # Obtener el valor de 'type' de default_args a través del contexto
+    task_type = context['dag'].default_args.get('type')
+
+    # Realizar una operación condicional basada en el valor de 'type'
+    if task_type == 'incendios':
+        # Lógica específica para el heatmap de incendios
+        print("Procesando datos para el heatmap de incendios.")
+        # Modificaciones o lógica específica para incendios
+        # input_data["ar_incendios"] = "historical_fires.csv"
+        # input_data["url_search_fire"] = "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection"
+        # input_data["url_fireperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/FireAlgorithm_FirePerimeterService/getByFire?id="
+
+    elif task_type == 'aeronaves':
+        # Lógica específica para el heatmap de aeronaves
+        print("Procesando datos para el heatmap de aeronaves.")
+        # Modificaciones o lógica específica para aeronaves
+        # input_data["ar_aeronaves"] = "historical_aircraft.csv"
+        # input_data["url_search_aircraft"] = "https://pre.atcservices.cirpas.gal/rest/AircraftService/searchByIntersection"
+        # input_data["url_aircraftperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/AircraftAlgorithm_AircraftPerimeterService/getByAircraft?id="
+    
+    # El resto de tu código continúa aquí...
 
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
     from_user = str(message['message']['from_user']).encode('utf-8')
     input_data = json.loads(input_data_str)
 
-    
-    input_data ["temp_tiff_path"] = TIFF
-    input_data ["dir_output"] = "/home/airflow/workspace/output"
-    input_data ["ar_incendios"] = "historical_fires.csv"
-    input_data ["url_search_fire"] = "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection"
-    input_data ["url_fireperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/FireAlgorithm_FirePerimeterService/getByFire?id="
-    input_data ["user"] = "usuario"
-    input_data ["password"] = "contraseña"
-
+    input_data["temp_tiff_path"] = TIFF
+    input_data["dir_output"] = "/home/airflow/workspace/output"
+    input_data["user"] = "usuario"
+    input_data["password"] = "contraseña"
 
     # Log para verificar que los datos de entrada son correctos
-    print("Datos completos de entrada para heatmap-incendio:")
+    print("Datos completos de entrada:")
     print(json.dumps(input_data, indent=4))
-
-
 
     # Subir el archivo TIFF a MinIO
     try:
-        # Conexión a MinIO utilizando las credenciales almacenadas en Airflow
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
@@ -51,31 +64,24 @@ def process_heatmap_data(**context):
             config=Config(signature_version='s3v4')
         )
 
-        # Generar un nombre único (uuid) para el archivo en MinIO
         bucket_name = 'temp'
         tiff_key = f"{uuid.uuid4()}.tiff"
 
-        # Subir el archivo TIFF al bucket de MinIO
         s3_client.upload_file(input_data['temp_tiff_path'], bucket_name, tiff_key)
-        tiff_url = f"{"https://minioapi.avincis.cuatrodigital.com"}/{bucket_name}/{tiff_key}"
+        tiff_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{tiff_key}"
         print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
-        
-        #Excepción si hay un error al subir a minio el archivo tiff
+
     except Exception as e:
         print(f"Error al subir el TIFF a MinIO: {str(e)}")
         return
-    
+
     # Preparar la notificación para almacenar en la base de datos
     notification_db = {
-        # "type": "heat_map",
         "message": "Heatmap data processed and TIFF uploaded",
-        # "destination": "ignis",
-        # "input_data": input_data
         "to": "Francisco José Blanco Garza",
         'urlTiff': tiff_url
     }
 
-    # Convertir la notificación a formato JSON
     notification_json = json.dumps(notification_db, ensure_ascii=False)
 
     # Insertar la notificación en la base de datos PostgreSQL
@@ -91,9 +97,11 @@ def process_heatmap_data(**context):
         )
         pg_hook.execute(context)
         print("Notificación almacenada correctamente en la base de datos.")
-        
+
     except Exception as e:
         print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
+
+
 
 # Configuración del DAG
 default_args = {
@@ -104,9 +112,22 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
+    'type': 'incendios',
 }
 
-# Definición del DAG
+default_args_aero = {
+    'owner': 'oscar',
+    'depends_on_past': False,
+    'start_date': datetime(2024, 9, 1),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=1),
+    'type': 'aeronaves',
+}
+
+
+# Definición del DAG incendios
 dag = DAG(
     'heatmap_incendio_process',
     default_args=default_args,
@@ -115,13 +136,31 @@ dag = DAG(
     catchup=False
 )
 
-# Definición de la tarea principal
-process_heatmap_task = PythonOperator(
-    task_id='process_heatmap_data',
-    python_callable=process_heatmap_data,
+# Definición del DAG aeronaves
+dag_aero = DAG(
+    'heatmap_aeronave_process',
+    default_args=default_args_aero,
+    description='DAG para procesar datos de heatmap-aeronave, subir TIFF a MinIO, y enviar notificaciones',
+    schedule_interval=None,
+    catchup=False
+)
+
+# Tarea para el proceso de Heatmap de Aeronaves
+process_heatmap_aeronaves_task = PythonOperator(
+    task_id='process_heatmap_aeronaves',
     provide_context=True,
+    python_callable=process_heatmap_data,
+    dag=dag,
+)
+
+# Tarea para el proceso de Heatmap de Incendios
+process_heatmap_incendios_task = PythonOperator(
+    task_id='process_heatmap_incendios',
+    provide_context=True,
+    python_callable=process_heatmap_data,
     dag=dag,
 )
 
 # Ejecución de la tarea en el DAG
-process_heatmap_task
+process_heatmap_incendios_task 
+process_heatmap_aeronaves_task
