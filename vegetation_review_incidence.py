@@ -81,7 +81,6 @@ def process_element(**context):
                         )
 
                         bucket_name = 'temp'  
-                        time = datetime.now().replace(tzinfo=timezone.utc)
                         pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + index + '.png'
                         index = index + 1
                         decoded_data = fix_base64_padding(data)
@@ -183,6 +182,87 @@ def change_state_job(**context):
 
  
 
+def generate_notify_job(**context):
+    message = context['dag_run'].conf
+    input_data_str = message['message']['input_data']
+    
+    # Convertir la cadena de input_data en un diccionario
+    input_data = json.loads(input_data_str)
+
+    # Verifica si el JSON contiene la clave "resources"
+    if 'resources' in input_data:
+        if input_data.get('conflict_id') is not None:
+            print(input_data.get('conflict_id'))
+            conflict_id = input_data.get('conflict_id')
+
+            #Buscamos la carpeta del conflicto correspondiente
+            try:
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
+
+                query = text("""
+                    SELECT mi.mission_id
+                    FROM mss_mission_inspection mi
+                    JOIN mss_inspection_vegetation_parent vp ON vp.mission_inspection_id = mi.id
+                    JOIN mss_inspection_vegetation_child vc ON vc.vegetation_parent_id = vp.id
+                    JOIN mss_inspection_vegetation_conflict vconf ON vconf.vegetation_child_id = vc.id
+                    WHERE vconf.id = :conflict_id;
+                """)
+                result = session.execute(query, {'conflict_id': conflict_id})
+                row = result.fetchone()
+                if row is not None:
+                    mission_id = row[0]
+                    print(f"Resource ID: {mission_id}")
+                else:
+                    mission_id = None
+                    print("No se encontró el mission_id por lo que no se puede completar la notificación")
+                    return None
+
+            except Exception as e:
+                session.rollback()
+                print(f"Error durante la busqueda del mission_inspection: {str(e)}")
+            finally:
+                session.close()
+
+    if mission_id is not None:
+            #Añadimos notificacion
+            time = datetime.now().replace(tzinfo=timezone.utc)
+            try:
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
+
+                query = text("""
+                    INSERT INTO public.notifications
+                    (destination, "data", "date", status)
+                    VALUES ('inspection', '{"to":"all_users", "actions": [{"type":"reloadMission","data":{"missionID": :missionID}}]}', :date, NULL);
+                """)
+                result = session.execute(query, {'missionID': mission_id, 'date': time})
+                row = result.fetchone()
+                if row is not None:
+                    mission_id = row[0]
+                    print(f"Resource ID: {mission_id}")
+                else:
+                    mission_id = None
+                    print("No se encontró el mission_id por lo que no se puede completar la notificación")
+                    return None
+
+            except Exception as e:
+                session.rollback()
+                print(f"Error durante la busqueda del mission_inspection: {str(e)}")
+            finally:
+                session.close()
+
+
+
+
+
+
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
@@ -217,4 +297,13 @@ change_state_task = PythonOperator(
     dag=dag,
 )
 
-process_element_task >> change_state_task
+#Generar notificación de vuelta
+generate_notify = PythonOperator(
+    task_id='generate_notify_job',
+    python_callable=generate_notify_job,
+    provide_context=True,
+    dag=dag,
+)
+
+
+process_element_task >> change_state_task >> generate_notify
