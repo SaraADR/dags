@@ -129,7 +129,7 @@ default_args_aero = {
 
 # Definición del DAG incendios
 dag = DAG(
-    'heatmap_incendio_process',
+    'process_heatmap_incendios',
     default_args=default_args,
     description='DAG para procesar datos de heatmap-incendio, subir TIFF a MinIO, y enviar notificaciones',
     schedule_interval=None,
@@ -138,7 +138,7 @@ dag = DAG(
 
 # Definición del DAG aeronaves
 dag_aero = DAG(
-    'heatmap_aeronave_process',
+    'process_heatmap_aeronaves',
     default_args=default_args_aero,
     description='DAG para procesar datos de heatmap-aeronave, subir TIFF a MinIO, y enviar notificaciones',
     schedule_interval=None,
