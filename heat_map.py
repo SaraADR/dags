@@ -150,7 +150,7 @@ process_heatmap_aeronaves_task = PythonOperator(
     task_id='process_heatmap_aeronaves',
     provide_context=True,
     python_callable=process_heatmap_data,
-    dag=dag,
+    dag=dag_aero,
 )
 
 # Tarea para el proceso de Heatmap de Incendios
