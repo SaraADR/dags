@@ -83,9 +83,9 @@ def process_element(**context):
                         bucket_name = 'temp'  
                         pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + str(index) + '.png'
                         index = index + 1
-                        decoded_data = fix_base64_padding(data)
-                        decoded_bytes = base64.b64decode(decoded_data)
-                        print(decoded_bytes)
+                        print(data[-10:])
+                        decoded_bytes = base64.b64decode(data)
+                        print(decoded_bytes[-10:])
 
                         # Subir el archivo a MinIO
                         s3_client.put_object(
