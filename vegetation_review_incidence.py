@@ -205,10 +205,10 @@ def generate_notify_job(**context):
 
                 query = text("""
                     SELECT mi.mission_id
-                    FROM mss_mission_inspection mi
-                    JOIN mss_inspection_vegetation_parent vp ON vp.mission_inspection_id = mi.id
-                    JOIN mss_inspection_vegetation_child vc ON vc.vegetation_parent_id = vp.id
-                    JOIN mss_inspection_vegetation_conflict vconf ON vconf.vegetation_child_id = vc.id
+                    FROM missions.mss_mission_inspection mi
+                    JOIN missions.mss_inspection_vegetation_parent vp ON vp.mission_inspection_id = mi.id
+                    JOIN missions.mss_inspection_vegetation_child vc ON vc.vegetation_parent_id = vp.id
+                    JOIN missions.mss_inspection_vegetation_conflict vconf ON vconf.vegetation_child_id = vc.id
                     WHERE vconf.id = :conflict_id;
                 """)
                 result = session.execute(query, {'conflict_id': conflict_id})
