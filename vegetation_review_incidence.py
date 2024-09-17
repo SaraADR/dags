@@ -120,7 +120,7 @@ def process_element(**context):
                         WHERE id = :conflict_id
                         RETURNING *;
                     """)
-                    result = session.execute(query, {'new_review_status': review_status, 'conflict_id': conflict_id, 'new_resource_id': uuid})
+                    result = session.execute(query, {'new_review_status': review_status, 'conflict_id': conflict_id, 'new_resource_id': str(uuid_key)})
                     row = result.fetchone()
                     if row is not None:
                         print(f"Fila actualizada: {row}")
