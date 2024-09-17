@@ -80,7 +80,7 @@ def process_element(**context):
                             config=Config(signature_version='s3v4')
                         )
 
-                        bucket_name = 'temp'  
+                        bucket_name = 'missions'  
                         pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + str(index) + '.png'
                         index = index + 1
                         print(data[-10:])
