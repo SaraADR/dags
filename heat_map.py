@@ -88,7 +88,7 @@ def process_heatmap_data(**context):
             {
             "type": "notify",
             "data": {
-                "message": "mensaje_tal_cual"
+                "message": "Datos del heatmap procesados correctamente"
             }
             },
             {
