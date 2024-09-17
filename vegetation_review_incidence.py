@@ -171,7 +171,7 @@ def change_state_job(**context):
         # Update job status to 'FINISHED'
         metadata = MetaData(bind=engine)
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED', input_data={})
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED', input_data=json.dumps({}))
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to FINISHED")
