@@ -81,7 +81,7 @@ def process_element(**context):
                         )
 
                         bucket_name = 'temp'  
-                        pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + index + '.png'
+                        pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + str(index) + '.png'
                         index = index + 1
                         decoded_data = fix_base64_padding(data)
                         decoded_bytes = base64.b64decode(decoded_data)
@@ -171,7 +171,7 @@ def change_state_job(**context):
         # Update job status to 'FINISHED'
         metadata = MetaData(bind=engine)
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED', input_data=json.dumps({}))
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to FINISHED")
@@ -182,81 +182,89 @@ def change_state_job(**context):
 
  
 
-# def generate_notify_job(**context):
-#     message = context['dag_run'].conf
-#     input_data_str = message['message']['input_data']
+def generate_notify_job(**context):
+    message = context['dag_run'].conf
+    input_data_str = message['message']['input_data']
     
-#     # Convertir la cadena de input_data en un diccionario
-#     input_data = json.loads(input_data_str)
+    # Convertir la cadena de input_data en un diccionario
+    input_data = json.loads(input_data_str)
 
-#     # Verifica si el JSON contiene la clave "resources"
-#     if 'resources' in input_data:
-#         if input_data.get('conflict_id') is not None:
-#             print(input_data.get('conflict_id'))
-#             conflict_id = input_data.get('conflict_id')
+    # Verifica si el JSON contiene la clave "resources"
+    if 'resources' in input_data:
+        if input_data.get('conflict_id') is not None:
+            print(input_data.get('conflict_id'))
+            conflict_id = input_data.get('conflict_id')
 
-#             #Buscamos la carpeta del conflicto correspondiente
-#             try:
-#                 db_conn = BaseHook.get_connection('biobd')
-#                 connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-#                 engine = create_engine(connection_string)
-#                 Session = sessionmaker(bind=engine)
-#                 session = Session()
+            #Buscamos la carpeta del conflicto correspondiente
+            try:
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
 
-#                 query = text("""
-#                     SELECT mi.mission_id
-#                     FROM mss_mission_inspection mi
-#                     JOIN mss_inspection_vegetation_parent vp ON vp.mission_inspection_id = mi.id
-#                     JOIN mss_inspection_vegetation_child vc ON vc.vegetation_parent_id = vp.id
-#                     JOIN mss_inspection_vegetation_conflict vconf ON vconf.vegetation_child_id = vc.id
-#                     WHERE vconf.id = :conflict_id;
-#                 """)
-#                 result = session.execute(query, {'conflict_id': conflict_id})
-#                 row = result.fetchone()
-#                 if row is not None:
-#                     mission_id = row[0]
-#                     print(f"Resource ID: {mission_id}")
-#                 else:
-#                     mission_id = None
-#                     print("No se encontró el mission_id por lo que no se puede completar la notificación")
-#                     return None
+                query = text("""
+                    SELECT mi.mission_id
+                    FROM missions.mss_mission_inspection mi
+                    JOIN missions.mss_inspection_vegetation_parent vp ON vp.mission_inspection_id = mi.id
+                    JOIN missions.mss_inspection_vegetation_child vc ON vc.vegetation_parent_id = vp.id
+                    JOIN missions.mss_inspection_vegetation_conflict vconf ON vconf.vegetation_child_id = vc.id
+                    WHERE vconf.id = :conflict_id;
+                """)
+                result = session.execute(query, {'conflict_id': conflict_id})
+                row = result.fetchone()
+                if row is not None:
+                    mission_id = row[0]
+                    print(f"Resource ID: {mission_id}")
+                else:
+                    mission_id = None
+                    print("No se encontró el mission_id por lo que no se puede completar la notificación")
+                    return None
 
-#             except Exception as e:
-#                 session.rollback()
-#                 print(f"Error durante la busqueda del mission_inspection: {str(e)}")
-#             finally:
-#                 session.close()
+            except Exception as e:
+                session.rollback()
+                print(f"Error durante la busqueda del mission_inspection: {str(e)}")
+            finally:
+                session.close()
 
-#     if mission_id is not None:
-#             #Añadimos notificacion
-#             time = datetime.now().replace(tzinfo=timezone.utc)
-#             try:
-#                 db_conn = BaseHook.get_connection('biobd')
-#                 connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-#                 engine = create_engine(connection_string)
-#                 Session = sessionmaker(bind=engine)
-#                 session = Session()
+            if mission_id is not None:
+                #Añadimos notificacion
+                
+                try:
+                    db_conn = BaseHook.get_connection('biobd')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                    engine = create_engine(connection_string)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
 
-#                 query = text("""
-#                     INSERT INTO public.notifications
-#                     (destination, "data", "date", status)
-#                     VALUES ('inspection', '{"to":"all_users", "actions": [{"type":"reloadMission","data":{"missionID": :missionID}}]}', :date, NULL);
-#                 """)
-#                 result = session.execute(query, {'missionID': mission_id, 'date': time})
-#                 row = result.fetchone()
-#                 if row is not None:
-#                     mission_id = row[0]
-#                     print(f"Resource ID: {mission_id}")
-#                 else:
-#                     mission_id = None
-#                     print("No se encontró el mission_id por lo que no se puede completar la notificación")
-#                     return None
+                    data_json = json.dumps({
+                        "to": "all_users",
+                        "actions": [{
+                            "type": "reloadMission",
+                            "data": {
+                                "missionID": mission_id
+                            }
+                        }]
+                    })
+                    time = datetime.now().replace(tzinfo=timezone.utc)
 
-#             except Exception as e:
-#                 session.rollback()
-#                 print(f"Error durante la busqueda del mission_inspection: {str(e)}")
-#             finally:
-#                 session.close()
+                    query = text("""
+                        INSERT INTO public.notifications
+                        (destination, "data", "date", status)
+                        VALUES (:destination, :data, :date, NULL);
+                    """)
+                    session.execute(query, {
+                        'destination': 'inspection',
+                        'data': data_json,
+                        'date': time
+                    })
+                    session.commit()
+
+                except Exception as e:
+                    session.rollback()
+                    print(f"Error durante la inserción de la notificación: {str(e)}")
+                finally:
+                    session.close()
 
 
 
@@ -298,12 +306,12 @@ change_state_task = PythonOperator(
 )
 
 #Generar notificación de vuelta
-# generate_notify = PythonOperator(
-#     task_id='generate_notify_job',
-#     python_callable=generate_notify_job,
-#     provide_context=True,
-#     dag=dag,
-# )
+generate_notify = PythonOperator(
+    task_id='generate_notify_job',
+    python_callable=generate_notify_job,
+    provide_context=True,
+    dag=dag,
+)
 
 
-process_element_task >> change_state_task 
+process_element_task >> change_state_task >> generate_notify
