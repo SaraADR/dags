@@ -10,7 +10,7 @@ import os
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 import codecs
 import re
-from osgeo import gdal, osr
+import gdal, osr
 import os
 
 # Ruta al archivo TIFF que se va a subir a MinIO
