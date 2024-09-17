@@ -64,9 +64,10 @@ def process_element(**context):
 
 
             index = 1
+            uuid = uuid.uuid4()
             for resource in resources:
                 data = resource.get('data')
-
+                
                 if data:
                     #Subimos a esa carpeta los nuevos elementos
                     try:
@@ -81,7 +82,7 @@ def process_element(**context):
                         )
 
                         bucket_name = 'missions'  
-                        pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + str(index) + '.png'
+                        pdf_key = str(uuid) + '/' + 'vegetation_review_incidence' + str(index) + '.png'
                         index = index + 1
                         print(data[-10:])
                         decoded_bytes = base64.b64decode(data.split(",")[1])
@@ -114,11 +115,12 @@ def process_element(**context):
 
                     query = text("""
                         UPDATE missions.mss_inspection_vegetation_conflict
-                        SET review_status_id = :new_review_status
+                        SET review_status_id = :new_review_status,
+                        resource_id = :new_resource_id
                         WHERE id = :conflict_id
                         RETURNING *;
                     """)
-                    result = session.execute(query, {'new_review_status': review_status, 'conflict_id': conflict_id})
+                    result = session.execute(query, {'new_review_status': review_status, 'conflict_id': conflict_id, 'new_resource_id': uuid})
                     row = result.fetchone()
                     if row is not None:
                         print(f"Fila actualizada: {row}")
