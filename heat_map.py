@@ -13,7 +13,7 @@ import re
 import os
 
 # Ruta al archivo TIFF que se va a subir a MinIO
-TIFF = './dags/repo/recursos/img-20231214113318748-vis.tiff'
+TIFF = './dags/repo/recursos/Orto_4326_1m.tif'
 TIFF2 = './dags/repo/recursos/proyeccioncambiada.tif'
 
 
