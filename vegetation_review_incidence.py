@@ -80,12 +80,12 @@ def process_element(**context):
                             config=Config(signature_version='s3v4')
                         )
 
-                        bucket_name = 'temp'  
+                        bucket_name = 'missions'  
                         pdf_key = str(resource_id) + '/' + 'vegetation_review_incidence' + str(index) + '.png'
                         index = index + 1
-                        decoded_data = fix_base64_padding(data)
-                        decoded_bytes = base64.b64decode(decoded_data)
-                        print(decoded_bytes)
+                        print(data[-10:])
+                        decoded_bytes = base64.b64decode(data.split(",")[1])
+                        print(decoded_bytes[-10:])
 
                         # Subir el archivo a MinIO
                         s3_client.put_object(
@@ -238,11 +238,11 @@ def generate_notify_job(**context):
                     session = Session()
 
                     data_json = json.dumps({
-                        "to": "all_users",
-                        "actions": [{
-                            "type": "reloadMission",
-                            "data": {
-                                "missionID": mission_id
+                        "to":"all_users",
+                        "actions":[{
+                            "type":"reloadMission",
+                            "data":{
+                                "missionId":mission_id
                             }
                         }]
                     })
