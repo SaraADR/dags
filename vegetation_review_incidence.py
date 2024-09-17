@@ -238,11 +238,11 @@ def generate_notify_job(**context):
                     session = Session()
 
                     data_json = json.dumps({
-                        "to": "all_users",
-                        "actions": [{
-                            "type": "reloadMission",
-                            "data": {
-                                "missionID": mission_id
+                        "to":"all_users",
+                        "actions":[{
+                            "type":"reloadMission",
+                            "data":{
+                                "missionId":mission_id
                             }
                         }]
                     })
