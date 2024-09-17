@@ -227,36 +227,44 @@ def generate_notify_job(**context):
             finally:
                 session.close()
 
-    if mission_id is not None:
-            #Añadimos notificacion
-            time = datetime.now().replace(tzinfo=timezone.utc)
-            try:
-                db_conn = BaseHook.get_connection('biobd')
-                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                engine = create_engine(connection_string)
-                Session = sessionmaker(bind=engine)
-                session = Session()
+            if mission_id is not None:
+                #Añadimos notificacion
+                
+                try:
+                    db_conn = BaseHook.get_connection('biobd')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                    engine = create_engine(connection_string)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
 
-                query = text("""
-                    INSERT INTO public.notifications
-                    (destination, "data", "date", status)
-                    VALUES ('inspection', '{"to":"all_users", "actions": [{"type":"reloadMission","data":{"missionID": :missionID}}]}', :date, NULL);
-                """)
-                result = session.execute(query, {'missionID': mission_id, 'date': time})
-                row = result.fetchone()
-                if row is not None:
-                    mission_id = row[0]
-                    print(f"Resource ID: {mission_id}")
-                else:
-                    mission_id = None
-                    print("No se encontró el mission_id por lo que no se puede completar la notificación")
-                    return None
+                    data_json = json.dumps({
+                        "to": "all_users",
+                        "actions": [{
+                            "type": "reloadMission",
+                            "data": {
+                                "missionID": mission_id
+                            }
+                        }]
+                    })
+                    time = datetime.now().replace(tzinfo=timezone.utc)
 
-            except Exception as e:
-                session.rollback()
-                print(f"Error durante la busqueda del mission_inspection: {str(e)}")
-            finally:
-                session.close()
+                    query = text("""
+                        INSERT INTO public.notifications
+                        (destination, "data", "date", status)
+                        VALUES (:destination, :data, :date, NULL);
+                    """)
+                    session.execute(query, {
+                        'destination': 'inspection',
+                        'data': data_json,
+                        'date': time
+                    })
+                    session.commit()
+
+                except Exception as e:
+                    session.rollback()
+                    print(f"Error durante la inserción de la notificación: {str(e)}")
+                finally:
+                    session.close()
 
 
 
