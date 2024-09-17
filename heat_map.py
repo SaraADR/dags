@@ -10,11 +10,10 @@ import os
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 import codecs
 import re
-import gdal, osr
 import os
 
 # Ruta al archivo TIFF que se va a subir a MinIO
-TIFF = './dags/repo/recursos/tests-geonetwork-_0026_4740004_611271.tif'
+TIFF = './dags/repo/recursos/img-20231214113318748-vis.tiff'
 TIFF2 = './dags/repo/recursos/proyeccioncambiada.tif'
 
 
@@ -46,11 +45,11 @@ def process_heatmap_data(**context):
     from_user = str(message['message']['from_user']).encode('utf-8')
     input_data = json.loads(input_data_str)
 
-    cambiar_proyeccion_tiff(input_tiff=TIFF,output_tiff=TIFF2)
+    # cambiar_proyeccion_tiff(input_tiff=TIFF,output_tiff=TIFF2)
 
 
-    # input_data["temp_tiff_path"] = TIFF
-    input_data["temp_tiff_path"] = TIFF2
+    input_data["temp_tiff_path"] = TIFF
+    # input_data["temp_tiff_path"] = TIFF2
     input_data["dir_output"] = "/home/airflow/workspace/output"
     input_data["user"] = "usuario"
     input_data["password"] = "contraseña"
@@ -120,45 +119,45 @@ def process_heatmap_data(**context):
         print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
 
 
-def cambiar_proyeccion_tiff(input_tiff, output_tiff):
-    # Abrir el archivo TIFF
-    dataset = gdal.Open(input_tiff, gdal.GA_Update)
+# def cambiar_proyeccion_tiff(input_tiff, output_tiff):
+#     # Abrir el archivo TIFF
+#     dataset = gdal.Open(input_tiff, gdal.GA_Update)
 
-    if dataset is None:
-        raise FileNotFoundError(f"No se pudo abrir el archivo TIFF: {input_tiff}")
+#     if dataset is None:
+#         raise FileNotFoundError(f"No se pudo abrir el archivo TIFF: {input_tiff}")
 
-    # Obtener la proyección actual
-    proyeccion = dataset.GetProjection()
+#     # Obtener la proyección actual
+#     proyeccion = dataset.GetProjection()
 
-    # Crear un objeto SpatialReference
-    srs = osr.SpatialReference()
+#     # Crear un objeto SpatialReference
+#     srs = osr.SpatialReference()
 
-    # Revisar si ya tiene proyección
-    if proyeccion:
-        print(f"Proyección actual: {proyeccion}")
+#     # Revisar si ya tiene proyección
+#     if proyeccion:
+#         print(f"Proyección actual: {proyeccion}")
 
-        # Si ya es EPSG:3857, no se cambia
-        srs.ImportFromWkt(proyeccion)
-        if srs.IsProjected() and srs.GetAttrValue("AUTHORITY", 1) == '3857':
-            print("El archivo ya tiene la proyección EPSG:3857.")
-        else:
-            # Cambiar proyección a EPSG:3857
-            print("Cambiando la proyección a EPSG:3857.")
-            srs.ImportFromEPSG(3857)
-            dataset.SetProjection(srs.ExportToWkt())
-    else:
-        # Si no tiene proyección, aplicar EPSG:3857
-        print("No tiene proyección, aplicando EPSG:3857.")
-        srs.ImportFromEPSG(3857)
-        dataset.SetProjection(srs.ExportToWkt())
+#         # Si ya es EPSG:3857, no se cambia
+#         srs.ImportFromWkt(proyeccion)
+#         if srs.IsProjected() and srs.GetAttrValue("AUTHORITY", 1) == '3857':
+#             print("El archivo ya tiene la proyección EPSG:3857.")
+#         else:
+#             # Cambiar proyección a EPSG:3857
+#             print("Cambiando la proyección a EPSG:3857.")
+#             srs.ImportFromEPSG(3857)
+#             dataset.SetProjection(srs.ExportToWkt())
+#     else:
+#         # Si no tiene proyección, aplicar EPSG:3857
+#         print("No tiene proyección, aplicando EPSG:3857.")
+#         srs.ImportFromEPSG(3857)
+#         dataset.SetProjection(srs.ExportToWkt())
 
-    # Guardar el archivo TIFF con la nueva proyección
-    gdal.Warp(output_tiff, dataset, dstSRS='EPSG:3857')
+#     # Guardar el archivo TIFF con la nueva proyección
+#     gdal.Warp(output_tiff, dataset, dstSRS='EPSG:3857')
 
-    # Cerrar el dataset
-    dataset = None
+#     # Cerrar el dataset
+#     dataset = None
 
-    print(f"Se ha guardado el archivo con la proyección EPSG:3857 en: {output_tiff}")
+#     print(f"Se ha guardado el archivo con la proyección EPSG:3857 en: {output_tiff}")
 
 
 # Configuración del DAG
