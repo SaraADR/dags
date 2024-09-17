@@ -64,7 +64,7 @@ def process_element(**context):
 
 
             index = 1
-            uuid = uuid.uuid4()
+            uuid_key = uuid.uuid4()
             for resource in resources:
                 data = resource.get('data')
                 
@@ -82,7 +82,7 @@ def process_element(**context):
                         )
 
                         bucket_name = 'missions'  
-                        pdf_key = str(uuid) + '/' + 'vegetation_review_incidence' + str(index) + '.png'
+                        pdf_key = str(uuid_key) + '/' + 'vegetation_review_incidence' + str(index) + '.png'
                         index = index + 1
                         print(data[-10:])
                         decoded_bytes = base64.b64decode(data.split(",")[1])
