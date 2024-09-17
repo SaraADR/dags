@@ -84,11 +84,22 @@ def process_heatmap_data(**context):
 
     # Preparar la notificación para almacenar en la base de datos
     notification_db = {
-        "message": "Heatmap data processed and TIFF uploaded",
-        "to": "Francisco José Blanco Garza",
-        'urlTiff': tiff_url
+        "to": from_user,
+        "actions": [
+            {
+            "type": "notify",
+            "data": {
+                "message": "mensaje_tal_cual"
+            }
+            },
+            {
+            "type": "paintTiff",
+            "data": {
+                "url": tiff_url
+            }
+            }
+        ]
     }
-
     notification_json = json.dumps(notification_db, ensure_ascii=False)
 
     # Insertar la notificación en la base de datos PostgreSQL

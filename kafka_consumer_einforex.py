@@ -67,9 +67,6 @@ def updateMission(msg_json):
                 print(f"mission_id: {mission_id}")
             else:
                 print(f"No se encontró ningún registro con id = {msg_json.get('id')}")
-
-
-
             if mission_id:
                 # Actualizar el campo finish en la tabla mss_mission
                 end_timestamp = msg_json.get('end')
@@ -77,19 +74,46 @@ def updateMission(msg_json):
                     end_date = convert_millis_to_datetime(end_timestamp)
                     update_query = text("""
                         UPDATE missions.mss_mission
-                        SET end_date = :end_date
+                        SET end_date = :end_date,
+                        status_id = 8,     
                         WHERE id = :mission_id
                     """)
                     session.execute(update_query, {'end_date': end_date, 'mission_id': mission_id})
+
+                    history_query = text("""
+                        INSERT INTO missions.mss_mission_status_history 
+                        (mission_id, status_id, source, username)       
+                        VALUES 
+                        (:mission_id, 8,'ALGORITHM','ALGORITHM')          
+                    """)
+                    session.execute(history_query, {'mission_id': mission_id})
+
+                    notification_db = {
+                        "to": "all_users",
+                        "actions": [
+                            {
+                            "type": "reloadMission",
+                            "data": {
+                                "missionId": mission_id
+                            }
+                            }
+                        ]
+                    }
+                    notification_json = json.dumps(notification_db, ensure_ascii=False)
+
+                    notification_query = text("""
+                        INSERT INTO public.notifications 
+                        (destination, data)
+                        VALUES
+                        ('ignis', :data)
+                    """)
+                    session.execute(notification_query, {'data':notification_json})
                     session.commit()
                     print(f"Campo 'end_date' actualizado a {end_date} para mission_id: {mission_id}")
 
         except Exception as e:
             session.rollback()
             print(f"Error durante la actualización del campo 'finish': {str(e)}")
-
-
-
 
 
 
