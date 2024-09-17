@@ -78,7 +78,6 @@ def create_mission(**context):
         input_data['mission_id'] = mission_id
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
 
-
         # Update job status to 'FINISHED'
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
         update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
@@ -208,5 +207,7 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-# Definición de la secuencia de tareas en el DAG
-print_message_task >> create_mission_task
+
+# Modifica la secuencia de tareas
+print_message_task >> create_mission_task 
+
