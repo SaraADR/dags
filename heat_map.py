@@ -42,7 +42,7 @@ def process_heatmap_data(**context):
 
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-    from_user = str(message['message']['from_user']).encode('utf-8')
+    from_user = str(message['message']['from_user'])
     input_data = json.loads(input_data_str)
 
     # cambiar_proyeccion_tiff(input_tiff=TIFF,output_tiff=TIFF2)
