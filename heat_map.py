@@ -12,9 +12,10 @@ import codecs
 import re
 import os
 
+from scriptConvertTIff import reproject_tiff
+
 # Ruta al archivo TIFF que se va a subir a MinIO
-TIFF = './dags/repo/recursos/Orto_32629_1tif.tif'
-TIFF2 = './dags/repo/recursos/proyeccioncambiada.tif'
+algorithm_output_tiff = './dags/repo/recursos/Orto_32629_1tif.tif'
 
 
 def process_heatmap_data(**context):
@@ -45,20 +46,26 @@ def process_heatmap_data(**context):
     from_user = str(message['message']['from_user'])
     input_data = json.loads(input_data_str)
 
-    # cambiar_proyeccion_tiff(input_tiff=TIFF,output_tiff=TIFF2)
-
-
-    input_data["temp_tiff_path"] = TIFF
+   
     # input_data["temp_tiff_path"] = TIFF2
     input_data["dir_output"] = "/home/airflow/workspace/output"
     input_data["user"] = "usuario"
     input_data["password"] = "contraseña"
+
+    # Aquí se ejecuta el algoritmo y deja de salida en el directorio 
 
     # Log para verificar que los datos de entrada son correctos
     print("Datos completos de entrada:")
     print(json.dumps(input_data, indent=4))
 
     # Subir el archivo TIFF a MinIO
+
+    # cambiar_proyeccion_tiff(input_tiff=TIFF,output_tiff=TIFF2)
+    # output_tiff = crear el directorio del output tiff con uuid 
+    tiff_key = f"{uuid.uuid4()}.tiff"
+    reproject_tiff(algorithm_output_tiff,"./dags/repo/recursos/" + tiff_key)
+    # input_data["temp_tiff_path"] = output_tiff
+   
     try:
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
@@ -71,9 +78,8 @@ def process_heatmap_data(**context):
         )
 
         bucket_name = 'temp'
-        tiff_key = f"{uuid.uuid4()}.tiff"
-
-        s3_client.upload_file(input_data['temp_tiff_path'], bucket_name, tiff_key)
+        
+        s3_client.upload_file("./dags/repo/recursos/" + tiff_key, bucket_name, tiff_key)
         tiff_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{tiff_key}"
         print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
 
