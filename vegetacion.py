@@ -313,7 +313,7 @@ def get_referenceSystem_for_path(data, path_contains):
 
 def get_conflicts_for_path(data, path_contains):
     for resource in data['executionResources']:
-        if path_contains in resource['path'] and resource['tag'] == 'pointCloud LiDAR cut':
+        if path_contains in resource['path'] and 'CloudCut' in resource['tag']:
             for item in resource['data']:
                 if item['name'] == 'conflicts':
                     return item['value']
