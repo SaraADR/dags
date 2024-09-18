@@ -246,7 +246,7 @@ def process_extracted_files(**kwargs):
                         conflict_data[conflict_item['name']] = conflict_item['value']
 
                         # Extraer los datos que te interesan
-                        alert_level = conflict_data.get('AlertLevel', None)
+                        alert_level = conflict_data.get('AlertLevel', 0)
                         detected_obj_type = conflict_data.get('DetectedObjType', None)
                         impact = conflict_data.get('Impact', None)
                         line_height = conflict_data.get('LineHeight', None)
