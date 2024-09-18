@@ -5,7 +5,7 @@ import re
 import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
@@ -320,6 +320,63 @@ def get_conflicts_for_path(data, path_contains):
     return []
 
 
+
+
+def generate_notify_job(**context):
+    json_content = context['dag_run'].conf.get('json')
+ 
+    if not json_content:
+        print("Ha habido un error con el traspaso de los documentos")
+        return
+
+    #Accedemos al missionID para poder buscar si ya existe
+    id_mission = get_idmission(json_content)
+    print(f"MissionID: {id_mission}")
+
+
+    if id_mission is not None:
+        #Añadimos notificacion
+        try:
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
+
+            data_json = json.dumps({
+                "to":"all_users",
+                "actions":[{
+                    "type":"reloadMission",
+                    "data":{
+                        "missionId":id_mission
+                    }
+                }]
+            })
+            time = datetime.now().replace(tzinfo=timezone.utc)
+
+            query = text("""
+                INSERT INTO public.notifications
+                (destination, "data", "date", status)
+                VALUES (:destination, :data, :date, NULL);
+            """)
+            session.execute(query, {
+                'destination': 'inspection',
+                'data': data_json,
+                'date': time
+            })
+            session.commit()
+
+        except Exception as e:
+            session.rollback()
+            print(f"Error durante la inserción de la notificación: {str(e)}")
+        finally:
+            session.close()
+
+
+
+
+
+
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
@@ -345,5 +402,13 @@ process_extracted_files_task = PythonOperator(
     dag=dag,
 )
 
+#Generar notificación de vuelta
+generate_notify = PythonOperator(
+    task_id='generate_notify_job',
+    python_callable=generate_notify_job,
+    provide_context=True,
+    dag=dag,
+)
 
-process_extracted_files_task 
+
+process_extracted_files_task >> generate_notify
