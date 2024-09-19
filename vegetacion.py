@@ -5,7 +5,7 @@ import re
 import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
@@ -71,7 +71,7 @@ def process_extracted_files(**kwargs):
                     aws_secret_access_key=extra['aws_secret_access_key'],
                     config=Config(signature_version='s3v4')
                 )
-                bucket_name = 'temp'  
+                bucket_name = 'missions'  
           
                 for file in files:
                     content_bytes = base64.b64decode(file['content'])
@@ -100,7 +100,7 @@ def process_extracted_files(**kwargs):
             config=Config(signature_version='s3v4')
         )
 
-        bucket_name = 'temp'  
+        bucket_name = 'missions'  
         json_key = parent +'/' + 'algorithm_result.json'
 
         # Subir el archivo a MinIO
@@ -246,7 +246,7 @@ def process_extracted_files(**kwargs):
                         conflict_data[conflict_item['name']] = conflict_item['value']
 
                         # Extraer los datos que te interesan
-                        alert_level = conflict_data.get('AlertLevel', None)
+                        alert_level = conflict_data.get('AlertLevel', 0)
                         detected_obj_type = conflict_data.get('DetectedObjType', None)
                         impact = conflict_data.get('Impact', None)
                         line_height = conflict_data.get('LineHeight', None)
@@ -313,11 +313,68 @@ def get_referenceSystem_for_path(data, path_contains):
 
 def get_conflicts_for_path(data, path_contains):
     for resource in data['executionResources']:
-        if path_contains in resource['path'] and resource['tag'] == 'pointCloud LiDAR cut':
+        if path_contains in resource['path'] and 'CloudCut' in resource['tag']:
             for item in resource['data']:
                 if item['name'] == 'conflicts':
                     return item['value']
     return []
+
+
+
+
+def generate_notify_job(**context):
+    json_content = context['dag_run'].conf.get('json')
+ 
+    if not json_content:
+        print("Ha habido un error con el traspaso de los documentos")
+        return
+
+    #Accedemos al missionID para poder buscar si ya existe
+    id_mission = get_idmission(json_content)
+    print(f"MissionID: {id_mission}")
+
+
+    if id_mission is not None:
+        #Añadimos notificacion
+        try:
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
+
+            data_json = json.dumps({
+                "to":"all_users",
+                "actions":[{
+                    "type":"reloadMission",
+                    "data":{
+                        "missionId":id_mission
+                    }
+                }]
+            })
+            time = datetime.now().replace(tzinfo=timezone.utc)
+
+            query = text("""
+                INSERT INTO public.notifications
+                (destination, "data", "date", status)
+                VALUES (:destination, :data, :date, NULL);
+            """)
+            session.execute(query, {
+                'destination': 'inspection',
+                'data': data_json,
+                'date': time
+            })
+            session.commit()
+
+        except Exception as e:
+            session.rollback()
+            print(f"Error durante la inserción de la notificación: {str(e)}")
+        finally:
+            session.close()
+
+
+
+
 
 
 default_args = {
@@ -345,5 +402,13 @@ process_extracted_files_task = PythonOperator(
     dag=dag,
 )
 
+#Generar notificación de vuelta
+generate_notify = PythonOperator(
+    task_id='generate_notify_job',
+    python_callable=generate_notify_job,
+    provide_context=True,
+    dag=dag,
+)
 
-process_extracted_files_task 
+
+process_extracted_files_task >> generate_notify
