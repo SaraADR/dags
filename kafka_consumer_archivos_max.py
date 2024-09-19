@@ -13,14 +13,10 @@ from airflow.exceptions import AirflowSkipException
 import tempfile
 
 
-
 def consumer_function(message, prefix, **kwargs):
-
     print(f"Mensaje: {message}")
-
     if message is not None:
         nombre_fichero = message.key()
-
 
         if nombre_fichero is None:
             print("El nombre del fichero es erroneo, no se puede procesar")
@@ -46,7 +42,6 @@ def consumer_function(message, prefix, **kwargs):
             return 'no_message_task'
         else:
             return 'unknown_or_none_file_task'
-
 
 
 def process_zip_file(value, **kwargs):
@@ -117,9 +112,15 @@ def process_zip_file(value, **kwargs):
                     if algorithm_id == 'PowerLineVideoAnalisysRGB':
                         trigger_dag_name = 'video'
                         print("Ejecutando lógica para Video")
+
                     elif algorithm_id == 'PowerLineCloudAnalisys':   
                         trigger_dag_name = 'vegetacion'
                         print("Ejecutando lógica para vegetacion")
+
+                    elif algorithm_id == 'MetashapeRGB':   
+                        trigger_dag_name = 'metashape_rgb'
+                        print("Ejecutando lógica para MetashapeRGB")
+
                     elif videos and images is not None: 
                         try:
                             print(f"va a seguir el ciclo de detección de elementos")
