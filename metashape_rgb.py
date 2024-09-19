@@ -83,7 +83,7 @@ def upload_files_to_geoserver(**kwargs):
         return
 
     workspace = "tests-geonetwork"  # Cambia esto por el workspace correcto
-    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/geoserver/web/"  # URL de tu servidor GeoServer
+    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/web/"  # URL de tu servidor GeoServer
     geoserver_user = "admin"  # Usuario de GeoServer
     geoserver_password = "geoserver"  # Contraseña de GeoServer
 
