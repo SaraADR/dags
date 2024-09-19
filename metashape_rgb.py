@@ -6,14 +6,39 @@ import requests
 from requests.auth import HTTPBasicAuth
 from airflow.operators.python import PythonOperator
 
+# Función para crear el datastore en GeoServer si no existe
+def create_datastore(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password):
+    datastore_url = f"{geoserver_url}/rest/workspaces/{workspace}/datastores"
+    headers = {
+        'Content-type': 'application/json'
+    }
+    data = {
+        "dataStore": {
+            "name": datastore_name,
+            "connectionParameters": {
+                "parameter": [
+                    {"name": "url", "value": f"file:data/{datastore_name}.tif"}
+                ]
+            }
+        }
+    }
+    try:
+        response = requests.post(datastore_url, headers=headers, json=data, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
+        if response.status_code in [200, 201]:
+            print(f"Datastore {datastore_name} creado exitosamente.")
+        else:
+            print(f"Error al crear el datastore {datastore_name}: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"Error creando el datastore: {str(e)}")
+
 # Función para subir el archivo a GeoServer y crear la capa
-def upload_to_geoserver(tif_file, workspace, geoserver_url, geoserver_user, geoserver_password):
+def upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geoserver_user, geoserver_password):
     headers = {
         'Content-type': 'image/tiff'
     }
 
     # Endpoint para subir el archivo en GeoServer
-    datastore_url = f"{geoserver_url}/rest/workspaces/{workspace}/datastores/{tif_file['file_name']}/file.geotiff"
+    datastore_url = f"{geoserver_url}/rest/workspaces/{workspace}/datastores/{datastore_name}/file.geotiff"
 
     try:
         # Subir el archivo TIFF a GeoServer
@@ -31,7 +56,7 @@ def upload_to_geoserver(tif_file, workspace, geoserver_url, geoserver_user, geos
             return None
 
         # Devuelve la URL WMS correspondiente a la capa creada
-        wms_url = f"{geoserver_url}/geoserver/{workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers={workspace}:{tif_file['file_name']}&styles=&bbox=-180,-90,180,90&width=768&height=330&srs=EPSG:4326&format=application/openlayers"
+        wms_url = f"{geoserver_url}/geoserver/{workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers={workspace}:{datastore_name}&styles=&bbox=-180,-90,180,90&width=768&height=330&srs=EPSG:4326&format=application/openlayers"
         return wms_url
 
     except Exception as e:
@@ -83,16 +108,20 @@ def upload_files_to_geoserver(**kwargs):
         return
 
     workspace = "tests-geonetwork"  # Cambia esto por el workspace correcto
-    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/web/"  # URL de tu servidor GeoServer
+    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver"  # URL de tu servidor GeoServer (sin /web/)
     geoserver_user = "admin"  # Usuario de GeoServer
     geoserver_password = "geoserver"  # Contraseña de GeoServer
 
     wms_urls = []
     for tif_file in tif_files:
-        print(f"Subiendo archivo TIFF: {tif_file['file_name']}")
+        datastore_name = tif_file['file_name'].split('.')[0]  # Extraemos el nombre del datastore del nombre del archivo
+        print(f"Subiendo archivo TIFF: {tif_file['file_name']} como datastore {datastore_name}")
+
+        # Crear datastore si no existe
+        create_datastore(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password)
 
         # Llamar a la función para subir el archivo a GeoServer
-        wms_url = upload_to_geoserver(tif_file, workspace, geoserver_url, geoserver_user, geoserver_password)
+        wms_url = upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geoserver_user, geoserver_password)
 
         if wms_url:
             print(f"Archivo subido exitosamente. URL WMS: {wms_url}")
