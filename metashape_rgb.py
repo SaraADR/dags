@@ -6,30 +6,31 @@ import requests
 from requests.auth import HTTPBasicAuth
 from airflow.operators.python import PythonOperator
 
-# Función para crear el datastore en GeoServer si no existe
-def create_datastore(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password):
-    datastore_url = f"{geoserver_url}/rest/workspaces/{workspace}/datastores"
+# Función para crear el coverage store en GeoServer si no existe
+def create_coverage_store(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password):
+    coverage_store_url = f"{geoserver_url}/rest/workspaces/{workspace}/coveragestores"
     headers = {
         'Content-type': 'application/json'
     }
     data = {
-        "dataStore": {
+        "coverageStore": {
             "name": datastore_name,
-            "connectionParameters": {
-                "parameter": [
-                    {"name": "url", "value": f"file:data/{datastore_name}.tif"}
-                ]
-            }
+            "type": "GeoTIFF",
+            "enabled": True,
+            "workspace": {
+                "name": workspace
+            },
+            "url": f"file:data/{datastore_name}.tif"
         }
     }
     try:
-        response = requests.post(datastore_url, headers=headers, json=data, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
+        response = requests.post(coverage_store_url, headers=headers, json=data, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
         if response.status_code in [200, 201]:
-            print(f"Datastore {datastore_name} creado exitosamente.")
+            print(f"CoverageStore {datastore_name} creado exitosamente.")
         else:
-            print(f"Error al crear el datastore {datastore_name}: {response.status_code} - {response.text}")
+            print(f"Error al crear el CoverageStore {datastore_name}: {response.status_code} - {response.text}")
     except Exception as e:
-        print(f"Error creando el datastore: {str(e)}")
+        print(f"Error creando el CoverageStore: {str(e)}")
 
 # Función para subir el archivo a GeoServer y crear la capa
 def upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geoserver_user, geoserver_password):
@@ -37,13 +38,13 @@ def upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geos
         'Content-type': 'image/tiff'
     }
 
-    # Endpoint para subir el archivo en GeoServer
-    datastore_url = f"{geoserver_url}/rest/workspaces/{workspace}/datastores/{datastore_name}/file.geotiff"
+    # Cambiar a coverage store para archivos TIFF
+    coverage_store_url = f"{geoserver_url}/rest/workspaces/{workspace}/coveragestores/{datastore_name}/file.geotiff"
 
     try:
         # Subir el archivo TIFF a GeoServer
-        response = requests.post(
-            datastore_url,
+        response = requests.put(
+            coverage_store_url,
             headers=headers,
             data=tif_file['content'],  # El contenido del archivo
             auth=HTTPBasicAuth(geoserver_user, geoserver_password)
@@ -117,8 +118,8 @@ def upload_files_to_geoserver(**kwargs):
         datastore_name = tif_file['file_name'].split('.')[0]  # Extraemos el nombre del datastore del nombre del archivo
         print(f"Subiendo archivo TIFF: {tif_file['file_name']} como datastore {datastore_name}")
 
-        # Crear datastore si no existe
-        create_datastore(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password)
+        # Crear coverage store si no existe
+        create_coverage_store(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password)
 
         # Llamar a la función para subir el archivo a GeoServer
         wms_url = upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geoserver_user, geoserver_password)
