@@ -17,14 +17,12 @@ def upload_to_geoserver(tif_file, workspace, geoserver_url, geoserver_user, geos
 
     try:
         # Subir el archivo TIFF a GeoServer
-        datastore_url = f"{geoserver_url}/rest/workspaces/{workspace}/datastores/{tif_file['file_name']}/file.geotiff"
         response = requests.post(
-        datastore_url,
-        headers=headers,
-        data=tif_file['content'],  # El contenido del archivo
-        auth=HTTPBasicAuth(geoserver_user, geoserver_password)
-)
-
+            datastore_url,
+            headers=headers,
+            data=tif_file['content'],  # El contenido del archivo
+            auth=HTTPBasicAuth(geoserver_user, geoserver_password)
+        )
         
         if response.status_code == 201:
             print(f"Archivo {tif_file['file_name']} subido exitosamente a GeoServer.")
