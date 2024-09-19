@@ -41,7 +41,7 @@ def process_extracted_files(**kwargs):
 
 # Ejemplo de uso en DAG de Airflow
 default_args = {
-    'owner': 'sadr',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime(2024, 8, 8),
     'email_on_failure': False,
@@ -51,9 +51,9 @@ default_args = {
 }
 
 dag = DAG(
-    'vegetacion',
+    'metashape_rgb',
     default_args=default_args,
-    description='Flujo de datos de entrada de elementos de vegetacion',
+    description='Flujo de datos de entrada de elementos de metashape_rgb',
     schedule_interval=None,
     catchup=False,
 )
