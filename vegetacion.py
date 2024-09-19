@@ -71,7 +71,7 @@ def process_extracted_files(**kwargs):
                     aws_secret_access_key=extra['aws_secret_access_key'],
                     config=Config(signature_version='s3v4')
                 )
-                bucket_name = 'temp'  
+                bucket_name = 'missions'  
           
                 for file in files:
                     content_bytes = base64.b64decode(file['content'])
@@ -100,7 +100,7 @@ def process_extracted_files(**kwargs):
             config=Config(signature_version='s3v4')
         )
 
-        bucket_name = 'temp'  
+        bucket_name = 'missions'  
         json_key = parent +'/' + 'algorithm_result.json'
 
         # Subir el archivo a MinIO
