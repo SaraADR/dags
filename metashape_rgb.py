@@ -17,7 +17,7 @@ def upload_to_geoserver(tif_file, workspace, geoserver_url, geoserver_user, geos
 
     try:
         # Subir el archivo TIFF a GeoServer
-        response = requests.post(
+        response = requests.put(
             datastore_url,
             headers=headers,
             data=tif_file['content'],  # El contenido del archivo
@@ -82,8 +82,8 @@ def upload_files_to_geoserver(**kwargs):
         print("No se encontraron archivos TIFF para subir.")
         return
 
-    workspace = "tests-geonetwork"  # Cambia esto por el workspace correcto
-    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/web/"  # URL de tu servidor GeoServer
+    workspace = "mi_espacio_trabajo"  # Cambia esto por el workspace correcto
+    geoserver_url = "https://geoserver.dev.cuatrodigital.com/geoserver/web/"  # URL de tu servidor GeoServer
     geoserver_user = "admin"  # Usuario de GeoServer
     geoserver_password = "geoserver"  # Contraseña de GeoServer
 
