@@ -17,7 +17,7 @@ def upload_to_geoserver(tif_file, workspace, geoserver_url, geoserver_user, geos
 
     try:
         # Subir el archivo TIFF a GeoServer
-        response = requests.put(
+        response = requests.post(
             datastore_url,
             headers=headers,
             data=tif_file['content'],  # El contenido del archivo
