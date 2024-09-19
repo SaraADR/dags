@@ -121,6 +121,7 @@ def process_zip_file(value, **kwargs):
                                 task_id='trigger_email_handler_inner',
                                 trigger_dag_id=trigger_dag_name,
                                 conf={ 'json' : json_content, 'otros' : otros}, 
+                                conf={ 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 dag=dag,
                             )
