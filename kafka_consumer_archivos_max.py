@@ -71,8 +71,6 @@ def process_zip_file(value, **kwargs):
 
                 # Para almacenar la estructura de carpetas y archivos
                 folder_structure = {}
-                videos = []
-                images = []
                 otros = []
                 algorithm_id = None
 
@@ -91,8 +89,6 @@ def process_zip_file(value, **kwargs):
 
                     print(file_name)
 
-        # ¿ES NECESARIO TENER TODOS LOS TIPOS O CON PASAR A BASE64 Y QUITARLO A LA VUELTA NOS VALE?
-
 
                     if os.path.basename(file_name).lower() == 'algorithm_result.json' or file_name == 'algorithm_result.json':
                         # Procesar el archivo JSON
@@ -108,8 +104,6 @@ def process_zip_file(value, **kwargs):
 
 
                 print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
-                print("videos:", videos)
-                print("images:", images)
                 print("otros:", otros)
 
                 if algorithm_id:
@@ -120,26 +114,13 @@ def process_zip_file(value, **kwargs):
                     elif algorithm_id == 'PowerLineCloudAnalisys':   
                         trigger_dag_name = 'vegetacion'
                         print("Ejecutando lógica para vegetacion")
-                    elif videos and images is not None: 
-                        try:
-                            print(f"va a seguir el ciclo de detección de elementos")
-                            trigger = TriggerDagRunOperator(
-                                task_id='trigger_email_handler_inner',
-                                trigger_dag_id='save_documents_to_minio',
-                                conf={'message': value_pulled, 'structure': folder_structure}, 
-                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                                dag=dag,
-                            )
-                            trigger.execute(context=kwargs)
-                        except Exception as e:
-                            print(f"Task instance incorrecto: {e}")
 
                     if trigger_dag_name is not None:
                         try:
                             trigger = TriggerDagRunOperator(
                                 task_id='trigger_email_handler_inner',
                                 trigger_dag_id=trigger_dag_name,
-                                conf={'videos': videos, 'images': images, 'json' : json_content, 'otros' : otros}, 
+                                conf={ 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 dag=dag,
                             )

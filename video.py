@@ -13,11 +13,9 @@ from sqlalchemy.orm import sessionmaker
 
 def process_extracted_files(**kwargs):
     # Obtenemos los archivos extraídos que se pasan como "conf"
-    video = kwargs['dag_run'].conf.get('videos', [])
-    imagen = kwargs['dag_run'].conf.get('imagen', [])
+    video = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
 
-    
     if not json_content:
         print("Ha habido un error con el traspaso de los documentos")
         return
@@ -33,7 +31,7 @@ def process_extracted_files(**kwargs):
 
     print(f"MissionID: {id_mission}")
 
-    
+
     try:
         db_conn = BaseHook.get_connection('biobd')
         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
