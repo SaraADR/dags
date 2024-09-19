@@ -22,7 +22,8 @@ def process_extracted_files(**kwargs):
         file_name = file_info['file_name']
 
         # Verificar si el archivo es un .tif
-        match = re.match(r'.+\.tif$', file_name)
+        match = re.match(r'resources/output/.+\.tif$', file_name)
+        
         if match:
             grouped_files['tif_files'].append(file_info)
 
