@@ -1,95 +1,141 @@
+from collections import defaultdict
 from datetime import datetime, timedelta
+import re
+from airflow import DAG
 import requests
 from requests.auth import HTTPBasicAuth
-from airflow import DAG
 from airflow.operators.python import PythonOperator
 
-# Función para crear un Coverage Store en GeoServer
-def create_coverage_store(workspace, store_name, geoserver_url, geoserver_user, geoserver_password):
-    coverage_store_url = f"{geoserver_url}/rest/workspaces/{workspace}/coveragestores"
+# Función para crear una nueva sesión de importación en GeoServer para el workspace dado
+def create_import_session(workspace, geoserver_url, geoserver_user, geoserver_password):
+    import_url = f"{geoserver_url}/rest/imports"
     headers = {
         'Content-type': 'application/json'
     }
     data = {
-        "coverageStore": {
-            "name": store_name,
-            "type": "GeoTIFF",
-            "enabled": True,
-            "workspace": {
-                "name": workspace
-            },
-            "url": f"file:data/{store_name}.tif"
+        "import": {
+            "targetWorkspace": {
+                "workspace": {
+                    "name": workspace
+                }
+            }
         }
     }
-    response = requests.post(coverage_store_url, json=data, headers=headers, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
-    
-    if response.status_code in [200, 201]:
-        print(f"CoverageStore {store_name} creado exitosamente.")
-    else:
-        print(f"Error al crear el CoverageStore: {response.status_code} - {response.text}")
+    try:
+        response = requests.post(import_url, headers=headers, json=data, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
+        if response.status_code == 201:
+            import_id = response.json()["import"]["id"]
+            print(f"Sesión de importación {import_id} creada con éxito.")
+            return import_id
+        else:
+            print(f"Error al crear la sesión de importación: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        print(f"Error creando la sesión de importación: {str(e)}")
+        return None
 
-# Función para subir el archivo TIFF
-def upload_tiff_to_geoserver(workspace, store_name, tiff_file_path, geoserver_url, geoserver_user, geoserver_password):
-    headers = {
-        'Content-type': 'image/tiff'
+# Función para subir el archivo TIFF a la sesión de importación
+def upload_file_to_import(import_id, tif_file, geoserver_url, geoserver_user, geoserver_password):
+    upload_url = f"{geoserver_url}/rest/imports/{import_id}/tasks"
+    files = {
+        'file': (tif_file['file_name'], tif_file['content'], 'image/tiff')
     }
-    
-    # Endpoint para subir el archivo TIFF
-    upload_url = f"{geoserver_url}/rest/workspaces/{workspace}/coveragestores/{store_name}/file.geotiff"
-    
-    # Lee el archivo TIFF
-    with open(tiff_file_path, 'rb') as tif_file:
-        response = requests.put(upload_url, headers=headers, data=tif_file, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
-    
-    if response.status_code == 201:
-        print(f"Archivo {tiff_file_path} subido exitosamente.")
-    else:
-        print(f"Error al subir el archivo: {response.status_code} - {response.text}")
 
-# Primer paso: procesar los archivos
-def process_tiff_files(**kwargs):
-    # Aquí obtendrías los archivos de alguna fuente, por ejemplo desde un XCom o similar
-    # En este ejemplo estamos simulando que obtuvimos un archivo TIFF
-    tiff_files = kwargs.get('dag_run').conf.get('tiff_files', [])
+    try:
+        response = requests.post(upload_url, files=files, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
+        if response.status_code == 201:
+            print(f"Archivo {tif_file['file_name']} subido con éxito.")
+            return True
+        else:
+            print(f"Error al subir el archivo {tif_file['file_name']}: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        print(f"Error subiendo el archivo a la sesión de importación: {str(e)}")
+        return False
+
+# Función para ejecutar la sesión de importación y publicar las capas
+def execute_import_session(import_id, geoserver_url, geoserver_user, geoserver_password):
+    execute_url = f"{geoserver_url}/rest/imports/{import_id}?execute=true"
     
-    if not tiff_files:
-        print("No se encontraron archivos TIFF para procesar.")
+    try:
+        response = requests.post(execute_url, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
+        if response.status_code == 204:
+            print(f"Sesión de importación {import_id} ejecutada con éxito.")
+            return True
+        else:
+            print(f"Error al ejecutar la sesión de importación: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        print(f"Error ejecutando la sesión de importación: {str(e)}")
+        return False
+
+# Primer paso: leer y procesar los archivos extraídos
+def process_extracted_files(**kwargs):
+    otros = kwargs['dag_run'].conf.get('otros', [])
+    json_content = kwargs['dag_run'].conf.get('json')
+
+    if not json_content:
+        print("Error con el traspaso de los documentos")
         return
-    
-    # Filtra los archivos TIFF si es necesario, en este caso asumimos que ya tenemos la lista
-    ti = kwargs['ti']
-    ti.xcom_push(key='tiff_files', value=tiff_files)
-    print(f"Se han procesado {len(tiff_files)} archivos TIFF.")
 
-# Segundo paso: subir los archivos TIFF a GeoServer
-def upload_tiff_files_to_geoserver(**kwargs):
+    print("Archivos para procesar preparados")
+
+    # Agrupar los archivos 'otros' por carpetas utilizando regex para extraer el prefijo de la carpeta
+    grouped_files = defaultdict(list)
+    for file_info in otros:
+        file_name = file_info['file_name']
+
+        # Verificar si el archivo es un .tif
+        match = re.match(r'.+\.tif$', file_name)
+        if match:
+            grouped_files['tif_files'].append(file_info)
+
+    # Verificar si se han leído los archivos TIFF
+    tif_files = grouped_files.get('tif_files', [])
+    if len(tif_files) > 0:
+        print(f"Se han leído {len(tif_files)} archivos TIFF correctamente.")
+    else:
+        print("Error: No se encontraron archivos TIFF.")
+
+    # Guardar la lista de archivos TIFF procesados en XCom para la siguiente tarea
     ti = kwargs['ti']
-    tiff_files = ti.xcom_pull(key='tiff_files', task_ids='process_tiff_files_task')
-    
-    if not tiff_files:
+    ti.xcom_push(key='tif_files', value=tif_files)
+
+# Segundo paso: crear la sesión de importación, subir los archivos y ejecutarla
+def upload_files_to_geoserver(**kwargs):
+    ti = kwargs['ti']
+    tif_files = ti.xcom_pull(key='tif_files', task_ids='process_extracted_files_task')
+
+    if not tif_files:
         print("No se encontraron archivos TIFF para subir.")
         return
 
-    workspace = "metashapergb"  # Cambia esto por tu workspace
-    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest/workspaces/metashapergb"
-    geoserver_user = "admin"
-    geoserver_password = "geoserver"
+    workspace = "metashapergb"  # Cambia esto por el nombre correcto de tu workspace
+    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest/workspaces/metashapergb"  # URL de tu servidor GeoServer
+    geoserver_user = "admin"  # Usuario de GeoServer
+    geoserver_password = "geoserver"  # Contraseña de GeoServer
 
-    for tiff_file in tiff_files:
-        store_name = tiff_file['file_name'].split('.')[0]
-        tiff_file_path = tiff_file['file_path']  # Asume que tienes la ruta del archivo
+    # Crear una sesión de importación
+    import_id = create_import_session(workspace, geoserver_url, geoserver_user, geoserver_password)
+    if not import_id:
+        return
 
-        print(f"Subiendo {tiff_file_path} como {store_name}...")
+    # Subir todos los archivos TIFF
+    for tif_file in tif_files:
+        if not upload_file_to_import(import_id, tif_file, geoserver_url, geoserver_user, geoserver_password):
+            print(f"Error al subir {tif_file['file_name']}. Deteniendo el proceso.")
+            return
 
-        # Crear Coverage Store
-        create_coverage_store(workspace, store_name, geoserver_url, geoserver_user, geoserver_password)
+    # Ejecutar la sesión de importación para publicar las capas
+    if not execute_import_session(import_id, geoserver_url, geoserver_user, geoserver_password):
+        print(f"Error al ejecutar la sesión de importación {import_id}.")
+        return
 
-        # Subir el archivo TIFF
-        upload_tiff_to_geoserver(workspace, store_name, tiff_file_path, geoserver_url, geoserver_user, geoserver_password)
+    print(f"Todos los archivos TIFF se han subido y procesado correctamente en la sesión de importación {import_id}.")
 
 # Configuración del DAG de Airflow
 default_args = {
-    'owner': 'oscar',
+    'owner': 'tu_nombre',
     'depends_on_past': False,
     'start_date': datetime(2024, 8, 8),
     'email_on_failure': False,
@@ -99,25 +145,25 @@ default_args = {
 }
 
 dag = DAG(
-    'metashape_rgb',
+    'upload_tiff_to_geoserver_dag',
     default_args=default_args,
-    description='Flujo de datos de entrada de elementos de metashape_rgb',
+    description='DAG para subir archivos TIFF a GeoServer usando la API REST de Importer',
     schedule_interval=None,
     catchup=False,
 )
 
-# Primera tarea: procesar los archivos
+# Tarea 1: Procesar los archivos extraídos
 process_extracted_files_task = PythonOperator(
     task_id='process_extracted_files_task',
-    python_callable=process_tiff_files,
+    python_callable=process_extracted_files,
     provide_context=True,
     dag=dag,
 )
 
-# Segunda tarea: subir los archivos a GeoServer
+# Tarea 2: Subir los archivos a GeoServer y ejecutar la sesión de importación
 upload_files_to_geoserver_task = PythonOperator(
     task_id='upload_files_to_geoserver_task',
-    python_callable=upload_tiff_files_to_geoserver,
+    python_callable=upload_files_to_geoserver,
     provide_context=True,
     dag=dag,
 )
