@@ -121,7 +121,6 @@ def process_heatmap_data(**context):
                 sql=f"""
                 INSERT INTO public.notifications (destination, data)
                 VALUES ('ignis', '{notification_json}');
-                SET status = 'FINISHED'
                 """
             )
             pg_hook.execute(context)
