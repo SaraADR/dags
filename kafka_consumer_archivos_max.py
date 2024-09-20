@@ -101,6 +101,7 @@ def process_zip_file(value, **kwargs):
                 print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
                 print("otros:", otros)
 
+
                 if algorithm_id:
                     # Aquí tomas decisiones basadas en el valor de algorithmId
                     if algorithm_id == 'PowerLineVideoAnalisysRGB':

@@ -12,6 +12,12 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 import codecs
 import re
 import os
+from airflow.hooks.base import BaseHook
+from sqlalchemy import create_engine, Table, MetaData
+from airflow.providers.postgres.operators.postgres import PostgresOperator
+from sqlalchemy.orm import sessionmaker
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from datetime import datetime, timedelta, timezone
 
 from scriptConvertTIff import reproject_tiff
 
@@ -22,6 +28,11 @@ algorithm_output_tiff = './dags/repo/recursos/Orto_32629_1tif.tif'
 def process_heatmap_data(**context):
     # Obtener el valor de 'type' de default_args a través del contexto
     task_type = context['dag'].default_args.get('type')
+    db_conn = BaseHook.get_connection('biobd')
+    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+    engine = create_engine(connection_string)
+    Session = sessionmaker(bind=engine)
+    session = Session()
 
     # Realizar una operación condicional basada en el valor de 'type'
     if task_type == 'incendios':
@@ -45,7 +56,10 @@ def process_heatmap_data(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
     from_user = str(message['message']['from_user'])
+    job_id = str(message['message']['id'])
     input_data = json.loads(input_data_str)
+    metadata = MetaData(bind=engine)
+
 
    
     # input_data["temp_tiff_path"] = TIFF2
@@ -81,9 +95,7 @@ def process_heatmap_data(**context):
                 aws_secret_access_key=extra['aws_secret_access_key'],
                 config=Config(signature_version='s3v4')
             )
-
             bucket_name = 'temp'
-            
             s3_client.upload_file(temp_dir_file, bucket_name, tiff_key)
             tiff_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{tiff_key}"
             print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
@@ -129,6 +141,30 @@ def process_heatmap_data(**context):
         except Exception as e:
             print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
 
+def change_state_job(**context):
+    message = context['dag_run'].conf
+    job_id = message['message']['id']
+    print(f"jobid {job_id}" )
+
+    try:
+        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        # Update job status to 'FINISHED'
+        metadata = MetaData(bind=engine)
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to FINISHED")
+
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante el guardado del estado del job: {str(e)}")
 
 # def cambiar_proyeccion_tiff(input_tiff, output_tiff):
 #     # Abrir el archivo TIFF
@@ -229,6 +265,15 @@ process_heatmap_incendios_task = PythonOperator(
     dag=dag,
 )
 
+#Cambia estado de job
+change_state_task = PythonOperator(
+    task_id='change_state_job',
+    python_callable=change_state_job,
+    provide_context=True,
+    dag=dag,
+)
+
 # Ejecución de la tarea en el DAG
 process_heatmap_incendios_task 
 process_heatmap_aeronaves_task
+change_state_task
