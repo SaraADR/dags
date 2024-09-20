@@ -94,7 +94,7 @@ def upload_and_import_geotiff():
         execute_import(import_id, geoserver_url, geoserver_user, geoserver_password)
 
 # DAG and task definition
-dag = DAG('upload_geotiff_to_geoserver', description='Upload GeoTIFF to GeoServer using Importer API',
+dag = DAG('metashape_rgb', description='Upload GeoTIFF to GeoServer using Importer API',
           schedule_interval='@once',
           start_date=datetime(2023, 1, 1), catchup=False)
 
