@@ -135,7 +135,7 @@ def upload_files_to_geoserver(**kwargs):
 
 # Configuración del DAG de Airflow
 default_args = {
-    'owner': 'tu_nombre',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime(2024, 8, 8),
     'email_on_failure': False,
@@ -145,12 +145,13 @@ default_args = {
 }
 
 dag = DAG(
-    'upload_tiff_to_geoserver_dag',
+    'metashape_rgb',
     default_args=default_args,
-    description='DAG para subir archivos TIFF a GeoServer usando la API REST de Importer',
+    description='Flujo de datos de entrada de elementos de metashape_rgb',
     schedule_interval=None,
     catchup=False,
 )
+
 
 # Tarea 1: Procesar los archivos extraídos
 process_extracted_files_task = PythonOperator(
