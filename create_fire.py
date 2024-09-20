@@ -56,10 +56,14 @@ def create_mission(**context):
         session.commit()
         print(f"Misión creada con ID: {mission_id}")
 
+
+
         if input_data['type_id'] == 3:
             fire_id = create_fire(input_data) 
         else:
             fire_id = input_data['fireId']
+
+
         if not (fire_id == None or fire_id == 0):
             insert_relation_mission_fire(mission_id, fire_id)
 
@@ -118,12 +122,17 @@ def create_fire(input_data):
             print("Incendio creado con éxito.")
             fire_data = response.json()
             print(fire_data)
+            print("id del fire: ")
+            print(fire_data['id'])
+            return fire_data['id']
+            
         else:
             print(f"Error en la creación del incendio: {response.status_code}")
             print(response.text)
 
     except Exception as e:
         print(f"Error al crear el incendio: {str(e)}")
+
 
 # Función para insertar una relación entre misión e incendio en la base de datos
 def insert_relation_mission_fire(id_mission, id_fire):
