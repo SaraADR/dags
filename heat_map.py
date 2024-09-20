@@ -121,38 +121,11 @@ def process_heatmap_data(**context):
                 sql=f"""
                 INSERT INTO public.notifications (destination, data)
                 VALUES ('ignis', '{notification_json}');
+                SET status = 'FINISHED'
                 """
             )
             pg_hook.execute(context)
             print("Notificación almacenada correctamente en la base de datos.")
-            
-        # Operación para actualizar el estado a 'FINISHED'
-            pg_hook_update = PostgresOperator(
-                task_id='update_status',
-                postgres_conn_id='biobd',
-                sql="""
-                UPDATE public.notifications
-                SET status = 'FINISHED'
-                WHERE destination = 'ignis'
-                AND data = %s;
-                """,
-                parameters=(notification_json,)
-            )
-            
-            # Ejecutar la actualización del estado
-            pg_hook_update.execute(context)
-            
-            print("Estado actualizado a 'FINISHED'.")
-
-        except Exception as e:
-            print(f"Error al almacenar la notificación: {e}")
-
-
-
-
-
-
-
 
         except Exception as e:
             print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
