@@ -125,6 +125,7 @@ def create_fire(input_data):
             print("Incendio creado con éxito.")
             fire_data = response.json()
             print(fire_data)
+            return fire_data['id']
         else:
             print(f"Error en la creación del incendio: {response.status_code}")
             print(response.text)
