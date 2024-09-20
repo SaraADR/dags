@@ -78,7 +78,7 @@ def execute_import(import_id, geoserver_url, geoserver_user, geoserver_password)
 def upload_and_import_geotiff():
     workspace = "metashapergb"
     datastore_name = "	metashape_rgb"
-    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest/workspaces/tests-geonetwork"
+    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest/imports/0"
     geoserver_user = "admin"
     geoserver_password = "geoserver"
     tiff_file_path = "/path/to/your/geotiff/file.tif"
