@@ -27,18 +27,10 @@ def process_heatmap_data(**context):
     if task_type == 'incendios':
         # Lógica específica para el heatmap de incendios
         print("Procesando datos para el heatmap de incendios.")
-        # Modificaciones o lógica específica para incendios
-        # input_data["ar_incendios"] = "historical_fires.csv"
-        # input_data["url_search_fire"] = "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection"
-        # input_data["url_fireperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/FireAlgorithm_FirePerimeterService/getByFire?id="
-
+    
     elif task_type == 'aeronaves':
         # Lógica específica para el heatmap de aeronaves
         print("Procesando datos para el heatmap de aeronaves.")
-        # Modificaciones o lógica específica para aeronaves
-        # input_data["ar_aeronaves"] = "historical_aircraft.csv"
-        # input_data["url_search_aircraft"] = "https://pre.atcservices.cirpas.gal/rest/AircraftService/searchByIntersection"
-        # input_data["url_aircraftperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/AircraftAlgorithm_AircraftPerimeterService/getByAircraft?id="
     
     # El resto de tu código continúa aquí...
 
@@ -47,13 +39,9 @@ def process_heatmap_data(**context):
     from_user = str(message['message']['from_user'])
     input_data = json.loads(input_data_str)
 
-   
-    # input_data["temp_tiff_path"] = TIFF2
     input_data["dir_output"] = "/home/airflow/workspace/output"
     input_data["user"] = "usuario"
     input_data["password"] = "contraseña"
-
-    # Aquí se ejecuta el algoritmo y deja de salida en el directorio 
 
     # Log para verificar que los datos de entrada son correctos
     print("Datos completos de entrada:")
@@ -61,15 +49,11 @@ def process_heatmap_data(**context):
 
     # Subir el archivo TIFF a MinIO
 
-    # cambiar_proyeccion_tiff(input_tiff=TIFF,output_tiff=TIFF2)
-    # output_tiff = crear el directorio del output tiff con uuid 
-
     tiff_key = f"{uuid.uuid4()}.tiff"
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_file = os.path.join(temp_dir, tiff_key)
 
         reproject_tiff(algorithm_output_tiff, temp_dir_file)
-        # input_data["temp_tiff_path"] = output_tiff
     
         try:
             connection = BaseHook.get_connection('minio_conn')
@@ -126,49 +110,25 @@ def process_heatmap_data(**context):
             pg_hook.execute(context)
             print("Notificación almacenada correctamente en la base de datos.")
 
+            # **Aquí agregamos la lógica para marcar el proceso como "finished" en la tabla jobs**
+            job_id = message['message'].get('job_id')  # Asegurarse de que se pase el ID del trabajo
+            update_job_status_sql = f"""
+                UPDATE public.jobs
+                SET status = 'finished'
+                WHERE job_id = '{job_id}';
+            """
+            
+            pg_hook_update_job = PostgresOperator(
+                task_id='update_job_status',
+                postgres_conn_id='biobd',
+                sql=update_job_status_sql
+            )
+            pg_hook_update_job.execute(context)
+
+            print(f"El estado del job con ID {job_id} ha sido actualizado a 'finished'.")
+
         except Exception as e:
-            print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
-
-
-# def cambiar_proyeccion_tiff(input_tiff, output_tiff):
-#     # Abrir el archivo TIFF
-#     dataset = gdal.Open(input_tiff, gdal.GA_Update)
-
-#     if dataset is None:
-#         raise FileNotFoundError(f"No se pudo abrir el archivo TIFF: {input_tiff}")
-
-#     # Obtener la proyección actual
-#     proyeccion = dataset.GetProjection()
-
-#     # Crear un objeto SpatialReference
-#     srs = osr.SpatialReference()
-
-#     # Revisar si ya tiene proyección
-#     if proyeccion:
-#         print(f"Proyección actual: {proyeccion}")
-
-#         # Si ya es EPSG:3857, no se cambia
-#         srs.ImportFromWkt(proyeccion)
-#         if srs.IsProjected() and srs.GetAttrValue("AUTHORITY", 1) == '3857':
-#             print("El archivo ya tiene la proyección EPSG:3857.")
-#         else:
-#             # Cambiar proyección a EPSG:3857
-#             print("Cambiando la proyección a EPSG:3857.")
-#             srs.ImportFromEPSG(3857)
-#             dataset.SetProjection(srs.ExportToWkt())
-#     else:
-#         # Si no tiene proyección, aplicar EPSG:3857
-#         print("No tiene proyección, aplicando EPSG:3857.")
-#         srs.ImportFromEPSG(3857)
-#         dataset.SetProjection(srs.ExportToWkt())
-
-#     # Guardar el archivo TIFF con la nueva proyección
-#     gdal.Warp(output_tiff, dataset, dstSRS='EPSG:3857')
-
-#     # Cerrar el dataset
-#     dataset = None
-
-#     print(f"Se ha guardado el archivo con la proyección EPSG:3857 en: {output_tiff}")
+            print(f"Error al almacenar la notificación o actualizar el estado del job en la base de datos: {str(e)}")
 
 
 # Configuración del DAG
