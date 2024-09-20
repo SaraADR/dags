@@ -95,9 +95,7 @@ def process_heatmap_data(**context):
                 aws_secret_access_key=extra['aws_secret_access_key'],
                 config=Config(signature_version='s3v4')
             )
-
             bucket_name = 'temp'
-            
             s3_client.upload_file(temp_dir_file, bucket_name, tiff_key)
             tiff_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{tiff_key}"
             print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
@@ -125,9 +123,6 @@ def process_heatmap_data(**context):
             ]
         }
         notification_json = json.dumps(notification_db, ensure_ascii=False)
-
-
-        
 
         # Insertar la notificación en la base de datos PostgreSQL
         try:
