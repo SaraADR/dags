@@ -279,4 +279,6 @@ change_state_task = PythonOperator(
 )
 
 # Ejecución de la tarea en el DAG
-process_heatmap_incendios_task >> process_heatmap_aeronaves_task >> change_state_task
+process_heatmap_incendios_task 
+process_heatmap_aeronaves_task
+change_state_task
