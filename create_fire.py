@@ -56,10 +56,17 @@ def create_mission(**context):
         session.commit()
         print(f"Misión creada con ID: {mission_id}")
 
+
+
         if input_data['type_id'] == 3:
             fire_id = create_fire(input_data) 
         else:
             fire_id = input_data['fireId']
+
+        print(result)
+        print(mission_id)
+        print(fire_id)
+
         if not (fire_id == None or fire_id == 0):
             insert_relation_mission_fire(mission_id, fire_id)
 
