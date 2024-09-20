@@ -8,13 +8,10 @@ import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 import os
-from sqlalchemy.orm import sessionmaker
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 import codecs
 import re
 import os
-from sqlalchemy import create_engine, Table, MetaData
-
 
 from scriptConvertTIff import reproject_tiff
 
@@ -49,15 +46,12 @@ def process_heatmap_data(**context):
     input_data_str = message['message']['input_data']
     from_user = str(message['message']['from_user'])
     input_data = json.loads(input_data_str)
-    job_id = message['message']['id']  # Extracting job_id from the message
-
 
    
     # input_data["temp_tiff_path"] = TIFF2
     input_data["dir_output"] = "/home/airflow/workspace/output"
     input_data["user"] = "usuario"
     input_data["password"] = "contraseña"
-    metadata = MetaData(bind=engine)
 
     # Aquí se ejecuta el algoritmo y deja de salida en el directorio 
 
@@ -121,9 +115,6 @@ def process_heatmap_data(**context):
         # Insertar la notificación en la base de datos PostgreSQL
         try:
             connection = BaseHook.get_connection('biobd')
-            engine = create_engine(connection)
-            Session = sessionmaker(bind=engine)
-            session = Session()
             pg_hook = PostgresOperator(
                 task_id='send_notification',
                 postgres_conn_id='biobd',
@@ -134,13 +125,34 @@ def process_heatmap_data(**context):
             )
             pg_hook.execute(context)
             print("Notificación almacenada correctamente en la base de datos.")
+            
+        # Operación para actualizar el estado a 'FINISHED'
+            pg_hook_update = PostgresOperator(
+                task_id='update_status',
+                postgres_conn_id='biobd',
+                sql="""
+                UPDATE public.notifications
+                SET status = 'FINISHED'
+                WHERE destination = 'ignis'
+                AND data = %s;
+                """,
+                parameters=(notification_json,)
+            )
+            
+            # Ejecutar la actualización del estado
+            pg_hook_update.execute(context)
+            
+            print("Estado actualizado a 'FINISHED'.")
 
-            # Update job status to 'FINISHED'
-            jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
-            session.execute(update_stmt)
-            session.commit()
-            print(f"Job ID {job_id} status updated to FINISHED")
+        except Exception as e:
+            print(f"Error al almacenar la notificación: {e}")
+
+
+
+
+
+
+
 
         except Exception as e:
             print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
