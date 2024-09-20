@@ -12,6 +12,12 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 import codecs
 import re
 import os
+from airflow.hooks.base import BaseHook
+from sqlalchemy import create_engine, Table, MetaData
+from airflow.providers.postgres.operators.postgres import PostgresOperator
+from sqlalchemy.orm import sessionmaker
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from datetime import datetime, timedelta, timezone
 
 from scriptConvertTIff import reproject_tiff
 
@@ -22,6 +28,11 @@ algorithm_output_tiff = './dags/repo/recursos/Orto_32629_1tif.tif'
 def process_heatmap_data(**context):
     # Obtener el valor de 'type' de default_args a través del contexto
     task_type = context['dag'].default_args.get('type')
+    db_conn = BaseHook.get_connection('biobd')
+    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+    engine = create_engine(connection_string)
+    Session = sessionmaker(bind=engine)
+    session = Session()
 
     # Realizar una operación condicional basada en el valor de 'type'
     if task_type == 'incendios':
@@ -45,7 +56,10 @@ def process_heatmap_data(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
     from_user = str(message['message']['from_user'])
+    job_id = str(message['message']['id'])
     input_data = json.loads(input_data_str)
+    metadata = MetaData(bind=engine)
+
 
    
     # input_data["temp_tiff_path"] = TIFF2
@@ -111,6 +125,14 @@ def process_heatmap_data(**context):
             ]
         }
         notification_json = json.dumps(notification_db, ensure_ascii=False)
+
+
+        # Update job status to 'FINISHED'
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to FINISHED")
 
         # Insertar la notificación en la base de datos PostgreSQL
         try:
