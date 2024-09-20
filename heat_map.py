@@ -8,10 +8,9 @@ import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 import os
-from airflow.providers.postgres.operators.postgres import PostgresOperator
-import codecs
-import re
-import os
+from sqlalchemy import Table, MetaData
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
 
 from scriptConvertTIff import reproject_tiff
 
@@ -25,34 +24,27 @@ def process_heatmap_data(**context):
 
     # Realizar una operación condicional basada en el valor de 'type'
     if task_type == 'incendios':
-        # Lógica específica para el heatmap de incendios
         print("Procesando datos para el heatmap de incendios.")
-    
     elif task_type == 'aeronaves':
-        # Lógica específica para el heatmap de aeronaves
         print("Procesando datos para el heatmap de aeronaves.")
-    
-    # El resto de tu código continúa aquí...
 
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
     from_user = str(message['message']['from_user'])
-    input_data = json.loads(input_data_str)
+    job_id = message['message'].get('job_id')  # Asegúrate de obtener el ID del trabajo
 
+    input_data = json.loads(input_data_str)
     input_data["dir_output"] = "/home/airflow/workspace/output"
     input_data["user"] = "usuario"
     input_data["password"] = "contraseña"
 
-    # Log para verificar que los datos de entrada son correctos
     print("Datos completos de entrada:")
     print(json.dumps(input_data, indent=4))
 
     # Subir el archivo TIFF a MinIO
-
     tiff_key = f"{uuid.uuid4()}.tiff"
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_file = os.path.join(temp_dir, tiff_key)
-
         reproject_tiff(algorithm_output_tiff, temp_dir_file)
     
         try:
@@ -67,7 +59,6 @@ def process_heatmap_data(**context):
             )
 
             bucket_name = 'temp'
-            
             s3_client.upload_file(temp_dir_file, bucket_name, tiff_key)
             tiff_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{tiff_key}"
             print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
@@ -81,54 +72,48 @@ def process_heatmap_data(**context):
             "to": from_user,
             "actions": [
                 {
-                "type": "notify",
-                "data": {
-                    "message": "Datos del heatmap procesados correctamente"
-                }
+                    "type": "notify",
+                    "data": {
+                        "message": "Datos del heatmap procesados correctamente"
+                    }
                 },
                 {
-                "type": "paintTiff",
-                "data": {
-                    "url": tiff_url
-                }
+                    "type": "paintTiff",
+                    "data": {
+                        "url": tiff_url
+                    }
                 }
             ]
         }
         notification_json = json.dumps(notification_db, ensure_ascii=False)
 
-        # Insertar la notificación en la base de datos PostgreSQL
         try:
             connection = BaseHook.get_connection('biobd')
-            pg_hook = PostgresOperator(
-                task_id='send_notification',
-                postgres_conn_id='biobd',
-                sql=f"""
-                INSERT INTO public.notifications (destination, data)
-                VALUES ('ignis', '{notification_json}');
-                """
+            engine = create_engine(connection.get_uri())  # Crear el engine usando SQLAlchemy
+            Session = sessionmaker(bind=engine)
+            session = Session()
+
+            # Insertar la notificación en la base de datos
+            session.execute(
+                f"INSERT INTO public.notifications (destination, data) VALUES ('ignis', '{notification_json}');"
             )
-            pg_hook.execute(context)
+            session.commit()
             print("Notificación almacenada correctamente en la base de datos.")
 
-            # **Aquí agregamos la lógica para marcar el proceso como "finished" en la tabla jobs**
-            job_id = message['message'].get('job_id')  # Asegurarse de que se pase el ID del trabajo
-            update_job_status_sql = f"""
-                UPDATE public.jobs
-                SET status = 'finished'
-                WHERE job_id = '{job_id}';
-            """
-            
-            pg_hook_update_job = PostgresOperator(
-                task_id='update_job_status',
-                postgres_conn_id='biobd',
-                sql=update_job_status_sql
-            )
-            pg_hook_update_job.execute(context)
-
-            print(f"El estado del job con ID {job_id} ha sido actualizado a 'finished'.")
+            # **Actualización del estado del job a 'FINISHED'**
+            metadata = MetaData(bind=engine)
+            jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+            session.execute(update_stmt)
+            session.commit()
+            print(f"Job ID {job_id} status updated to FINISHED")
 
         except Exception as e:
+            session.rollback()
             print(f"Error al almacenar la notificación o actualizar el estado del job en la base de datos: {str(e)}")
+
+        finally:
+            session.close()
 
 
 # Configuración del DAG
