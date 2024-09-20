@@ -124,7 +124,6 @@ def process_heatmap_data(**context):
             engine = create_engine(connection)
             Session = sessionmaker(bind=engine)
             session = Session()
-            session = Session()
             pg_hook = PostgresOperator(
                 task_id='send_notification',
                 postgres_conn_id='biobd',
@@ -142,8 +141,6 @@ def process_heatmap_data(**context):
             session.execute(update_stmt)
             session.commit()
             print(f"Job ID {job_id} status updated to FINISHED")
-
-
 
         except Exception as e:
             print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
