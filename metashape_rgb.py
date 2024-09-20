@@ -6,100 +6,166 @@ import requests
 from requests.auth import HTTPBasicAuth
 from airflow.operators.python import PythonOperator
 
-# Function to create an import context for GeoTIFF upload
-def create_geotiff_import(workspace, geoserver_url, geoserver_user, geoserver_password, tiff_file_path):
-    import_url = f"{geoserver_url}/rest/imports"
+# Función para crear el coverage store en GeoServer si no existe
+def create_coverage_store(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password):
+    coverage_store_url = f"{geoserver_url}/rest/workspaces/{workspace}/coveragestores"
     headers = {
         'Content-type': 'application/json'
     }
-    
-    # JSON payload to create the import session
     data = {
-        "import": {
-            "targetWorkspace": {
-                "workspace": {
-                    "name": workspace
-                }
+        "coverageStore": {
+            "name": datastore_name,
+            "type": "GeoTIFF",
+            "enabled": True,
+            "workspace": {
+                "name": workspace
             },
-            "data": {
-                "type": "file",
-                "file": tiff_file_path
-            }
+            "url": f"file:data/{datastore_name}.tif"
         }
     }
-    
     try:
-        # Step 1: Create an import session
-        response = requests.post(import_url, headers=headers, json=data, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
-        if response.status_code == 201:
-            import_id = response.json()['import']['id']
-            print(f"Import session created with ID: {import_id}")
-            return import_id
+        response = requests.post(coverage_store_url, headers=headers, json=data, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
+        if response.status_code in [200, 201]:
+            print(f"CoverageStore {datastore_name} creado exitosamente.")
         else:
-            print(f"Failed to create import session. Status code: {response.status_code}")
-            return None
+            print(f"Error al crear el CoverageStore {datastore_name}: {response.status_code} - {response.text}")
     except Exception as e:
-        print(f"Error creating GeoTIFF import: {str(e)}")
+        print(f"Error creando el CoverageStore: {str(e)}")
+
+# Función para subir el archivo a GeoServer y crear la capa
+def upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geoserver_user, geoserver_password):
+    headers = {
+        'Content-type': 'image/tiff'
+    }
+
+    # Cambiar a coverage store para archivos TIFF
+    coverage_store_url = f"{geoserver_url}/rest/workspaces/{workspace}/coveragestores/{datastore_name}/file.geotiff"
+
+    try:
+        # Subir el archivo TIFF a GeoServer
+        response = requests.put(
+            coverage_store_url,
+            headers=headers,
+            data=tif_file['content'],  # El contenido del archivo
+            auth=HTTPBasicAuth(geoserver_user, geoserver_password)
+        )
+        
+        if response.status_code == 201:
+            print(f"Archivo {tif_file['file_name']} subido exitosamente a GeoServer.")
+        else:
+            print(f"Error al subir el archivo {tif_file['file_name']}: {response.status_code} - {response.text}")
+            return None
+
+        # Devuelve la URL WMS correspondiente a la capa creada
+        wms_url = f"{geoserver_url}/geoserver/{workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers={workspace}:{datastore_name}&styles=&bbox=-180,-90,180,90&width=768&height=330&srs=EPSG:4326&format=application/openlayers"
+        return wms_url
+
+    except Exception as e:
+        print(f"Error subiendo el archivo a GeoServer: {str(e)}")
         return None
 
-# Function to upload the GeoTIFF file to the created import
-def upload_geotiff_file(import_id, geoserver_url, geoserver_user, geoserver_password, tiff_file_path):
-    upload_url = f"{geoserver_url}/rest/imports/{import_id}/tasks"
-    
-    try:
-        # Step 2: Upload the GeoTIFF file
-        with open(tiff_file_path, 'rb') as file:
-            files = {
-                'filedata': file
-            }
-            response = requests.post(upload_url, files=files, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
-            if response.status_code == 201:
-                print(f"GeoTIFF file {tiff_file_path} uploaded successfully.")
-            else:
-                print(f"Failed to upload GeoTIFF. Status code: {response.status_code}")
-    except Exception as e:
-        print(f"Error uploading GeoTIFF: {str(e)}")
+# Primer paso: leer y procesar los archivos
+def process_extracted_files(**kwargs):
+    # Obtenemos los archivos 
+    otros = kwargs['dag_run'].conf.get('otros', [])
+    json_content = kwargs['dag_run'].conf.get('json')
 
-# Function to execute the import
-def execute_import(import_id, geoserver_url, geoserver_user, geoserver_password):
-    execute_url = f"{geoserver_url}/rest/imports/{import_id}"
-    
-    try:
-        # Step 3: Execute the import
-        response = requests.post(execute_url, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
-        if response.status_code == 204:
-            print(f"Import executed successfully.")
-        else:
-            print(f"Failed to execute import. Status code: {response.status_code}")
-    except Exception as e:
-        print(f"Error executing import: {str(e)}")
+    if not json_content:
+        print("Ha habido un error con el traspaso de los documentos")
+        return
 
-# Example usage in an Airflow task
-def upload_and_import_geotiff():
-    workspace = "metashapergb"
-    datastore_name = "	metashape_rgb"
-    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest/imports/0"
-    geoserver_user = "admin"
-    geoserver_password = "geoserver"
-    tiff_file_path = "/path/to/your/geotiff/file.tif"
-    
-    # Step 1: Create import session
-    import_id = create_geotiff_import(workspace, geoserver_url, geoserver_user, geoserver_password, tiff_file_path)
-    
-    if import_id:
-        # Step 2: Upload the GeoTIFF file
-        upload_geotiff_file(import_id, geoserver_url, geoserver_user, geoserver_password, tiff_file_path)
+    print("Archivos para procesar preparados")
+
+    # Agrupamos 'otros' por carpetas utilizando regex para extraer el prefijo de la carpeta
+    grouped_files = defaultdict(list)
+    for file_info in otros:
+        file_name = file_info['file_name']
+
+        # Verificar si el archivo es un .tif
+        match = re.match(r'.+\.tif$', file_name)
         
-        # Step 3: Execute the import
-        execute_import(import_id, geoserver_url, geoserver_user, geoserver_password)
+        if match:
+            grouped_files['tif_files'].append(file_info)
 
-# DAG and task definition
-dag = DAG('metashape_rgb', description='Upload GeoTIFF to GeoServer using Importer API',
-          schedule_interval='@once',
-          start_date=datetime(2023, 1, 1), catchup=False)
+    # Verificar si se han leído los 3 archivos .tif
+    tif_files = grouped_files.get('tif_files', [])
+    if len(tif_files) == 3:
+        print("Se han leído los 3 archivos TIFF correctamente.")
+    else:
+        print(f"Error: Se esperaban 3 archivos TIFF, pero se encontraron {len(tif_files)}.")
 
-upload_task = PythonOperator(
-    task_id='upload_and_import_geotiff_task',
-    python_callable=upload_and_import_geotiff,
-    dag=dag
+    # Guardamos la lista de archivos TIFF procesados en XCom para la siguiente tarea
+    ti = kwargs['ti']
+    ti.xcom_push(key='tif_files', value=tif_files)
+
+# Segundo paso: subir los archivos a GeoServer
+def upload_files_to_geoserver(**kwargs):
+    # Recuperar los archivos TIFF procesados de XCom
+    ti = kwargs['ti']
+    tif_files = ti.xcom_pull(key='tif_files', task_ids='process_extracted_files_task')
+
+    if not tif_files:
+        print("No se encontraron archivos TIFF para subir.")
+        return
+
+    workspace = "tests-geonetwork"  # Cambia esto por el workspace correcto
+    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest/imports/0"  # URL de tu servidor GeoServer (sin /web/)
+    geoserver_user = "admin"  # Usuario de GeoServer
+    geoserver_password = "geoserver"  # Contraseña de GeoServer
+
+    wms_urls = []
+    for tif_file in tif_files:
+        datastore_name = tif_file['file_name'].split('.')[0]  # Extraemos el nombre del datastore del nombre del archivo
+        print(f"Subiendo archivo TIFF: {tif_file['file_name']} como datastore {datastore_name}")
+
+        # Crear coverage store si no existe
+        create_coverage_store(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password)
+
+        # Llamar a la función para subir el archivo a GeoServer
+        wms_url = upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geoserver_user, geoserver_password)
+
+        if wms_url:
+            print(f"Archivo subido exitosamente. URL WMS: {wms_url}")
+            wms_urls.append(wms_url)
+        else:
+            print(f"Fallo al subir el archivo {tif_file['file_name']} a GeoServer.")
+
+    return wms_urls
+
+# Configuración del DAG de Airflow
+default_args = {
+    'owner': 'oscar',
+    'depends_on_past': False,
+    'start_date': datetime(2024, 8, 8),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
+
+dag = DAG(
+    'metashape_rgb',
+    default_args=default_args,
+    description='Flujo de datos de entrada de elementos de metashape_rgb',
+    schedule_interval=None,
+    catchup=False,
 )
+
+# Primera tarea: procesar los archivos
+process_extracted_files_task = PythonOperator(
+    task_id='process_extracted_files_task',
+    python_callable=process_extracted_files,
+    provide_context=True,
+    dag=dag,
+)
+
+# Segunda tarea: subir los archivos a GeoServer
+upload_files_to_geoserver_task = PythonOperator(
+    task_id='upload_files_to_geoserver_task',
+    python_callable=upload_files_to_geoserver,
+    provide_context=True,
+    dag=dag,
+)
+
+# Definir la secuencia de las tareas
+process_extracted_files_task >> upload_files_to_geoserver_task
