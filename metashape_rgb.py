@@ -111,7 +111,7 @@ def upload_files_to_geoserver(**kwargs):
         return
 
     workspace = "metashapergb"  # Cambia esto por el nombre correcto de tu workspace
-    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest/workspaces/metashapergb"  # URL de tu servidor GeoServer
+    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest"  # URL base de tu servidor GeoServer
     geoserver_user = "admin"  # Usuario de GeoServer
     geoserver_password = "geoserver"  # Contraseña de GeoServer
 
