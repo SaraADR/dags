@@ -87,11 +87,11 @@ def upload_tiff_files_to_geoserver(**kwargs):
         # Subir el archivo TIFF
         upload_tiff_to_geoserver(workspace, store_name, tiff_file_path, geoserver_url, geoserver_user, geoserver_password)
 
-# Configuración del DAG en Airflow
+# Configuración del DAG de Airflow
 default_args = {
-    'owner': 'admin',
+    'owner': 'oscar',
     'depends_on_past': False,
-    'start_date': datetime(2024, 1, 1),
+    'start_date': datetime(2024, 8, 8),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -99,28 +99,28 @@ default_args = {
 }
 
 dag = DAG(
-    'upload_tiff_to_geoserver',
+    'metashape_rgb',
     default_args=default_args,
-    description='DAG para subir archivos TIFF a GeoServer',
+    description='Flujo de datos de entrada de elementos de metashape_rgb',
     schedule_interval=None,
     catchup=False,
 )
 
-# Definición de la primera tarea: procesar los archivos
-process_tiff_files_task = PythonOperator(
-    task_id='process_tiff_files_task',
+# Primera tarea: procesar los archivos
+process_extracted_files_task = PythonOperator(
+    task_id='process_extracted_files_task',
     python_callable=process_tiff_files,
     provide_context=True,
     dag=dag,
 )
 
-# Definición de la segunda tarea: subir los archivos a GeoServer
-upload_tiff_files_to_geoserver_task = PythonOperator(
-    task_id='upload_tiff_files_to_geoserver_task',
+# Segunda tarea: subir los archivos a GeoServer
+upload_files_to_geoserver_task = PythonOperator(
+    task_id='upload_files_to_geoserver_task',
     python_callable=upload_tiff_files_to_geoserver,
     provide_context=True,
     dag=dag,
 )
 
-# Dependencia entre las tareas
-process_tiff_files_task >> upload_tiff_files_to_geoserver_task
+# Definir la secuencia de las tareas
+process_extracted_files_task >> upload_files_to_geoserver_task
