@@ -35,7 +35,7 @@ def create_coverage_store(workspace, datastore_name, geoserver_url, geoserver_us
 # Función para subir el archivo a GeoServer y crear la capa
 def upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geoserver_user, geoserver_password):
     headers = {
-        'Content-type': 'image/tiff'
+        'Content-type': 'GeoTIFF'
     }
 
     # Cambiar a coverage store para archivos TIFF
@@ -43,7 +43,7 @@ def upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geos
 
     try:
         # Subir el archivo TIFF a GeoServer
-        response = requests.put(
+        response = requests.post(
             coverage_store_url,
             headers=headers,
             data=tif_file['content'],  # El contenido del archivo
