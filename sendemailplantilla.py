@@ -71,15 +71,25 @@ def print_message_and_send_email(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
 
-    # Extraemos el campo data
-    try:
-        # Si message['data'] es una cadena, lo convertimos a JSON
-        data = json.loads(message['data']) if isinstance(message['data'], str) else message['data']
-        print(f"Received message data: {data}")
-    except json.JSONDecodeError as e:
-        print(f"Error al decodificar el JSON: {e}")
+    inner_message = message.get('message')
+    if not inner_message:
+        print("No 'message' field found in the received data.")
         return
-    
+
+    try:
+        # Extraemos el campo 'data' que está dentro del 'message'
+        data_str = inner_message.get('data')
+        if not data_str:
+            print("No 'data' field found in the 'message'.")
+            return
+
+        # Si el campo 'data' es una cadena, lo decodificamos como JSON
+        data = json.loads(data_str) if isinstance(data_str, str) else data_str
+        print(f"Received message data: {data}")
+
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON: {e}")
+        return
 
     # Guardamos el id para poder hacer la modificación posterior en la base de datos
     context['ti'].xcom_push(key='message_id', value=message.get('id'))
