@@ -2,12 +2,9 @@ import json
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import BranchPythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
-from airflow.models import Variable
-from airflow.exceptions import AirflowSkipException
+
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
@@ -32,14 +29,11 @@ def sendEmail(message, **kwargs):
 
         try:
             msg_json = json.loads(message)
-            data = json.loads(msg_json['data'])
-            print('msg_json ' +  msg_json)
-            print('data: ' + data)
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
 
 
-        conf = {'message': data}
+        conf = {'message': msg_json}
         trigger_dag_run = TriggerDagRunOperator(
             task_id=f'trigger_email_handler_inner',
             trigger_dag_id='send_email_plantilla',
