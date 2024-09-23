@@ -27,10 +27,8 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-def render_template(message_dict):
-    print('dict' + message_dict)
-    data = json.loads(message_dict.get('data', '{}'))
-    templateId = data.get('templateId', '3')
+def render_template(message_dict, templateId):
+    print('dict ' + message_dict)
     email_data = {}
 
     # Añadir aqui todas las posibilidades de plantillas. Si no hay ninguna plantilla se usará por defecto la 1
@@ -39,29 +37,21 @@ def render_template(message_dict):
             template_str = file.read()
             jinja_template = Template(template_str)
         email_data = {
-            'nombre': data.get('to', 'default@example.com'),
-            'dato1': data.get('subject', 'No Subject'),
-            'dato2': data.get('subject', 'No Subject'),
+            'dato': message_dict,
         }
     elif templateId == '2':
         with open(PLANTILLA_2) as file:
             template_str = file.read()
             jinja_template = Template(template_str)
         email_data = {
-            'nombre': data.get('to', 'default@example.com'),
-            'dato1': data.get('DATO', 'DATO'),
-            'dato2': data.get('templateId', 'No Subject'),
+            'dato': message_dict,
         }
     elif templateId == '3':
         with open(PLANTILLA_3) as file:
             template_str = file.read()
             jinja_template = Template(template_str)
         email_data = {
-            'nombre': data.get('to', 'default@example.com'),
-            'subject': data.get('subject', 'No subject'),
-            'dato2': data.get('dato2', 'No Subject'),
-            'cc' : data.get('cc', 'default@example.com'),  # Extracting CC field
-            'bcc' : data.get('bcc', 'default@example.com')
+            'dato':  message_dict,
         }
 
     email_content = jinja_template.render(email_data)
@@ -100,7 +90,7 @@ def print_message_and_send_email(**context):
     cc = data.get('cc', 'default@example.com')  # Extracting CC field
     bcc = data.get('bcc', 'default@example.com')  # Extracting BCC field
     subject = data.get('subject', 'No Subject')
-    email_body = render_template(data.get('body', ''))
+    email_body = render_template(data.get('body', ''), data.get('templateId', ''))
 
     email_operator = EmailOperator(
         task_id='send_email_task',
