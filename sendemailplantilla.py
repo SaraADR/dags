@@ -72,12 +72,14 @@ def print_message_and_send_email(**context):
     print(f"Received message: {message}")
 
     # Extraemos el campo data
-    data = json.loads(message['data'])
-    print(f"Received message data: {data}")
-
-    message_dict = ast.literal_eval(message['data'])
-    print("eval" + message_dict)
-    # email_body = render_template(message_dict)
+    try:
+        # Si message['data'] es una cadena, lo convertimos a JSON
+        data = json.loads(message['data']) if isinstance(message['data'], str) else message['data']
+        print(f"Received message data: {data}")
+    except json.JSONDecodeError as e:
+        print(f"Error al decodificar el JSON: {e}")
+        return
+    
 
     # Guardamos el id para poder hacer la modificación posterior en la base de datos
     context['ti'].xcom_push(key='message_id', value=message.get('id'))
