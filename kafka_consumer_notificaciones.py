@@ -23,8 +23,8 @@ def consumer_function(message, prefix, **kwargs):
             if msg_json.get('destination') == 'email':
                 sendEmail(msg_json)
 
-            if msg_json.get('destination') == 'ignis' and msg_json.get('status') == 'pending':
-                sendIgnis(msg_json)
+            # if msg_json.get('destination') == 'ignis' and msg_json.get('status') == 'pending':
+                # sendIgnis(msg_json)
         else:
             print("Empty message received")    
             return None 
@@ -64,7 +64,7 @@ default_args = {
 }
 
 dag = DAG(
-    'kafka_consumer_trigger_dag',
+    'kafka_consumer_notificaciones_dag',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG si destination=email',
     schedule_interval='*/3 * * * *',
