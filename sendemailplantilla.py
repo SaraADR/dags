@@ -71,20 +71,23 @@ def print_message_and_send_email(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
 
-    message_dict = ast.literal_eval(message['message'])
-    email_body = render_template(message_dict)
+    # Extraemos el campo data
+    data = json.loads(message.get('data', '{}'))
+    print(f"Received message data: {data}")
+
+    # message_dict = ast.literal_eval(message['message'])
+    # email_body = render_template(message_dict)
 
     # Guardamos el id para poder hacer la modificación posterior en la base de datos
-    context['ti'].xcom_push(key='message_id', value=message_dict.get('id'))
+    context['ti'].xcom_push(key='message_id', value=message.get('id'))
 
-    # Extraemos el campo data
-    data = json.loads(message_dict.get('data', '{}'))
-    print(f"Received message: {data}")
+
 
     to = data.get('to', 'default@example.com')
     cc = data.get('cc', 'default@example.com')  # Extracting CC field
     bcc = data.get('bcc', 'default@example.com')  # Extracting BCC field
     subject = data.get('subject', 'No Subject')
+    email_body = render_template(data.get('body', ''))
 
     email_operator = EmailOperator(
         task_id='send_email_task',
