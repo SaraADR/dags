@@ -14,13 +14,13 @@ def create_coverage_store(workspace, datastore_name, geoserver_url, geoserver_us
     }
     data = {
         "coverageStore": {
-            "name": "metashape_rgb",
+            "name": datastore_name,
             "type": "GeoTIFF",
             "enabled": True,
             "workspace": {
-                "name": "metashapergb"
+                "name": workspace
             },
-            "url":"file:data/0026_4740004_611271.tif"
+            "url": f"file:data/{datastore_name}.tif"
         }
     }
     try:
@@ -109,7 +109,7 @@ def upload_files_to_geoserver(**kwargs):
         return
 
     workspace = "tests-geonetwork"  # Cambia esto por el workspace correcto
-    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver"  # URL de tu servidor GeoServer (sin /web/)
+    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest/imports/0"  # URL de tu servidor GeoServer (sin /web/)
     geoserver_user = "admin"  # Usuario de GeoServer
     geoserver_password = "geoserver"  # Contraseña de GeoServer
 
