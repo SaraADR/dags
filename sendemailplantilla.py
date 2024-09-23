@@ -28,6 +28,7 @@ default_args = {
 }
 
 def render_template(message_dict):
+    print('dict' + message_dict)
     data = json.loads(message_dict.get('data', '{}'))
     templateId = data.get('templateId', '3')
     email_data = {}
