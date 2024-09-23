@@ -15,16 +15,7 @@ def consumer_function(message, prefix, **kwargs):
         print(f"message: {msg_value}")
         
         if msg_value:
-            try:
-                msg_json = json.loads(msg_value)
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON: {e}")
-
-            if msg_json.get('destination') == 'email':
-                sendEmail(msg_json)
-
-            # if msg_json.get('destination') == 'ignis' and msg_json.get('status') == 'pending':
-                # sendIgnis(msg_json)
+            sendEmail(msg_value)
         else:
             print("Empty message received")    
             return None 
@@ -38,7 +29,17 @@ def consumer_function(message, prefix, **kwargs):
 def sendEmail(message, **kwargs):
     try:
         print(message)
-        conf = {'message': message}
+
+        try:
+            msg_json = json.loads(message)
+            data = json.loads(msg_json['data'])
+            print('msg_json ' +  msg_json)
+            print('data: ' + data)
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+
+
+        conf = {'message': data}
         trigger_dag_run = TriggerDagRunOperator(
             task_id=f'trigger_email_handler_inner',
             trigger_dag_id='send_email_plantilla',
