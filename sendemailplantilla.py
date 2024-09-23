@@ -72,7 +72,7 @@ def print_message_and_send_email(**context):
     print(f"Received message: {message}")
 
     # Extraemos el campo data
-    data = json.loads(message.get('data', '{}'))
+    data = json.loads(message['data'])
     print(f"Received message data: {data}")
 
     message_dict = ast.literal_eval(message['data'])
