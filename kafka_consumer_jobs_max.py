@@ -61,7 +61,6 @@ def process_message(msg_value, **kwargs):
 
     else:
         print("No message pulled from XCom")
-        Variable.delete("mensaje_save")
 
 
 

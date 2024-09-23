@@ -12,47 +12,45 @@ from airflow.exceptions import AirflowSkipException
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
         msg_value = message.value().decode('utf-8')
-        print(f"message2: {msg_value}")
+        print(f"message: {msg_value}")
+        
         if msg_value:
             try:
                 msg_json = json.loads(msg_value)
-                if msg_json.get('destination') == 'ignis' and msg_json.get('status') == 'pending':
-                    Variable.set("my_variable_key", msg_json)
-                    return msg_json 
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON: {e}")
+
+            if msg_json.get('destination') == 'email':
+                sendEmail(msg_json)
+
+            if msg_json.get('destination') == 'ignis' and msg_json.get('status') == 'pending':
+                sendIgnis(msg_json)
         else:
-            print("Empty message received")
-        Variable.set("my_variable_key", None)        
+            print("Empty message received")    
+            return None 
+    else:
+        print("Empty message received")    
         return None  
-    else:
-        Variable.set("my_variable_key", None)        
+         
 
-def trigger_email_handler(**kwargs):
+
+
+def sendEmail(message, **kwargs):
     try:
-        value_pulled = Variable.get("my_variable_key")
-    except KeyError:
-        print("Variable my_variable_key does not exist")
-        raise AirflowSkipException("Variable my_variable_key does not exist")
-    
+        print(message)
+        conf = {'message': message}
+        trigger_dag_run = TriggerDagRunOperator(
+            task_id=f'trigger_email_handler_inner',
+            trigger_dag_id='send_email_plantilla',
+            conf=conf,
+            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+            dag=dag
+        )
+        trigger_dag_run.execute(context=kwargs)
 
-    if value_pulled is not None and value_pulled != 'null':
-        try:
+    except Exception as e:
+            print(f"Task instance incorrecto: {e}")
 
-            trigger = TriggerDagRunOperator(
-                task_id='trigger_email_handler_inner',
-                trigger_dag_id='send_email_plantilla',
-                conf={'message': value_pulled}, 
-                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                dag=dag,
-            )
-            trigger.execute(context=kwargs)
-            Variable.delete("my_variable_key")
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON: {e}")
-    else:
-        print("No message pulled from XCom")
-        Variable.delete("my_variable_key")
 
 
 default_args = {
@@ -85,12 +83,5 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-trigger_email_handler_task = PythonOperator(
-    task_id='trigger_email_handler',
-    python_callable=trigger_email_handler,
-    provide_context=True,
-    dag=dag,
-)
 
-
-consume_from_topic >> trigger_email_handler_task
+consume_from_topic 

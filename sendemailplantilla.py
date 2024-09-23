@@ -120,7 +120,7 @@ update_status_task = PostgresOperator(
     postgres_conn_id='biobd',  
     sql="""
         UPDATE public.notifications
-        SET status = 'ok'
+        SET status = 'FINISHED'
         WHERE id = '{{ ti.xcom_pull(task_ids="print_message", key="message_id") }}';
     """,
     dag=dag,
