@@ -75,7 +75,8 @@ def print_message_and_send_email(**context):
     data = json.loads(message.get('data', '{}'))
     print(f"Received message data: {data}")
 
-    # message_dict = ast.literal_eval(message['message'])
+    message_dict = ast.literal_eval(message['data'])
+    print("eval" + message_dict)
     # email_body = render_template(message_dict)
 
     # Guardamos el id para poder hacer la modificación posterior en la base de datos
