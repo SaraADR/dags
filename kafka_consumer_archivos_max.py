@@ -184,14 +184,14 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'retry_delay': timedelta(minutes=1),
 }
 
 dag = DAG(
     'kafka_consumer_archivos_max',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG para archivos',
-    schedule_interval='*/2 * * * *',
+    schedule_interval='*/1 * * * *',
     catchup=False
 )
 
