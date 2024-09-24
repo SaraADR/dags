@@ -1,16 +1,13 @@
 from datetime import datetime, timedelta
-from email.mime.image import MIMEImage
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.models import Variable
 from airflow.operators.email import EmailOperator
 import json
-from airflow.providers.postgres.operators.postgres import PostgresOperator
-import ast
-import os
 from jinja2 import Template
+from airflow.hooks.base_hook import BaseHook
+from sqlalchemy import create_engine, Table, MetaData
+from sqlalchemy.orm import sessionmaker
+
 
 PLANTILLA_1 = './dags/repo/recursos/plantillaid1.html'
 PLANTILLA_2 = './dags/repo/recursos/plantillaid2.html'
@@ -105,6 +102,41 @@ def print_message_and_send_email(**context):
     )
     return email_operator.execute(context)
 
+
+def change_state_noti(**context):
+    message = context['dag_run'].conf
+    print(f"Received message: {message}")
+    
+    inner_message = message.get('message')
+    if not inner_message:
+        print("No 'message' field found in the received data.")
+        return
+
+    idElemento = inner_message.get('id')
+    try:
+   
+        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        
+        # Update job status to 'FINISHED'
+        metadata = MetaData(bind=engine)
+        notificationTable = Table('notifications', metadata, schema='public', autoload_with=engine)
+        update_stmt = notificationTable.update().where(notificationTable.c.id == idElemento).values(status='FINISHED')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Notificacion ID {idElemento} status updated to FINISHED")
+
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante el guardado del estado de la notificacion: {str(e)}")
+
+
+
 dag = DAG(
     'send_email_plantilla',
     default_args=default_args,
@@ -121,16 +153,13 @@ print_message_task = PythonOperator(
     dag=dag,
 )
 
-# Actualiza bd
-update_status_task = PostgresOperator(
-    task_id='update_status',
-    postgres_conn_id='biobd',  
-    sql="""
-        UPDATE public.notifications
-        SET status = 'FINISHED'
-        WHERE id = '{{ ti.xcom_pull(task_ids="print_message", key="message_id") }}';
-    """,
+#Cambia estado de job
+change_state_task = PythonOperator(
+    task_id='change_state_job',
+    python_callable=change_state_noti,
+    provide_context=True,
     dag=dag,
 )
 
-print_message_task >> update_status_task
+
+print_message_task >> change_state_task
