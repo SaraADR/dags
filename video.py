@@ -51,7 +51,6 @@ def process_extracted_files(**kwargs):
         else:
             mission_inspection_id = None
             print("El ID no está presente en la tabla mission.mss_mission_inspection")
-            # Lo creamos?
 
     except Exception as e:
         session.rollback()
@@ -61,7 +60,7 @@ def process_extracted_files(**kwargs):
 
     print(f"row: {row}")
 
-
+    uuid_key= uuid.uuid4()
     #Subimos todos los videos a la carpeta de minIo
     for videos in video:
 
@@ -79,7 +78,6 @@ def process_extracted_files(**kwargs):
         )
 
         bucket_name = 'missions'  
-        uuid_key= uuid.uuid4()
         video_key = str(uuid_key) +'/' + video_file_name
 
         # Subir el archivo a MinIO
@@ -103,7 +101,6 @@ def process_extracted_files(**kwargs):
     )
 
     bucket_name = 'missions'  
-    uuid_key= uuid.uuid4()
     json_key = str(uuid_key) +'/' + 'algorithm_result.json'
 
     # Subir el archivo a MinIO
@@ -114,6 +111,9 @@ def process_extracted_files(**kwargs):
         ContentType='application/json'
     )
     print(f'{video_file_name} subido correctamente a MinIO.')
+
+
+
 
     try:
 
