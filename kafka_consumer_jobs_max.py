@@ -42,6 +42,8 @@ def process_message(msg_value, **kwargs):
                 dag_to_trigger = 'create_fire'
             elif job == 'vegetation-review-incidence':
                 dag_to_trigger = 'vegetation_review_incidence'
+            elif job == 'create-video-detection':
+                dag_to_trigger = 'video_detection'
             else:
                 print(f"Unrecognized job type: {job}")
                 raise AirflowSkipException(f"Unrecognized job type: {job}")
