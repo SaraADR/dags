@@ -1,5 +1,4 @@
 import base64
-from datetime import datetime, timedelta, timezone
 import io
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -15,7 +14,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
-
+import datetime
 
 def process_element(**context):
     message = context['dag_run'].conf
