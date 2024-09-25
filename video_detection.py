@@ -1,8 +1,6 @@
 import base64
 import io
-from airflow import DAG
 from airflow.operators.python import PythonOperator
-import json
 import json
 import uuid
 from airflow import DAG
@@ -14,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
 import datetime
+
 
 def process_element(**context):
     message = context['dag_run'].conf
@@ -126,13 +125,13 @@ def process_element(**context):
 
 
 def second_in_time(secondstime):
-    seconds = secondstime
-    hours, remainder = divmod(seconds, 3600)
+    hours, remainder = divmod(secondstime, 3600)
     minutes, seconds = divmod(remainder, 60)
-
-
-    frame_timestamp = datetime.time(int(hours), int(minutes), int(seconds), int((seconds % 1) * 1_000_000))
+    
+    frame_timestamp = datetime.time(int(hours), int(minutes), int(seconds))
     return frame_timestamp
+
+
 
 def change_state_job(**context):
     message = context['dag_run'].conf
@@ -247,7 +246,7 @@ def generate_notify_job(**context):
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
-    'start_date': datetime(2024, 8, 8),
+    'start_date': datetime.datetime(2024, 8, 8),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
