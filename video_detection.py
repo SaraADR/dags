@@ -17,7 +17,6 @@ import boto3
 from botocore.client import Config
 
 
-
 def process_element(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
@@ -85,7 +84,9 @@ def process_element(**context):
             return 
 
 
-        timeforseconds = second_in_time( input_data['time_seconds'])
+        timeforseconds = second_in_time(input_data['time_seconds'])
+        print(second_in_time(input_data['time_seconds']))
+
         if input_data['video_id'] is not None:
             print(f"id_video: {input_data['video_id']}")
 
@@ -127,12 +128,11 @@ def process_element(**context):
 
 
 def second_in_time(secondstime):
-
     seconds = secondstime
     hours, remainder = divmod(seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
 
-    # Crear objeto de tiempo
+
     frame_timestamp = datetime.time(int(hours), int(minutes), int(seconds), int((seconds % 1) * 1_000_000))
     return frame_timestamp
 
