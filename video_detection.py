@@ -41,7 +41,6 @@ def process_element(**context):
 
             bucket_name = 'missions'  
             png_key = str(uuid_key) + '/' + 'vegetation_detection_thumbnail' + '.png'
-            index = index + 1
             decoded_bytes = base64.b64decode(input_data['thumbnail'])
 
             # Subir el archivo a MinIO
@@ -71,7 +70,6 @@ def process_element(**context):
 
             bucket_name = 'missions'  
             png_key = str(uuid_key) + '/' + 'vegetation_detection_clipped' + '.png'
-            index = index + 1
             decoded_bytes = base64.b64decode(input_data['clipped'])
 
             # Subir el archivo a MinIO
