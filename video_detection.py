@@ -107,12 +107,9 @@ def process_element(**context):
                                                  'frame_timestamp': timeforseconds,
                                                  'region': input_data['region_px'],
                                                  'notes': input_data['notes'] })
-                row = result.fetchone()
-                if row is not None:
-                    print(f"Fila actualizada: {row}")
-                else:
-                    print(f"No se encontró en la tabla id_video")
                 session.commit()
+                print("Inserción exitosa")
+                print(f"Número de filas afectadas: {result.rowcount}")
 
             except Exception as e:
                 session.rollback()
@@ -183,9 +180,8 @@ def generate_notify_job(**context):
         query = text("""
             SELECT mi.mission_id
             FROM missions.mss_mission_inspection mi
-            JOIN missions.mss_inspection_video vp ON vp.mission_inspection_id = mi.id
-            JOIN missions.mss_inspection_detection_frame_incidence vc ON vc.video_id = vp.id                   
-            WHERE vc.video_id = :video_id;
+            JOIN missions.mss_inspection_video vp ON vp.mission_inspection_id = mi.id               
+            WHERE vp.id = :video_id;
         """)
         result = session.execute(query, {'video_id': input_data['video_id']})
         row = result.fetchone()
