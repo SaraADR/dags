@@ -218,7 +218,7 @@ def generate_notify_job(**context):
                     }
                 }]
             })
-            time = datetime.now().replace(tzinfo=datetime.timezone.utc)
+            time = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc)
 
             query = text("""
                 INSERT INTO public.notifications
