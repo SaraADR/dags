@@ -41,7 +41,7 @@ def process_element(**context):
 
             bucket_name = 'missions'  
             png_key = str(uuid_key) + '/' + 'vegetation_detection_thumbnail' + '.png'
-            decoded_bytes = base64.b64decode(input_data['thumbnail'])
+            decoded_bytes = base64.b64decode(input_data['thumbnail'].split(",")[1])
 
             # Subir el archivo a MinIO
             s3_client.put_object(
@@ -70,7 +70,7 @@ def process_element(**context):
 
             bucket_name = 'missions'  
             png_key = str(uuid_key) + '/' + 'vegetation_detection_clipped' + '.png'
-            decoded_bytes = base64.b64decode(input_data['clipped'])
+            decoded_bytes = base64.b64decode(input_data['clipped'].split(",")[1])
 
             # Subir el archivo a MinIO
             s3_client.put_object(
