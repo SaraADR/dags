@@ -7,7 +7,6 @@ import json
 import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-import timedelta, timezone
 from airflow.hooks.base_hook import BaseHook
 from sqlalchemy import create_engine, Table, MetaData, text
 from airflow.hooks.base import BaseHook
@@ -221,7 +220,7 @@ def generate_notify_job(**context):
                     }
                 }]
             })
-            time = datetime.now().replace(tzinfo=timezone.utc)
+            time = datetime.now().replace(tzinfo=datetime.timezone.utc)
 
             query = text("""
                 INSERT INTO public.notifications
@@ -252,7 +251,7 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': timedelta(minutes=1),
+    'retry_delay': datetime.timedelta(minutes=1),
 }
 
 dag = DAG(
