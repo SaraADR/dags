@@ -7,7 +7,7 @@ import json
 import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from datetime import datetime, timedelta
+import timedelta, timezone
 from airflow.hooks.base_hook import BaseHook
 from sqlalchemy import create_engine, Table, MetaData, text
 from airflow.hooks.base import BaseHook
