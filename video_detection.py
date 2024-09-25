@@ -85,6 +85,7 @@ def process_element(**context):
             return 
 
 
+        timeforseconds = second_in_time( input_data['time_seconds'])
         if input_data['video_id'] is not None:
             print(f"id_video: {input_data['video_id']}")
 
@@ -103,7 +104,7 @@ def process_element(**context):
                 """)
                 result = session.execute(query, {'videoID': input_data['video_id'] , 'resourceId': uuid_key, 'elementType': input_data['element_type'],
                                                  'incidenceId': input_data['incidence_type'],
-                                                 'frame_timestamp': input_data['time_seconds'],
+                                                 'frame_timestamp': timeforseconds,
                                                  'notes': input_data['notes']})
                 row = result.fetchone()
                 if row is not None:
@@ -116,6 +117,7 @@ def process_element(**context):
                 session.rollback()
                 print(f"Error durante la busqueda : {str(e)}")
 
+
             finally:
                 session.close()
                 
@@ -123,6 +125,16 @@ def process_element(**context):
             print("review_status no está presente o es None")
 
 
+
+def second_in_time(secondstime):
+
+    seconds = secondstime
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    # Crear objeto de tiempo
+    frame_timestamp = datetime.time(int(hours), int(minutes), int(seconds), int((seconds % 1) * 1_000_000))
+    return frame_timestamp
 
 def change_state_job(**context):
     message = context['dag_run'].conf
