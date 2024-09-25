@@ -87,6 +87,8 @@ def process_element(**context):
         if input_data['video_id'] is not None:
             print(f"id_video: {input_data['video_id']}")
 
+
+
             #Actualizamos la base de datos
             try:
                 db_conn = BaseHook.get_connection('biobd')
@@ -97,13 +99,14 @@ def process_element(**context):
 
                 query = text("""
                    INSERT INTO missions.mss_inspection_detection_frame_incidence
-                    (video_id, resource_id, element_type_id, incidence_type_id, frame_timestamp, notes)
-                    VALUES(:videoID, :resourceId, :elementType, :incidenceId, :frame_timestamp, :notes);
+                    (video_id, resource_id, element_type_id, incidence_type_id, frame_timestamp, region_px, notes, geometry)
+                    VALUES(:videoID, :resourceId, :elementType, :incidenceId, :frame_timestamp, :region, :notes, ST_SetSRID(ST_MakePoint(0, 0), 4326));
                 """)
                 result = session.execute(query, {'videoID': input_data['video_id'] , 'resourceId': uuid_key, 'elementType': input_data['element_type'],
                                                  'incidenceId': input_data['incidence_type'],
                                                  'frame_timestamp': timeforseconds,
-                                                 'notes': input_data['notes']})
+                                                 'region_px': input_data['region_px'],
+                                                 'notes': input_data['notes'] })
                 row = result.fetchone()
                 if row is not None:
                     print(f"Fila actualizada: {row}")
