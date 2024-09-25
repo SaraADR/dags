@@ -98,11 +98,12 @@ def process_element(**context):
 
                 query = text("""
                    INSERT INTO missions.mss_inspection_detection_frame_incidence
-                    (video_id, resource_id, element_type_id, incidence_type_id, notes)
-                    VALUES(:videoID, :resourceId, :elementType, :incidenceId, :notes);
+                    (video_id, resource_id, element_type_id, incidence_type_id, frame_timestamp, notes)
+                    VALUES(:videoID, :resourceId, :elementType, :incidenceId, :frame_timestamp, :notes);
                 """)
                 result = session.execute(query, {'videoID': input_data['video_id'] , 'resourceId': uuid_key, 'elementType': input_data['element_type'],
                                                  'incidenceId': input_data['incidence_type'],
+                                                 'frame_timestamp': input_data['time_seconds']
                                                  'notes': input_data['notes']})
                 row = result.fetchone()
                 if row is not None:
