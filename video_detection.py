@@ -85,8 +85,8 @@ def process_element(**context):
             return 
 
 
-        if input_data['id_video'] is not None:
-            print(f"id_video: {input_data['id_video']}")
+        if input_data['video_id'] is not None:
+            print(f"id_video: {input_data['video_id']}")
 
             #Actualizamos la base de datos
             try:
@@ -101,7 +101,7 @@ def process_element(**context):
                     (video_id, resource_id, element_type_id, incidence_type_id, notes)
                     VALUES(:videoID, :resourceId, :elementType, :incidenceId, :notes);
                 """)
-                result = session.execute(query, {'videoID': input_data['id_video'] , 'resourceId': uuid_key, 'elementType': input_data['element_type'],
+                result = session.execute(query, {'videoID': input_data['video_id'] , 'resourceId': uuid_key, 'elementType': input_data['element_type'],
                                                  'incidenceId': input_data['incidence_type'],
                                                  'notes': input_data['notes']})
                 row = result.fetchone()
@@ -174,7 +174,7 @@ def generate_notify_job(**context):
             JOIN missions.mss_inspection_detection_frame_incidence vc ON vc.video_id = vp.id                   
             WHERE vc.video_id = :video_id;
         """)
-        result = session.execute(query, {'video_id': input_data['id_video']})
+        result = session.execute(query, {'video_id': input_data['video_id']})
         row = result.fetchone()
         if row is not None:
             mission_id = row[0]
