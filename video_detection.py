@@ -105,7 +105,7 @@ def process_element(**context):
                 result = session.execute(query, {'videoID': input_data['video_id'] , 'resourceId': uuid_key, 'elementType': input_data['element_type'],
                                                  'incidenceId': input_data['incidence_type'],
                                                  'frame_timestamp': timeforseconds,
-                                                 'region_px': input_data['region_px'],
+                                                 'region': input_data['region_px'],
                                                  'notes': input_data['notes'] })
                 row = result.fetchone()
                 if row is not None:
