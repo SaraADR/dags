@@ -5,10 +5,8 @@ import json
 import requests
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
-from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from datetime import datetime, timedelta, timezone
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -56,8 +54,6 @@ def create_mission(**context):
         session.commit()
         print(f"Misión creada con ID: {mission_id}")
 
-
-
         if input_data['type_id'] == 3:
             fire_id = create_fire(input_data) 
         else:
@@ -93,19 +89,15 @@ def create_mission(**context):
         session.rollback()
         print(f"Error durante el guardado de la misión: {str(e)}")
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-        # update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='RETRY')
-        # session.execute(update_stmt)
-        # session.commit()
-        # print(f"Job ID {job_id} status updated to RETRY")
         
-        # # Trigger new DAG run for retry
-        # trigger = TriggerDagRunOperator(
-        #     task_id='trigger_create_fire_retry',
-        #     trigger_dag_id='create_fire_retry',  # The DAG to trigger
-        #     conf=message,  # Pass the original message as configuration
-        #     dag=context['dag']
-        # )
-        # trigger.execute(context)
+        # Actualizar el estado del trabajo a "ERROR"
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='ERROR')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to ERROR")
+
+        # Lanzar la excepción para que la tarea falle
+        raise RuntimeError(f"Error durante el guardado de la misión: {str(e)}")
 
 
 # Función para crear un incendio a través del servicio ATC
@@ -219,4 +211,3 @@ create_mission_task = PythonOperator(
 
 # Modifica la secuencia de tareas
 print_message_task >> create_mission_task 
-
