@@ -5,7 +5,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import datetime
 from airflow import DAG
-from sqlalchemy import create_engine, Table, MetaData, text
+from sqlalchemy import create_engine
 from airflow.operators.python import PythonOperator, PythonSensor
 
 def check_jobs_status(**context):
