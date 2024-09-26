@@ -93,6 +93,7 @@ def find_the_folder():
 
 
 def execute_run_sh(run_sh_path, work_dir):
+    directoriolaunch = os.path.join(work_dir, 'launch')
     # Cambiar al directorio donde están los archivos antes de ejecutar el script
     result = subprocess.run(['bash', run_sh_path], cwd=work_dir, capture_output=True, text=True)
     print(result.stdout)
