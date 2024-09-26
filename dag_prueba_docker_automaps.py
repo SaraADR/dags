@@ -1,4 +1,5 @@
 import datetime
+import os
 from airflow import DAG
 import tempfile
 from airflow.hooks.base_hook import BaseHook
@@ -8,9 +9,13 @@ from botocore.client import Config, ClientError
 from airflow.operators.python import PythonOperator
 
 
+
 def find_the_folder():
+    # Crear un directorio temporal
     temp_dir = tempfile.mkdtemp()
+
     try:
+        # Obtener conexión MinIO desde Airflow
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
@@ -21,28 +26,37 @@ def find_the_folder():
             config=Config(signature_version='s3v4')
         )
 
-        bucket_name = 'algorithms'  
+        bucket_name = 'algorithms'
+        
+        # Definir los objetos y sus rutas locales
         object_key_config = 'share_data/input/config.json'
-        config_json = f"{temp_dir}/share_data/input/config.json"
+        config_json = os.path.join(temp_dir, 'share_data/input/config.json')
 
         object_key_env = 'launch/.env'
-        config_env = f"{temp_dir}/launch/.env"
+        config_env = os.path.join(temp_dir, 'launch/.env')
         object_key_automaps = 'launch/automaps.tar'
-        config_automaps = f"{temp_dir}/launch/automaps.tar"
+        config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
         object_key_compose = 'launch/compose.yaml'
-        config_compose = f"{temp_dir}/launch/compose.yaml"
+        config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
         object_key_run = 'launch/run.sh'
-        config_run = f"{temp_dir}/launch/run.sh"
+        config_run = os.path.join(temp_dir, 'launch/run.sh')
 
+        # Crear las carpetas necesarias
+        os.makedirs(os.path.dirname(config_json), exist_ok=True)
+        os.makedirs(os.path.dirname(config_env), exist_ok=True)
+        os.makedirs(os.path.dirname(config_automaps), exist_ok=True)
+        os.makedirs(os.path.dirname(config_compose), exist_ok=True)
+        os.makedirs(os.path.dirname(config_run), exist_ok=True)
 
+        # Descargar archivos de MinIO
         s3_client.download_file(bucket_name, object_key_config, config_json)
         s3_client.download_file(bucket_name, object_key_env, config_env)
         s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
         s3_client.download_file(bucket_name, object_key_compose, config_compose)
         s3_client.download_file(bucket_name, object_key_run, config_run)
-        print(f'{temp_dir}')
 
-        
+        print(f'Directorio temporal creado en: {temp_dir}')
+
     except Exception as e:
         print(f"Error: {str(e)}")
         return
@@ -51,30 +65,22 @@ def find_the_folder():
         # Modificar el archivo JSON
         with open(config_json, 'r') as f:
             config_data = json.load(f)
-
             print(config_data)
 
         with open(config_json, 'w') as f:
-                json.dump(config_data, f, indent=4)
-        
-        new_object_key = 'share_data/input/config_modified.json' 
+            json.dump(config_data, f, indent=4)
+
+        # Subir el archivo modificado a MinIO
+        new_object_key = 'share_data/input/config_modified.json'
         s3_client.upload_file(config_json, bucket_name, new_object_key)
         print(f"Archivo modificado subido a MinIO: {new_object_key}")
 
-
-
-        # Modificar el archivo JSON
-        with open(config_compose, 'r') as f:
-            print(config_compose)
-
-
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Error al modificar o subir el archivo: {str(e)}")
 
     finally:
         # Limpieza del directorio temporal si es necesario
         pass
-
 
 
 
