@@ -30,6 +30,7 @@ def process_message(msg_value, **kwargs):
             print(msg_json)
             
             job = msg_json.get('job')
+            id_sesion = msg_json.get('id')
             conf = {'message': msg_json}
             
             if job == 'automaps':
@@ -52,7 +53,7 @@ def process_message(msg_value, **kwargs):
 
 
             trigger_dag_run = TriggerDagRunOperator(
-                task_id=f'trigger_{job}_handler',
+                task_id=f'trigger_{job}_handler_{id_sesion}',
                 trigger_dag_id=dag_to_trigger,
                 conf=conf,
                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
