@@ -90,11 +90,11 @@ def create_mission(**context):
         print(f"Error durante el guardado de la misión: {str(e)}")
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
         
-        # Actualizar el estado del trabajo a "FAILED"
-        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FAILED')
+        # Actualizar el estado del trabajo a "ERROR"
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='ERROR')
         session.execute(update_stmt)
         session.commit()
-        print(f"Job ID {job_id} status updated to FAILED")
+        print(f"Job ID {job_id} status updated to ERROR")
 
         # Lanzar la excepción para que la tarea falle
         raise RuntimeError(f"Error durante el guardado de la misión: {str(e)}")
