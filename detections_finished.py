@@ -6,7 +6,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import datetime
 from airflow import DAG
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Table, MetaData
 
 
 def check_jobs_status(**context):
@@ -61,6 +61,38 @@ def update_video_status(**context):
     session.close()
 
 
+
+
+def change_state_job(**context):
+    message = context['dag_run'].conf
+    job_id = message['message']['id']
+    print(f"jobid {job_id}" )
+
+    try:
+   
+        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+
+        # Update job status to 'FINISHED'
+        metadata = MetaData(bind=engine)
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED', input_data=json.dumps({}))
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to FINISHED")
+
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante el guardado del estado del job: {str(e)}")
+
+ 
+
+
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
@@ -88,7 +120,7 @@ wait_for_jobs_sensor = PythonSensor(
     dag=dag,
 )
 
-# Tarea: Actualizar el estado del video
+#Actualizar el estado del video
 update_video_task = PythonOperator(
     task_id='update_video_status',
     python_callable=update_video_status,
@@ -96,5 +128,13 @@ update_video_task = PythonOperator(
     dag=dag,
 )
 
+#Cambia estado de job
+change_state_task = PythonOperator(
+    task_id='change_state_job',
+    python_callable=change_state_job,
+    provide_context=True,
+    dag=dag,
+)
+
 # Definir dependencias
-wait_for_jobs_sensor >> update_video_task
+wait_for_jobs_sensor >> update_video_task >> change_state_task
