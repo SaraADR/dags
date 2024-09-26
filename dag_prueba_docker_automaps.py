@@ -72,4 +72,13 @@ dag = DAG(
     catchup=False
 )
 
-find_the_folder
+#Cambia estado de job
+find_the_folder_task = PythonOperator(
+    task_id='change_state_job',
+    python_callable=find_the_folder,
+    provide_context=True,
+    dag=dag,
+)
+
+
+find_the_folder_task
