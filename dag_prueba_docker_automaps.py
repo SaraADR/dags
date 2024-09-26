@@ -22,11 +22,26 @@ def find_the_folder():
         )
 
         bucket_name = 'algorithms'  
-        object_key = 'share_data/input/config.json'
-        local_file_path = f"{temp_dir}/config.json"
+        object_key_config = 'share_data/input/config.json'
+        config_json = f"{temp_dir}/share_data/input/config.json"
 
-        s3_client.download_file(bucket_name, object_key, local_file_path)
+        object_key_env = 'launch/.env'
+        config_env = f"{temp_dir}/launch/.env"
+        object_key_automaps = 'launch/automaps.tar'
+        config_automaps = f"{temp_dir}/launch/automaps.tar"
+        object_key_compose = 'launch/compose.yaml'
+        config_compose = f"{temp_dir}/launch/compose.yaml"
+        object_key_run = 'launch/run.sh'
+        config_run = f"{temp_dir}/launch/run.sh"
+
+
+        s3_client.download_file(bucket_name, object_key_config, config_json)
+        s3_client.download_file(bucket_name, object_key_env, config_env)
+        s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
+        s3_client.download_file(bucket_name, object_key_compose, config_compose)
+        s3_client.download_file(bucket_name, object_key_run, config_run)
         print(f'{temp_dir}')
+
         
     except Exception as e:
         print(f"Error: {str(e)}")
@@ -34,17 +49,24 @@ def find_the_folder():
 
     try:
         # Modificar el archivo JSON
-        with open(local_file_path, 'r') as f:
+        with open(config_json, 'r') as f:
             config_data = json.load(f)
 
             print(config_data)
 
-        with open(local_file_path, 'w') as f:
+        with open(config_json, 'w') as f:
                 json.dump(config_data, f, indent=4)
         
-        new_object_key = 'share_data/output/config_modified.json' 
-        s3_client.upload_file(local_file_path, bucket_name, new_object_key)
+        new_object_key = 'share_data/input/config_modified.json' 
+        s3_client.upload_file(config_json, bucket_name, new_object_key)
         print(f"Archivo modificado subido a MinIO: {new_object_key}")
+
+
+
+        # Modificar el archivo JSON
+        with open(config_compose, 'r') as f:
+            print(config_compose)
+
 
     except Exception as e:
         print(f"Error: {str(e)}")
