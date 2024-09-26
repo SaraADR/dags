@@ -5,6 +5,8 @@ from airflow.hooks.base_hook import BaseHook
 import json
 import boto3
 from botocore.client import Config, ClientError
+from airflow.operators.python import PythonOperator
+
 
 def find_the_folder():
     temp_dir = tempfile.mkdtemp()
