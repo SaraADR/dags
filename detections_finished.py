@@ -1,12 +1,13 @@
 
 import json
 from airflow.operators.python import PythonOperator
+from airflow.sensors.python import PythonSensor
 from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import datetime
 from airflow import DAG
 from sqlalchemy import create_engine
-from airflow.operators.python import PythonOperator, PythonSensor
+
 
 def check_jobs_status(**context):
     message = context['dag_run'].conf
