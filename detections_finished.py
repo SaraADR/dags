@@ -46,7 +46,7 @@ def update_video_status(**context):
     input_data_str = message['message']['input_data']
 
     input_data = json.loads(input_data_str)
-    video_id = input_data['job_ids']
+    video_id = input_data['video_id']
     
     db_conn = BaseHook.get_connection('biobd')
     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
