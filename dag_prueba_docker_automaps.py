@@ -56,8 +56,13 @@ def find_the_folder():
         s3_client.download_file(bucket_name, object_key_compose, config_compose)
         s3_client.download_file(bucket_name, object_key_run, config_run)
 
+        # Verificar que los archivos existan
+        if not os.path.exists(config_env) or not os.path.exists(config_automaps) or not os.path.exists(config_run):
+            raise FileNotFoundError("Algunos archivos no se descargaron correctamente.")
+
+
         print(f'Directorio temporal creado en: {temp_dir}')
-        execute_run_sh(config_run)
+        execute_run_sh(config_run, temp_dir)
         return temp_dir
 
     except Exception as e:
@@ -87,8 +92,9 @@ def find_the_folder():
 
 
 
-def execute_run_sh(run_sh_path):
-    result = subprocess.run(['bash', run_sh_path], capture_output=True, text=True)
+def execute_run_sh(run_sh_path, work_dir):
+    # Cambiar al directorio donde están los archivos antes de ejecutar el script
+    result = subprocess.run(['bash', run_sh_path], cwd=work_dir, capture_output=True, text=True)
     print(result.stdout)
     if result.returncode != 0:
         raise Exception(f"Error al ejecutar {run_sh_path}: {result.stderr}")
