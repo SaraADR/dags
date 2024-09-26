@@ -56,31 +56,38 @@ def find_the_folder():
         s3_client.download_file(bucket_name, object_key_run, config_run)
 
         print(f'Directorio temporal creado en: {temp_dir}')
+        return temp_dir
+    
 
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return
 
-    try:
-        # Modificar el archivo JSON
-        with open(config_json, 'r') as f:
-            config_data = json.load(f)
-            print(config_data)
+    # except Exception as e:
+    #     print(f"Error: {str(e)}")
+    #     return
 
-        with open(config_json, 'w') as f:
-            json.dump(config_data, f, indent=4)
+    # try:
+    #     # Modificar el archivo JSON
+    #     with open(config_json, 'r') as f:
+    #         config_data = json.load(f)
+    #         print(config_data)
 
-        # Subir el archivo modificado a MinIO
-        new_object_key = 'share_data/input/config_modified.json'
-        s3_client.upload_file(config_json, bucket_name, new_object_key)
-        print(f"Archivo modificado subido a MinIO: {new_object_key}")
+    #     with open(config_json, 'w') as f:
+    #         json.dump(config_data, f, indent=4)
 
-    except Exception as e:
-        print(f"Error al modificar o subir el archivo: {str(e)}")
+    #     # Subir el archivo modificado a MinIO
+    #     new_object_key = 'share_data/input/config_modified.json'
+    #     s3_client.upload_file(config_json, bucket_name, new_object_key)
+    #     print(f"Archivo modificado subido a MinIO: {new_object_key}")
 
-    finally:
-        # Limpieza del directorio temporal si es necesario
-        pass
+    # except Exception as e:
+    #     print(f"Error al modificar o subir el archivo: {str(e)}")
+
+
+
+
+
+    # finally:
+    #     # Limpieza del directorio temporal si es necesario
+    #     pass
 
 
 
