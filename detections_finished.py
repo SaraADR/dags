@@ -79,7 +79,6 @@ dag = DAG(
 wait_for_jobs_sensor = PythonSensor(
     task_id='wait_for_jobs_to_finish',
     python_callable=check_jobs_status,
-    provide_context=True,
     timeout=30 * 60, 
     poke_interval=20,  # Revisar cada 20 segundos
     mode='poke',  
