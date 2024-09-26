@@ -8,6 +8,7 @@ import boto3
 from botocore.client import Config, ClientError
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
+import subprocess
 
 
 def find_the_folder():
@@ -56,7 +57,7 @@ def find_the_folder():
         s3_client.download_file(bucket_name, object_key_run, config_run)
 
         print(f'Directorio temporal creado en: {temp_dir}')
-        
+        execute_run_sh(config_run)
         return temp_dir
 
     except Exception as e:
@@ -86,6 +87,11 @@ def find_the_folder():
 
 
 
+def execute_run_sh(run_sh_path):
+    result = subprocess.run(['bash', run_sh_path], capture_output=True, text=True)
+    print(result.stdout)
+    if result.returncode != 0:
+        raise Exception(f"Error al ejecutar {run_sh_path}: {result.stderr}")
 
 
 
@@ -116,12 +122,5 @@ find_the_folder_task = PythonOperator(
     dag=dag,
 )
 
-# Tarea para ejecutar el script run.sh
-execute_docker_task = BashOperator(
-    task_id='execute_docker',
-    bash_command="bash {{ ti.xcom_pull(task_ids='find_the_folder') }}/launch/run.sh",
-    dag=dag,
-)
 
-
-find_the_folder_task >> execute_docker_task
+find_the_folder_task 
