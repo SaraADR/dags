@@ -43,7 +43,10 @@ def check_jobs_status(**context):
 
 def update_video_status(**context):
     message = context['dag_run'].conf
-    video_id = message['message']['video_id']
+    input_data_str = message['message']['input_data']
+
+    input_data = json.loads(input_data_str)
+    video_id = input_data['job_ids']
     
     db_conn = BaseHook.get_connection('biobd')
     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
