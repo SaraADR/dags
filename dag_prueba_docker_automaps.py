@@ -7,7 +7,7 @@ import json
 import boto3
 from botocore.client import Config, ClientError
 from airflow.operators.python import PythonOperator
-
+from airflow.operators.bash import BashOperator
 
 
 def find_the_folder():
@@ -110,5 +110,12 @@ find_the_folder_task = PythonOperator(
     dag=dag,
 )
 
+# Tarea para ejecutar el script run.sh
+execute_docker_task = BashOperator(
+    task_id='execute_docker',
+    bash_command="bash {{ ti.xcom_pull(task_ids='find_the_folder') }}/launch/run.sh",
+    dag=dag,
+)
 
-find_the_folder_task
+
+find_the_folder_task >> execute_docker_task
