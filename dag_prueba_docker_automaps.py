@@ -57,13 +57,14 @@ def find_the_folder():
 
         print(f'Directorio temporal creado en: {temp_dir}')
         return temp_dir
-    
 
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return
 
-    # except Exception as e:
-    #     print(f"Error: {str(e)}")
-    #     return
-
+    finally:
+        # Limpieza del directorio temporal si es necesario
+        pass
     # try:
     #     # Modificar el archivo JSON
     #     with open(config_json, 'r') as f:
@@ -85,9 +86,7 @@ def find_the_folder():
 
 
 
-    # finally:
-    #     # Limpieza del directorio temporal si es necesario
-    #     pass
+
 
 
 
