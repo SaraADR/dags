@@ -65,9 +65,9 @@ default_args = {
 }
 
 dag = DAG(
-    'algorithm_automaps',
+    'dag_prueba_docker',
     default_args=default_args,
-    description='Algoritmo automaps',
+    description='Algoritmo dag_prueba_docker',
     schedule_interval=None,
     catchup=False
 )
