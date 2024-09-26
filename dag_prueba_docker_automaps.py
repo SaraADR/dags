@@ -56,6 +56,7 @@ def find_the_folder():
         s3_client.download_file(bucket_name, object_key_run, config_run)
 
         print(f'Directorio temporal creado en: {temp_dir}')
+        
         return temp_dir
 
     except Exception as e:
@@ -112,7 +113,6 @@ dag = DAG(
 find_the_folder_task = PythonOperator(
     task_id='change_state_job',
     python_callable=find_the_folder,
-    provide_context=True,
     dag=dag,
 )
 
