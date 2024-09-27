@@ -106,6 +106,9 @@ empty_dir_volume_mount = k8s.V1VolumeMount(
     mount_path='/scripts'  # Montar el volumen en el contenedor
 )
 
+security_context = k8s.V1SecurityContext(
+    privileged=True  # Establecer el contenedor como privilegiado
+)
 
 # Tarea que ejecuta el script run.sh usando Docker-in-Docker
 run_with_docker_task = KubernetesPodOperator(
