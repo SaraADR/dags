@@ -15,7 +15,8 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 
 def find_the_folder():
     # Crear un directorio temporal
-    temp_dir = tempfile.mkdtemp()
+    temp_dir = '/scripts'
+    os.makedirs(temp_dir, exist_ok=True)
 
     try:
         # Obtener conexión MinIO desde Airflow
@@ -65,7 +66,6 @@ def find_the_folder():
 
 
         print(f'Directorio temporal creado en: {temp_dir}')
-        copy_files_to_volume(temp_dir)
         return temp_dir
 
     except Exception as e:
@@ -76,32 +76,6 @@ def find_the_folder():
         # Limpieza del directorio temporal si es necesario
         pass
 
-
-def copy_files_to_volume(temp_dir):
-    volume_dir = '/scripts'
-    
-    # Define las rutas de los archivos en el directorio temporal
-    config_json = os.path.join(temp_dir, 'share_data/input/config.json')
-    config_env = os.path.join(temp_dir, 'launch/.env')
-    config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
-    config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
-    config_run = os.path.join(temp_dir, 'launch/run.sh')
-    
-    # Define las rutas de destino en el volumen
-    dest_config_json = os.path.join(volume_dir, 'share_data/input/config.json')
-    dest_config_env = os.path.join(volume_dir, 'launch/.env')
-    dest_config_automaps = os.path.join(volume_dir, 'launch/automaps.tar')
-    dest_config_compose = os.path.join(volume_dir, 'launch/compose.yaml')
-    dest_config_run = os.path.join(volume_dir, 'launch/run.sh')
-    
-    # Copia los archivos al volumen
-    shutil.copy(config_json, dest_config_json)
-    shutil.copy(config_env, dest_config_env)
-    shutil.copy(config_automaps, dest_config_automaps)
-    shutil.copy(config_compose, dest_config_compose)
-    shutil.copy(config_run, dest_config_run)
-    
-    print(f'Archivos copiados a {volume_dir}')
 
 
 default_args = {
