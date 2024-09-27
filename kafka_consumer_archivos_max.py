@@ -130,12 +130,15 @@ def process_zip_file(value, **kwargs):
                             print(f"Task instance incorrecto: {e}")
 
                 else:
-                    raise AirflowSkipException("El archivo no contiene un algoritmo controlado")
+                    print("El archivo no contiene un algoritmo controlado, pero se marcará como procesado.")
+                    # Ya no lanzamos AirflowSkipException
 
                        
+
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido {e}")
-        raise AirflowSkipException("El archivo no es un ZIP válido")
+        print("Se marcará como procesado a pesar del error.")
+        # Ya no lanzamos AirflowSkipException
 
 
 def process_json_file(value, **kwargs):
@@ -145,7 +148,8 @@ def process_json_file(value, **kwargs):
         
         if not value_pulled:
             print("No data to process")
-            raise AirflowSkipException("No data to process")
+            print("Se marcará como procesado a pesar de no tener datos.")
+            return
 
         # En el caso de que el json sea visto como objeto lo limpiamos
         if isinstance(value_pulled, str) and value_pulled.startswith("b'") and value_pulled.endswith("'"):
@@ -168,13 +172,15 @@ def process_json_file(value, **kwargs):
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
         print(f"Value pulled: {value_pulled}")  
-        raise AirflowSkipException("The file content is not a valid JSON")
+        print("El contenido no es un JSON válido, pero se marcará como procesado.")
+        # Ya no lanzamos AirflowSkipException
     except KeyError:
-        print("Variable value does not exist")
-        raise AirflowSkipException("Variable value does not exist")
+        print("Variable value does not exist, pero se marcará como procesado.")
+        # Ya no lanzamos AirflowSkipException
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-        raise AirflowSkipException("An unexpected error occurred")
+        print("Ocurrió un error inesperado, pero se marcará como procesado.")
+        # Ya no lanzamos AirflowSkipException
 
 
 default_args = {
@@ -206,6 +212,3 @@ consume_from_topic = ConsumeFromTopicOperator(
     max_batch_size=1,
     dag=dag,
 )
-
-
-consume_from_topic
