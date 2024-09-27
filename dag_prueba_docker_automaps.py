@@ -123,13 +123,10 @@ run_with_docker_task = KubernetesPodOperator(
         'DOCKER_HOST': 'tcp://localhost:2375',  # Necesario para DinD
         'DOCKER_TLS_CERTDIR': ''  # Desactiva TLS en DinD
     },
-    security_context=k8s.V1PodSecurityContext(
-        privileged=True  # DinD requiere permisos elevados
-    ),
+    security_context=security_context,  # Asignar el contexto de seguridad al contenedor
     get_logs=True,
     is_delete_operator_pod=True,
     dag=dag,
 )
-
 # Definir la secuencia de tareas
 find_and_modify_files_task >> run_with_docker_task
