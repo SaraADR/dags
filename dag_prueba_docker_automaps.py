@@ -1,18 +1,16 @@
 import datetime
-import os
 from airflow import DAG
-import tempfile
-from airflow.hooks.base_hook import BaseHook
-import json
-import boto3
-from botocore.client import Config, ClientError
 from airflow.operators.python import PythonOperator
-from airflow.operators.bash import BashOperator
-import subprocess
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.hooks.base_hook import BaseHook
+import boto3
+import os
+import tempfile
+import json
+from botocore.client import Config
 
-
-def find_the_folder():
-    # Crear un directorio temporal
+# Función para descargar y modificar los archivos
+def find_and_modify_files():
     temp_dir = tempfile.mkdtemp()
 
     try:
@@ -28,7 +26,7 @@ def find_the_folder():
         )
 
         bucket_name = 'algorithms'
-        
+
         # Definir los objetos y sus rutas locales
         object_key_config = 'share_data/input/config.json'
         config_json = os.path.join(temp_dir, 'share_data/input/config.json')
@@ -56,13 +54,10 @@ def find_the_folder():
         s3_client.download_file(bucket_name, object_key_compose, config_compose)
         s3_client.download_file(bucket_name, object_key_run, config_run)
 
-        # Verificar que los archivos existan
-        if not os.path.exists(config_env) or not os.path.exists(config_automaps) or not os.path.exists(config_run):
-            raise FileNotFoundError("Algunos archivos no se descargaron correctamente.")
+        # Modificar el archivo .env si es necesario (ejemplo)
+        with open(config_env, 'a') as env_file:
+            env_file.write("\nNEW_ENV_VAR=value")
 
-
-        print(f'Directorio temporal creado en: {temp_dir}')
-        execute_run_sh(config_run, temp_dir)
         return temp_dir
 
     except Exception as e:
@@ -70,64 +65,61 @@ def find_the_folder():
         return
 
     finally:
-        # Limpieza del directorio temporal si es necesario
         pass
-    # try:
-    #     # Modificar el archivo JSON
-    #     with open(config_json, 'r') as f:
-    #         config_data = json.load(f)
-    #         print(config_data)
-
-    #     with open(config_json, 'w') as f:
-    #         json.dump(config_data, f, indent=4)
-
-    #     # Subir el archivo modificado a MinIO
-    #     new_object_key = 'share_data/input/config_modified.json'
-    #     s3_client.upload_file(config_json, bucket_name, new_object_key)
-    #     print(f"Archivo modificado subido a MinIO: {new_object_key}")
-
-    # except Exception as e:
-    #     print(f"Error al modificar o subir el archivo: {str(e)}")
 
 
-
-
-def execute_run_sh(run_sh_path, work_dir):
-    directoriolaunch = os.path.join(work_dir, 'launch')
-    # Cambiar al directorio donde están los archivos antes de ejecutar el script
-    result = subprocess.run(['bash', run_sh_path], cwd=directoriolaunch, capture_output=True, text=True)
-    print(result.stdout)
-    if result.returncode != 0:
-        raise Exception(f"Error al ejecutar {run_sh_path}: {result.stderr}")
-
-
-
-
-
+# Argumentos del DAG
 default_args = {
-    'owner': 'sadr',
+    'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime.datetime(2024, 8, 8),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': datetime.timedelta(minutes=1),
+    'retry_delay': datetime.timedelta(minutes=5),
 }
 
 dag = DAG(
-    'dag_prueba_docker',
+    'dag_docker_in_kubernetes_with_emptyDir',
     default_args=default_args,
-    description='Algoritmo dag_prueba_docker',
+    description='Ejecuta Docker dentro de Kubernetes usando Docker-in-Docker y emptyDir',
     schedule_interval=None,
     catchup=False
 )
 
-#Cambia estado de job
-find_the_folder_task = PythonOperator(
-    task_id='change_state_job',
-    python_callable=find_the_folder,
+# Tarea que descarga y modifica los archivos de MinIO
+find_and_modify_files_task = PythonOperator(
+    task_id='download_and_modify_files',
+    python_callable=find_and_modify_files,
     dag=dag,
 )
 
+# Tarea que ejecuta el script run.sh usando Docker-in-Docker
+run_with_docker_task = KubernetesPodOperator(
+    namespace='default',
+    image="docker:20.10.7-dind",  # Imagen de Docker-in-Docker
+    cmds=["/bin/bash", "-c", "/scripts/run.sh"],  # Ejecutar el script run.sh
+    name="run_with_docker",
+    task_id="run_with_docker_task",
+    volumes=[{
+        'name': 'empty-dir-volume',
+        'emptyDir': {}  # Volumen temporal emptyDir
+    }],
+    volume_mounts=[{
+        'name': 'empty-dir-volume',
+        'mountPath': '/scripts',  # Montar el volumen en el contenedor
+    }],
+    env_vars={
+        'DOCKER_HOST': 'tcp://localhost:2375',  # Necesario para DinD
+        'DOCKER_TLS_CERTDIR': ''  # Desactiva TLS en DinD
+    },
+    security_context={
+        'privileged': True  # DinD requiere permisos elevados
+    },
+    get_logs=True,
+    is_delete_operator_pod=True,
+    dag=dag,
+)
 
-find_the_folder_task 
+# Definir la secuencia de tareas
+find_and_modify_files_task >> run_with_docker_task
