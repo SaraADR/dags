@@ -9,13 +9,10 @@ import tempfile
 import json
 from botocore.client import Config
 from kubernetes.client import models as k8s
+import glob
 
-# Función para descargar y modificar los archivos
-def find_and_modify_files():
-    temp_dir = '/scripts'
-
+def find_and_modify_files(temp_dir='/scripts'):
     try:
-        # Obtener conexión MinIO desde Airflow
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
@@ -29,16 +26,10 @@ def find_and_modify_files():
         bucket_name = 'algorithms'
 
         # Definir los objetos y sus rutas locales
-        object_key_config = 'share_data/input/config.json'
         config_json = os.path.join(temp_dir, 'share_data/input/config.json')
-
-        object_key_env = 'launch/.env'
         config_env = os.path.join(temp_dir, 'launch/.env')
-        object_key_automaps = 'launch/automaps.tar'
         config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
-        object_key_compose = 'launch/compose.yaml'
         config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
-        object_key_run = 'launch/run.sh'
         config_run = os.path.join(temp_dir, 'launch/run.sh')
 
         # Crear las carpetas necesarias
@@ -49,25 +40,23 @@ def find_and_modify_files():
         os.makedirs(os.path.dirname(config_run), exist_ok=True)
 
         # Descargar archivos de MinIO
-        s3_client.download_file(bucket_name, object_key_config, config_json)
-        s3_client.download_file(bucket_name, object_key_env, config_env)
-        s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
-        s3_client.download_file(bucket_name, object_key_compose, config_compose)
-        s3_client.download_file(bucket_name, object_key_run, config_run)
+        s3_client.download_file(bucket_name, 'share_data/input/config.json', config_json)
+        s3_client.download_file(bucket_name, 'launch/.env', config_env)
+        s3_client.download_file(bucket_name, 'launch/automaps.tar', config_automaps)
+        s3_client.download_file(bucket_name, 'launch/compose.yaml', config_compose)
+        s3_client.download_file(bucket_name, 'launch/run.sh', config_run)
 
-        # Modificar el archivo .env si es necesario (ejemplo)
+        # Modificar el archivo .env si es necesario
         with open(config_env, 'a') as env_file:
             env_file.write("\nNEW_ENV_VAR=value")
 
-        return temp_dir
+        # Chequear archivos descargados
+        downloaded_files = glob.glob(os.path.join(temp_dir, '**/*'), recursive=True)
+        print("Archivos descargados:", downloaded_files)
 
     except Exception as e:
         print(f"Error: {str(e)}")
         return
-
-    finally:
-        pass
-
 
 # Argumentos del DAG
 default_args = {
@@ -98,33 +87,32 @@ find_and_modify_files_task = PythonOperator(
 # Definir el volumen emptyDir y el montaje correctamente
 empty_dir_volume = k8s.V1Volume(
     name='empty-dir-volume',
-    empty_dir=k8s.V1EmptyDirVolumeSource()  # Volumen temporal emptyDir
+    empty_dir=k8s.V1EmptyDirVolumeSource()
 )
 
 empty_dir_volume_mount = k8s.V1VolumeMount(
     name='empty-dir-volume',
-    mount_path='/scripts'  # Montar el volumen en el contenedor
+    mount_path='/scripts'
 )
 
 security_context = k8s.V1SecurityContext(
-    privileged=True  # Establecer el contenedor como privilegiado
+    privileged=True
 )
-
 
 # Tarea que ejecuta el script run.sh usando Docker-in-Docker
 run_with_docker_task = KubernetesPodOperator(
     namespace='default',
-    image="docker:20.10.7-dind",  # Imagen de Docker-in-Docker
-    cmds=["/bin/sh", "-c", "/scripts/launch/run.sh"],  # Cambiado a sh
+    image="docker:20.10.7-dind",
+    cmds=["/bin/sh", "-c", "/scripts/launch/run.sh"],
     name="run_with_docker",
     task_id="run_with_docker_task",
-    volumes=[empty_dir_volume],  # Utilizar la clase V1Volume
-    volume_mounts=[empty_dir_volume_mount],  # Utilizar la clase V1VolumeMount
+    volumes=[empty_dir_volume],
+    volume_mounts=[empty_dir_volume_mount],
     env_vars={
-        'DOCKER_HOST': 'tcp://localhost:2375',  # Necesario para DinD
-        'DOCKER_TLS_CERTDIR': ''  # Desactiva TLS en DinD
+        'DOCKER_HOST': 'tcp://localhost:2375',
+        'DOCKER_TLS_CERTDIR': ''
     },
-    security_context=security_context,  # Asignar el contexto de seguridad al contenedor
+    security_context=security_context,
     get_logs=True,
     is_delete_operator_pod=True,
     dag=dag,
