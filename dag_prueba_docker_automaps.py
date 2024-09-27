@@ -1,18 +1,24 @@
 import datetime
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.hooks.base_hook import BaseHook
-import boto3
 import os
+import shutil
+from airflow import DAG
 import tempfile
+from airflow.hooks.base_hook import BaseHook
 import json
-from botocore.client import Config
+import boto3
+from botocore.client import Config, ClientError
+from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
 from kubernetes.client import models as k8s
-import glob
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
-def find_and_modify_files(temp_dir='/scripts'):
+
+def find_the_folder():
+    # Crear un directorio temporal
+    temp_dir = tempfile.mkdtemp()
+
     try:
+        # Obtener conexión MinIO desde Airflow
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
@@ -24,12 +30,18 @@ def find_and_modify_files(temp_dir='/scripts'):
         )
 
         bucket_name = 'algorithms'
-
+        
         # Definir los objetos y sus rutas locales
+        object_key_config = 'share_data/input/config.json'
         config_json = os.path.join(temp_dir, 'share_data/input/config.json')
+
+        object_key_env = 'launch/.env'
         config_env = os.path.join(temp_dir, 'launch/.env')
+        object_key_automaps = 'launch/automaps.tar'
         config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
+        object_key_compose = 'launch/compose.yaml'
         config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
+        object_key_run = 'launch/run.sh'
         config_run = os.path.join(temp_dir, 'launch/run.sh')
 
         # Crear las carpetas necesarias
@@ -40,43 +52,81 @@ def find_and_modify_files(temp_dir='/scripts'):
         os.makedirs(os.path.dirname(config_run), exist_ok=True)
 
         # Descargar archivos de MinIO
-        s3_client.download_file(bucket_name, 'share_data/input/config.json', config_json)
-        s3_client.download_file(bucket_name, 'launch/.env', config_env)
-        s3_client.download_file(bucket_name, 'launch/automaps.tar', config_automaps)
-        s3_client.download_file(bucket_name, 'launch/compose.yaml', config_compose)
-        s3_client.download_file(bucket_name, 'launch/run.sh', config_run)
+        s3_client.download_file(bucket_name, object_key_config, config_json)
+        s3_client.download_file(bucket_name, object_key_env, config_env)
+        s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
+        s3_client.download_file(bucket_name, object_key_compose, config_compose)
+        s3_client.download_file(bucket_name, object_key_run, config_run)
 
-        # Chequear archivos descargados
-        downloaded_files = glob.glob(os.path.join(temp_dir, '**/*'), recursive=True)
-        print("Archivos descargados:", downloaded_files)
+        # Verificar que los archivos existan
+        if not os.path.exists(config_env) or not os.path.exists(config_automaps) or not os.path.exists(config_run):
+            raise FileNotFoundError("Algunos archivos no se descargaron correctamente.")
+
+
+
+        print(f'Directorio temporal creado en: {temp_dir}')
+        copy_files_to_volume(temp_dir)
+        return temp_dir
 
     except Exception as e:
         print(f"Error: {str(e)}")
         return
 
-# Argumentos del DAG
+    finally:
+        # Limpieza del directorio temporal si es necesario
+        pass
+
+
+def copy_files_to_volume(temp_dir):
+    volume_dir = '/scripts'
+    
+    # Define las rutas de los archivos en el directorio temporal
+    config_json = os.path.join(temp_dir, 'share_data/input/config.json')
+    config_env = os.path.join(temp_dir, 'launch/.env')
+    config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
+    config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
+    config_run = os.path.join(temp_dir, 'launch/run.sh')
+    
+    # Define las rutas de destino en el volumen
+    dest_config_json = os.path.join(volume_dir, 'share_data/input/config.json')
+    dest_config_env = os.path.join(volume_dir, 'launch/.env')
+    dest_config_automaps = os.path.join(volume_dir, 'launch/automaps.tar')
+    dest_config_compose = os.path.join(volume_dir, 'launch/compose.yaml')
+    dest_config_run = os.path.join(volume_dir, 'launch/run.sh')
+    
+    # Copia los archivos al volumen
+    shutil.copy(config_json, dest_config_json)
+    shutil.copy(config_env, dest_config_env)
+    shutil.copy(config_automaps, dest_config_automaps)
+    shutil.copy(config_compose, dest_config_compose)
+    shutil.copy(config_run, dest_config_run)
+    
+    print(f'Archivos copiados a {volume_dir}')
+
+
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime.datetime(2024, 8, 8),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': datetime.timedelta(minutes=5),
+    'retry_delay': datetime.timedelta(minutes=1),
 }
 
 dag = DAG(
-    'dag_docker_in_kubernetes_with_emptyDir',
+    'dag_prueba_docker',
     default_args=default_args,
-    description='Ejecuta Docker dentro de Kubernetes usando Docker-in-Docker y emptyDir',
+    description='Algoritmo dag_prueba_docker',
     schedule_interval=None,
     catchup=False
 )
 
-# Tarea que descarga y modifica los archivos de MinIO
-find_and_modify_files_task = PythonOperator(
-    task_id='download_and_modify_files',
-    python_callable=find_and_modify_files,
+
+#Cambia estado de job
+find_the_folder_task = PythonOperator(
+    task_id='ejecutar run',
+    python_callable=find_the_folder,
     dag=dag,
 )
 
@@ -95,7 +145,7 @@ security_context = k8s.V1SecurityContext(
     privileged=True
 )
 
-# Tarea que ejecuta el script run.sh usando Docker-in-Docker
+# Ejecuta el contenedor basado en la imagen launch-automap_service:latest
 run_with_docker_task = KubernetesPodOperator(
     namespace='default',
     image="docker:20.10.7-dind",
@@ -114,5 +164,4 @@ run_with_docker_task = KubernetesPodOperator(
     dag=dag,
 )
 
-# Definir la secuencia de tareas
-find_and_modify_files_task >> run_with_docker_task
+find_the_folder_task >> run_with_docker_task
