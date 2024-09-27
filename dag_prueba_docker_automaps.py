@@ -125,7 +125,7 @@ dag = DAG(
 
 #Cambia estado de job
 find_the_folder_task = PythonOperator(
-    task_id='ejecutar run',
+    task_id='ejecutar_run',
     python_callable=find_the_folder,
     dag=dag,
 )
