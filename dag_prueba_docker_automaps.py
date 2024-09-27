@@ -17,7 +17,7 @@ def find_the_folder():
     # Crear un directorio temporal
     temp_dir = '/scripts'
     os.makedirs(temp_dir, exist_ok=True)
-
+    os.chmod(temp_dir, 0o777)
     try:
         # Obtener conexión MinIO desde Airflow
         connection = BaseHook.get_connection('minio_conn')
