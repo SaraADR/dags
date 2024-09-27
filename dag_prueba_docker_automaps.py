@@ -119,7 +119,15 @@ security_context = k8s.V1SecurityContext(
     privileged=True
 )
 
-# Ejecuta el contenedor basado en la imagen launch-automap_service:latest
+# Define the init container to set permissions
+init_container = k8s.V1Container(
+    name="init-permission-fixer",
+    image="busybox",
+    command=["/bin/sh", "-c", "chmod -R 777 /scripts"],
+    volume_mounts=[empty_dir_volume_mount],
+)
+
+# Updated KubernetesPodOperator with security context
 run_with_docker_task = KubernetesPodOperator(
     namespace='default',
     image="docker:20.10.7-dind",
@@ -132,9 +140,14 @@ run_with_docker_task = KubernetesPodOperator(
         'DOCKER_HOST': 'tcp://localhost:2375',
         'DOCKER_TLS_CERTDIR': ''
     },
-    security_context=security_context,
+    security_context=k8s.V1SecurityContext(
+        run_as_user=0,  # Use root for permission issues
+        run_as_group=0,
+        privileged=True
+    ),
     get_logs=True,
     is_delete_operator_pod=True,
+    init_containers=[init_container],  # Add init container here
     dag=dag,
 )
 
