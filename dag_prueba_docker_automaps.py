@@ -12,7 +12,7 @@ from kubernetes.client import models as k8s
 
 # Función para descargar y modificar los archivos
 def find_and_modify_files():
-    temp_dir = tempfile.mkdtemp()
+    temp_dir = '/scripts'
 
     try:
         # Obtener conexión MinIO desde Airflow
@@ -110,7 +110,7 @@ security_context = k8s.V1SecurityContext(
     privileged=True  # Establecer el contenedor como privilegiado
 )
 
-# Tarea que ejecuta el script run.sh usando Docker-in-Docker
+
 # Tarea que ejecuta el script run.sh usando Docker-in-Docker
 run_with_docker_task = KubernetesPodOperator(
     namespace='default',
