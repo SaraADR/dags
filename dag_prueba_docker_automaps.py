@@ -111,10 +111,11 @@ security_context = k8s.V1SecurityContext(
 )
 
 # Tarea que ejecuta el script run.sh usando Docker-in-Docker
+# Tarea que ejecuta el script run.sh usando Docker-in-Docker
 run_with_docker_task = KubernetesPodOperator(
     namespace='default',
     image="docker:20.10.7-dind",  # Imagen de Docker-in-Docker
-    cmds=["/bin/bash", "-c", "/scripts/run.sh"],  # Ejecutar el script run.sh
+    cmds=["/bin/sh", "-c", "/scripts/run.sh"],  # Cambiado a sh
     name="run_with_docker",
     task_id="run_with_docker_task",
     volumes=[empty_dir_volume],  # Utilizar la clase V1Volume
@@ -128,5 +129,6 @@ run_with_docker_task = KubernetesPodOperator(
     is_delete_operator_pod=True,
     dag=dag,
 )
+
 # Definir la secuencia de tareas
 find_and_modify_files_task >> run_with_docker_task
