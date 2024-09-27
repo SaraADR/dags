@@ -46,10 +46,6 @@ def find_and_modify_files(temp_dir='/scripts'):
         s3_client.download_file(bucket_name, 'launch/compose.yaml', config_compose)
         s3_client.download_file(bucket_name, 'launch/run.sh', config_run)
 
-        # Modificar el archivo .env si es necesario
-        with open(config_env, 'a') as env_file:
-            env_file.write("\nNEW_ENV_VAR=value")
-
         # Chequear archivos descargados
         downloaded_files = glob.glob(os.path.join(temp_dir, '**/*'), recursive=True)
         print("Archivos descargados:", downloaded_files)
