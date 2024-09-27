@@ -8,6 +8,7 @@ import os
 import tempfile
 import json
 from botocore.client import Config
+from kubernetes.client import models as k8s
 
 # Función para descargar y modificar los archivos
 def find_and_modify_files():
@@ -94,6 +95,18 @@ find_and_modify_files_task = PythonOperator(
     dag=dag,
 )
 
+# Definir el volumen emptyDir y el montaje correctamente
+empty_dir_volume = k8s.V1Volume(
+    name='empty-dir-volume',
+    empty_dir=k8s.V1EmptyDirVolumeSource()  # Volumen temporal emptyDir
+)
+
+empty_dir_volume_mount = k8s.V1VolumeMount(
+    name='empty-dir-volume',
+    mount_path='/scripts'  # Montar el volumen en el contenedor
+)
+
+
 # Tarea que ejecuta el script run.sh usando Docker-in-Docker
 run_with_docker_task = KubernetesPodOperator(
     namespace='default',
@@ -101,21 +114,15 @@ run_with_docker_task = KubernetesPodOperator(
     cmds=["/bin/bash", "-c", "/scripts/run.sh"],  # Ejecutar el script run.sh
     name="run_with_docker",
     task_id="run_with_docker_task",
-    volumes=[{
-        'name': 'empty-dir-volume',
-        'emptyDir': {}  # Volumen temporal emptyDir
-    }],
-    volume_mounts=[{
-        'name': 'empty-dir-volume',
-        'mountPath': '/scripts',  # Montar el volumen en el contenedor
-    }],
+    volumes=[empty_dir_volume],  # Utilizar la clase V1Volume
+    volume_mounts=[empty_dir_volume_mount],  # Utilizar la clase V1VolumeMount
     env_vars={
         'DOCKER_HOST': 'tcp://localhost:2375',  # Necesario para DinD
         'DOCKER_TLS_CERTDIR': ''  # Desactiva TLS en DinD
     },
-    security_context={
-        'privileged': True  # DinD requiere permisos elevados
-    },
+    security_context=k8s.V1PodSecurityContext(
+        privileged=True  # DinD requiere permisos elevados
+    ),
     get_logs=True,
     is_delete_operator_pod=True,
     dag=dag,
