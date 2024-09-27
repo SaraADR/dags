@@ -1,5 +1,6 @@
 import datetime
 import os
+import shutil
 from airflow import DAG
 import tempfile
 from airflow.hooks.base_hook import BaseHook
@@ -8,7 +9,8 @@ import boto3
 from botocore.client import Config, ClientError
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator
-import subprocess
+from kubernetes.client import models as k8s
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 
 def find_the_folder():
@@ -61,8 +63,9 @@ def find_the_folder():
             raise FileNotFoundError("Algunos archivos no se descargaron correctamente.")
 
 
+
         print(f'Directorio temporal creado en: {temp_dir}')
-        execute_run_sh(config_run, temp_dir)
+        copy_files_to_volume(temp_dir)
         return temp_dir
 
     except Exception as e:
@@ -72,36 +75,33 @@ def find_the_folder():
     finally:
         # Limpieza del directorio temporal si es necesario
         pass
-    # try:
-    #     # Modificar el archivo JSON
-    #     with open(config_json, 'r') as f:
-    #         config_data = json.load(f)
-    #         print(config_data)
-
-    #     with open(config_json, 'w') as f:
-    #         json.dump(config_data, f, indent=4)
-
-    #     # Subir el archivo modificado a MinIO
-    #     new_object_key = 'share_data/input/config_modified.json'
-    #     s3_client.upload_file(config_json, bucket_name, new_object_key)
-    #     print(f"Archivo modificado subido a MinIO: {new_object_key}")
-
-    # except Exception as e:
-    #     print(f"Error al modificar o subir el archivo: {str(e)}")
 
 
-
-
-def execute_run_sh(run_sh_path, work_dir):
-    directoriolaunch = os.path.join(work_dir, 'launch')
-    # Cambiar al directorio donde están los archivos antes de ejecutar el script
-    result = subprocess.run(['bash', run_sh_path], cwd=directoriolaunch, capture_output=True, text=True)
-    print(result.stdout)
-    if result.returncode != 0:
-        raise Exception(f"Error al ejecutar {run_sh_path}: {result.stderr}")
-
-
-
+def copy_files_to_volume(temp_dir):
+    volume_dir = '/scripts'
+    
+    # Define las rutas de los archivos en el directorio temporal
+    config_json = os.path.join(temp_dir, 'share_data/input/config.json')
+    config_env = os.path.join(temp_dir, 'launch/.env')
+    config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
+    config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
+    config_run = os.path.join(temp_dir, 'launch/run.sh')
+    
+    # Define las rutas de destino en el volumen
+    dest_config_json = os.path.join(volume_dir, 'share_data/input/config.json')
+    dest_config_env = os.path.join(volume_dir, 'launch/.env')
+    dest_config_automaps = os.path.join(volume_dir, 'launch/automaps.tar')
+    dest_config_compose = os.path.join(volume_dir, 'launch/compose.yaml')
+    dest_config_run = os.path.join(volume_dir, 'launch/run.sh')
+    
+    # Copia los archivos al volumen
+    shutil.copy(config_json, dest_config_json)
+    shutil.copy(config_env, dest_config_env)
+    shutil.copy(config_automaps, dest_config_automaps)
+    shutil.copy(config_compose, dest_config_compose)
+    shutil.copy(config_run, dest_config_run)
+    
+    print(f'Archivos copiados a {volume_dir}')
 
 
 default_args = {
@@ -122,12 +122,46 @@ dag = DAG(
     catchup=False
 )
 
+
 #Cambia estado de job
 find_the_folder_task = PythonOperator(
-    task_id='change_state_job',
+    task_id='ejecutar_run',
     python_callable=find_the_folder,
     dag=dag,
 )
 
+# Definir el volumen emptyDir y el montaje correctamente
+empty_dir_volume = k8s.V1Volume(
+    name='empty-dir-volume',
+    empty_dir=k8s.V1EmptyDirVolumeSource()
+)
 
-find_the_folder_task 
+empty_dir_volume_mount = k8s.V1VolumeMount(
+    name='empty-dir-volume',
+    mount_path='/scripts'
+)
+
+security_context = k8s.V1SecurityContext(
+    privileged=True
+)
+
+# Ejecuta el contenedor basado en la imagen launch-automap_service:latest
+run_with_docker_task = KubernetesPodOperator(
+    namespace='default',
+    image="docker:20.10.7-dind",
+    cmds=["/bin/sh", "-c", "/scripts/launch/run.sh"],
+    name="run_with_docker",
+    task_id="run_with_docker_task",
+    volumes=[empty_dir_volume],
+    volume_mounts=[empty_dir_volume_mount],
+    env_vars={
+        'DOCKER_HOST': 'tcp://localhost:2375',
+        'DOCKER_TLS_CERTDIR': ''
+    },
+    security_context=security_context,
+    get_logs=True,
+    is_delete_operator_pod=True,
+    dag=dag,
+)
+
+find_the_folder_task >> run_with_docker_task
