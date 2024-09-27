@@ -150,8 +150,6 @@ def creador_xml_metadata(file_identifier, organization_name, email_address, date
     return tree
 
 
-
-
 # Configuración del DAG de Airflow
 default_args = {
     'owner': 'oscar',
