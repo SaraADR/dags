@@ -72,6 +72,7 @@ def find_the_folder():
             subindent = ' ' * 4 * (level + 1)
             for f in files:
                 print(f"{subindent}{f}")
+        print("------------------------------------------")
 
         rundocker(temp_dir)
         return temp_dir
@@ -83,6 +84,18 @@ def find_the_folder():
     finally:
         # Limpieza del directorio temporal si es necesario
         pass
+
+def print_directory_contents(directory):
+    print(f"Contenido del directorio: {directory}")
+    for root, dirs, files in os.walk(directory):
+        level = root.replace(directory, '').count(os.sep)
+        indent = ' ' * 4 * level
+        print(f"{indent}{os.path.basename(root)}/")
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            print(f"{subindent}{f}")
+    print("------------------------------------------")
+
 
 
 def rundocker(temp_dir):
@@ -108,6 +121,9 @@ def rundocker(temp_dir):
                 print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
         else :
             print("la imagen ya existe, la usamos")
+
+
+        print_directory_contents({temp_dir})
 
         # Ahora ejecuta el contenedor usando docker-compose
         container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1')  # Usa un valor predeterminado si no se establece
