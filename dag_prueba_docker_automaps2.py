@@ -129,6 +129,32 @@ run_docker_task = BashOperator(
     task_id='run_docker',
     bash_command="""
     #!/bin/bash
+
+    # Descargar archivos desde MinIO usando AWS CLI
+    aws s3 --endpoint-url http://minio-service.default.svc.cluster.local:9000 cp s3://algorithms/launch/.env /tmp/launch/.env
+    if [ $? -ne 0 ]; then
+        echo "Error al descargar .env"
+        exit 1
+    fi
+
+    aws s3 --endpoint-url http://minio-service.default.svc.cluster.local:9000 cp s3://algorithms/launch/automaps.tar /tmp/launch/automaps.tar
+    if [ $? -ne 0 ]; then
+        echo "Error al descargar automaps.tar"
+        exit 1
+    fi
+
+    aws s3 --endpoint-url http://minio-service.default.svc.cluster.local:9000 cp s3://algorithms/launch/compose.yaml /tmp/launch/compose.yaml
+    if [ $? -ne 0 ]; then
+        echo "Error al descargar compose.yaml"
+        exit 1
+    fi
+
+    aws s3 --endpoint-url http://minio-service.default.svc.cluster.local:9000 cp s3://algorithms/launch/run.sh /tmp/launch/run.sh
+    if [ $? -ne 0 ]; then
+        echo "Error al descargar run.sh"
+        exit 1
+    fi
+    
     source /tmp/launch/.env
 
     # Check if image launch-automap_service:latest exists
