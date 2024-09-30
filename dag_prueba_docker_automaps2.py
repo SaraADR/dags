@@ -106,11 +106,15 @@ def rundocker(temp_dir):
                 print(result.stdout.decode())  # Muestra la salida estándar
             except subprocess.CalledProcessError as e:
                 print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
-
+        else :
+            print("la imagen ya existe, la usamos")
         # Ahora ejecuta el contenedor usando docker-compose
         container_name = os.getenv('CONTAINER_NAME', 'default_container_name')  # Usa un valor predeterminado si no se establece
         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
-        subprocess.run(docker_compose_command, shell=True, check=True)
+        try:
+            subprocess.run(docker_compose_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            print(f"Error ejecutando docker-compose: {e.stderr.decode()}")
         print("proceso finalizado")
 
     except subprocess.CalledProcessError as e:
