@@ -191,57 +191,62 @@ download_files_task = KubernetesPodOperator(
     image="python:3.8-slim",
     cmds=["python", "-c"],
     arguments=[
-        """
-        import os, boto3, json
-        from airflow.hooks.base_hook import BaseHook
-        from botocore.client import Config
+        '''
+import os
+import boto3
+import json
+from airflow.hooks.base_hook import BaseHook
+from botocore.client import Config
 
-        # Crear un directorio temporal
-        temp_dir = '/scripts'
-        os.makedirs(temp_dir, exist_ok=True)
+def download_files():
+    # Crear un directorio temporal
+    temp_dir = '/scripts'
+    os.makedirs(temp_dir, exist_ok=True)
 
-        # Obtener conexión MinIO desde Airflow
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
+    # Obtener conexión MinIO desde Airflow
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
 
-        bucket_name = 'algorithms'
+    bucket_name = 'algorithms'
 
-        # Definir los objetos y sus rutas locales
-        object_key_config = 'share_data/input/config.json'
-        config_json = os.path.join(temp_dir, 'share_data/input/config.json')
+    # Definir los objetos y sus rutas locales
+    object_key_config = 'share_data/input/config.json'
+    config_json = os.path.join(temp_dir, 'share_data/input/config.json')
 
-        object_key_env = 'launch/.env'
-        config_env = os.path.join(temp_dir, 'launch/.env')
-        object_key_automaps = 'launch/automaps.tar'
-        config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
-        object_key_compose = 'launch/compose.yaml'
-        config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
-        object_key_run = 'launch/run.sh'
-        config_run = os.path.join(temp_dir, 'launch/run.sh')
+    object_key_env = 'launch/.env'
+    config_env = os.path.join(temp_dir, 'launch/.env')
+    object_key_automaps = 'launch/automaps.tar'
+    config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
+    object_key_compose = 'launch/compose.yaml'
+    config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
+    object_key_run = 'launch/run.sh'
+    config_run = os.path.join(temp_dir, 'launch/run.sh')
 
-        # Crear las carpetas necesarias
-        os.makedirs(os.path.dirname(config_json), exist_ok=True)
-        os.makedirs(os.path.dirname(config_env), exist_ok=True)
-        os.makedirs(os.path.dirname(config_automaps), exist_ok=True)
-        os.makedirs(os.path.dirname(config_compose), exist_ok=True)
-        os.makedirs(os.path.dirname(config_run), exist_ok=True)
+    # Crear las carpetas necesarias
+    os.makedirs(os.path.dirname(config_json), exist_ok=True)
+    os.makedirs(os.path.dirname(config_env), exist_ok=True)
+    os.makedirs(os.path.dirname(config_automaps), exist_ok=True)
+    os.makedirs(os.path.dirname(config_compose), exist_ok=True)
+    os.makedirs(os.path.dirname(config_run), exist_ok=True)
 
-        # Descargar archivos de MinIO
-        s3_client.download_file(bucket_name, object_key_config, config_json)
-        s3_client.download_file(bucket_name, object_key_env, config_env)
-        s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
-        s3_client.download_file(bucket_name, object_key_compose, config_compose)
-        s3_client.download_file(bucket_name, object_key_run, config_run)
+    # Descargar archivos de MinIO
+    s3_client.download_file(bucket_name, object_key_config, config_json)
+    s3_client.download_file(bucket_name, object_key_env, config_env)
+    s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
+    s3_client.download_file(bucket_name, object_key_compose, config_compose)
+    s3_client.download_file(bucket_name, object_key_run, config_run)
 
-        print(f'Directorio temporal: {temp_dir}')
-        """
+    print(f'Directorio temporal: {temp_dir}')
+
+download_files()
+        '''
     ],
     name="download_files_task",
     task_id="download_files_task",
