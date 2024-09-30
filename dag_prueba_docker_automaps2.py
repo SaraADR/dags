@@ -83,7 +83,14 @@ def find_the_folder():
 
 
 def rundocker(temp_dir):
+    print("RUNDOCKER")
     print(temp_dir)
+    os.chdir(temp_dir)
+
+    # Verifica si la imagen existe, si no, cárgala
+    image_name = "launch-automap_service:latest"
+    load_image_command = f"docker image load -i {temp_dir}/launch/automaps.tar"
+
 
 
 
