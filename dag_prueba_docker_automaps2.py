@@ -123,7 +123,7 @@ def rundocker(temp_dir):
             print("la imagen ya existe, la usamos")
 
 
-        print_directory_contents({temp_dir})
+        print_directory_contents(temp_dir)
 
         # Ahora ejecuta el contenedor usando docker-compose
         container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1')  # Usa un valor predeterminado si no se establece
