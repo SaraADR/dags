@@ -122,7 +122,7 @@ def rundocker(temp_dir):
         else :
             print("la imagen ya existe, la usamos")
 
-
+        print("Esto es despues de la imagen")
         print_directory_contents(temp_dir)
 
         # Ahora ejecuta el contenedor usando docker-compose
