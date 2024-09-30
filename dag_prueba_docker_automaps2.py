@@ -69,6 +69,8 @@ def find_the_folder():
             subindent = ' ' * 4 * (level + 1)
             for f in files:
                 print(f"{subindent}{f}")
+
+        rundocker(temp_dir)
         return temp_dir
 
     except Exception as e:
@@ -80,16 +82,10 @@ def find_the_folder():
         pass
 
 
+def rundocker(temp_dir):
+    print(temp_dir)
 
-def list_files_in_tmp():
-    print("Listing files in /tmp:")
-    for root, dirs, files in os.walk('/tmp'):
-        level = root.replace('/tmp', '').count(os.sep)
-        indent = ' ' * 4 * (level)
-        print(f"{indent}{os.path.basename(root)}/")
-        subindent = ' ' * 4 * (level + 1)
-        for f in files:
-            print(f"{subindent}{f}")
+
 
 default_args = {
     'owner': 'sadr',
