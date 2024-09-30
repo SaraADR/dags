@@ -112,7 +112,7 @@ empty_dir_volume = k8s.V1Volume(
 
 empty_dir_volume_mount = k8s.V1VolumeMount(
     name='empty-dir-volume',
-    mount_path='/scripts'
+    mount_path='/tmp'
 )
 
 security_context = k8s.V1SecurityContext(
@@ -120,14 +120,14 @@ security_context = k8s.V1SecurityContext(
 )
 
 
-# Define the Init Container to fix permissions on the /scripts directory
+# Define the Init Container to fix permissions on the /tmp directory
 init_container = k8s.V1Container(
     name="init-fix-permissions",
     image="busybox",
-    command=["/bin/sh", "-c", "chmod -R 777 /scripts && ls -ld /scripts"],  # Adjust permissions
+    command=["/bin/sh", "-c", "chmod -R 777 /tmp && ls -ld /tmp"],  # Adjust permissions
     volume_mounts=[k8s.V1VolumeMount(
         name='empty-dir-volume',
-        mount_path='/scripts'
+        mount_path='/tmp'
     )],
 )
 init_container2 = k8s.V1Container(
@@ -137,21 +137,21 @@ init_container2 = k8s.V1Container(
         "/bin/sh", 
         "-c", 
         """
-        mkdir -p /scripts/share_data/input /scripts/launch && \
-        chmod -R 777 /scripts && \
-        ls -la /scripts /scripts/share_data /scripts/launch
+        mkdir -p /tmp/share_data/input /tmp/launch && \
+        chmod -R 777 /tmp && \
+        ls -la /tmp /tmp/share_data /tmp/launch
         """
     ],
     volume_mounts=[k8s.V1VolumeMount(
         name='empty-dir-volume',
-        mount_path='/scripts'
+        mount_path='/tmp'
     )],
 )
 
 list_permissions_task = KubernetesPodOperator(
     namespace='default',
     image="busybox",
-    cmds=["/bin/sh", "-c", "ls -la /scripts/share_data && ls -la /scripts/launch"],
+    cmds=["/bin/sh", "-c", "ls -la /tmp/share_data && ls -la /tmp/launch"],
     name="list_permissions",
     task_id="list_permissions_task",
     volumes=[empty_dir_volume],
@@ -165,7 +165,7 @@ list_permissions_task = KubernetesPodOperator(
 run_with_docker_task = KubernetesPodOperator(
     namespace='default',
     image="docker:20.10.7-dind",
-    cmds=["/bin/sh", "-c", "/scripts/launch/run.sh"],
+    cmds=["/bin/sh", "-c", "/tmp/launch/run.sh"],
     name="run_with_docker",
     task_id="run_with_docker_task",
     volumes=[empty_dir_volume],
