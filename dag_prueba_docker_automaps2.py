@@ -19,6 +19,8 @@ def find_the_folder():
     temp_dir = '/tmp'
     os.makedirs(temp_dir, exist_ok=True)
 
+    print("Comienza el dag")
+
     try:
         # Obtener conexión MinIO desde Airflow
         connection = BaseHook.get_connection('minio_conn')
@@ -104,7 +106,7 @@ def rundocker(temp_dir):
                 print(result.stdout.decode())  # Muestra la salida estándar
             except subprocess.CalledProcessError as e:
                 print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
-                
+
         # Ahora ejecuta el contenedor usando docker-compose
         container_name = os.getenv('CONTAINER_NAME', 'default_container_name')  # Usa un valor predeterminado si no se establece
         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
