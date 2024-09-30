@@ -130,6 +130,23 @@ init_container = k8s.V1Container(
         mount_path='/scripts'
     )],
 )
+init_container2 = k8s.V1Container(
+    name="init-create-directories",
+    image="busybox",
+    command=[
+        "/bin/sh", 
+        "-c", 
+        """
+        mkdir -p /scripts/share_data/input /scripts/launch && \
+        chmod -R 777 /scripts && \
+        ls -la /scripts /scripts/share_data /scripts/launch
+        """
+    ],
+    volume_mounts=[k8s.V1VolumeMount(
+        name='empty-dir-volume',
+        mount_path='/scripts'
+    )],
+)
 
 list_permissions_task = KubernetesPodOperator(
     namespace='default',
@@ -164,7 +181,7 @@ run_with_docker_task = KubernetesPodOperator(
     ),
     get_logs=True,
     is_delete_operator_pod=True,
-    init_containers=[init_container],  # Add init container here
+    init_containers=[init_container, init_container2],  # Add init container here
     dag=dag,
 )
 
