@@ -119,7 +119,7 @@ security_context = k8s.V1SecurityContext(
     privileged=True
 )
 
-# Define the init container to set permissions
+
 # Define the Init Container to fix permissions on the /scripts directory
 init_container = k8s.V1Container(
     name="init-fix-permissions",
@@ -131,6 +131,18 @@ init_container = k8s.V1Container(
     )],
 )
 
+list_permissions_task = KubernetesPodOperator(
+    namespace='default',
+    image="busybox",
+    cmds=["/bin/sh", "-c", "ls -la /scripts/share_data && ls -la /scripts/launch"],
+    name="list_permissions",
+    task_id="list_permissions_task",
+    volumes=[empty_dir_volume],
+    volume_mounts=[empty_dir_volume_mount],
+    get_logs=True,
+    is_delete_operator_pod=True,
+    dag=dag,
+)
 
 # Updated KubernetesPodOperator with security context
 run_with_docker_task = KubernetesPodOperator(
@@ -156,4 +168,4 @@ run_with_docker_task = KubernetesPodOperator(
     dag=dag,
 )
 
-find_the_folder_task >> run_with_docker_task
+find_the_folder_task >> list_permissions_task >> run_with_docker_task
