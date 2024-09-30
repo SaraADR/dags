@@ -32,36 +32,56 @@ def find_the_folder():
 
         bucket_name = 'algorithms'
         
-        # Definir los objetos y sus rutas locales
-        object_key_config = 'share_data/input/config.json'
-        config_json = os.path.join(temp_dir, 'share_data/input/config.json')
+        # # Definir los objetos y sus rutas locales
+        # object_key_config = 'share_data/input/config.json'
+        # config_json = os.path.join(temp_dir, 'share_data/input/config.json')
 
-        object_key_env = 'launch/.env'
-        config_env = os.path.join(temp_dir, 'launch/.env')
-        object_key_automaps = 'launch/automaps.tar'
-        config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
-        object_key_compose = 'launch/compose.yaml'
-        config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
-        object_key_run = 'launch/run.sh'
-        config_run = os.path.join(temp_dir, 'launch/run.sh')
+        # object_key_env = 'launch/.env'
+        # config_env = os.path.join(temp_dir, 'launch/.env')
+        # object_key_automaps = 'launch/automaps.tar'
+        # config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
+        # object_key_compose = 'launch/compose.yaml'
+        # config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
+        # object_key_run = 'launch/run.sh'
+        # config_run = os.path.join(temp_dir, 'launch/run.sh')
 
-        # Crear las carpetas necesarias
-        os.makedirs(os.path.dirname(config_json), exist_ok=True)
-        os.makedirs(os.path.dirname(config_env), exist_ok=True)
-        os.makedirs(os.path.dirname(config_automaps), exist_ok=True)
-        os.makedirs(os.path.dirname(config_compose), exist_ok=True)
-        os.makedirs(os.path.dirname(config_run), exist_ok=True)
+         # Define the objects and their local paths
+        files_to_download = {
+            'share_data/input/config.json': os.path.join(temp_dir, 'share_data/input/config.json'),
+            'launch/.env': os.path.join(temp_dir, 'launch/.env'),
+            'launch/automaps.tar': os.path.join(temp_dir, 'launch/automaps.tar'),
+            'launch/compose.yaml': os.path.join(temp_dir, 'launch/compose.yaml'),
+            'launch/run.sh': os.path.join(temp_dir, 'launch/run.sh'),
+        }
+        # Create necessary directories
+        for local_path in files_to_download.values():
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-        # Descargar archivos de MinIO
-        s3_client.download_file(bucket_name, object_key_config, config_json)
-        s3_client.download_file(bucket_name, object_key_env, config_env)
-        s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
-        s3_client.download_file(bucket_name, object_key_compose, config_compose)
-        s3_client.download_file(bucket_name, object_key_run, config_run)
+        # # Crear las carpetas necesarias
+        # os.makedirs(os.path.dirname(config_json), exist_ok=True)
+        # os.makedirs(os.path.dirname(config_env), exist_ok=True)
+        # os.makedirs(os.path.dirname(config_automaps), exist_ok=True)
+        # os.makedirs(os.path.dirname(config_compose), exist_ok=True)
+        # os.makedirs(os.path.dirname(config_run), exist_ok=True)
 
-        # Verificar que los archivos existan
-        if not os.path.exists(config_env) or not os.path.exists(config_automaps) or not os.path.exists(config_run):
-            raise FileNotFoundError("Algunos archivos no se descargaron correctamente.")
+        # # Descargar archivos de MinIO
+        # s3_client.download_file(bucket_name, object_key_config, config_json)
+        # s3_client.download_file(bucket_name, object_key_env, config_env)
+        # s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
+        # s3_client.download_file(bucket_name, object_key_compose, config_compose)
+        # s3_client.download_file(bucket_name, object_key_run, config_run)
+
+                # Download files from MinIO
+        for object_key, local_path in files_to_download.items():
+            s3_client.download_file(bucket_name, object_key, local_path)
+            # Verify that the file was downloaded
+            if not os.path.exists(local_path):
+                raise FileNotFoundError(f"File not found after download: {local_path}")
+
+
+        # # Verificar que los archivos existan
+        # if not os.path.exists(config_env) or not os.path.exists(config_automaps) or not os.path.exists(config_run):
+        #     raise FileNotFoundError("Algunos archivos no se descargaron correctamente.")
 
 
 
@@ -87,7 +107,6 @@ def list_files_in_tmp():
         subindent = ' ' * 4 * (level + 1)
         for f in files:
             print(f"{subindent}{f}")
-
 
 default_args = {
     'owner': 'sadr',
@@ -122,7 +141,6 @@ list_files_task = PythonOperator(
     dag=dag,
 )
 
-
 # Task to run the Docker container
 run_docker_task = BashOperator(
     task_id='run_docker',
@@ -140,7 +158,7 @@ run_docker_task = BashOperator(
     container_name=${CONTAINER_NAME}
 
     # Run the container with the generated name
-    docker compose -f /tmp/launch/compose.yaml run --rm --name "$container_name" automap_service
+    docker-compose -f /tmp/launch/compose.yaml run --rm --name "$container_name" automap_service
     """,
     dag=dag,
 )
