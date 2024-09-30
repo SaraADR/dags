@@ -192,6 +192,10 @@ download_files_task = KubernetesPodOperator(
     cmds=["python", "-c"],
     arguments=[
         '''
+        pip install boto3 && \
+        pip install json && \
+        pip install os && \
+        python -c
 import os
 import boto3
 import json
