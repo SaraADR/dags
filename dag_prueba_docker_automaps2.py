@@ -111,6 +111,7 @@ def rundocker(temp_dir):
         container_name = os.getenv('CONTAINER_NAME', 'default_container_name')  # Usa un valor predeterminado si no se establece
         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
         subprocess.run(docker_compose_command, shell=True, check=True)
+        print("proceso finalizado")
 
     except subprocess.CalledProcessError as e:
         print(f"Error ejecutando el comando: {e}")
