@@ -48,6 +48,9 @@ def find_the_folder():
         for local_path in files_to_download.values():
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
+        output_dir = os.path.join(temp_dir, 'share_data/output')
+        os.makedirs(output_dir, exist_ok=True)
+
         # Download files from MinIO
         for object_key, local_path in files_to_download.items():
             print(f"Descargando {object_key} a {local_path}...")
@@ -64,15 +67,6 @@ def find_the_folder():
 
 
         print(f'Directorio temporal creado en: {temp_dir}')
-
-        for root, dirs, files in os.walk('/tmp'):
-            level = root.replace('/tmp', '').count(os.sep)
-            indent = ' ' * 4 * (level)
-            print(f"{indent}{os.path.basename(root)}/")
-            subindent = ' ' * 4 * (level + 1)
-            for f in files:
-                print(f"{subindent}{f}")
-        print("------------------------------------------")
 
         rundocker(temp_dir)
         return temp_dir
@@ -125,14 +119,9 @@ def rundocker(temp_dir):
         print("Esto es despues de la imagen")
         print_directory_contents(temp_dir)
 
-        try:
-            pwd_command = subprocess.run("pwd", shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            print(f"Directorio actual: {pwd_command.stdout.decode().strip()}")
-        except subprocess.CalledProcessError as e:
-            print(f"Error ejecutando pwd: {e.stderr.decode()}")
 
         try:
-            ls_command = subprocess.run("ls  share_data -la", shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            ls_command = subprocess.run("ls share_data -la", shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             print(f"Contenido del directorio:\n{ls_command.stdout.decode()}")
         except subprocess.CalledProcessError as e:
             print(f"Error ejecutando ls: {e.stderr.decode()}")
@@ -141,6 +130,7 @@ def rundocker(temp_dir):
         # Ahora ejecuta el contenedor usando docker-compose
         container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1')  # Usa un valor predeterminado si no se establece
         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
+        #docker_compose_command = f"docker-compose -f run --rm --name {container_name} automap_service"
         try:
             subprocess.run(docker_compose_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
