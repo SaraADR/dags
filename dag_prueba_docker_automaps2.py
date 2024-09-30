@@ -31,21 +31,8 @@ def find_the_folder():
         )
 
         bucket_name = 'algorithms'
-        
-        # # Definir los objetos y sus rutas locales
-        # object_key_config = 'share_data/input/config.json'
-        # config_json = os.path.join(temp_dir, 'share_data/input/config.json')
 
-        # object_key_env = 'launch/.env'
-        # config_env = os.path.join(temp_dir, 'launch/.env')
-        # object_key_automaps = 'launch/automaps.tar'
-        # config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
-        # object_key_compose = 'launch/compose.yaml'
-        # config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
-        # object_key_run = 'launch/run.sh'
-        # config_run = os.path.join(temp_dir, 'launch/run.sh')
-
-         # Define the objects and their local paths
+        # Define the objects and their local paths
         files_to_download = {
             'share_data/input/config.json': os.path.join(temp_dir, 'share_data/input/config.json'),
             'launch/.env': os.path.join(temp_dir, 'launch/.env'),
@@ -53,36 +40,24 @@ def find_the_folder():
             'launch/compose.yaml': os.path.join(temp_dir, 'launch/compose.yaml'),
             'launch/run.sh': os.path.join(temp_dir, 'launch/run.sh'),
         }
+
         # Create necessary directories
         for local_path in files_to_download.values():
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-        # # Crear las carpetas necesarias
-        # os.makedirs(os.path.dirname(config_json), exist_ok=True)
-        # os.makedirs(os.path.dirname(config_env), exist_ok=True)
-        # os.makedirs(os.path.dirname(config_automaps), exist_ok=True)
-        # os.makedirs(os.path.dirname(config_compose), exist_ok=True)
-        # os.makedirs(os.path.dirname(config_run), exist_ok=True)
-
-        # # Descargar archivos de MinIO
-        # s3_client.download_file(bucket_name, object_key_config, config_json)
-        # s3_client.download_file(bucket_name, object_key_env, config_env)
-        # s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
-        # s3_client.download_file(bucket_name, object_key_compose, config_compose)
-        # s3_client.download_file(bucket_name, object_key_run, config_run)
-
-                # Download files from MinIO
+        # Download files from MinIO
         for object_key, local_path in files_to_download.items():
-            s3_client.download_file(bucket_name, object_key, local_path)
-            # Verify that the file was downloaded
-            if not os.path.exists(local_path):
-                raise FileNotFoundError(f"File not found after download: {local_path}")
-
-
-        # # Verificar que los archivos existan
-        # if not os.path.exists(config_env) or not os.path.exists(config_automaps) or not os.path.exists(config_run):
-        #     raise FileNotFoundError("Algunos archivos no se descargaron correctamente.")
-
+            print(f"Descargando {object_key} a {local_path}...")
+            try:
+                s3_client.download_file(bucket_name, object_key, local_path)
+                # Verify that the file was downloaded
+                if os.path.exists(local_path):
+                    file_size = os.path.getsize(local_path)
+                    print(f"Archivo descargado correctamente: {local_path} (Tamaño: {file_size} bytes)")
+                else:
+                    raise FileNotFoundError(f"File not found after download: {local_path}")
+            except Exception as download_error:
+                print(f"Error al descargar {object_key}: {str(download_error)}")
 
 
         print(f'Directorio temporal creado en: {temp_dir}')
