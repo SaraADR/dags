@@ -113,13 +113,6 @@ find_the_folder_task = PythonOperator(
     dag=dag,
 )
 
-# Task to list files in /tmp
-list_files_task = PythonOperator(
-    task_id='list_files_in_tmp',
-    python_callable=list_files_in_tmp,
-    dag=dag,
-)
-
 # Task to run the Docker container
 run_docker_task = BashOperator(
     task_id='run_docker',
@@ -169,6 +162,6 @@ run_docker_task = BashOperator(
 )
 
 
-find_the_folder_task >> list_files_task >> run_docker_task
+find_the_folder_task  >> run_docker_task
 
 
