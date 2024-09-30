@@ -108,9 +108,9 @@ def rundocker(temp_dir):
                 print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
         else :
             print("la imagen ya existe, la usamos")
-            
+
         # Ahora ejecuta el contenedor usando docker-compose
-        container_name = os.getenv('CONTAINER_NAME', 'default_container_name')  # Usa un valor predeterminado si no se establece
+        container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1')  # Usa un valor predeterminado si no se establece
         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
         try:
             subprocess.run(docker_compose_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -147,55 +147,6 @@ find_the_folder_task = PythonOperator(
     python_callable=find_the_folder,
     dag=dag,
 )
-
-# # Task to run the Docker container
-# run_docker_task = BashOperator(
-#     task_id='run_docker',
-#     bash_command="""
-#     #!/bin/bash
-
-#     # Descargar archivos desde MinIO usando AWS CLI
-#     aws s3 --endpoint-url http://minio-service.default.svc.cluster.local:9000 cp s3://algorithms/launch/.env /tmp/launch/.env
-#     if [ $? -ne 0 ]; then
-#         echo "Error al descargar .env"
-#         exit 1
-#     fi
-
-#     aws s3 --endpoint-url http://minio-service.default.svc.cluster.local:9000 cp s3://algorithms/launch/automaps.tar /tmp/launch/automaps.tar
-#     if [ $? -ne 0 ]; then
-#         echo "Error al descargar automaps.tar"
-#         exit 1
-#     fi
-
-#     aws s3 --endpoint-url http://minio-service.default.svc.cluster.local:9000 cp s3://algorithms/launch/compose.yaml /tmp/launch/compose.yaml
-#     if [ $? -ne 0 ]; then
-#         echo "Error al descargar compose.yaml"
-#         exit 1
-#     fi
-
-#     aws s3 --endpoint-url http://minio-service.default.svc.cluster.local:9000 cp s3://algorithms/launch/run.sh /tmp/launch/run.sh
-#     if [ $? -ne 0 ]; then
-#         echo "Error al descargar run.sh"
-#         exit 1
-#     fi
-    
-#     source /tmp/launch/.env
-
-#     # Check if image launch-automap_service:latest exists
-#     if [[ "$(docker images -q launch-automap_service:latest 2> /dev/null)" == "" ]]; then
-#         echo "Image launch-automap_service:latest does not exist. Loading image..."
-#         docker image load -i /tmp/launch/automaps.tar
-#     fi
-
-#     # Generate a unique container name
-#     container_name=${CONTAINER_NAME}
-
-#     # Run the container with the generated name
-#     docker-compose -f /tmp/launch/compose.yaml run --rm --name "$container_name" automap_service
-#     """,
-#     dag=dag,
-# )
-
 
 find_the_folder_task  
 
