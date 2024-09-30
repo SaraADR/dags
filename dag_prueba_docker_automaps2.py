@@ -85,6 +85,14 @@ def find_the_folder():
 def rundocker(temp_dir):
     print("RUNDOCKER")
     print(temp_dir)
+    for root, dirs, files in os.walk(temp_dir):
+            level = root.replace('/tmp', '').count(os.sep)
+            indent = ' ' * 4 * (level)
+            print(f"{indent}{os.path.basename(root)}/")
+            subindent = ' ' * 4 * (level + 1)
+            for f in files:
+                print(f"{subindent}{f}")
+
     os.chdir(temp_dir)
 
     # Verifica si la imagen existe, si no, cárgala
