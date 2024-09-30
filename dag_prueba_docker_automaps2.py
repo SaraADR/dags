@@ -61,6 +61,14 @@ def find_the_folder():
 
 
         print(f'Directorio temporal creado en: {temp_dir}')
+
+        for root, dirs, files in os.walk('/tmp'):
+            level = root.replace('/tmp', '').count(os.sep)
+            indent = ' ' * 4 * (level)
+            print(f"{indent}{os.path.basename(root)}/")
+            subindent = ' ' * 4 * (level + 1)
+            for f in files:
+                print(f"{subindent}{f}")
         return temp_dir
 
     except Exception as e:
