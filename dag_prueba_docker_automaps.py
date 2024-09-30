@@ -17,7 +17,7 @@ def find_the_folder():
     # Crear un directorio temporal
     temp_dir = '/scripts'
     os.makedirs(temp_dir, exist_ok=True)
-    os.chmod(temp_dir, 0o777)
+
     try:
         # Obtener conexión MinIO desde Airflow
         connection = BaseHook.get_connection('minio_conn')
@@ -120,12 +120,17 @@ security_context = k8s.V1SecurityContext(
 )
 
 # Define the init container to set permissions
+# Define the Init Container to fix permissions on the /scripts directory
 init_container = k8s.V1Container(
-    name="init-permission-fixer",
+    name="init-fix-permissions",
     image="busybox",
-    command=["/bin/sh", "-c", "chmod -R 777 /scripts"],
-    volume_mounts=[empty_dir_volume_mount],
+    command=["/bin/sh", "-c", "chmod -R 777 /scripts && ls -ld /scripts"],  # Adjust permissions
+    volume_mounts=[k8s.V1VolumeMount(
+        name='empty-dir-volume',
+        mount_path='/scripts'
+    )],
 )
+
 
 # Updated KubernetesPodOperator with security context
 run_with_docker_task = KubernetesPodOperator(
