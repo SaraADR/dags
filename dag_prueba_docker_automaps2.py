@@ -125,6 +125,19 @@ def rundocker(temp_dir):
         print("Esto es despues de la imagen")
         print_directory_contents(temp_dir)
 
+        try:
+            pwd_command = subprocess.run("pwd", shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print(f"Directorio actual: {pwd_command.stdout.decode().strip()}")
+        except subprocess.CalledProcessError as e:
+            print(f"Error ejecutando pwd: {e.stderr.decode()}")
+
+        try:
+            ls_command = subprocess.run("ls -la", shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print(f"Contenido del directorio:\n{ls_command.stdout.decode()}")
+        except subprocess.CalledProcessError as e:
+            print(f"Error ejecutando ls: {e.stderr.decode()}")
+
+            
         # Ahora ejecuta el contenedor usando docker-compose
         container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1')  # Usa un valor predeterminado si no se establece
         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
