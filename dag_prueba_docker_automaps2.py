@@ -41,10 +41,10 @@ def find_the_folder():
 
         # Define the objects and their local paths
         files_to_transfer = {
-            'share_data/input/config.json': '/Automapsdok/share_data/input/config.json',
-            'launch/.env': '/Automapsdok/launch/.env',
-            'launch/automaps.tar': '/Automapsdok/launch/automaps.tar',
-            'launch/compose.yaml': '/Automapsdok/launch/compose.yaml',
+            # 'share_data/input/config.json': '/Automapsdok/share_data/input/config.json',
+            # 'launch/.env': '/Automapsdok/launch/.env',
+            # 'launch/automaps.tar': '/Automapsdok/launch/automaps.tar',
+            # 'launch/compose.yaml': '/Automapsdok/launch/compose.yaml',
             'launch/run.sh': '/Automapsdok/launch/run.sh'
         }
 
@@ -57,9 +57,11 @@ def find_the_folder():
             for minio_object_key, sftp_remote_path in files_to_transfer.items():
                 try:
                     response = s3_client.get_object(Bucket=bucket_name, Key=minio_object_key)
-                    file_data = response['Body'].read()  # Leer el contenido del archivo
+                    file_data = response['Body'].read()  
+                    print("file data")
+                    print(file_data[-10:])
 
-                    print(file_data[15])
+                    print("remote path")
                     print(sftp_remote_path)
 
                     remote_directory = os.path.dirname(sftp_remote_path)
@@ -72,7 +74,9 @@ def find_the_folder():
                     # Subir el archivo al servidor SSH usando putfo
                     with io.BytesIO(file_data) as file_stream:
                         print("fileString")
-                        print(file_stream[15])
+                        print(file_stream[-10:])
+
+                        
                         stdin, stdout, stderr = ssh_client.exec_command('pwd')
                         # Leer la salida del comando
                         current_directory = stdout.read().decode().strip()
