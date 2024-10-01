@@ -41,8 +41,7 @@ def find_the_folder():
             'launch/.env': os.path.join(temp_dir, 'launch/.env'),
             'launch/automaps.tar': os.path.join(temp_dir, 'launch/automaps.tar'),
             'launch/compose.yaml': os.path.join(temp_dir, 'launch/compose.yaml'),
-            'launch/run.sh': os.path.join(temp_dir, 'launch/run.sh'),
-            'share_data/input/config.json': os.path.join(temp_dir, 'launch/config.json'),
+            'launch/run.sh': os.path.join(temp_dir, 'launch/run.sh')
         }
 
         # Create necessary directories
