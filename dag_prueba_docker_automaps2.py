@@ -95,6 +95,16 @@ def find_the_folder():
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
             try:
+
+                stdin, stdout, stderr = ssh_client.exec_command('pwd')
+                # Leer la salida del comando
+                current_directory = stdout.read().decode().strip()
+                print(f"Directorio de trabajo actual: {current_directory}")
+                error = stderr.read().decode().strip()
+                if error:
+                    print(f"Error al ejecutar el comando: {error}")
+
+
                 # Verificar si el archivo remoto existe
                 sftp.stat(local_file_path)  # Esto levantará una excepción si no existe
                 # Descargar el archivo del servidor remoto
