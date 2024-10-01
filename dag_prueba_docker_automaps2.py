@@ -59,6 +59,8 @@ def find_the_folder():
                     response = s3_client.get_object(Bucket=bucket_name, Key=minio_object_key)
                     file_data = response['Body'].read()  # Leer el contenido del archivo
 
+                    print(file_data)
+
                     # Subir el archivo al servidor SFTP
                     with io.BytesIO(file_data) as file_stream:
                         sftp.putfo(file_stream, sftp_remote_path)
