@@ -26,7 +26,7 @@ def find_the_folder():
 
             print(f"Sftp abierto")
 
-            remote_directory = '/home/admin3/Autopymapsdok/share_data/input'
+            remote_directory = '/home/admin3/Autopymaps/share_data/input'
             remote_file_name = 'config.json'
             remote_file_path = os.path.join(remote_directory, remote_file_name)
 
@@ -41,6 +41,20 @@ def find_the_folder():
 
 
             sftp.close()
+
+            # Cambiar al directorio de lanzamiento y ejecutar run.sh
+            print(f"Cambiando al directorio de lanzamiento y ejecutando run.sh")
+            stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Autopymaps/launch && ./run.sh')
+            
+            output = stdout.read().decode()
+            error_output = stderr.read().decode()
+
+            print("Salida de run.sh:")
+            print(output)
+            
+            if error_output:
+                print("Errores al ejecutar run.sh:")
+                print(error_output)
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
