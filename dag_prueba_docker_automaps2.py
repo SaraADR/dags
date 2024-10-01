@@ -67,7 +67,7 @@ def find_the_folder():
             sftp = ssh_client.open_sftp()
             
             # Ruta local y ruta remota
-            local_file_path = os.path.join(temp_dir, 'launch/.env')
+            local_file_path = '/tmp/launch/.env'
             remote_file_path = '/proyectos/Autopymaps/launch/.env'
             
             # Subir el archivo al servidor remoto
