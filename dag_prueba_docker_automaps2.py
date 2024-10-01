@@ -20,7 +20,7 @@ def find_the_folder():
     os.makedirs(temp_dir, exist_ok=True)
     
     os.chdir(temp_dir)
-    
+
     print("Comienza el dag")
 
     try:
@@ -37,40 +37,49 @@ def find_the_folder():
 
         bucket_name = 'algorithms'
 
-        # Define the objects and their local paths
-        files_to_download = {
-            'share_data/input/config.json': os.path.join(temp_dir, 'share_data/input/config.json'),
-            'launch/.env': os.path.join(temp_dir, 'launch/.env'),
-            'launch/automaps.tar': os.path.join(temp_dir, 'launch/automaps.tar'),
-            'launch/compose.yaml': os.path.join(temp_dir, 'launch/compose.yaml'),
-            'launch/run.sh': os.path.join(temp_dir, 'launch/run.sh')
-        }
 
-        # Create necessary directories
-        for local_path in files_to_download.values():
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        object_key_env = 'launch/.env'
+        config_env = os.path.join(temp_dir, 'launch/.env')
+        os.makedirs(os.path.dirname(config_env), exist_ok=True)
+        s3_client.download_file(bucket_name, object_key_env, config_env)
 
-        output_dir = os.path.join(temp_dir, 'share_data/output')
-        os.makedirs(output_dir, exist_ok=True)
 
-        # Download files from MinIO
-        for object_key, local_path in files_to_download.items():
-            print(f"Descargando {object_key} a {local_path}...")
-            try:
-                s3_client.download_file(bucket_name, object_key, local_path)
-                # Verify that the file was downloaded
-                if os.path.exists(local_path):
-                    file_size = os.path.getsize(local_path)
-                    print(f"Archivo descargado correctamente: {local_path} (Tamaño: {file_size} bytes)")
-                else:
-                    raise FileNotFoundError(f"File not found after download: {local_path}")
-            except Exception as download_error:
-                print(f"Error al descargar {object_key}: {str(download_error)}")
+
+
+        # # Define the objects and their local paths
+        # files_to_download = {
+        #     'share_data/input/config.json': os.path.join(temp_dir, 'share_data/input/config.json'),
+        #     'launch/.env': os.path.join(temp_dir, 'launch/.env'),
+        #     'launch/automaps.tar': os.path.join(temp_dir, 'launch/automaps.tar'),
+        #     'launch/compose.yaml': os.path.join(temp_dir, 'launch/compose.yaml'),
+        #     'launch/run.sh': os.path.join(temp_dir, 'launch/run.sh')
+        # }
+
+        # # Create necessary directories
+        # for local_path in files_to_download.values():
+        #     os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+        # output_dir = os.path.join(temp_dir, 'share_data/output')
+        # os.makedirs(output_dir, exist_ok=True)
+
+        # # Download files from MinIO
+        # for object_key, local_path in files_to_download.items():
+        #     print(f"Descargando {object_key} a {local_path}...")
+        #     try:
+        #         s3_client.download_file(bucket_name, object_key, local_path)
+        #         # Verify that the file was downloaded
+        #         if os.path.exists(local_path):
+        #             file_size = os.path.getsize(local_path)
+        #             print(f"Archivo descargado correctamente: {local_path} (Tamaño: {file_size} bytes)")
+        #         else:
+        #             raise FileNotFoundError(f"File not found after download: {local_path}")
+        #     except Exception as download_error:
+        #         print(f"Error al descargar {object_key}: {str(download_error)}")
 
 
         print(f'Directorio temporal creado en: {temp_dir}')
 
-        rundocker(temp_dir)
+        # rundocker(temp_dir)
         return temp_dir
 
     except Exception as e:
@@ -94,54 +103,54 @@ def print_directory_contents(directory):
 
 
 
-def rundocker(temp_dir):
-    print("RUNDOCKER")
+# def rundocker(temp_dir):
+#     print("RUNDOCKER")
 
-    os.chdir(temp_dir)
-    print(temp_dir)
-
-
-
-    # Verifica si la imagen existe, si no, cárgala
-    image_name = "launch-automap_service:latest"
-    load_image_command = f"docker image load -i {temp_dir}/launch/automaps.tar"
-
-    try:
-        # Comando para verificar si la imagen ya existe
-        image_check_command = f"docker images -q {image_name}"
-        image_exists = subprocess.run(image_check_command, shell=True, stdout=subprocess.PIPE)
-
-        if not image_exists.stdout:  # Si no existe la imagen
-            print("La imagen no existe. Cargando imagen...")
-            try:
-                result = subprocess.run(load_image_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-                print(result.stdout.decode())  # Muestra la salida estándar
-            except subprocess.CalledProcessError as e:
-                print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
-        else :
-            print("la imagen ya existe, la usamos")
+#     os.chdir(temp_dir)
+#     print(temp_dir)
 
 
-        print_directory_contents(temp_dir)
+
+#     # Verifica si la imagen existe, si no, cárgala
+#     image_name = "launch-automap_service:latest"
+#     load_image_command = f"docker image load -i {temp_dir}/launch/automaps.tar"
+
+#     try:
+#         # Comando para verificar si la imagen ya existe
+#         image_check_command = f"docker images -q {image_name}"
+#         image_exists = subprocess.run(image_check_command, shell=True, stdout=subprocess.PIPE)
+
+#         if not image_exists.stdout:  # Si no existe la imagen
+#             print("La imagen no existe. Cargando imagen...")
+#             try:
+#                 result = subprocess.run(load_image_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#                 print(result.stdout.decode())  # Muestra la salida estándar
+#             except subprocess.CalledProcessError as e:
+#                 print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
+#         else :
+#             print("la imagen ya existe, la usamos")
 
 
-        # Ahora ejecuta el contenedor usando docker-compose
-        container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1') 
-        docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
-
-        try:
-            result = subprocess.run(docker_compose_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            # Imprime la salida estándar
-            print("Salida estándar:")
-            print(result.stdout.decode())
-        except subprocess.CalledProcessError as e:
-            print(f"Error ejecutando docker-compose: {e.stderr.decode()}")
+#         print_directory_contents(temp_dir)
 
 
-        print("proceso finalizado")
+#         # Ahora ejecuta el contenedor usando docker-compose
+#         container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1') 
+#         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
 
-    except subprocess.CalledProcessError as e:
-        print(f"Error ejecutando el comando: {e}")
+#         try:
+#             result = subprocess.run(docker_compose_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#             # Imprime la salida estándar
+#             print("Salida estándar:")
+#             print(result.stdout.decode())
+#         except subprocess.CalledProcessError as e:
+#             print(f"Error ejecutando docker-compose: {e.stderr.decode()}")
+
+
+#         print("proceso finalizado")
+
+#     except subprocess.CalledProcessError as e:
+#         print(f"Error ejecutando el comando: {e}")
 
 
 default_args = {
