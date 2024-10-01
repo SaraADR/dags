@@ -17,7 +17,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 def find_the_folder():
     # Crear un directorio temporal
     temp_dir = '/proyectos/Autopymaps'
-    os.makedirs(temp_dir, exist_ok=True)
+    #os.makedirs(temp_dir, exist_ok=True)
     
     os.chdir(temp_dir)
 
@@ -79,7 +79,7 @@ def find_the_folder():
 
         print(f'Directorio temporal creado en: {temp_dir}')
 
-        # rundocker(temp_dir)
+        rundocker(temp_dir)
         return temp_dir
 
     except Exception as e:
@@ -103,54 +103,54 @@ def print_directory_contents(directory):
 
 
 
-# def rundocker(temp_dir):
-#     print("RUNDOCKER")
+def rundocker(temp_dir):
+    print("RUNDOCKER")
 
-#     os.chdir(temp_dir)
-#     print(temp_dir)
-
-
-
-#     # Verifica si la imagen existe, si no, cárgala
-#     image_name = "launch-automap_service:latest"
-#     load_image_command = f"docker image load -i {temp_dir}/launch/automaps.tar"
-
-#     try:
-#         # Comando para verificar si la imagen ya existe
-#         image_check_command = f"docker images -q {image_name}"
-#         image_exists = subprocess.run(image_check_command, shell=True, stdout=subprocess.PIPE)
-
-#         if not image_exists.stdout:  # Si no existe la imagen
-#             print("La imagen no existe. Cargando imagen...")
-#             try:
-#                 result = subprocess.run(load_image_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#                 print(result.stdout.decode())  # Muestra la salida estándar
-#             except subprocess.CalledProcessError as e:
-#                 print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
-#         else :
-#             print("la imagen ya existe, la usamos")
+    os.chdir(temp_dir)
+    print_directory_contents(temp_dir)
 
 
-#         print_directory_contents(temp_dir)
+
+    # Verifica si la imagen existe, si no, cárgala
+    image_name = "launch-automap_service:latest"
+    load_image_command = f"docker image load -i {temp_dir}/launch/automaps.tar"
+
+    try:
+        # Comando para verificar si la imagen ya existe
+        image_check_command = f"docker images -q {image_name}"
+        image_exists = subprocess.run(image_check_command, shell=True, stdout=subprocess.PIPE)
+
+        # if not image_exists.stdout:  # Si no existe la imagen
+        #     print("La imagen no existe. Cargando imagen...")
+        #     try:
+        #         result = subprocess.run(load_image_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        #         print(result.stdout.decode())  # Muestra la salida estándar
+        #     except subprocess.CalledProcessError as e:
+        #         print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
+        # else :
+        #     print("la imagen ya existe, la usamos")
 
 
-#         # Ahora ejecuta el contenedor usando docker-compose
-#         container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1') 
-#         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
-
-#         try:
-#             result = subprocess.run(docker_compose_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-#             # Imprime la salida estándar
-#             print("Salida estándar:")
-#             print(result.stdout.decode())
-#         except subprocess.CalledProcessError as e:
-#             print(f"Error ejecutando docker-compose: {e.stderr.decode()}")
+        # print_directory_contents(temp_dir)
 
 
-#         print("proceso finalizado")
+        # # Ahora ejecuta el contenedor usando docker-compose
+        # container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1') 
+        # docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
 
-#     except subprocess.CalledProcessError as e:
-#         print(f"Error ejecutando el comando: {e}")
+        # try:
+        #     result = subprocess.run(docker_compose_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        #     # Imprime la salida estándar
+        #     print("Salida estándar:")
+        #     print(result.stdout.decode())
+        # except subprocess.CalledProcessError as e:
+        #     print(f"Error ejecutando docker-compose: {e.stderr.decode()}")
+
+
+        # print("proceso finalizado")
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error ejecutando el comando: {e}")
 
 
 default_args = {
