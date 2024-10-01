@@ -96,10 +96,10 @@ def find_the_folder():
             sftp = ssh_client.open_sftp()
             try:
                 # Verificar si el archivo remoto existe
-                sftp.stat(remote_file_path)  # Esto levantará una excepción si no existe
+                sftp.stat(local_file_path)  # Esto levantará una excepción si no existe
                 # Descargar el archivo del servidor remoto
-                sftp.get(remote_file_path, local_file_path)
-                print(f"Archivo {remote_file_path} descargado exitosamente a {local_file_path}")
+                sftp.get(local_file_path, remote_file_path)
+                print(f"Archivo {local_file_path} descargado exitosamente a {remote_file_path}")
             except FileNotFoundError:
                 print(f"El archivo remoto {remote_file_path} no se encontró.")
             except Exception as e:
