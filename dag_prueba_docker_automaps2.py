@@ -70,7 +70,7 @@ def find_the_folder():
             
             # Ruta local y ruta remota
             local_file_path = '/tmp/launch/compose.yaml'
-            remote_file_path = '/proyectos/Autopymaps/launch/compose.yaml'
+            remote_file_path = '/home/admin3/Autopymapsdok/launch/compose.yaml'
             
             # Subir el archivo al servidor remoto
             sftp.put(local_file_path, remote_file_path)
