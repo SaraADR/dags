@@ -65,6 +65,9 @@ def find_the_folder():
                     remote_directory = os.path.dirname(sftp_remote_path)
                     print(remote_directory)
 
+                    print("bytesIO")
+                    print(io.BytesIO(file_data))
+                    print("bytesIO")
 
                     # Subir el archivo al servidor SSH usando putfo
                     with io.BytesIO(file_data) as file_stream:
