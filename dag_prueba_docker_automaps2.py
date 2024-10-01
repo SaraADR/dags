@@ -62,6 +62,8 @@ def find_the_folder():
             s3_client.download_file(bucket_name, s3_key, local_path)
             print(f"Descargado {s3_key} a {local_path}")
 
+
+        print_directory_contents(temp_dir)
         ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
