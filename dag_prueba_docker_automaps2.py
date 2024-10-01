@@ -58,25 +58,23 @@ def find_the_folder():
                 try:
                     response = s3_client.get_object(Bucket=bucket_name, Key=minio_object_key)
                     file_data = response['Body'].read()  
-                    print("file data")
-                    print(file_data[-10:])
+                    print("file data:", file_data[-10:]) 
 
                     print("remote path")
                     print(sftp_remote_path)
 
+                    print("remote path:", sftp_remote_path)
                     remote_directory = os.path.dirname(sftp_remote_path)
-                    print(remote_directory)
+                    print("remote directory:", remote_directory)
 
-                    print("bytesIO")
-                    print(io.BytesIO(file_data))
-                    print("bytesIO")
+                    
 
                     # Subir el archivo al servidor SSH usando putfo
                     with io.BytesIO(file_data) as file_stream:
                         print("fileString")
-                        print(file_stream[-10:])
 
-                        
+
+
                         stdin, stdout, stderr = ssh_client.exec_command('pwd')
                         # Leer la salida del comando
                         current_directory = stdout.read().decode().strip()
