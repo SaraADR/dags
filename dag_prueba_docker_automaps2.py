@@ -45,13 +45,24 @@ def find_the_folder():
 
 
         print(f"Archivo descargado en: {config_env}")
-
+        if os.path.exists(config_env):
+            print(f"El archivo existe: {config_env}")
+        else:
+            print(f"El archivo no se encontró: {config_env}")
+            
         # Copiar el archivo al directorio de tu servidor usando un contenedor Docker
         host_dir = '/proyectos/Autopymaps'
         docker_command = f"docker run --rm -v {host_dir}:{host_dir} -w {temp_dir} alpine cp -r {temp_dir}/launch/.env {host_dir}/launch/"
 
+
         # Ejecutar el comando
-        result = subprocess.run(docker_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            result = subprocess.run(docker_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print("Archivos copiados al servidor:")
+            print(result.stdout.decode())  # Mostrar salida estándar del comando
+        except subprocess.CalledProcessError as e:
+            print(f"Error al copiar archivos: {e.stderr.decode()}") 
+
         print("Archivos copiados al servidor:")
         print(result.stdout.decode())  # Mostrar salida estándar del comando
 
