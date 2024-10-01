@@ -26,7 +26,7 @@ def find_the_folder():
 
             print(f"Sftp abierto")
 
-            remote_directory = 'home/admin3/Automapsdok/share_data/input'
+            remote_directory = 'home/admin3/Autopymapsdok/share_data/input'
             remote_file_name = 'config.json'
             remote_file_path = os.path.join(remote_directory, remote_file_name)
 
