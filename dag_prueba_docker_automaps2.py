@@ -68,6 +68,13 @@ def find_the_folder():
 
                     # Subir el archivo al servidor SSH usando putfo
                     with io.BytesIO(file_data) as file_stream:
+
+                        stdin, stdout, stderr = ssh_client.exec_command('pwd')
+                        # Leer la salida del comando
+                        current_directory = stdout.read().decode().strip()
+                        print(f"Directorio de trabajo actual: {current_directory}")
+
+                        
                         file_stream.seek(0)  # Asegúrate de que el puntero esté al principio
                         sftp.putfo(file_stream, sftp_remote_path)
                         print(f"Archivo {minio_object_key} transferido a {sftp_remote_path}")
