@@ -18,7 +18,9 @@ def find_the_folder():
     # Crear un directorio temporal
     temp_dir = '/tmp'
     os.makedirs(temp_dir, exist_ok=True)
-
+    
+    os.chdir(temp_dir)
+    
     print("Comienza el dag")
 
     try:
@@ -96,6 +98,9 @@ def rundocker(temp_dir):
     print("RUNDOCKER")
 
     os.chdir(temp_dir)
+    print(temp_dir)
+
+
 
     # Verifica si la imagen existe, si no, cárgala
     image_name = "launch-automap_service:latest"
@@ -132,14 +137,6 @@ def rundocker(temp_dir):
         except subprocess.CalledProcessError as e:
             print(f"Error ejecutando docker-compose: {e.stderr.decode()}")
 
-
-        logs_command = f"docker-compose -f {temp_dir}/launch/compose.yaml logs automap_service"
-        try:
-            logs_result = subprocess.run(logs_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            print("Logs del contenedor:")
-            print(logs_result.stdout.decode())
-        except subprocess.CalledProcessError as e:
-            print(f"Error obteniendo logs: {e.stderr.decode()}")
 
         print("proceso finalizado")
 
