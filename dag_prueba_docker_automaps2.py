@@ -17,81 +17,115 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
 def find_the_folder():
-    # Crear un directorio temporal
-    temp_dir = '/tmp'
-    os.makedirs(temp_dir, exist_ok=True)
-    
-    os.chdir(temp_dir)
-    
-    print("Comienza el dag")
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
     try:
-        # Obtener conexión MinIO desde Airflow
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
-
-        bucket_name = 'algorithms'
-
-        # Define the objects and their local paths
-        files_to_transfer = {
-            # 'share_data/input/config.json': '/Automapsdok/share_data/input/config.json',
-            # 'launch/.env': '/Automapsdok/launch/.env',
-            # 'launch/automaps.tar': '/Automapsdok/launch/automaps.tar',
-            # 'launch/compose.yaml': '/Automapsdok/launch/compose.yaml',
-            'launch/run.sh': '/Automapsdok/launch/run.sh'
-        }
-
-        ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
-
-        # Descargar el archivo de MinIO en memoria
+        # Conectarse al servidor SSH
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
 
-            for minio_object_key, sftp_remote_path in files_to_transfer.items():
-                try:
-                    response = s3_client.get_object(Bucket=bucket_name, Key=minio_object_key)
-                    file_data = response['Body'].read()  
-                    print("file data:", file_data[-10:]) 
 
-                    print("remote path")
-                    print(sftp_remote_path)
+            remote_directory = '/Automapsdok/share_data/input'
+            remote_file_name = 'config.json'
+            remote_file_path = os.path.join(remote_directory, remote_file_name)
 
-                    print("remote path:", sftp_remote_path)
-                    remote_directory = os.path.dirname(sftp_remote_path)
-                    print("remote directory:", remote_directory)
+            sftp.chdir(remote_directory)
+            print(f"Cambiando al directorio: {remote_directory}")
 
-                    
-
-                    # Subir el archivo al servidor SSH usando putfo
-                    with io.BytesIO(file_data) as file_stream:
-                        print("fileString")
+            with sftp.file(remote_file_path, 'r') as remote_file:
+                file_data = remote_file.read()  # Leer el contenido del archivo
+                print("Contenido del archivo original:")
+                print(file_data)
 
 
 
-                        stdin, stdout, stderr = ssh_client.exec_command('pwd')
-                        # Leer la salida del comando
-                        current_directory = stdout.read().decode().strip()
-                        print(f"Directorio de trabajo actual: {current_directory}")
-
-
-                        file_stream.seek(0)  # Asegúrate de que el puntero esté al principio
-                        sftp.putfo(file_stream, sftp_remote_path)
-                        print(f"Archivo {minio_object_key} transferido a {sftp_remote_path}")
-
-      
-                except Exception as e:
-                    print(f"Error al transferir {minio_object_key}: {str(e)}")
             sftp.close()
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
+
+
+
+
+
+
+
+
+    # # Crear un directorio temporal
+    # temp_dir = '/tmp'
+    # os.makedirs(temp_dir, exist_ok=True)
+    
+    # os.chdir(temp_dir)
+    
+    # print("Comienza el dag")
+
+    # try:
+    #     # Obtener conexión MinIO desde Airflow
+    #     connection = BaseHook.get_connection('minio_conn')
+    #     extra = json.loads(connection.extra)
+    #     s3_client = boto3.client(
+    #         's3',
+    #         endpoint_url=extra['endpoint_url'],
+    #         aws_access_key_id=extra['aws_access_key_id'],
+    #         aws_secret_access_key=extra['aws_secret_access_key'],
+    #         config=Config(signature_version='s3v4')
+    #     )
+
+    #     bucket_name = 'algorithms'
+
+    #     # Define the objects and their local paths
+    #     files_to_transfer = {
+    #         # 'share_data/input/config.json': '/Automapsdok/share_data/input/config.json',
+    #         # 'launch/.env': '/Automapsdok/launch/.env',
+    #         # 'launch/automaps.tar': '/Automapsdok/launch/automaps.tar',
+    #         # 'launch/compose.yaml': '/Automapsdok/launch/compose.yaml',
+    #         'launch/run.sh': '/Automapsdok/launch/run.sh'
+    #     }
+
+    #     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+
+    #     # Descargar el archivo de MinIO en memoria
+    #     with ssh_hook.get_conn() as ssh_client:
+    #         sftp = ssh_client.open_sftp()
+
+    #         for minio_object_key, sftp_remote_path in files_to_transfer.items():
+    #             try:
+    #                 response = s3_client.get_object(Bucket=bucket_name, Key=minio_object_key)
+    #                 file_data = response['Body'].read()  
+    #                 print("file data:", file_data[-10:]) 
+
+    #                 print("remote path")
+    #                 print(sftp_remote_path)
+
+    #                 print("remote path:", sftp_remote_path)
+    #                 remote_directory = os.path.dirname(sftp_remote_path)
+    #                 print("remote directory:", remote_directory)
+
+
+
+    #                 # Subir el archivo al servidor SSH usando putfo
+    #                 with io.BytesIO(file_data) as file_stream:
+    #                     print("fileString")
+
+
+
+    #                     stdin, stdout, stderr = ssh_client.exec_command('pwd')
+    #                     # Leer la salida del comando
+    #                     current_directory = stdout.read().decode().strip()
+    #                     print(f"Directorio de trabajo actual: {current_directory}")
+
+
+    #                     file_stream.seek(0)  # Asegúrate de que el puntero esté al principio
+    #                     sftp.putfo(file_stream, sftp_remote_path)
+    #                     print(f"Archivo {minio_object_key} transferido a {sftp_remote_path}")
+
+      
+    #             except Exception as e:
+    #                 print(f"Error al transferir {minio_object_key}: {str(e)}")
+    #         sftp.close()
+
+    # except Exception as e:
+    #     print(f"Error en el proceso: {str(e)}")
 
 
 
@@ -125,29 +159,29 @@ def find_the_folder():
         #         sftp.close()
 
 
-        print(f'Directorio temporal creado en: {temp_dir}')
+    #     print(f'Directorio temporal creado en: {temp_dir}')
 
-        # rundocker(temp_dir)
-        return temp_dir
+    #     # rundocker(temp_dir)
+    #     return temp_dir
 
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        return
+    # except Exception as e:
+    #     print(f"Error: {str(e)}")
+    #     return
 
-    finally:
-        # Limpieza del directorio temporal si es necesario
-        pass
+    # finally:
+    #     # Limpieza del directorio temporal si es necesario
+    #     pass
 
-def print_directory_contents(directory):
-    print(f"Contenido del directorio: {directory}")
-    for root, dirs, files in os.walk(directory):
-        level = root.replace(directory, '').count(os.sep)
-        indent = ' ' * 4 * level
-        print(f"{indent}{os.path.basename(root)}/")
-        subindent = ' ' * 4 * (level + 1)
-        for f in files:
-            print(f"{subindent}{f}")
-    print("------------------------------------------")
+# def print_directory_contents(directory):
+#     print(f"Contenido del directorio: {directory}")
+#     for root, dirs, files in os.walk(directory):
+#         level = root.replace(directory, '').count(os.sep)
+#         indent = ' ' * 4 * level
+#         print(f"{indent}{os.path.basename(root)}/")
+#         subindent = ' ' * 4 * (level + 1)
+#         for f in files:
+#             print(f"{subindent}{f}")
+#     print("------------------------------------------")
 
 
 
