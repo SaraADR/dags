@@ -16,7 +16,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 
 def find_the_folder():
     # Crear un directorio temporal
-    temp_dir = '/tmp'
+    temp_dir = '/proyectos/Autopymaps'
     os.makedirs(temp_dir, exist_ok=True)
     
     os.chdir(temp_dir)
