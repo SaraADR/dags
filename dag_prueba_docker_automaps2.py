@@ -65,19 +65,32 @@ def find_the_folder():
 
         print_directory_contents(temp_dir)
         ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+
+
+        remote_file_path = '/proyectos/Autopymaps/launch/.env'
+    
+        # Ruta local donde deseas guardar el archivo
+        local_file_path = '/tmp/launch/.env'
+        
+        # Crear directorios locales si no existen
+        os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
+
+
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
-            
-            # Ruta local y ruta remota
-            local_file_path = '/tmp/launch/compose.yaml'
-            remote_file_path = '/home/admin3/Autopymapsdok/launch/compose.yaml'
-            
-            # Subir el archivo al servidor remoto
-            sftp.put(local_file_path, remote_file_path)
-            print(f"Archivo {local_file_path} copiado a {remote_file_path}")
-            
-            # Cerrar la conexión SFTP
-            sftp.close()
+            try:
+                # Verificar si el archivo remoto existe
+                sftp.stat(remote_file_path)  # Esto levantará una excepción si no existe
+                # Descargar el archivo del servidor remoto
+                sftp.get(remote_file_path, local_file_path)
+                print(f"Archivo {remote_file_path} descargado exitosamente a {local_file_path}")
+            except FileNotFoundError:
+                print(f"El archivo remoto {remote_file_path} no se encontró.")
+            except Exception as e:
+                print(f"Error al descargar el archivo: {str(e)}")
+            finally:
+                # Cerrar la conexión SFTP
+                sftp.close()
         print(f'Directorio temporal creado en: {temp_dir}')
 
         # rundocker(temp_dir)
