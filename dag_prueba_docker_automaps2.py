@@ -1,22 +1,41 @@
 import datetime
 import io
 import os
-import shutil
-import subprocess
 from airflow import DAG
-import tempfile
-from airflow.hooks.base_hook import BaseHook
-import json
-import boto3
-from botocore.client import Config, ClientError
 from airflow.operators.python import PythonOperator
-from airflow.operators.bash import BashOperator
-from kubernetes.client import models as k8s
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
+from airflow.hooks.base_hook import BaseHook
+from airflow.operators.email import EmailOperator
+from sqlalchemy import create_engine, Table, MetaData
+from airflow.hooks.base import BaseHook
+from sqlalchemy.orm import sessionmaker
+import json
 
-def find_the_folder():
+
+def process_element(**context):
+    message = context['dag_run'].conf
+    input_data_str = message['message']['input_data']
+    input_data = json.loads(input_data_str)
+
+    # Obtener los nuevos valores de location y perimeter
+    location = input_data['input']['location']
+    perimeter = input_data['input'].get('perimeter', None)
+
+    print(f"Location: {location}")
+    print(f"Perimeter: {perimeter}")
+
+    # Guardar los datos en /tmp
+    local_output_directory = '/tmp'
+    os.makedirs(local_output_directory, exist_ok=True)
+    local_file_path = os.path.join(local_output_directory, 'input_data.json')
+
+    with open(local_file_path, 'w') as f:
+        json.dump(input_data, f)
+
+    print(f"Datos guardados en {local_file_path}")
+    
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
     try:
@@ -33,54 +52,79 @@ def find_the_folder():
             sftp.chdir(remote_directory)
             print(f"Cambiando al directorio: {remote_directory}")
 
+            # Leer el contenido actual del archivo config.json
             with sftp.file(remote_file_path, 'r') as remote_file:
-                file_data = remote_file.read()  # Leer el contenido del archivo
+                config_data = json.load(remote_file)  # Leer y parsear el contenido del JSON
                 print("Contenido del archivo original:")
-                print(file_data)
+                print(config_data)
 
+
+            if location is not None:
+                config_data['location'] = location
+            if perimeter is not None:
+                config_data['perimeter'] = perimeter
+
+            print("Datos actualizados:")
+            print(config_data)
+
+            # # Guardar los cambios de nuevo en el archivo
+            # with sftp.file(remote_file_path, 'w') as remote_file:
+            #     json.dump(config_data, remote_file, indent=4)  # Escribir el JSON actualizado
+            #     print(f"Archivo {remote_file_name} actualizado en {remote_directory}")
 
 
             sftp.close()
-
-            # Cambiar al directorio de lanzamiento y ejecutar run.sh
-            print(f"Cambiando al directorio de lanzamiento y ejecutando run.sh")
-            stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Autopymaps/launch && ./run.sh')
-            
-            output = stdout.read().decode()
-            error_output = stderr.read().decode()
-
-            print("Salida de run.sh:")
-            print(output)
-            
-            if error_output:
-                print("Errores al ejecutar run.sh:")
-                print(error_output)
-
-
-            sftp = ssh_client.open_sftp()
-            output_directory = '/home/admin3/Autopymaps/share_data/output'
-            local_output_directory = '/temp'
-              
-            # Crear el directorio local si no existe
-            os.makedirs(local_output_directory, exist_ok=True)
-
-            sftp.chdir(output_directory)
-            print(f"Cambiando al directorio de salida: {output_directory}")
-
-            for filename in sftp.listdir():
-                remote_file_path = os.path.join(output_directory, filename)
-                local_file_path = os.path.join(local_output_directory, filename)
-
-                # Descargar cada archivo
-                sftp.get(remote_file_path, local_file_path)
-                print(f"Archivo {filename} descargado a {local_file_path}")
-
-            sftp.close()
-
-            print_directory_contents(local_output_directory)
-
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
+
+
+def find_the_folder():
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+
+    # try:
+    #     # Conectarse al servidor SSH
+    #     with ssh_hook.get_conn() as ssh_client:
+
+    #         # Cambiar al directorio de lanzamiento y ejecutar run.sh
+    #         print(f"Cambiando al directorio de lanzamiento y ejecutando run.sh")
+    #         stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Autopymaps/launch && ./run.sh')
+            
+    #         output = stdout.read().decode()
+    #         error_output = stderr.read().decode()
+
+    #         print("Salida de run.sh:")
+    #         print(output)
+            
+    #         if error_output:
+    #             print("Errores al ejecutar run.sh:")
+    #             print(error_output)
+
+
+    #         sftp = ssh_client.open_sftp()
+    #         output_directory = '/home/admin3/Autopymaps/share_data/output'
+    #         local_output_directory = '/temp'
+              
+    #         # Crear el directorio local si no existe
+    #         os.makedirs(local_output_directory, exist_ok=True)
+
+    #         sftp.chdir(output_directory)
+    #         print(f"Cambiando al directorio de salida: {output_directory}")
+
+    #         for filename in sftp.listdir():
+    #             remote_file_path = os.path.join(output_directory, filename)
+    #             local_file_path = os.path.join(local_output_directory, filename)
+
+    #             # Descargar cada archivo
+    #             sftp.get(remote_file_path, local_file_path)
+    #             print(f"Archivo {filename} descargado a {local_file_path}")
+
+    #         sftp.close()
+
+    #         print_directory_contents(local_output_directory)
+
+
+    # except Exception as e:
+    #     print(f"Error en el proceso: {str(e)}")
 
 
 
@@ -100,178 +144,38 @@ def print_directory_contents(directory):
 
 
 
-    # # Crear un directorio temporal
-    # temp_dir = '/tmp'
-    # os.makedirs(temp_dir, exist_ok=True)
-    
-    # os.chdir(temp_dir)
-    
-    # print("Comienza el dag")
 
-    # try:
-    #     # Obtener conexión MinIO desde Airflow
-    #     connection = BaseHook.get_connection('minio_conn')
-    #     extra = json.loads(connection.extra)
-    #     s3_client = boto3.client(
-    #         's3',
-    #         endpoint_url=extra['endpoint_url'],
-    #         aws_access_key_id=extra['aws_access_key_id'],
-    #         aws_secret_access_key=extra['aws_secret_access_key'],
-    #         config=Config(signature_version='s3v4')
-    #     )
+def change_state_job(**context):
+    message = context['dag_run'].conf
+    job_id = message['message']['id']
+    print(f"jobid {job_id}" )
 
-    #     bucket_name = 'algorithms'
+    try:
+   
+        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
-    #     # Define the objects and their local paths
-    #     files_to_transfer = {
-    #         # 'share_data/input/config.json': '/Automapsdok/share_data/input/config.json',
-    #         # 'launch/.env': '/Automapsdok/launch/.env',
-    #         # 'launch/automaps.tar': '/Automapsdok/launch/automaps.tar',
-    #         # 'launch/compose.yaml': '/Automapsdok/launch/compose.yaml',
-    #         'launch/run.sh': '/Automapsdok/launch/run.sh'
-    #     }
+        
+       
 
-    #     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+        # Update job status to 'FINISHED'
+        metadata = MetaData(bind=engine)
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to FINISHED")
 
-    #     # Descargar el archivo de MinIO en memoria
-    #     with ssh_hook.get_conn() as ssh_client:
-    #         sftp = ssh_client.open_sftp()
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante el guardado del estado del job: {str(e)}")
 
-    #         for minio_object_key, sftp_remote_path in files_to_transfer.items():
-    #             try:
-    #                 response = s3_client.get_object(Bucket=bucket_name, Key=minio_object_key)
-    #                 file_data = response['Body'].read()  
-    #                 print("file data:", file_data[-10:]) 
+ 
 
-    #                 print("remote path")
-    #                 print(sftp_remote_path)
-
-    #                 print("remote path:", sftp_remote_path)
-    #                 remote_directory = os.path.dirname(sftp_remote_path)
-    #                 print("remote directory:", remote_directory)
-
-
-
-    #                 # Subir el archivo al servidor SSH usando putfo
-    #                 with io.BytesIO(file_data) as file_stream:
-    #                     print("fileString")
-
-
-
-    #                     stdin, stdout, stderr = ssh_client.exec_command('pwd')
-    #                     # Leer la salida del comando
-    #                     current_directory = stdout.read().decode().strip()
-    #                     print(f"Directorio de trabajo actual: {current_directory}")
-
-
-    #                     file_stream.seek(0)  # Asegúrate de que el puntero esté al principio
-    #                     sftp.putfo(file_stream, sftp_remote_path)
-    #                     print(f"Archivo {minio_object_key} transferido a {sftp_remote_path}")
-
-      
-    #             except Exception as e:
-    #                 print(f"Error al transferir {minio_object_key}: {str(e)}")
-    #         sftp.close()
-
-    # except Exception as e:
-    #     print(f"Error en el proceso: {str(e)}")
-
-
-
-
-
-
-        # with ssh_hook.get_conn() as ssh_client:
-        #     sftp = ssh_client.open_sftp()
-        #     try:
-
-        #         stdin, stdout, stderr = ssh_client.exec_command('pwd')
-        #         # Leer la salida del comando
-        #         current_directory = stdout.read().decode().strip()
-        #         print(f"Directorio de trabajo actual: {current_directory}")
-        #         error = stderr.read().decode().strip()
-        #         if error:
-        #             print(f"Error al ejecutar el comando: {error}")
-
-
-        #         # Verificar si el archivo remoto existe
-        #         sftp.stat(local_file_path)  # Esto levantará una excepción si no existe
-        #         # Descargar el archivo del servidor remoto
-        #         sftp.put('/Automapsdok/ta.json', '/tmp/launch/.env')
-        #         print(f"Archivo {local_file_path} descargado exitosamente a {remote_file_path}")
-        #     except FileNotFoundError:
-        #         print(f"El archivo remoto {local_file_path} no se encontró.")
-        #     except Exception as e:
-        #         print(f"Error al descargar el archivo: {str(e)}")
-        #     finally:
-        #         # Cerrar la conexión SFTP
-        #         sftp.close()
-
-
-    #     print(f'Directorio temporal creado en: {temp_dir}')
-
-    #     # rundocker(temp_dir)
-    #     return temp_dir
-
-    # except Exception as e:
-    #     print(f"Error: {str(e)}")
-    #     return
-
-    # finally:
-    #     # Limpieza del directorio temporal si es necesario
-    #     pass
-
-
-
-
-# def rundocker(temp_dir):
-#     print("RUNDOCKER")
-
-#     os.chdir(temp_dir)
-#     print(temp_dir)
-
-
-
-#     # Verifica si la imagen existe, si no, cárgala
-#     image_name = "launch-automap_service:latest"
-#     load_image_command = f"docker image load -i {temp_dir}/launch/automaps.tar"
-
-#     try:
-#         # Comando para verificar si la imagen ya existe
-#         image_check_command = f"docker images -q {image_name}"
-#         image_exists = subprocess.run(image_check_command, shell=True, stdout=subprocess.PIPE)
-
-#         if not image_exists.stdout:  # Si no existe la imagen
-#             print("La imagen no existe. Cargando imagen...")
-#             try:
-#                 result = subprocess.run(load_image_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-#                 print(result.stdout.decode())  # Muestra la salida estándar
-#             except subprocess.CalledProcessError as e:
-#                 print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
-#         else :
-#             print("la imagen ya existe, la usamos")
-
-
-#         print_directory_contents(temp_dir)
-
-
-#         # Ahora ejecuta el contenedor usando docker-compose
-#         container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1') 
-#         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
-
-#         try:
-#             result = subprocess.run(docker_compose_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-#             # Imprime la salida estándar
-#             print("Salida estándar:")
-#             print(result.stdout.decode())
-#         except subprocess.CalledProcessError as e:
-#             print(f"Error ejecutando docker-compose: {e.stderr.decode()}")
-
-
-#         print("proceso finalizado")
-
-#     except subprocess.CalledProcessError as e:
-#         print(f"Error ejecutando el comando: {e}")
 
 
 default_args = {
@@ -292,13 +196,31 @@ dag = DAG(
     catchup=False
 )
 
+# Manda correo
+process_element_task = PythonOperator(
+    task_id='process_message',
+    python_callable=process_element,
+    provide_context=True,
+    dag=dag,
+)
+
+
 
 #Cambia estado de job
 find_the_folder_task = PythonOperator(
     task_id='ejecutar_run',
     python_callable=find_the_folder,
+    provide_context=True,
     dag=dag,
 )
 
-find_the_folder_task  
+#Cambia estado de job
+change_state_task = PythonOperator(
+    task_id='change_state_job',
+    python_callable=change_state_job,
+    provide_context=True,
+    dag=dag,
+)
+
+process_element_task >> find_the_folder_task  >> change_state_task
 
