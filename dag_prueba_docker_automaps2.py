@@ -121,16 +121,15 @@ def rundocker(temp_dir):
 
 
         try:
-            ls_command = subprocess.run("ls share_data -la", shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            ls_command = subprocess.run("ls share_data/input -la", shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             print(f"Contenido del directorio:\n{ls_command.stdout.decode()}")
         except subprocess.CalledProcessError as e:
             print(f"Error ejecutando ls: {e.stderr.decode()}")
 
 
         # Ahora ejecuta el contenedor usando docker-compose
-        container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1')  # Usa un valor predeterminado si no se establece
+        container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1') 
         docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
-        #docker_compose_command = f"docker-compose -f run --rm --name {container_name} automap_service"
         try:
             subprocess.run(docker_compose_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
