@@ -16,7 +16,6 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
-
 def find_the_folder():
     # Crear un directorio temporal
     temp_dir = '/tmp'
@@ -51,8 +50,6 @@ def find_the_folder():
 
         print_directory_contents(temp_dir)
 
-
-
         ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
         for minio_object_key, sftp_remote_path in files_to_transfer.items():
             # Descargar el archivo de MinIO en memoria
@@ -64,13 +61,14 @@ def find_the_folder():
 
                     # Subir el archivo al servidor SFTP
                     with io.BytesIO(file_data) as file_stream:
-                        sftp.store_file(sftp_remote_path, file_stream)
+                        sftp.putfo(file_stream, sftp_remote_path)
                         print(f"Archivo {minio_object_key} transferido a {sftp_remote_path}")
 
                 except Exception as e:
                     print(f"Error al transferir {minio_object_key}: {str(e)}")
 
-
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")
 
 
 
