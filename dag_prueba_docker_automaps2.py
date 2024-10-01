@@ -57,6 +57,7 @@ def find_the_folder():
                 print(error_output)
 
 
+            sftp = ssh_client.open_sftp()
             output_directory = '/home/admin3/Autopymaps/share_data/output'
             local_output_directory = '/temp'
               
