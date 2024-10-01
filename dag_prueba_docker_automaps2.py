@@ -24,8 +24,9 @@ def find_the_folder():
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
 
+            print(f"Sftp abierto")
 
-            remote_directory = '/Automapsdok/share_data/input'
+            remote_directory = './Automapsdok/share_data/input'
             remote_file_name = 'config.json'
             remote_file_path = os.path.join(remote_directory, remote_file_name)
 
