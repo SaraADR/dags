@@ -16,7 +16,7 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 
 def find_the_folder():
     # Crear un directorio temporal
-    temp_dir = '/proyectos/Autopymaps'
+    temp_dir = '/tmp/airflow_temp'
     #os.makedirs(temp_dir, exist_ok=True)
     
     os.chdir(temp_dir)
@@ -49,11 +49,10 @@ def find_the_folder():
             print(f"El archivo existe: {config_env}")
         else:
             print(f"El archivo no se encontró: {config_env}")
-            
+
         # Copiar el archivo al directorio de tu servidor usando un contenedor Docker
         host_dir = '/proyectos/Autopymaps'
         docker_command = f"docker run --rm -v {host_dir}:{host_dir} -w {temp_dir} alpine cp -r {temp_dir}/launch/.env {host_dir}/launch/"
-
 
         # Ejecutar el comando
         try:
@@ -61,10 +60,14 @@ def find_the_folder():
             print("Archivos copiados al servidor:")
             print(result.stdout.decode())  # Mostrar salida estándar del comando
         except subprocess.CalledProcessError as e:
-            print(f"Error al copiar archivos: {e.stderr.decode()}") 
-
+            print(f"Error al copiar archivos: {e.stderr.decode()}")  # Mostrar error detallado
+            # Manejar el caso donde result puede no estar definido
+            if 'result' in locals():
+                print("Salida estándar:", result.stdout.decode())
+            else:
+                print("No se pudo obtener el resultado del comando.")
         print("Archivos copiados al servidor:")
-        print(result.stdout.decode())  # Mostrar salida estándar del comando
+
 
         # # Define the objects and their local paths
         # files_to_download = {
