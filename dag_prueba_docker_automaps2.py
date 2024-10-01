@@ -56,12 +56,45 @@ def find_the_folder():
                 print("Errores al ejecutar run.sh:")
                 print(error_output)
 
+
+            output_directory = '/home/admin3/Autopymaps/share_data/output'
+            local_output_directory = '/temp'
+              
+            # Crear el directorio local si no existe
+            os.makedirs(local_output_directory, exist_ok=True)
+
+            sftp.chdir(output_directory)
+            print(f"Cambiando al directorio de salida: {output_directory}")
+
+            for filename in sftp.listdir():
+                remote_file_path = os.path.join(output_directory, filename)
+                local_file_path = os.path.join(local_output_directory, filename)
+
+                # Descargar cada archivo
+                sftp.get(remote_file_path, local_file_path)
+                print(f"Archivo {filename} descargado a {local_file_path}")
+
+            sftp.close()
+
+            print_directory_contents(local_output_directory)
+
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
 
 
 
 
+
+def print_directory_contents(directory):
+    print(f"Contenido del directorio: {directory}")
+    for root, dirs, files in os.walk(directory):
+        level = root.replace(directory, '').count(os.sep)
+        indent = ' ' * 4 * level
+        print(f"{indent}{os.path.basename(root)}/")
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            print(f"{subindent}{f}")
+    print("------------------------------------------")
 
 
 
@@ -187,16 +220,6 @@ def find_the_folder():
     #     # Limpieza del directorio temporal si es necesario
     #     pass
 
-# def print_directory_contents(directory):
-#     print(f"Contenido del directorio: {directory}")
-#     for root, dirs, files in os.walk(directory):
-#         level = root.replace(directory, '').count(os.sep)
-#         indent = ' ' * 4 * level
-#         print(f"{indent}{os.path.basename(root)}/")
-#         subindent = ' ' * 4 * (level + 1)
-#         for f in files:
-#             print(f"{subindent}{f}")
-#     print("------------------------------------------")
 
 
 
