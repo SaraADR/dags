@@ -69,8 +69,8 @@ def find_the_folder():
             sftp = ssh_client.open_sftp()
             
             # Ruta local y ruta remota
-            local_file_path = '/tmp/launch/.env'
-            remote_file_path = '/proyectos/Autopymaps/launch/.env'
+            local_file_path = '/tmp/launch/compose.yaml'
+            remote_file_path = '/proyectos/Autopymaps/launch/compose.yaml'
             
             # Subir el archivo al servidor remoto
             sftp.put(local_file_path, remote_file_path)
