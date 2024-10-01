@@ -117,24 +117,31 @@ def rundocker(temp_dir):
         else :
             print("la imagen ya existe, la usamos")
 
-        print("Esto es despues de la imagen")
+
         print_directory_contents(temp_dir)
-
-
-        try:
-            ls_command = subprocess.run("ls share_data/input -la", shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            print(f"Contenido del directorio:\n{ls_command.stdout.decode()}")
-        except subprocess.CalledProcessError as e:
-            print(f"Error ejecutando ls: {e.stderr.decode()}")
 
 
         # Ahora ejecuta el contenedor usando docker-compose
         container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1') 
-        docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
+        docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run  --name {container_name} automap_service"
+
         try:
-            subprocess.run(docker_compose_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            result = subprocess.run(docker_compose_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # Imprime la salida estándar
+            print("Salida estándar:")
+            print(result.stdout.decode())
         except subprocess.CalledProcessError as e:
             print(f"Error ejecutando docker-compose: {e.stderr.decode()}")
+
+
+        logs_command = f"docker-compose -f {temp_dir}/launch/compose.yaml logs automap_service"
+        try:
+            logs_result = subprocess.run(logs_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print("Logs del contenedor:")
+            print(logs_result.stdout.decode())
+        except subprocess.CalledProcessError as e:
+            print(f"Error obteniendo logs: {e.stderr.decode()}")
+
         print("proceso finalizado")
 
     except subprocess.CalledProcessError as e:
