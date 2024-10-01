@@ -27,7 +27,7 @@ def process_element(**context):
     print(f"Perimeter: {perimeter}")
 
     # Guardar los datos en /tmp
-    local_output_directory = '/tmp'
+    local_output_directory = '/temp'
     os.makedirs(local_output_directory, exist_ok=True)
     local_file_path = os.path.join(local_output_directory, 'input_data.json')
 
