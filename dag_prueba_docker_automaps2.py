@@ -84,6 +84,14 @@ def find_the_folder():
         
         print(ls)
 
+        pwd = SSHOperator(
+                task_id="pwd",
+                command= "pwd",
+                ssh_hook = ssh_hook,
+                dag = dag)
+        
+        print(pwd)
+
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
             try:
