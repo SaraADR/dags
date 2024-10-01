@@ -53,21 +53,23 @@ def find_the_folder():
         output_dir = os.path.join(temp_dir, 'share_data/output')
         os.makedirs(output_dir, exist_ok=True)
 
-        # Download files from MinIO
-        for object_key, local_path in files_to_download.items():
-            print(f"Descargando {object_key} a {local_path}...")
-            try:
-                s3_client.download_file(bucket_name, object_key, local_path)
-                # Verify that the file was downloaded
-                if os.path.exists(local_path):
-                    file_size = os.path.getsize(local_path)
-                    print(f"Archivo descargado correctamente: {local_path} (Tamaño: {file_size} bytes)")
-                else:
-                    raise FileNotFoundError(f"File not found after download: {local_path}")
-            except Exception as download_error:
-                print(f"Error al descargar {object_key}: {str(download_error)}")
 
+        # Descargar los archivos de MinIO
+        for s3_key, local_path in files_to_download.items():
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            s3_client.download_file(bucket_name, s3_key, local_path)
+            print(f"Descargado {s3_key} a {local_path}")
 
+        remote_dir = "/proyectos/Autopymaps"  
+        server_ip = "207.180.253.145" 
+        server_user = "admin3"  
+
+        for local_path in files_to_download.values():
+            scp_command = f"scp {local_path} {server_user}@{server_ip}:{remote_dir}"
+            subprocess.run(scp_command, shell=True, check=True)
+            print(f"Archivo {local_path} copiado a {server_ip}:{remote_dir}")
+
+            
         print(f'Directorio temporal creado en: {temp_dir}')
 
         rundocker(temp_dir)

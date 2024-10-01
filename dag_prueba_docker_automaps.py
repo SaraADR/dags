@@ -1,6 +1,7 @@
 import datetime
 import os
 import shutil
+import subprocess
 from airflow import DAG
 import tempfile
 from airflow.hooks.base_hook import BaseHook
@@ -17,6 +18,10 @@ def find_the_folder():
     # Crear un directorio temporal
     temp_dir = '/tmp'
     os.makedirs(temp_dir, exist_ok=True)
+    
+    os.chdir(temp_dir)
+    
+    print("Comienza el dag")
 
     try:
         # Obtener conexión MinIO desde Airflow
@@ -31,41 +36,41 @@ def find_the_folder():
         )
 
         bucket_name = 'algorithms'
-        
-        # Definir los objetos y sus rutas locales
-        object_key_config = 'share_data/input/config.json'
-        config_json = os.path.join(temp_dir, 'share_data/input/config.json')
 
-        object_key_env = 'launch/.env'
-        config_env = os.path.join(temp_dir, 'launch/.env')
-        object_key_automaps = 'launch/automaps.tar'
-        config_automaps = os.path.join(temp_dir, 'launch/automaps.tar')
-        object_key_compose = 'launch/compose.yaml'
-        config_compose = os.path.join(temp_dir, 'launch/compose.yaml')
-        object_key_run = 'launch/run.sh'
-        config_run = os.path.join(temp_dir, 'launch/run.sh')
+        # Define the objects and their local paths
+        files_to_download = {
+            'share_data/input/config.json': os.path.join(temp_dir, 'share_data/input/config.json'),
+            'launch/.env': os.path.join(temp_dir, 'launch/.env'),
+            'launch/automaps.tar': os.path.join(temp_dir, 'launch/automaps.tar'),
+            'launch/compose.yaml': os.path.join(temp_dir, 'launch/compose.yaml'),
+            'launch/run.sh': os.path.join(temp_dir, 'launch/run.sh')
+        }
 
-        # Crear las carpetas necesarias
-        os.makedirs(os.path.dirname(config_json), exist_ok=True)
-        os.makedirs(os.path.dirname(config_env), exist_ok=True)
-        os.makedirs(os.path.dirname(config_automaps), exist_ok=True)
-        os.makedirs(os.path.dirname(config_compose), exist_ok=True)
-        os.makedirs(os.path.dirname(config_run), exist_ok=True)
+        # Create necessary directories
+        for local_path in files_to_download.values():
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-        # Descargar archivos de MinIO
-        s3_client.download_file(bucket_name, object_key_config, config_json)
-        s3_client.download_file(bucket_name, object_key_env, config_env)
-        s3_client.download_file(bucket_name, object_key_automaps, config_automaps)
-        s3_client.download_file(bucket_name, object_key_compose, config_compose)
-        s3_client.download_file(bucket_name, object_key_run, config_run)
+        output_dir = os.path.join(temp_dir, 'share_data/output')
+        os.makedirs(output_dir, exist_ok=True)
 
-        # Verificar que los archivos existan
-        if not os.path.exists(config_env) or not os.path.exists(config_automaps) or not os.path.exists(config_run):
-            raise FileNotFoundError("Algunos archivos no se descargaron correctamente.")
-
+        # Download files from MinIO
+        for object_key, local_path in files_to_download.items():
+            print(f"Descargando {object_key} a {local_path}...")
+            try:
+                s3_client.download_file(bucket_name, object_key, local_path)
+                # Verify that the file was downloaded
+                if os.path.exists(local_path):
+                    file_size = os.path.getsize(local_path)
+                    print(f"Archivo descargado correctamente: {local_path} (Tamaño: {file_size} bytes)")
+                else:
+                    raise FileNotFoundError(f"File not found after download: {local_path}")
+            except Exception as download_error:
+                print(f"Error al descargar {object_key}: {str(download_error)}")
 
 
         print(f'Directorio temporal creado en: {temp_dir}')
+
+        rundocker(temp_dir)
         return temp_dir
 
     except Exception as e:
@@ -76,6 +81,67 @@ def find_the_folder():
         # Limpieza del directorio temporal si es necesario
         pass
 
+def print_directory_contents(directory):
+    print(f"Contenido del directorio: {directory}")
+    for root, dirs, files in os.walk(directory):
+        level = root.replace(directory, '').count(os.sep)
+        indent = ' ' * 4 * level
+        print(f"{indent}{os.path.basename(root)}/")
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            print(f"{subindent}{f}")
+    print("------------------------------------------")
+
+
+
+def rundocker(temp_dir):
+    print("RUNDOCKER")
+
+    os.chdir(temp_dir)
+    print(temp_dir)
+
+
+
+    # Verifica si la imagen existe, si no, cárgala
+    image_name = "launch-automap_service:latest"
+    load_image_command = f"docker image load -i {temp_dir}/launch/automaps.tar"
+
+    try:
+        # Comando para verificar si la imagen ya existe
+        image_check_command = f"docker images -q {image_name}"
+        image_exists = subprocess.run(image_check_command, shell=True, stdout=subprocess.PIPE)
+
+        if not image_exists.stdout:  # Si no existe la imagen
+            print("La imagen no existe. Cargando imagen...")
+            try:
+                result = subprocess.run(load_image_command, shell=True, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                print(result.stdout.decode())  # Muestra la salida estándar
+            except subprocess.CalledProcessError as e:
+                print(f"Error al cargar la imagen: {e.stderr.decode()}")  # Muestra el error
+        else :
+            print("la imagen ya existe, la usamos")
+
+
+        print_directory_contents(temp_dir)
+
+
+        # Ahora ejecuta el contenedor usando docker-compose
+        container_name = os.getenv('CONTAINER_NAME', 'autopymaps_1') 
+        docker_compose_command = f"docker-compose -f {temp_dir}/launch/compose.yaml run --rm --name {container_name} automap_service"
+
+        try:
+            result = subprocess.run(docker_compose_command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # Imprime la salida estándar
+            print("Salida estándar:")
+            print(result.stdout.decode())
+        except subprocess.CalledProcessError as e:
+            print(f"Error ejecutando docker-compose: {e.stderr.decode()}")
+
+
+        print("proceso finalizado")
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error ejecutando el comando: {e}")
 
 
 default_args = {
@@ -89,7 +155,7 @@ default_args = {
 }
 
 dag = DAG(
-    'dag_prueba_docker',
+    'dag_prueba_docker2',
     default_args=default_args,
     description='Algoritmo dag_prueba_docker',
     schedule_interval=None,
@@ -104,88 +170,5 @@ find_the_folder_task = PythonOperator(
     dag=dag,
 )
 
-# Definir el volumen emptyDir y el montaje correctamente
-empty_dir_volume = k8s.V1Volume(
-    name='empty-dir-volume',
-    empty_dir=k8s.V1EmptyDirVolumeSource()
-)
-
-empty_dir_volume_mount = k8s.V1VolumeMount(
-    name='empty-dir-volume',
-    mount_path='/tmp'
-)
-
-security_context = k8s.V1SecurityContext(
-    privileged=True
-)
-
-
-# Define the Init Container to fix permissions on the /tmp directory
-init_container = k8s.V1Container(
-    name="init-fix-permissions",
-    image="busybox",
-    command=["/bin/sh", "-c", "chmod -R 777 /tmp && ls -ld /tmp"],  # Adjust permissions
-    volume_mounts=[k8s.V1VolumeMount(
-        name='empty-dir-volume',
-        mount_path='/tmp'
-    )],
-)
-init_container2 = k8s.V1Container(
-    name="init-create-directories",
-    image="busybox",
-    command=[
-        "/bin/sh", 
-        "-c", 
-        """
-        mkdir -p /tmp/share_data/input /tmp/launch && \
-        chmod -R 777 /tmp && \
-        ls -la /tmp /tmp/share_data /tmp/launch
-        """
-    ],
-    volume_mounts=[k8s.V1VolumeMount(
-        name='empty-dir-volume',
-        mount_path='/tmp'
-    )],
-)
-
-list_permissions_task = KubernetesPodOperator(
-    namespace='default',
-    image="busybox",
-    cmds=["/bin/sh", "-c", "ls -la /tmp/share_data && ls -la /tmp/launch"],
-    name="list_permissions",
-    task_id="list_permissions_task",
-    volumes=[empty_dir_volume],
-    volume_mounts=[empty_dir_volume_mount],
-    get_logs=True,
-    is_delete_operator_pod=True,
-    dag=dag,
-)
-
-# Updated KubernetesPodOperator with security context
-run_with_docker_task = KubernetesPodOperator(
-    namespace='default',
-    image="docker:20.10.7-dind",
-    cmds=["/bin/sh", "-c", "/tmp/launch/run.sh"],
-    name="run_with_docker",
-    task_id="run_with_docker_task",
-    volumes=[empty_dir_volume],
-    volume_mounts=[empty_dir_volume_mount],
-    env_vars={
-        'DOCKER_HOST': 'tcp://localhost:2375',
-        'DOCKER_TLS_CERTDIR': ''
-    },
-    security_context=k8s.V1SecurityContext(
-        run_as_user=0,  # Use root for permission issues
-        run_as_group=0,
-        privileged=True
-    ),
-    get_logs=True,
-    is_delete_operator_pod=True,
-    init_containers=[init_container, init_container2],  # Add init container here
-    dag=dag,
-)
-
-
-find_the_folder_task >> list_permissions_task >> run_with_docker_task
-
+find_the_folder_task  
 
