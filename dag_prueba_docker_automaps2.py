@@ -76,6 +76,14 @@ def find_the_folder():
         os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
 
 
+        ls = SSHOperator(
+                task_id="ls",
+                command= "ls -l",
+                ssh_hook = ssh_hook,
+                dag = dag)
+        
+        print(ls)
+
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
             try:
