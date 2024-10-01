@@ -1,4 +1,5 @@
 import datetime
+import io
 import os
 import shutil
 import subprocess
@@ -40,83 +41,69 @@ def find_the_folder():
         bucket_name = 'algorithms'
 
         # Define the objects and their local paths
-        files_to_download = {
-            'share_data/input/config.json': os.path.join(temp_dir, 'share_data/input/config.json'),
-            'launch/.env': os.path.join(temp_dir, 'launch/.env'),
-            'launch/automaps.tar': os.path.join(temp_dir, 'launch/automaps.tar'),
-            'launch/compose.yaml': os.path.join(temp_dir, 'launch/compose.yaml'),
-            'launch/run.sh': os.path.join(temp_dir, 'launch/run.sh')
+        files_to_transfer = {
+            'share_data/input/config.json': '/Automapsdok/share_data/input/config.json',
+            'launch/.env': '/Automapsdok/launch/.env',
+            'launch/automaps.tar': '/Automapsdok/launch/automaps.tar',
+            'launch/compose.yaml': '/Automapsdok/launch/compose.yaml',
+            'launch/run.sh': '/Automapsdok/launch/run.sh'
         }
 
-        # Create necessary directories
-        for local_path in files_to_download.values():
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
-        output_dir = os.path.join(temp_dir, 'share_data/output')
-        os.makedirs(output_dir, exist_ok=True)
-
-
-        # Descargar los archivos de MinIO
-        for s3_key, local_path in files_to_download.items():
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
-            s3_client.download_file(bucket_name, s3_key, local_path)
-            print(f"Descargado {s3_key} a {local_path}")
-
-
         print_directory_contents(temp_dir)
+
+
+
         ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+        for minio_object_key, sftp_remote_path in files_to_transfer.items():
+            # Descargar el archivo de MinIO en memoria
+            with ssh_hook.get_conn() as ssh_client:
+                sftp = ssh_client.open_sftp()
+                try:
+                    response = s3_client.get_object(Bucket=bucket_name, Key=minio_object_key)
+                    file_data = response['Body'].read()  # Leer el contenido del archivo
+
+                    # Subir el archivo al servidor SFTP
+                    with io.BytesIO(file_data) as file_stream:
+                        sftp.store_file(sftp_remote_path, file_stream)
+                        print(f"Archivo {minio_object_key} transferido a {sftp_remote_path}")
+
+                except Exception as e:
+                    print(f"Error al transferir {minio_object_key}: {str(e)}")
 
 
-        remote_file_path = '/proyectos/Autopymaps/launch/.env'
-    
-        # Ruta local donde deseas guardar el archivo
-        local_file_path = '/tmp/launch/.env'
-        
-        # Crear directorios locales si no existen
-        os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
 
 
-        ls = SSHOperator(
-                task_id="ls",
-                command= "ls -l",
-                ssh_hook = ssh_hook,
-                dag = dag)
-        
-        print(ls)
-
-        pwd = SSHOperator(
-                task_id="pwd",
-                command= "pwd",
-                ssh_hook = ssh_hook,
-                dag = dag)
-        
-        print(pwd)
-
-        with ssh_hook.get_conn() as ssh_client:
-            sftp = ssh_client.open_sftp()
-            try:
-
-                stdin, stdout, stderr = ssh_client.exec_command('pwd')
-                # Leer la salida del comando
-                current_directory = stdout.read().decode().strip()
-                print(f"Directorio de trabajo actual: {current_directory}")
-                error = stderr.read().decode().strip()
-                if error:
-                    print(f"Error al ejecutar el comando: {error}")
 
 
-                # Verificar si el archivo remoto existe
-                sftp.stat(local_file_path)  # Esto levantará una excepción si no existe
-                # Descargar el archivo del servidor remoto
-                sftp.put('/Automapsdok/ta.json', '/tmp/launch/.env')
-                print(f"Archivo {local_file_path} descargado exitosamente a {remote_file_path}")
-            except FileNotFoundError:
-                print(f"El archivo remoto {local_file_path} no se encontró.")
-            except Exception as e:
-                print(f"Error al descargar el archivo: {str(e)}")
-            finally:
-                # Cerrar la conexión SFTP
-                sftp.close()
+
+
+        # with ssh_hook.get_conn() as ssh_client:
+        #     sftp = ssh_client.open_sftp()
+        #     try:
+
+        #         stdin, stdout, stderr = ssh_client.exec_command('pwd')
+        #         # Leer la salida del comando
+        #         current_directory = stdout.read().decode().strip()
+        #         print(f"Directorio de trabajo actual: {current_directory}")
+        #         error = stderr.read().decode().strip()
+        #         if error:
+        #             print(f"Error al ejecutar el comando: {error}")
+
+
+        #         # Verificar si el archivo remoto existe
+        #         sftp.stat(local_file_path)  # Esto levantará una excepción si no existe
+        #         # Descargar el archivo del servidor remoto
+        #         sftp.put('/Automapsdok/ta.json', '/tmp/launch/.env')
+        #         print(f"Archivo {local_file_path} descargado exitosamente a {remote_file_path}")
+        #     except FileNotFoundError:
+        #         print(f"El archivo remoto {local_file_path} no se encontró.")
+        #     except Exception as e:
+        #         print(f"Error al descargar el archivo: {str(e)}")
+        #     finally:
+        #         # Cerrar la conexión SFTP
+        #         sftp.close()
+
+
         print(f'Directorio temporal creado en: {temp_dir}')
 
         # rundocker(temp_dir)
