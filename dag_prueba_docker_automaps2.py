@@ -63,13 +63,19 @@ def find_the_folder():
             print(f"Descargado {s3_key} a {local_path}")
 
         ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
-        ssh_task = SSHOperator(
-            task_id='run_remote_command',
-            ssh_hook=ssh_hook,
-            command='echo "Hola, este es un comando remoto"',
-            dag=dag
-        )
-
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            
+            # Ruta local y ruta remota
+            local_file_path = os.path.join(temp_dir, 'launch/.env')
+            remote_file_path = '/proyectos/Autopymaps/launch/.env'
+            
+            # Subir el archivo al servidor remoto
+            sftp.put(local_file_path, remote_file_path)
+            print(f"Archivo {local_file_path} copiado a {remote_file_path}")
+            
+            # Cerrar la conexión SFTP
+            sftp.close()
         print(f'Directorio temporal creado en: {temp_dir}')
 
         # rundocker(temp_dir)
