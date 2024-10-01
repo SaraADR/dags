@@ -67,10 +67,10 @@ def process_element(**context):
             print("Datos actualizados:")
             print(config_data)
 
-            # # Guardar los cambios de nuevo en el archivo
-            # with sftp.file(remote_file_path, 'w') as remote_file:
-            #     json.dump(config_data, remote_file, indent=4)  # Escribir el JSON actualizado
-            #     print(f"Archivo {remote_file_name} actualizado en {remote_directory}")
+            # Guardar los cambios de nuevo en el archivo
+            with sftp.file(remote_file_path, 'w') as remote_file:
+                json.dump(config_data, remote_file, indent=4)  # Escribir el JSON actualizado
+                print(f"Archivo {remote_file_name} actualizado en {remote_directory}")
 
 
             sftp.close()
@@ -81,50 +81,50 @@ def process_element(**context):
 def find_the_folder():
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
-    # try:
-    #     # Conectarse al servidor SSH
-    #     with ssh_hook.get_conn() as ssh_client:
+    try:
+        # Conectarse al servidor SSH
+        with ssh_hook.get_conn() as ssh_client:
 
-    #         # Cambiar al directorio de lanzamiento y ejecutar run.sh
-    #         print(f"Cambiando al directorio de lanzamiento y ejecutando run.sh")
-    #         stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Autopymaps/launch && ./run.sh')
+            # Cambiar al directorio de lanzamiento y ejecutar run.sh
+            print(f"Cambiando al directorio de lanzamiento y ejecutando run.sh")
+            stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Autopymaps/launch && ./run.sh')
             
-    #         output = stdout.read().decode()
-    #         error_output = stderr.read().decode()
+            output = stdout.read().decode()
+            error_output = stderr.read().decode()
 
-    #         print("Salida de run.sh:")
-    #         print(output)
+            print("Salida de run.sh:")
+            print(output)
             
-    #         if error_output:
-    #             print("Errores al ejecutar run.sh:")
-    #             print(error_output)
+            if error_output:
+                print("Errores al ejecutar run.sh:")
+                print(error_output)
 
 
-    #         sftp = ssh_client.open_sftp()
-    #         output_directory = '/home/admin3/Autopymaps/share_data/output'
-    #         local_output_directory = '/temp'
+            sftp = ssh_client.open_sftp()
+            output_directory = '/home/admin3/Autopymaps/share_data/output'
+            local_output_directory = '/temp'
               
-    #         # Crear el directorio local si no existe
-    #         os.makedirs(local_output_directory, exist_ok=True)
+            # Crear el directorio local si no existe
+            os.makedirs(local_output_directory, exist_ok=True)
 
-    #         sftp.chdir(output_directory)
-    #         print(f"Cambiando al directorio de salida: {output_directory}")
+            sftp.chdir(output_directory)
+            print(f"Cambiando al directorio de salida: {output_directory}")
 
-    #         for filename in sftp.listdir():
-    #             remote_file_path = os.path.join(output_directory, filename)
-    #             local_file_path = os.path.join(local_output_directory, filename)
+            for filename in sftp.listdir():
+                remote_file_path = os.path.join(output_directory, filename)
+                local_file_path = os.path.join(local_output_directory, filename)
 
-    #             # Descargar cada archivo
-    #             sftp.get(remote_file_path, local_file_path)
-    #             print(f"Archivo {filename} descargado a {local_file_path}")
+                # Descargar cada archivo
+                sftp.get(remote_file_path, local_file_path)
+                print(f"Archivo {filename} descargado a {local_file_path}")
 
-    #         sftp.close()
+            sftp.close()
 
-    #         print_directory_contents(local_output_directory)
+            print_directory_contents(local_output_directory)
 
 
-    # except Exception as e:
-    #     print(f"Error en el proceso: {str(e)}")
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")
 
 
 
