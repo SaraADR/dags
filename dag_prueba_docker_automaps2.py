@@ -49,27 +49,33 @@ def find_the_folder():
         }
 
         ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
-        for minio_object_key, sftp_remote_path in files_to_transfer.items():
 
+        # Descargar el archivo de MinIO en memoria
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
 
-            # Descargar el archivo de MinIO en memoria
-            with ssh_hook.get_conn() as ssh_client:
-                sftp = ssh_client.open_sftp()
+            for minio_object_key, sftp_remote_path in files_to_transfer.items():
                 try:
                     response = s3_client.get_object(Bucket=bucket_name, Key=minio_object_key)
                     file_data = response['Body'].read()  # Leer el contenido del archivo
 
                     print(file_data[15])
                     print(sftp_remote_path)
-                    
 
-                    # Subir el archivo al servidor SFTP
+                    remote_directory = os.path.dirname(sftp_remote_path)
+                    print(remote_directory)
+
+
+                    # Subir el archivo al servidor SSH usando putfo
                     with io.BytesIO(file_data) as file_stream:
+                        file_stream.seek(0)  # Asegúrate de que el puntero esté al principio
                         sftp.putfo(file_stream, sftp_remote_path)
                         print(f"Archivo {minio_object_key} transferido a {sftp_remote_path}")
 
+      
                 except Exception as e:
                     print(f"Error al transferir {minio_object_key}: {str(e)}")
+            sftp.close()
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
