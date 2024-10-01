@@ -34,7 +34,7 @@ def process_message(msg_value, **kwargs):
             conf = {'message': msg_json}
             
             if job == 'automaps':
-                dag_to_trigger = 'algorithm_automaps'
+                dag_to_trigger = 'dag_prueba_docker2'
             elif job == 'heatmap-incendios':
                 dag_to_trigger = 'process_heatmap_incendios'
             elif job == 'heatmap-aeronaves':
