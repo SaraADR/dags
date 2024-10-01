@@ -98,7 +98,7 @@ def find_the_folder():
                 # Verificar si el archivo remoto existe
                 sftp.stat(local_file_path)  # Esto levantará una excepción si no existe
                 # Descargar el archivo del servidor remoto
-                sftp.get('/tmp/ta.json', '/home/admin3/Automapsdok/ta.json')
+                sftp.get('/home/admin3/Automapsdok/ta.json', '/tmp/ta.json')
                 print(f"Archivo {local_file_path} descargado exitosamente a {remote_file_path}")
             except FileNotFoundError:
                 print(f"El archivo remoto {local_file_path} no se encontró.")
