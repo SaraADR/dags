@@ -27,7 +27,7 @@ def process_element(**context):
     print(f"Perimeter: {perimeter}")
 
     # Guardar los datos en /tmp
-    local_output_directory = '/temp'
+    local_output_directory = '/tmp'
     os.makedirs(local_output_directory, exist_ok=True)
     local_file_path = os.path.join(local_output_directory, 'input_data.json')
 
@@ -102,7 +102,7 @@ def find_the_folder():
 
             sftp = ssh_client.open_sftp()
             output_directory = '/home/admin3/Autopymaps/share_data/output'
-            local_output_directory = '/temp'
+            local_output_directory = '/tmp'
               
             # Crear el directorio local si no existe
             os.makedirs(local_output_directory, exist_ok=True)
