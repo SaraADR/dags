@@ -121,12 +121,14 @@ def create_fire(input_data):
         madrid_tz = pytz.timezone('Europe/Madrid')
         local_date = madrid_tz.localize(local_date_naive)
         formatted_date = local_date.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + local_date.strftime(' %z')
-        # Parsear la fecha con el formato correspondiente
-        date_obj = datetime.strptime(formatted_date, '%Y-%m-%d %H:%M:%S.%f %z')
-        # Convertir al formato requerido yyyy-MM-dd'T'HH:mm:ss.SSSZ
-        formatted_date2 = date_obj.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj.strftime('%z')
-        # Reemplazar el formato de la zona horaria para que sea Z en lugar de +0200
-        formatted_date2 = formatted_date2[:-2] + ':' + formatted_date2[-2:]
+        input_data['fire']['start'] = formatted_date
+
+        # # Parsear la fecha con el formato correspondiente
+        # date_obj = datetime.strptime(formatted_date, '%Y-%m-%d %H:%M:%S.%f %z')
+        # # Convertir al formato requerido yyyy-MM-dd'T'HH:mm:ss.SSSZ
+        # formatted_date2 = date_obj.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj.strftime('%z')
+        # # Reemplazar el formato de la zona horaria para que sea Z en lugar de +0200
+        # formatted_date2 = formatted_date2[:-2] + ':' + formatted_date2[-2:]
 
         print(formatted_date)
 
