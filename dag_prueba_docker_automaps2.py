@@ -125,20 +125,20 @@ def find_the_folder(**context):
         input_data = json.loads(input_data_str)
         emails = input_data['emails']
 
-
-        # Enviar correos electrónicos
-        for email in emails:
-            email = email.replace("'", "")
-            email_operator = EmailOperator(
-                task_id=f'send_email_{email.replace("@", "-")}',
-                to=email,
-                subject='Automaps ha generado un archivo ',
-                html_content='<p>Adjunto encontrarás el PDF generado.</p>',
-                files=downloaded_files,
-                conn_id='test_mailing',
-                dag=context['dag']
-            )
-            email_operator.execute(context)
+        if downloaded_files:
+            # Enviar correos electrónicos
+            for email in emails:
+                email = email.replace("'", "")
+                email_operator = EmailOperator(
+                    task_id=f'send_email_{email.replace("@", "-")}',
+                    to=email,
+                    subject='Automaps ha generado un archivo ',
+                    html_content='<p>Adjunto encontrarás el PDF generado.</p>',
+                    files=downloaded_files,
+                    conn_id='test_mailing',
+                    dag=context['dag']
+                )
+                email_operator.execute(context)
 
     except Exception as e:
         print(f"Error: {str(e)}")
