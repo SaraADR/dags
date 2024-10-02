@@ -50,7 +50,7 @@ def create_mission(**context):
         with session.begin():
             values_to_insert = {
             'name': input_data['fire']['name'],
-            'start_date': formatted_date,
+            'start_date': '2024-10-02T14:02:00.000Z',
             'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
             'type_id': input_data['type_id'],
             'status_id': 1, #TODO REVISIÓN DE STATUS
