@@ -117,7 +117,7 @@ def create_fire(input_data):
                 
         start_date =  input_data['fire']['start']
         date_obj = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
-        timezone = pytz.timezone('UTC')  # Cambia 'UTC' si tienes una zona horaria diferente
+        timezone = pytz.timezone('Europe/Madrid') # Cambia 'UTC' si tienes una zona horaria diferente
         date_obj_with_tz = timezone.localize(date_obj)
         formatted_date = date_obj_with_tz.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj_with_tz.strftime('%z')
         input_data['fire']['start'] = formatted_date
