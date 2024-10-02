@@ -104,6 +104,9 @@ def find_the_folder(**context):
             if error_output:
                 print("Errores al ejecutar run.sh:")
                 print(error_output)
+                error_state_job(context)
+
+
 
 
             sftp = ssh_client.open_sftp()
@@ -172,6 +175,37 @@ def print_directory_contents(directory):
             print(f"{subindent}{f}")
     print("------------------------------------------")
 
+
+
+
+def error_state_job(**context):
+    message = context['dag_run'].conf
+    job_id = message['message']['id']
+    print(f"jobid {job_id}" )
+
+    try:
+
+        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        metadata = MetaData(bind=engine)
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        
+        # Actualizar el estado del trabajo a "ERROR"
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='ERROR')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to ERROR")
+
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante el guardado del estado del job: {str(e)}")
+
+    # Lanzar la excepción para que la tarea falle
+    raise RuntimeError(f"Error durante el guardado de la misión: {str(e)}")
 
 
 
