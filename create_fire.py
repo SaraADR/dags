@@ -33,13 +33,18 @@ def create_mission(**context):
         session = Session()
 
         
-        start_date =  input_data['fire']['start']
+        # Procesar la fecha
+        start_date = input_data['fire']['start']
         date_obj = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
-        timezone = pytz.timezone('UTC')  # Cambia 'UTC' si tienes una zona horaria diferente
+        timezone = pytz.timezone('UTC')
         date_obj_with_tz = timezone.localize(date_obj)
         formatted_date = date_obj_with_tz.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj_with_tz.strftime('%z')
 
-        print(formatted_date)
+        if '.' not in formatted_date:
+            formatted_date = formatted_date[:-5] + ".000" + formatted_date[-5:]
+
+
+        print(f"Formatted date: {formatted_date}")
 
         # Iniciando una transacción
         with session.begin():
