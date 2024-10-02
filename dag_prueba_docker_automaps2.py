@@ -69,7 +69,7 @@ def process_element(**context):
 
 
 
-def find_the_folder():
+def find_the_folder(**context):
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
     try:
@@ -101,6 +101,7 @@ def find_the_folder():
             sftp.chdir(output_directory)
             print(f"Cambiando al directorio de salida: {output_directory}")
 
+            downloaded_files = []
             for filename in sftp.listdir():
                 remote_file_path = os.path.join(output_directory, filename)
                 local_file_path = os.path.join(local_output_directory, filename)
@@ -108,15 +109,39 @@ def find_the_folder():
                 # Descargar cada archivo
                 sftp.get(remote_file_path, local_file_path)
                 print(f"Archivo {filename} descargado a {local_file_path}")
-
+                downloaded_files.append(local_file_path)
             sftp.close()
 
             print_directory_contents(local_output_directory)
 
-
+    except Exception as e:
+        print(f"Error: {str(e)}")    
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
 
+    try:
+        message = context['dag_run'].conf
+        input_data_str = message['message']['input_data']
+        input_data = json.loads(input_data_str)
+        emails = input_data['emails']
+
+
+        # Enviar correos electrónicos
+        for email in emails:
+            email = email.replace("'", "")
+            email_operator = EmailOperator(
+                task_id=f'send_email_{email.replace("@", "-")}',
+                to=email,
+                subject='Automaps ha generado un archivo ',
+                html_content='<p>Adjunto encontrarás el PDF generado.</p>',
+                files=downloaded_files,
+                conn_id='test_mailing',
+                dag=context['dag']
+            )
+            email_operator.execute(context)
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
 
 
 
