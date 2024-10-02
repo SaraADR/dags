@@ -286,12 +286,12 @@ find_the_folder_task = PythonOperator(
 )
 
 #Cambia estado de job
-change_state_task = PythonOperator(
-    task_id='change_state_job',
-    python_callable=change_state_job,
-    provide_context=True,
-    dag=dag,
-)
+# change_state_task = PythonOperator(
+#     task_id='change_state_job',
+#     python_callable=change_state_job,
+#     provide_context=True,
+#     dag=dag,
+# )
 
 process_element_task >> find_the_folder_task 
 
