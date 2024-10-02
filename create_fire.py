@@ -32,12 +32,6 @@ def create_mission(**context):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        
-        # start_date =  input_data['fire']['start']
-        # date_obj = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
-        # timezone = pytz.timezone('UTC')  # Cambia 'UTC' si tienes una zona horaria diferente
-        # date_obj_with_tz = timezone.localize(date_obj)
-        # formatted_date = date_obj_with_tz.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj_with_tz.strftime('%z')
 
 
         # Iniciando una transacción
@@ -118,7 +112,17 @@ def create_fire(input_data):
         auth = (conn.login, conn.password)
         url = f"{conn.host}/rest/FireService/save"
 
-        input_data['fire']['start'] = '2024-10-02T14:02:00.000Z'
+        #input_data['fire']['start'] = '2024-10-02T14:02:00.000Z'
+
+                
+        start_date =  input_data['fire']['start']
+        date_obj = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
+        timezone = pytz.timezone('UTC')  # Cambia 'UTC' si tienes una zona horaria diferente
+        date_obj_with_tz = timezone.localize(date_obj)
+        formatted_date = date_obj_with_tz.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj_with_tz.strftime('%z')
+        input_data['fire']['start'] = formatted_date
+        print(formatted_date)
+
 
         response = requests.post(url, json=input_data['fire'], auth=auth)
 
