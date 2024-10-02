@@ -7,6 +7,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+import pytz
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -31,11 +32,20 @@ def create_mission(**context):
         Session = sessionmaker(bind=engine)
         session = Session()
 
+        
+        start_date =  input_data['fire']['start']
+        date_obj = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
+        timezone = pytz.timezone('UTC')  # Cambia 'UTC' si tienes una zona horaria diferente
+        date_obj_with_tz = timezone.localize(date_obj)
+        formatted_date = date_obj_with_tz.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj_with_tz.strftime('%z')
+
+        print(formatted_date)
+
         # Iniciando una transacción
         with session.begin():
             values_to_insert = {
             'name': input_data['fire']['name'],
-            'start_date': input_data['fire']['start'],
+            'start_date': formatted_date,
             'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
             'type_id': input_data['type_id'],
             'status_id': 1, #TODO REVISIÓN DE STATUS
