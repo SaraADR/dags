@@ -25,16 +25,6 @@ def process_element(**context):
 
     print(f"Location: {location}")
     print(f"Perimeter: {perimeter}")
-
-    # Guardar los datos en /tmp
-    local_output_directory = '/tmp'
-    os.makedirs(local_output_directory, exist_ok=True)
-    local_file_path = os.path.join(local_output_directory, 'input_data.json')
-
-    with open(local_file_path, 'w') as f:
-        json.dump(input_data, f)
-
-    print(f"Datos guardados en {local_file_path}")
     
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
@@ -76,6 +66,7 @@ def process_element(**context):
             sftp.close()
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
+
 
 
 def find_the_folder():
