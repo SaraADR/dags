@@ -66,6 +66,17 @@ def process_element(**context):
                 json.dump(config_data, remote_file, indent=4)  # Escribir el JSON actualizado
                 print(f"Archivo {remote_file_name} actualizado en {remote_directory}")
 
+            # Borrar todos los archivos en el directorio de salida
+            output_directory = '/home/admin3/Autopymaps/share_data/output'
+            sftp.chdir(output_directory)
+            print(f"Borrando archivos en el directorio: {output_directory}")
+            
+            # Listar y eliminar archivos en el directorio de salida
+            for filename in sftp.listdir():
+                file_path = os.path.join(output_directory, filename)
+                sftp.remove(file_path)
+                print(f"Archivo {filename} eliminado.")     
+
 
             sftp.close()
     except Exception as e:
