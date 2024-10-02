@@ -127,10 +127,10 @@ def find_the_folder(**context):
 
                 except Exception as e:
                     session.rollback()
-                    print(f"Error durante el guardado del estado del job: {str(e)}")
+                    print(f"Error durante el guardado del estado del job")
 
                 # Lanzar la excepción para que la tarea falle
-                raise RuntimeError(f"Error durante el guardado de la misión: {str(e)}")
+                raise RuntimeError(f"Error durante el guardado de la misión")
 
 
 
@@ -225,7 +225,7 @@ def change_state_job(**context):
         # Update job status to 'FINISHED'
         metadata = MetaData(bind=engine)
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+        update_stmt = jobs.update().where((jobs.c.id == job_id) & (jobs.c.status != 'ERROR')).values(status='FINISHED')
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to FINISHED")
