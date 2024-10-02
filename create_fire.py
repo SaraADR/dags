@@ -33,24 +33,18 @@ def create_mission(**context):
         session = Session()
 
         
-        # Procesar la fecha
-        start_date = input_data['fire']['start']
-        date_obj = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
-        timezone = pytz.timezone('UTC')
-        date_obj_with_tz = timezone.localize(date_obj)
-        formatted_date = date_obj_with_tz.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj_with_tz.strftime('%z')
+        # start_date =  input_data['fire']['start']
+        # date_obj = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
+        # timezone = pytz.timezone('UTC')  # Cambia 'UTC' si tienes una zona horaria diferente
+        # date_obj_with_tz = timezone.localize(date_obj)
+        # formatted_date = date_obj_with_tz.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj_with_tz.strftime('%z')
 
-        if '.' not in formatted_date:
-            formatted_date = formatted_date[:-5] + ".000" + formatted_date[-5:]
-
-
-        print(f"Formatted date: {formatted_date}")
 
         # Iniciando una transacción
         with session.begin():
             values_to_insert = {
             'name': input_data['fire']['name'],
-            'start_date': '2024-10-02T14:02:00.000Z',
+            'start_date': input_data['fire']['start'],
             'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
             'type_id': input_data['type_id'],
             'status_id': 1, #TODO REVISIÓN DE STATUS
@@ -123,6 +117,9 @@ def create_fire(input_data):
         conn = BaseHook.get_connection('atc_services_connection')
         auth = (conn.login, conn.password)
         url = f"{conn.host}/rest/FireService/save"
+
+        input_data['fire']['start'] = '2024-10-02T14:02:00.000Z'
+
         response = requests.post(url, json=input_data['fire'], auth=auth)
 
         if response.status_code == 200:
