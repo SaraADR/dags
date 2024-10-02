@@ -104,9 +104,6 @@ def find_the_folder(**context):
             if error_output:
                 print("Errores al ejecutar run.sh:")
                 print(error_output)
-                error_state_job(context)
-
-
 
 
             sftp = ssh_client.open_sftp()
@@ -130,7 +127,16 @@ def find_the_folder(**context):
                 downloaded_files.append(local_file_path)
             sftp.close()
 
-            print_directory_contents(local_output_directory)
+
+            if error_output:
+                # Llama a change_state_job para actualizar el estado a "ERROR"
+                change_state_job(context=context, status='ERROR')
+            else:
+                # Si no hay errores, llamar a change_state_job para actualizar a "FINISHED"
+                print_directory_contents(local_output_directory)
+                change_state_job(context=context, status='FINISHED')
+
+            
 
     except Exception as e:
         print(f"Error: {str(e)}")    
@@ -287,5 +293,5 @@ change_state_task = PythonOperator(
     dag=dag,
 )
 
-process_element_task >> find_the_folder_task  >> change_state_task
+process_element_task >> find_the_folder_task 
 
