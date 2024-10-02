@@ -51,11 +51,11 @@ def create_mission(**context):
         missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
         # Inserción de la nueva misión
-        # insert_stmt = missions.insert().values(values_to_insert)
-        # result = session.execute(insert_stmt)
-        # mission_id = result.inserted_primary_key[0]
-        # session.commit()
-        # print(f"Misión creada con ID: {mission_id}")
+        insert_stmt = missions.insert().values(values_to_insert)
+        result = session.execute(insert_stmt)
+        mission_id = result.inserted_primary_key[0]
+        session.commit()
+        print(f"Misión creada con ID: {mission_id}")
 
         if input_data['type_id'] == 3:
             fire_id = create_fire(input_data) 
@@ -63,23 +63,23 @@ def create_mission(**context):
             fire_id = input_data['fireId']
 
 
-        # if not (fire_id == None or fire_id == 0):
-        #     insert_relation_mission_fire(mission_id, fire_id)
+        if not (fire_id == None or fire_id == 0):
+            insert_relation_mission_fire(mission_id, fire_id)
 
         # Inserción en la tabla mss_mission_status_history
-        # mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
-        # status_history_values = {
-        #     'mission_id': mission_id,
-        #     'status_id': 1,  # Asumiendo que el status inicial es 1, ajusta si es necesario
-        # }
-        # insert_status_stmt = mission_status_history.insert().values(status_history_values)
-        # session.execute(insert_status_stmt)
-        # session.commit()
-        # print(f"Estado de la misión {mission_id} registrado en mss_mission_status_history.")
+        mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
+        status_history_values = {
+            'mission_id': mission_id,
+            'status_id': 1,  # Asumiendo que el status inicial es 1, ajusta si es necesario
+        }
+        insert_status_stmt = mission_status_history.insert().values(status_history_values)
+        session.execute(insert_status_stmt)
+        session.commit()
+        print(f"Estado de la misión {mission_id} registrado en mss_mission_status_history.")
 
         # Almacenar mission_id en XCom para ser utilizado por otras tareas
-        # input_data['mission_id'] = mission_id
-        # context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+        input_data['mission_id'] = mission_id
+        context['task_instance'].xcom_push(key='mission_id', value=mission_id)
 
         # Update job status to 'FINISHED'
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
@@ -112,47 +112,32 @@ def create_fire(input_data):
         auth = (conn.login, conn.password)
         url = f"{conn.host}/rest/FireService/save"
 
-        #input_data['fire']['start'] = '2024-10-02T14:02:00.000Z'
-
-                
-        # start_date =  input_data['fire']['start']
-        # date_obj = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S')
-        # timezone = pytz.timezone('Europe/Madrid') 
-        # date_obj_with_tz = timezone.localize(date_obj)
-        # formatted_date = date_obj_with_tz.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj_with_tz.strftime('%z')
-        # input_data['fire']['start'] = formatted_date
-        # print(formatted_date)
 
         # Convertir la fecha UTC a un objeto datetime con zona horaria UTC
         local_date_str =  input_data['fire']['start']
-
-
-        # Parsear la fecha en formato local sin información de zona horaria
         local_date_naive = datetime.strptime(local_date_str, '%Y-%m-%dT%H:%M:%S')
 
         # Asignar la zona horaria de Madrid (automáticamente considera el horario de verano)
         madrid_tz = pytz.timezone('Europe/Madrid')
         local_date = madrid_tz.localize(local_date_naive)
-
-        # Formatear la fecha al formato deseado
         formatted_date = local_date.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + local_date.strftime(' %z')
 
         print(formatted_date)
 
 
-        # response = requests.post(url, json=input_data['fire'], auth=auth)
+        response = requests.post(url, json=input_data['fire'], auth=auth)
 
-        # if response.status_code == 200:
-        #     print("Incendio creado con éxito.")
-        #     fire_data = response.json()
-        #     print(fire_data)
-        #     print("id del fire: ")
-        #     print(fire_data['id'])
-        #     return fire_data['id']
+        if response.status_code == 200:
+            print("Incendio creado con éxito.")
+            fire_data = response.json()
+            print(fire_data)
+            print("id del fire: ")
+            print(fire_data['id'])
+            return fire_data['id']
             
-        # else:
-        #     print(f"Error en la creación del incendio: {response.status_code}")
-        #     print(response.text)
+        else:
+            print(f"Error en la creación del incendio: {response.status_code}")
+            print(response.text)
 
     except Exception as e:
         print(f"Error al crear el incendio: {str(e)}")
@@ -161,31 +146,31 @@ def create_fire(input_data):
 # Función para insertar una relación entre misión e incendio en la base de datos
 def insert_relation_mission_fire(id_mission, id_fire):
     try:
-        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        # db_conn = BaseHook.get_connection('biobd')
-        # connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        # engine = create_engine(connection_string)
-        # Session = sessionmaker(bind=engine)
-        # session = Session()
+        #Conexión a la base de datos usando las credenciales almacenadas en Airflow
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
-        # values_to_insert = {
-        #     'mission_id': id_mission,
-        #     'fire_id': id_fire,
-        #     'ignition_timestamp': None,
-        #     'stabilization_timestamp': None,
-        #     'controlled_timestamp': None,
-        #     'extinguishing_timestamp': None,
-        # }
+        values_to_insert = {
+            'mission_id': id_mission,
+            'fire_id': id_fire,
+            'ignition_timestamp': None,
+            'stabilization_timestamp': None,
+            'controlled_timestamp': None,
+            'extinguishing_timestamp': None,
+        }
 
-        # # Metadatos y tabla de relación misión-incendio en la base de datos
-        # metadata = MetaData(bind=engine)
-        # missions_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+        # Metadatos y tabla de relación misión-incendio en la base de datos
+        metadata = MetaData(bind=engine)
+        missions_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
 
-        # # Inserción de la relación
-        # insert_stmt = missions_fire.insert().values(values_to_insert)
-        # session.execute(insert_stmt)
-        # session.commit()
-        # session.close()
+        # Inserción de la relación
+        insert_stmt = missions_fire.insert().values(values_to_insert)
+        session.execute(insert_stmt)
+        session.commit()
+        session.close()
 
         print(f"Relación misión-incendio creada: misión {id_mission}, incendio {id_fire}")
 
