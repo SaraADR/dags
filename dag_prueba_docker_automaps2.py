@@ -51,8 +51,12 @@ def process_element(**context):
 
             if location is not None:
                 config_data['location'] = location
+            else :
+                config_data['location'] = []  
             if perimeter is not None:
                 config_data['perimeter'] = perimeter
+            else:
+                config_data['perimeter'] = []
 
             print("Datos actualizados:")
             print(config_data)
