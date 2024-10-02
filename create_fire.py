@@ -124,15 +124,21 @@ def create_fire(input_data):
         # print(formatted_date)
 
         # Convertir la fecha UTC a un objeto datetime con zona horaria UTC
-        start_date =  input_data['fire']['start']
-        utc_timezone = pytz.utc
-        date_obj = datetime.strptime(start_date, '%Y-%m-%dT%H:%M:%S.%fZ')  # Nota el formato Z para UTC
-        date_obj_utc = utc_timezone.localize(date_obj)
-        madrid_timezone = pytz.timezone('Europe/Madrid')
-        date_obj_madrid = date_obj_utc.astimezone(madrid_timezone)
-        # Formatear la fecha en el formato deseado: yyyy-MM-dd HH:mm:ss.SSSZ
-        formatted_date = date_obj_madrid.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + date_obj_madrid.strftime('%z')
+        local_date_str =  input_data['fire']['start']
+
+
+        # Parsear la fecha en formato local sin información de zona horaria
+        local_date_naive = datetime.strptime(local_date_str, '%Y-%m-%dT%H:%M:%S')
+
+        # Asignar la zona horaria de Madrid (automáticamente considera el horario de verano)
+        madrid_tz = pytz.timezone('Europe/Madrid')
+        local_date = madrid_tz.localize(local_date_naive)
+
+        # Formatear la fecha al formato deseado
+        formatted_date = local_date.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + local_date.strftime(' %z')
+
         print(formatted_date)
+
 
         # response = requests.post(url, json=input_data['fire'], auth=auth)
 
