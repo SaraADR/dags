@@ -267,13 +267,7 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-notification_action_task = PythonOperator(
-    task_id='create_mission',
-    python_callable=notification_action,
-    provide_context=True,
-    dag=dag,
-)
 
 
 # Modifica la secuencia de tareas
-print_message_task >> create_mission_task >> notification_action_task
+print_message_task >> create_mission_task 
