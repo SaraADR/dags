@@ -1,190 +1,144 @@
-from collections import defaultdict
+from airflow import DAG
+from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import os
-import re
-import tempfile
-from airflow import DAG
-import requests
-from requests.auth import HTTPBasicAuth
-from airflow.operators.python import PythonOperator
 import xml.etree.ElementTree as ET
+import requests
 
-
-# Primer paso: leer y procesar los archivos
-def process_extracted_files(**kwargs):
-    # Obtenemos los archivos
-    otros = kwargs['dag_run'].conf.get('otros', [])
-    json_content = kwargs['dag_run'].conf.get('json')
-
-    if not json_content:
-        print("Ha habido un error con el traspaso de los documentos")
-        return
-
-    # Parametrizar los datos del metadata
-    file_identifier = json_content.get('fileIdentifier', 'Ortomosaico_0026_4740004_611271')
-    organization_name = json_content.get('organizationName', 'Instituto geográfico nacional (IGN)')
-    email_address = json_content.get('email', 'ignis@organizacion.es')
-    date_stamp = json_content.get('dateStamp', datetime.now().isoformat())
-    title = json_content.get('title', 'Ortomosaico_0026_4740004_611271')
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-
-        xml_file_path = os.path.join(temp_dir, "archivo.xml")
-           
-        # Crear el contenido del XML
-        tree = creador_xml_metadata (
-            file_identifier=file_identifier,
-            organization_name=organization_name,
-            email_address=email_address,
-            date_stamp=date_stamp,
-            title=title,
-
-        )
-
-        # Guardar el archivo XML
-        tree.write(xml_file_path, encoding='utf-8', xml_declaration=True)
-        
-        # Imprimir la ruta del archivo XML para verificar
-        print(f"Archivo XML guardado en: {xml_file_path}")
-        
-        # Leer el archivo XML para verificar su contenido
-        with open(xml_file_path, 'r') as file:
-            print(file.read())
-
-# Al finalizar el bloque with, el archivo y el directorio temporal se eliminan automáticamente
-    
-def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title):
-    root = ET.Element("root")
-    md = ET.SubElement(root, "gmd:MD_Metadata")
-    # Atributos XML Namespace
-    md.attrib["xmlns:gmd"] = "http://www.isotc211.org/2005/gmd"
-    md.attrib["xmlns:xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
-    md.attrib["xmlns:gco"] = "http://www.isotc211.org/2005/gco"
-    md.attrib["xmlns:srv"] = "http://www.isotc211.org/2005/srv"
-    md.attrib["xmlns:gmx"] = "http://www.isotc211.org/2005/gmx"
-    md.attrib["xmlns:gts"] = "http://www.isotc211.org/2005/gts"
-    md.attrib["xmlns:gsr"] = "http://www.isotc211.org/2005/gsr"
-    md.attrib["xmlns:gmi"] = "http://www.isotc211.org/2005/gmi"
-    md.attrib["xmlns:gml"] = "http://www.opengis.net/gml/3.2"
-    md.attrib["xmlns:xlink"] = "http://www.w3.org/1999/xlink"
-    md.attrib["xsi:schemaLocation"] = "http://www.isotc211.org/2005/gmd http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd"
-
-    # fileIdentifier
-    fid = ET.SubElement(md, "gmd:fileIdentifier")
-    fid_cs = ET.SubElement(fid, "gco:CharacterString")
-    fid_cs.text = file_identifier
-
-    # language
-    language = ET.SubElement(md, "gmd:language")
-    lang_code = ET.SubElement(language, "gmd:LanguageCode")
-    lang_code.attrib["codeList"] = "http://www.loc.gov/standards/iso639-2/"
-    lang_code.attrib["codeListValue"] = "spa"
-
-    # characterSet
-    char_set = ET.SubElement(md, "gmd:characterSet")
-    char_set_code = ET.SubElement(char_set, "gmd:MD_CharacterSetCode")
-    char_set_code.attrib["codeList"] = "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_CharacterSetCode"
-    char_set_code.attrib["codeListValue"] = "utf8"
-
-    # hierarchyLevel
-    hierarchy = ET.SubElement(md, "gmd:hierarchyLevel")
-    hierarchy_code = ET.SubElement(hierarchy, "gmd:MD_ScopeCode")
-    hierarchy_code.attrib["codeList"] = "./resources/codelist.xml#MD_ScopeCode"
-    hierarchy_code.attrib["codeListValue"] = "dataset"
-    hierarchy_code.text = "dataset"
-
-    # contact information
-    contact = ET.SubElement(md, "gmd:contact")
-    responsible_party = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
-    org_name = ET.SubElement(responsible_party, "gmd:organisationName")
-    org_name_cs = ET.SubElement(org_name, "gco:CharacterString")
-    org_name_cs.text = organization_name
-
-    # contact email
-    contact_info = ET.SubElement(responsible_party, "gmd:contactInfo")
-    ci_contact = ET.SubElement(contact_info, "gmd:CI_Contact")
-    address = ET.SubElement(ci_contact, "gmd:address")
-    ci_address = ET.SubElement(address, "gmd:CI_Address")
-    email = ET.SubElement(ci_address, "gmd:electronicMailAddress")
-    email_cs = ET.SubElement(email, "gco:CharacterString")
-    email_cs.text = email_address
-
-    # dateStamp
-    date_stamp_elem = ET.SubElement(md, "gmd:dateStamp")
-    date_value = ET.SubElement(date_stamp_elem, "gco:DateTime")
-    date_value.text = date_stamp
-
-    # metadataStandardName
-    metadata_standard = ET.SubElement(md, "gmd:metadataStandardName")
-    metadata_standard_cs = ET.SubElement(metadata_standard, "gco:CharacterString")
-    metadata_standard_cs.text = "NEM: ISO 19115:2003 + Reglamento (CE) Nº 1205/2008 de Inspire"
-
-    # metadataStandardVersion
-    metadata_version = ET.SubElement(md, "gmd:metadataStandardVersion")
-    metadata_version_cs = ET.SubElement(metadata_version, "gco:CharacterString")
-    metadata_version_cs.text = "1.2"
-
-    # referenceSystemInfo
-    ref_sys_info = ET.SubElement(md, "gmd:referenceSystemInfo")
-    md_ref_sys = ET.SubElement(ref_sys_info, "gmd:MD_ReferenceSystem")
-    ref_sys_id = ET.SubElement(md_ref_sys, "gmd:referenceSystemIdentifier")
-    rs_id = ET.SubElement(ref_sys_id, "gmd:RS_Identifier")
-    code = ET.SubElement(rs_id, "gmd:code")
-    code_cs = ET.SubElement(code, "gco:CharacterString")
-    code_cs.text = "EPSG:32629"
-    code_space = ET.SubElement(rs_id, "gmd:codeSpace")
-    code_space_cs = ET.SubElement(code_space, "gco:CharacterString")
-    code_space_cs.text = "http://www.ign.es"
-
-    # identificationInfo
-    identification_info = ET.SubElement(md, "gmd:identificationInfo")
-    md_data_identification = ET.SubElement(identification_info, "gmd:MD_DataIdentification")
-    citation = ET.SubElement(md_data_identification, "gmd:citation")
-    ci_citation = ET.SubElement(citation, "gmd:CI_Citation")
-    title_elem = ET.SubElement(ci_citation, "gmd:title")
-    title_cs = ET.SubElement(title_elem, "gco:CharacterString")
-    title_cs.text = title
-
-    # Convertir el árbol en un string XML
-    tree = ET.ElementTree(root)
-    return tree
-
-
-# Configuración del DAG de Airflow
 default_args = {
-    'owner': 'oscar',
+    'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 8, 8),
+    'start_date': datetime(2024, 10, 1),
+    'email': ['your_email@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
 
-dag = DAG(
-    'metashape_rgb',
+# Definición del DAG
+with DAG(
+    'generate_and_upload_xml',
     default_args=default_args,
-    description='Flujo de datos de entrada de elementos de metashape_rgb',
-    schedule_interval=None,
+    description='Genera un archivo XML y lo sube a GeoServer',
+    schedule_interval=timedelta(days=1),
     catchup=False,
-)
+) as dag:
 
-# Primera tarea: procesar los archivos
-process_extracted_files_task = PythonOperator(
-    task_id='process_extracted_files_task',
-    python_callable=process_extracted_files,
-    provide_context=True,
-    dag=dag,
-)
+    def generate_xml():
+        # Simulamos la configuración que normalmente vendría de Airflow o algún input
+        json_content = {
+            'fileIdentifier': 'Ortomosaico_testeo',
+            'organizationName': 'Instituto geográfico nacional (IGN)',
+            'email': 'ignis@organizacion.es',
+            'dateStamp': datetime.now().isoformat(),
+            'title': 'Ortomosaico_0026_4740004_611271',
+            'publicationDate': '2024-07-29',
+            'boundingBox': {
+                'westBoundLongitude': '-7.6392',
+                'eastBoundLongitude': '-7.6336',
+                'southBoundLatitude': '42.8025',
+                'northBoundLatitude': '42.8044'
+            },
+            'spatialResolution': '0.026',  # Resolución espacial en metros
+            'protocol': 'OGC:WMS-1.3.0-http-get-map',
+            'wmsLink': 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms',
+            'layerName': 'a__0026_4740004_611271',
+            'layerDescription': 'Capa 0026 de prueba'
+        }
 
-# # Segunda tarea: subir los archivos a GeoServer
-# upload_files_to_geoserver_task = PythonOperator(
-#     task_id='upload_files_to_geoserver_task',
-#     python_callable=upload_files_to_geoserver,
-#     provide_context=True,
-#     dag=dag,
-# )
+        # Parámetros XML
+        file_identifier = json_content['fileIdentifier']
+        organization_name = json_content['organizationName']
+        email_address = json_content['email']
+        date_stamp = json_content['dateStamp']
+        title = json_content['title']
+        publication_date = json_content['publicationDate']
+        west_bound = json_content['boundingBox']['westBoundLongitude']
+        east_bound = json_content['boundingBox']['eastBoundLongitude']
+        south_bound = json_content['boundingBox']['southBoundLatitude']
+        north_bound = json_content['boundingBox']['northBoundLatitude']
+        spatial_resolution = json_content['spatialResolution']
+        protocol = json_content['protocol']
+        wms_link = json_content['wmsLink']
+        layer_name = json_content['layerName']
+        layer_description = json_content['layerDescription']
 
-# Definir la secuencia de las tareas
-process_extracted_files_task 
-# >> upload_files_to_geoserver_task
+        # Crear estructura XML
+        root = ET.Element('metadata')
+        ET.SubElement(root, 'fileIdentifier').text = file_identifier
+        ET.SubElement(root, 'organizationName').text = organization_name
+        ET.SubElement(root, 'email').text = email_address
+        ET.SubElement(root, 'dateStamp').text = date_stamp
+        ET.SubElement(root, 'title').text = title
+        ET.SubElement(root, 'publicationDate').text = publication_date
+        bounding_box = ET.SubElement(root, 'boundingBox')
+        ET.SubElement(bounding_box, 'westBoundLongitude').text = west_bound
+        ET.SubElement(bounding_box, 'eastBoundLongitude').text = east_bound
+        ET.SubElement(bounding_box, 'southBoundLatitude').text = south_bound
+        ET.SubElement(bounding_box, 'northBoundLatitude').text = north_bound
+        ET.SubElement(root, 'spatialResolution').text = spatial_resolution
+        service_identification = ET.SubElement(root, 'serviceIdentification')
+        ET.SubElement(service_identification, 'protocol').text = protocol
+        ET.SubElement(service_identification, 'wmsLink').text = wms_link
+        ET.SubElement(service_identification, 'layerName').text = layer_name
+        ET.SubElement(service_identification, 'layerDescription').text = layer_description
+
+        # Guardar XML
+        tree = ET.ElementTree(root)
+        xml_file = f"{file_identifier}.xml"
+        tree.write(xml_file)
+
+        print(f"Archivo XML generado: {xml_file}")
+        return xml_file
+
+    def upload_to_geoserver(**kwargs):
+        # Obtener el nombre del archivo generado de la tarea anterior
+        ti = kwargs['ti']
+        xml_file = ti.xcom_pull(task_ids='generate_xml')
+
+        # Credenciales
+        auth_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/"
+        credentials = {
+            "username": "angel",
+            "password": "111111"
+        }
+
+        # Obtener el token de autenticación
+        response = requests.post(auth_url, json=credentials)
+
+        if response.status_code == 200:
+            token = response.json().get('token')
+            print(f"Token obtenido: {token}")
+
+            # Subir el archivo XML
+            headers = {
+                "Authorization": f"Bearer {token}"
+            }
+            files = {'file': open(xml_file, 'rb')}
+            upload_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/"
+
+            upload_response = requests.post(upload_url, headers=headers, files=files)
+
+            if upload_response.status_code == 200:
+                print(f"Archivo {xml_file} subido correctamente a GeoServer")
+            else:
+                print(f"Error al subir el archivo: {upload_response.content}")
+        else:
+            print(f"Error de autenticación: {response.content}")
+            
+
+    # Definir tareas usando PythonOperator
+    task_generate_xml = PythonOperator(
+        task_id='generate_xml',
+        python_callable=generate_xml
+    )
+
+    task_upload_to_geoserver = PythonOperator(
+        task_id='upload_to_geoserver',
+        python_callable=upload_to_geoserver,
+        provide_context=True
+    )
+
+    # Definir el flujo de tareas
+    task_generate_xml >> task_upload_to_geoserver
