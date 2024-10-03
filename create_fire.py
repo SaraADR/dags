@@ -197,10 +197,17 @@ def insert_notification(id_mission, user):
 
             data_json = json.dumps({
                 "to": str(user),
-                "actions":[{
+                "actions":[
+                    {
                     "type":"loadMission",
-                    "data":{
+                        "data":{
                         "missionId":id_mission
+                        }
+                    },
+                    {
+                    "type": "notify",
+                    "data": {
+                    "message": "Misión de incendios creada con id {id_mission}"
                     }
                 }]
             }, ensure_ascii=False)
