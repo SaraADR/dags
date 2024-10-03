@@ -8,6 +8,8 @@ from airflow.hooks.base import BaseHook
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
+from airflow.models import Variable
+
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
@@ -96,7 +98,8 @@ def generate_and_upload_xml(**context):
 def upload_to_geonetwork(xml_content, **context):
     # Extraer la conexión desde Airflow
     connection = BaseHook.get_connection('geonetwork_connection')  # Asumiendo que la conexión ya está configurada
-    url = connection.host
+    url = f"{geonetwork_url}/records"  # Endpoint correcto para subir el XML
+
     headers = {
         'Content-Type': 'application/xml',
         'Authorization': f'Bearer {connection.password}'  # O cualquier otro método de autenticación
