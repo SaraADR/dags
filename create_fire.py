@@ -196,14 +196,15 @@ def insert_notification(id_mission, user):
             session = Session()
 
             data_json = json.dumps({
-                "to": user,
+                "to": str(user),
                 "actions":[{
                     "type":"loadMission",
                     "data":{
                         "missionId":id_mission
                     }
                 }]
-            })
+            }, ensure_ascii=False)
+
             time = datetime.now().replace(tzinfo=timezone.utc)
 
             query = text("""
