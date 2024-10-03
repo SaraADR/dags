@@ -112,18 +112,6 @@ def create_fire(input_data):
         auth = (conn.login, conn.password)
         url = f"{conn.host}/rest/FireService/save"
 
-
-        # # Convertir la fecha UTC a un objeto datetime con zona horaria UTC
-        # local_date_str =  input_data['fire']['start']
-        # formatted_date = local_date_str.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + local_date_str.strftime('%z')
-
-        # # Agregar el colon en el formato de la zona horaria para que sea más legible
-        # formatted_date = formatted_date[:-2] + ':' + formatted_date[-2:]
-        # print(formatted_date)
-        # input_data['fire']['start'] = formatted_date
-
-
-
         response = requests.post(url, json=input_data['fire'], auth=auth)
 
         if response.status_code == 200:

@@ -246,6 +246,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=1),
+
 }
 
 dag = DAG(
@@ -253,7 +254,9 @@ dag = DAG(
     default_args=default_args,
     description='Algoritmo dag_prueba_docker',
     schedule_interval=None,
-    catchup=False
+    catchup=False,
+    max_active_runs=1,
+    concurrency=1
 )
 
 # Manda correo
