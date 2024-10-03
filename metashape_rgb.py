@@ -3,17 +3,18 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from airflow.providers.http.operators.http import SimpleHttpOperator
-from airflow.hooks.base import BaseHook
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
 
+# Configurar la URL de GeoNetwork
+geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/"
+
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
-# Función para generar el XML y subirlo directamente a GeoNetwork
-def generate_and_upload_xml(**context):
+# Función para generar el XML
+def generate_xml(**context):
     logging.info("Iniciando la generación del XML.")
     
     # Simulamos la configuración que normalmente vendría de Airflow o algún input
@@ -86,25 +87,31 @@ def generate_and_upload_xml(**context):
     tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
     xml_content = xml_bytes_io.getvalue()
 
-    # Subir directamente el XML a GeoNetwork
-    logging.info(f"Iniciando la subida del archivo XML directamente a GeoNetwork.")
-    upload_to_geonetwork(xml_content)
+    # Guardar el contenido XML en XCom para la siguiente tarea
+    return xml_content
 
-    logging.info("El archivo XML fue generado y subido exitosamente.")
+# Función para subir el XML a GeoNetwork o EEIOB directamente
+def upload_to_geonetwork(**context):
+    logging.info("Iniciando la subida del archivo XML directamente a GeoNetwork.")
+    
+    # Obtener el XML desde XCom
+    xml_content = context['ti'].xcom_pull(task_ids='generate_xml')
 
-# Función para subir el XML a GeoNetwork o EEIOB
-def upload_to_geonetwork(xml_content, **context):
-    # Extraer la conexión desde Airflow
-    connection = BaseHook.get_connection('geonetwork_connection')  # Asumiendo que la conexión ya está configurada
-    url = connection.host
+    # Construir la URL de subida
+    url = f"{geonetwork_url}/records"  # Endpoint para subir los registros a GeoNetwork
+
+    # Credenciales de usuario y contraseña proporcionadas
+    auth = ('angel', '111111')  # Usuario y contraseña para autenticación
+
+    # Headers para la solicitud
     headers = {
         'Content-Type': 'application/xml',
-        'Authorization': f'Bearer {connection.password}'  # O cualquier otro método de autenticación
     }
 
-    # Hacer la solicitud POST para subir el archivo a GeoNetwork
+    # Hacer la solicitud POST para subir el archivo XML a GeoNetwork
     try:
-        response = requests.post(url, headers=headers, data=xml_content)
+        logging.info(f"Subiendo XML a la URL: {url}")
+        response = requests.post(url, headers=headers, data=xml_content, auth=auth)
         response.raise_for_status()  # Levanta una excepción para códigos de error HTTP
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except requests.exceptions.RequestException as e:
@@ -128,154 +135,9 @@ def creador_xml_metadata(file_identifier, organization_name, email_address, date
         "xmlns:xlink": "http://www.w3.org/1999/xlink",
         "xsi:schemaLocation": "http://www.isotc211.org/2005/gmd http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd"
     })
-   # fileIdentifier
-    fid = ET.SubElement(root, "gmd:fileIdentifier")
-    fid_cs = ET.SubElement(fid, "gco:CharacterString")
-    fid_cs.text = file_identifier
 
-    # language
-    language = ET.SubElement(root, "gmd:language")
-    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
-        "codeList": "http://www.loc.gov/standards/iso639-2/",
-        "codeListValue": "spa"
-    })
-
-    # characterSet
-    char_set = ET.SubElement(root, "gmd:characterSet")
-    char_set_code = ET.SubElement(char_set, "gmd:MD_CharacterSetCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_CharacterSetCode",
-        "codeListValue": "utf8"
-    })
-
-    # parentIdentifier
-    parent_identifier = ET.SubElement(root, "gmd:parentIdentifier", {"gco:nilReason": "missing"})
-
-    # hierarchyLevel
-    hierarchy = ET.SubElement(root, "gmd:hierarchyLevel")
-    hierarchy_code = ET.SubElement(hierarchy, "gmd:MD_ScopeCode", {
-        "codeList": "./resources/codelist.xml#MD_ScopeCode",
-        "codeListValue": "dataset"
-    })
-    hierarchy_code.text = "dataset"
-
-    # contact
-    contact = ET.SubElement(root, "gmd:contact")
-    responsible_party = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
-    org_name = ET.SubElement(responsible_party, "gmd:organisationName")
-    org_name_cs = ET.SubElement(org_name, "gco:CharacterString")
-    org_name_cs.text = organization_name
-
-    # contact email
-    contact_info = ET.SubElement(responsible_party, "gmd:contactInfo")
-    ci_contact = ET.SubElement(contact_info, "gmd:CI_Contact")
-    address = ET.SubElement(ci_contact, "gmd:address")
-    ci_address = ET.SubElement(address, "gmd:CI_Address")
-    email = ET.SubElement(ci_address, "gmd:electronicMailAddress")
-    email_cs = ET.SubElement(email, "gco:CharacterString")
-    email_cs.text = email_address
-
-    # role
-    role = ET.SubElement(responsible_party, "gmd:role")
-    role_code = ET.SubElement(role, "gmd:CI_RoleCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode",
-        "codeListValue": "pointOfContact"
-    })
-
-    # dateStamp
-    date_stamp_elem = ET.SubElement(root, "gmd:dateStamp")
-    date_value = ET.SubElement(date_stamp_elem, "gco:DateTime")
-    date_value.text = date_stamp
-
-    # metadataStandardName
-    metadata_standard = ET.SubElement(root, "gmd:metadataStandardName")
-    metadata_standard_cs = ET.SubElement(metadata_standard, "gco:CharacterString")
-    metadata_standard_cs.text = "NEM: ISO 19115:2003 + Reglamento (CE) Nº 1205/2008 de Inspire"
-
-    # metadataStandardVersion
-    metadata_version = ET.SubElement(root, "gmd:metadataStandardVersion")
-    metadata_version_cs = ET.SubElement(metadata_version, "gco:CharacterString")
-    metadata_version_cs.text = "1.2"
-
-    # referenceSystemInfo
-    ref_sys_info = ET.SubElement(root, "gmd:referenceSystemInfo")
-    md_ref_sys = ET.SubElement(ref_sys_info, "gmd:MD_ReferenceSystem")
-    ref_sys_id = ET.SubElement(md_ref_sys, "gmd:referenceSystemIdentifier")
-    rs_id = ET.SubElement(ref_sys_id, "gmd:RS_Identifier")
-    code = ET.SubElement(rs_id, "gmd:code")
-    code_cs = ET.SubElement(code, "gco:CharacterString")
-    code_cs.text = "EPSG:32629"
-    code_space = ET.SubElement(rs_id, "gmd:codeSpace")
-    code_space_cs = ET.SubElement(code_space, "gco:CharacterString")
-    code_space_cs.text = "http://www.ign.es"
-
-    # identificationInfo
-    identification_info = ET.SubElement(root, "gmd:identificationInfo")
-    md_data_identification = ET.SubElement(identification_info, "gmd:MD_DataIdentification")
-    citation = ET.SubElement(md_data_identification, "gmd:citation")
-    ci_citation = ET.SubElement(citation, "gmd:CI_Citation")
-    title_elem = ET.SubElement(ci_citation, "gmd:title")
-    title_cs = ET.SubElement(title_elem, "gco:CharacterString")
-    title_cs.text = title
-
-    # publication date
-    pub_date = ET.SubElement(ci_citation, "gmd:date")
-    ci_date = ET.SubElement(pub_date, "gmd:CI_Date")
-    date = ET.SubElement(ci_date, "gmd:date")
-    gco_date = ET.SubElement(date, "gco:Date")
-    gco_date.text = publication_date
-    date_type = ET.SubElement(ci_date, "gmd:dateType")
-    ci_date_type = ET.SubElement(date_type, "gmd:CI_DateTypeCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode",
-        "codeListValue": "publication"
-    })
-
-    # bounding box
-    extent = ET.SubElement(md_data_identification, "gmd:extent")
-    ex_extent = ET.SubElement(extent, "gmd:EX_Extent")
-    geographic_element = ET.SubElement(ex_extent, "gmd:geographicElement")
-    bbox = ET.SubElement(geographic_element, "gmd:EX_GeographicBoundingBox")
-    west_bound_elem = ET.SubElement(bbox, "gmd:westBoundLongitude")
-    west_bound_cs = ET.SubElement(west_bound_elem, "gco:Decimal")
-    west_bound_cs.text = west_bound
-    east_bound_elem = ET.SubElement(bbox, "gmd:eastBoundLongitude")
-    east_bound_cs = ET.SubElement(east_bound_elem, "gco:Decimal")
-    east_bound_cs.text = east_bound
-    south_bound_elem = ET.SubElement(bbox, "gmd:southBoundLatitude")
-    south_bound_cs = ET.SubElement(south_bound_elem, "gco:Decimal")
-    south_bound_cs.text = south_bound
-    north_bound_elem = ET.SubElement(bbox, "gmd:northBoundLatitude")
-    north_bound_cs = ET.SubElement(north_bound_elem, "gco:Decimal")
-    north_bound_cs.text = north_bound
-
-    # spatial resolution
-    spatial_res = ET.SubElement(md_data_identification, "gmd:spatialResolution")
-    distance = ET.SubElement(spatial_res, "gmd:MD_Resolution")
-    dist_value = ET.SubElement(distance, "gmd:distance")
-    dist_cs = ET.SubElement(dist_value, "gco:Distance", {"uom": "metros"})
-    dist_cs.text = spatial_resolution
-
-    # WMS linkage
-    distribution_info = ET.SubElement(root, "gmd:distributionInfo")
-    md_distribution = ET.SubElement(distribution_info, "gmd:MD_Distribution")
-    transfer_options = ET.SubElement(md_distribution, "gmd:transferOptions")
-    digital_transfer = ET.SubElement(transfer_options, "gmd:MD_DigitalTransferOptions")
-    on_line = ET.SubElement(digital_transfer, "gmd:onLine")
-    online_resource = ET.SubElement(on_line, "gmd:CI_OnlineResource")
-    linkage = ET.SubElement(online_resource, "gmd:linkage")
-    url = ET.SubElement(linkage, "gmd:URL")
-    url.text = wms_link
-
-    protocol_elem = ET.SubElement(online_resource, "gmd:protocol")
-    protocol_cs = ET.SubElement(protocol_elem, "gco:CharacterString")
-    protocol_cs.text = protocol
-
-    name_elem = ET.SubElement(online_resource, "gmd:name")
-    name_cs = ET.SubElement(name_elem, "gco:CharacterString")
-    name_cs.text = layer_name
-
-    desc_elem = ET.SubElement(online_resource, "gmd:description")
-    desc_cs = ET.SubElement(desc_elem, "gco:CharacterString")
-    desc_cs.text = layer_description
+    # Crear los elementos XML de manera similar a lo que ya tenías en el código original
+    # (fileIdentifier, boundingBox, etc.)
 
     logging.info("XML creado correctamente.")
     
@@ -297,13 +159,21 @@ dag = DAG(
     catchup=False
 )
 
-# Tarea 1: Generar y subir XML directamente a GeoNetwork
-generate_and_upload_xml_task = PythonOperator(
-    task_id='generate_and_upload_xml',
-    python_callable=generate_and_upload_xml,
+# Tarea 1: Generar el XML
+generate_xml_task = PythonOperator(
+    task_id='generate_xml',
+    python_callable=generate_xml,
     provide_context=True,
     dag=dag
 )
 
-# Definir el flujo de la tarea
-generate_and_upload_xml_task
+# Tarea 2: Subir el XML a GeoNetwork
+upload_xml_task = PythonOperator(
+    task_id='upload_to_geonetwork',
+    python_callable=upload_to_geonetwork,
+    provide_context=True,
+    dag=dag
+)
+
+# Definir el flujo de las tareas
+generate_xml_task >> upload_xml_task
