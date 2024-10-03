@@ -113,25 +113,14 @@ def create_fire(input_data):
         url = f"{conn.host}/rest/FireService/save"
 
 
-        # Convertir la fecha UTC a un objeto datetime con zona horaria UTC
-        local_date_str =  input_data['fire']['start']
-        # 1. Parsear la fecha que llega (ya está en hora local de Madrid)
-        date_obj_local = datetime.strptime(local_date_str, '%Y-%m-%dT%H:%M:%S')
+        # # Convertir la fecha UTC a un objeto datetime con zona horaria UTC
+        # local_date_str =  input_data['fire']['start']
+        # formatted_date = local_date_str.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + local_date_str.strftime('%z')
 
-        # 2. Asignar la zona horaria de Madrid (considera automáticamente el horario de verano)
-        madrid_tz = pytz.timezone('Europe/Madrid')
-        date_obj_local = madrid_tz.localize(date_obj_local)
-
-        # 3. Convertir a UTC
-        date_obj_utc = date_obj_local.astimezone(pytz.utc)
-
-        # 4. Formatear la fecha en el formato deseado
-        formatted_date = date_obj_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + date_obj_utc.strftime('%z')
-
-        # Agregar el colon en el formato de la zona horaria para que sea más legible
-        formatted_date = formatted_date[:-2] + ':' + formatted_date[-2:]
-        print(formatted_date)
-        input_data['fire']['start'] = formatted_date
+        # # Agregar el colon en el formato de la zona horaria para que sea más legible
+        # formatted_date = formatted_date[:-2] + ':' + formatted_date[-2:]
+        # print(formatted_date)
+        # input_data['fire']['start'] = formatted_date
 
 
 
