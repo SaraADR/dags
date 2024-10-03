@@ -1,3 +1,4 @@
+import base64
 import os
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -94,8 +95,11 @@ def generate_xml(**context):
 def upload_to_geonetwork(**context):
     logging.info("Iniciando la subida del archivo XML directamente a GeoNetwork.")
     
-    # Obtener el XML desde XCom
-    xml_content = context['ti'].xcom_pull(task_ids='generate_xml')
+     # Obtener el XML codificado desde XCom
+    xml_encoded = context['ti'].xcom_pull(task_ids='generate_xml')
+
+    # Decodificar el XML de base64 a bytes
+    xml_content = base64.b64decode(xml_encoded)
 
     # Construir la URL de subida
     url = f"{geonetwork_url}/records"  # Endpoint para subir los registros a GeoNetwork
