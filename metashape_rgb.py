@@ -7,12 +7,13 @@ from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.hooks.base import BaseHook
 import requests
 import logging
+import io  # Para manejar el archivo XML en memoria
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
-# Función para generar el XML
-def generate_xml(**context):
+# Función para generar el XML y subirlo directamente a GeoNetwork
+def generate_and_upload_xml(**context):
     logging.info("Iniciando la generación del XML.")
     
     # Simulamos la configuración que normalmente vendría de Airflow o algún input
@@ -21,7 +22,7 @@ def generate_xml(**context):
         'organizationName': 'Instituto geográfico nacional (IGN)',
         'email': 'ignis@organizacion.es',
         'dateStamp': datetime.now().isoformat(),
-        'title': 'Ortomosaico_0026_4740004_611',
+        'title': 'Ortomosaico_0026_4740004_611271',
         'publicationDate': '2024-07-29',
         'boundingBox': {
             'westBoundLongitude': '-7.6392',
@@ -55,14 +56,6 @@ def generate_xml(**context):
     layer_name = json_content['layerName']
     layer_description = json_content['layerDescription']
 
-    # Directorio fijo para guardar el XML
-    output_dir = "/tmp/airflow_output"
-    if not os.path.exists(output_dir):
-        logging.info(f"Creando el directorio de salida: {output_dir}")
-        os.makedirs(output_dir)
-
-    xml_file_path = os.path.join(output_dir, "archivo.xml")
-
     logging.info("Llamando a la función creador_xml_metadata.")
     tree = creador_xml_metadata(
         file_identifier=file_identifier,
@@ -86,18 +79,21 @@ def generate_xml(**context):
         logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
         raise Exception("Error: creador_xml_metadata retornó None.")
 
-    logging.info(f"Guardando el archivo XML en la ruta: {xml_file_path}")
-    tree.write(xml_file_path, encoding='utf-8', xml_declaration=True)
+    logging.info("El XML ha sido creado exitosamente en memoria.")
 
-    logging.info("XML generado exitosamente.")
-    
-    # Retornar la ruta del archivo generado para la siguiente tarea
-    return xml_file_path
+    # Convertir el árbol XML a una cadena de texto (en memoria)
+    xml_bytes_io = io.BytesIO()
+    tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
+    xml_content = xml_bytes_io.getvalue()
+
+    # Subir directamente el XML a GeoNetwork
+    logging.info(f"Iniciando la subida del archivo XML directamente a GeoNetwork.")
+    upload_to_geonetwork(xml_content)
+
+    logging.info("El archivo XML fue generado y subido exitosamente.")
 
 # Función para subir el XML a GeoNetwork o EEIOB
-def upload_to_geonetwork(xml_file_path, **context):
-    logging.info(f"Iniciando la subida del archivo XML: {xml_file_path}")
-    
+def upload_to_geonetwork(xml_content, **context):
     # Extraer la conexión desde Airflow
     connection = BaseHook.get_connection('geonetwork_connection')  # Asumiendo que la conexión ya está configurada
     url = connection.host
@@ -105,14 +101,6 @@ def upload_to_geonetwork(xml_file_path, **context):
         'Content-Type': 'application/xml',
         'Authorization': f'Bearer {connection.password}'  # O cualquier otro método de autenticación
     }
-
-    # Leer el contenido del archivo XML
-    try:
-        with open(xml_file_path, 'r') as file:
-            xml_content = file.read()
-    except Exception as e:
-        logging.error(f"Error al leer el archivo XML: {e}")
-        raise
 
     # Hacer la solicitud POST para subir el archivo a GeoNetwork
     try:
@@ -309,22 +297,13 @@ dag = DAG(
     catchup=False
 )
 
-# Tarea 1: Generar XML
-generate_xml_task = PythonOperator(
-    task_id='generate_xml',
-    python_callable=generate_xml,
+# Tarea 1: Generar y subir XML directamente a GeoNetwork
+generate_and_upload_xml_task = PythonOperator(
+    task_id='generate_and_upload_xml',
+    python_callable=generate_and_upload_xml,
     provide_context=True,
     dag=dag
 )
 
-# Tarea 2: Subir el archivo XML a GeoNetwork
-upload_xml_task = PythonOperator(
-    task_id='upload_to_geonetwork',
-    python_callable=upload_to_geonetwork,
-    provide_context=True,
-    op_kwargs={'xml_file_path': '{{ ti.xcom_pull(task_ids="generate_xml") }}'},
-    dag=dag
-)
-
-# Definir el flujo de las tareas
-generate_xml_task >> upload_xml_task
+# Definir el flujo de la tarea
+generate_and_upload_xml_task
