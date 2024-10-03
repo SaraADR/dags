@@ -207,7 +207,7 @@ def insert_notification(id_mission, user):
                     {
                     "type": "notify",
                     "data": {
-                    "message": "Misión de incendios creada con id {id_mission}"
+                    "message": "Misión de incendios creada con id " + {id_mission}
                     }
                 }]
             }, ensure_ascii=False)
