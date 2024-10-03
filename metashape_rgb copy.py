@@ -143,29 +143,29 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
-dag = DAG(
-    'metashape_rgb',
-    default_args=default_args,
-    description='Flujo de datos de entrada de elementos de metashape_rgb',
-    schedule_interval=None,
-    catchup=False,
-)
+# dag = DAG(
+#     'metashape_rgb',
+#     default_args=default_args,
+#     description='Flujo de datos de entrada de elementos de metashape_rgb',
+#     schedule_interval=None,
+#     catchup=False,
+# )
 
-# Primera tarea: procesar los archivos
-process_extracted_files_task = PythonOperator(
-    task_id='process_extracted_files_task',
-    python_callable=process_extracted_files,
-    provide_context=True,
-    dag=dag,
-)
+# # Primera tarea: procesar los archivos
+# process_extracted_files_task = PythonOperator(
+#     task_id='process_extracted_files_task',
+#     python_callable=process_extracted_files,
+#     provide_context=True,
+#     dag=dag,
+# )
 
-# Segunda tarea: subir los archivos a GeoServer
-upload_files_to_geoserver_task = PythonOperator(
-    task_id='upload_files_to_geoserver_task',
-    python_callable=upload_files_to_geoserver,
-    provide_context=True,
-    dag=dag,
-)
+# # Segunda tarea: subir los archivos a GeoServer
+# upload_files_to_geoserver_task = PythonOperator(
+#     task_id='upload_files_to_geoserver_task',
+#     python_callable=upload_files_to_geoserver,
+#     provide_context=True,
+#     dag=dag,
+# )
 
-# Definir la secuencia de las tareas
-process_extracted_files_task >> upload_files_to_geoserver_task
+# # Definir la secuencia de las tareas
+# process_extracted_files_task >> upload_files_to_geoserver_task
