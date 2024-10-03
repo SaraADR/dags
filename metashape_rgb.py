@@ -21,7 +21,7 @@ def generate_xml(**context):
         'organizationName': 'Instituto geográfico nacional (IGN)',
         'email': 'ignis@organizacion.es',
         'dateStamp': datetime.now().isoformat(),
-        'title': 'Ortomosaico_0026_4740004_611271',
+        'title': 'Ortomosaico_0026_4740004_611',
         'publicationDate': '2024-07-29',
         'boundingBox': {
             'westBoundLongitude': '-7.6392',
