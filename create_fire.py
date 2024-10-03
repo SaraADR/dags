@@ -8,7 +8,8 @@ from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 import pytz
-
+from datetime import datetime, timedelta, timezone
+from sqlalchemy import create_engine, text
 
 # Función para imprimir un mensaje desde la configuración del DAG
 def print_message(**context):
@@ -87,6 +88,10 @@ def create_mission(**context):
         session.execute(update_stmt)
         session.commit()
         print(f"Job ID {job_id} status updated to FINISHED")
+
+        if input_data.get('loadMission', False) is True:
+            user = message['message']['from_user']
+            insert_notification(mission_id, user)
 
     except Exception as e:
         session.rollback()
@@ -177,6 +182,56 @@ def geojson_to_wkt(geojson):
 
     return f"POINT ({x} {y} {z})"
 
+
+
+def insert_notification(id_mission, user):
+
+    if id_mission is not None:
+        #Añadimos notificacion
+        try:
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
+
+            data_json = json.dumps({
+                "to": user,
+                "actions":[{
+                    "type":"loadMission",
+                    "data":{
+                        "missionId":id_mission
+                    }
+                }]
+            })
+            time = datetime.now().replace(tzinfo=timezone.utc)
+
+            query = text("""
+                INSERT INTO public.notifications
+                (destination, "data", "date", status)
+                VALUES (:destination, :data, :date, NULL);
+            """)
+            session.execute(query, {
+                'destination': 'ignis',
+                'data': data_json,
+                'date': time
+            })
+            session.commit()
+
+        except Exception as e:
+            session.rollback()
+            print(f"Error durante la inserción de la notificación: {str(e)}")
+        finally:
+            session.close()
+
+
+
+
+
+
+
+
+
 # Configuración por defecto para el DAG
 default_args = {
     'owner': 'sadr',
@@ -212,6 +267,13 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
+notification_action_task = PythonOperator(
+    task_id='create_mission',
+    python_callable=notification_action,
+    provide_context=True,
+    dag=dag,
+)
+
 
 # Modifica la secuencia de tareas
-print_message_task >> create_mission_task 
+print_message_task >> create_mission_task >> notification_action_task
