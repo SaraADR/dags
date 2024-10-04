@@ -103,17 +103,25 @@ credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
 # Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
     try:
+
+        credential_dody = {
+            "username" : "angel",
+            "password" : "111111"
+        }
+
         # Hacer la solicitud para obtener las credenciales
         logging.info(f"Obteniendo credenciales de: {credentials_url}")
-        response = requests.get(credentials_url)
+        response = requests.post(credentials_url,json= credential_dody)
 
         # Verificar que la respuesta sea exitosa
         response.raise_for_status()
 
         # Extraer los headers y tokens necesarios
-        access_token = response.json().get('accessToken')
-        xsrf_token = response.cookies.get('XSRF-TOKEN')
-        set_cookie_header = response.headers.get('Set-Cookie')
+        response_object = response.json()
+        access_token = response_object['accessToken']
+        xsrf_token = response_object['xsrfToken']
+        set_cookie_header = response_object['setCookieHeader']
+        
 
         logging.info(f"Credenciales obtenidas: accessToken={access_token}, XSRF-TOKEN={xsrf_token}")
 
