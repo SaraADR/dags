@@ -107,23 +107,36 @@ def upload_to_geonetwork(**context):
     xml_content = base64.b64decode(xml_encoded)
 
     # Construct the URL for the GeoNetwork API
-    url = f"{geonetwork_url}"
+    url = f"{geonetwork_url}/records"  # Adjust as needed for the specific endpoint
 
     # User credentials
-    auth = ('angel', '111111')
+    auth = ('angel', '111111')  # Replace with correct user credentials
 
     # Headers for the POST request
     headers = {
-        'Content-Type': 'application/xml',
+        'Content-Type': 'application/xml',  # Content type is set to XML
     }
 
     # Try to upload the XML to GeoNetwork
     try:
         logging.info(f"Subiendo XML a la URL: {url}")
-        response = requests.post(url, headers=headers, data=xml_content, auth=auth)
-        response.raise_for_status()  # Raise an error for HTTP codes that indicate an error
+
+        # Making the POST request to GeoNetwork, similar to how it's done in Postman
+        response = requests.post(
+            url,
+            headers=headers,
+            data=xml_content,  # The raw XML content as the request body
+            auth=auth  # Basic authentication with username and password
+        )
+
+        # Check for HTTP errors
+        response.raise_for_status()
+
+        # Log the success message and the server's response
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
+
     except requests.exceptions.RequestException as e:
+        # Log the error and raise an exception if the upload fails
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
