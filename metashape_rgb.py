@@ -9,13 +9,12 @@ import logging
 import io  # Para manejar el archivo XML en memoria
 
 # Configurar la URL de GeoNetwork
-geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/"
+geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
-import base64
-
+# Función para generar el XML
 def generate_xml(**context):
     logging.info("Iniciando la generación del XML.")
     
@@ -42,23 +41,40 @@ def generate_xml(**context):
 
     logging.info(f"Contenido JSON cargado: {json_content}")
 
-    # Generar el árbol XML
+    # Parámetros XML
+    file_identifier = json_content['fileIdentifier']
+    organization_name = json_content['organizationName']
+    email_address = json_content['email']
+    date_stamp = json_content['dateStamp']
+    title = json_content['title']
+    publication_date = json_content['publicationDate']
+    west_bound = json_content['boundingBox']['westBoundLongitude']
+    east_bound = json_content['boundingBox']['eastBoundLongitude']
+    south_bound = json_content['boundingBox']['southBoundLatitude']
+    north_bound = json_content['boundingBox']['northBoundLatitude']
+    spatial_resolution = json_content['spatialResolution']
+    protocol = json_content['protocol']
+    wms_link = json_content['wmsLink']
+    layer_name = json_content['layerName']
+    layer_description = json_content['layerDescription']
+
+    logging.info("Llamando a la función creador_xml_metadata.")
     tree = creador_xml_metadata(
-        file_identifier=json_content['fileIdentifier'],
-        organization_name=json_content['organizationName'],
-        email_address=json_content['email'],
-        date_stamp=json_content['dateStamp'],
-        title=json_content['title'],
-        publication_date=json_content['publicationDate'],
-        west_bound=json_content['boundingBox']['westBoundLongitude'],
-        east_bound=json_content['boundingBox']['eastBoundLongitude'],
-        south_bound=json_content['boundingBox']['southBoundLatitude'],
-        north_bound=json_content['boundingBox']['northBoundLatitude'],
-        spatial_resolution=json_content['spatialResolution'],
-        protocol=json_content['protocol'],
-        wms_link=json_content['wmsLink'],
-        layer_name=json_content['layerName'],
-        layer_description=json_content['layerDescription']
+        file_identifier=file_identifier,
+        organization_name=organization_name,
+        email_address=email_address,
+        date_stamp=date_stamp,
+        title=title,
+        publication_date=publication_date,
+        west_bound=west_bound,
+        east_bound=east_bound,
+        south_bound=south_bound,
+        north_bound=north_bound,
+        spatial_resolution=spatial_resolution,
+        protocol=protocol,
+        wms_link=wms_link,
+        layer_name=layer_name,
+        layer_description=layer_description
     )
 
     if tree is None:
@@ -72,12 +88,8 @@ def generate_xml(**context):
     tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
     xml_content = xml_bytes_io.getvalue()
 
-    # Codificar el contenido XML a base64 para que sea serializable por JSON
-    xml_base64 = base64.b64encode(xml_content).decode('utf-8')
-
     # Guardar el contenido XML en XCom para la siguiente tarea
-    return xml_base64
-
+    return xml_content
 
 # Función para subir el XML a GeoNetwork o EEIOB directamente
 def upload_to_geonetwork(**context):
