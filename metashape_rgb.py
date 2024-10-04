@@ -125,7 +125,8 @@ def get_geonetwork_credentials():
 
         logging.info(f"Credenciales obtenidas: accessToken={access_token}, XSRF-TOKEN={xsrf_token}")
 
-        return access_token, xsrf_token, set_cookie_header
+        return [access_token, xsrf_token, set_cookie_header]
+    
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al obtener credenciales: {e}")
         raise Exception(f"Error al obtener credenciales: {e}")
@@ -147,8 +148,8 @@ def upload_to_geonetwork(**context):
         headers = {
             'Content-Type': 'application/xml',
             'Authorization': f"Bearer {access_token}",  # Token de autenticación
-            'X-XSRF-TOKEN': xsrf_token,                # Token XSRF
-            'Cookie': set_cookie_header                # Encabezado de la cookie
+            'X-XSRF-TOKEN': str(xsrf_token),                # Token XSRF
+            'Cookie': str(set_cookie_header)                # Encabezado de la cookie
         }
 
         # Realizar la solicitud POST para subir el archivo XML
