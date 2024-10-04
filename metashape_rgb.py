@@ -96,49 +96,63 @@ def generate_xml(**context):
     # Store the base64 encoded XML content in XCom
     return xml_encoded
 
-# Función para subir el XML a GeoNetwork o EEIOB directamente
-def upload_to_geonetwork(**context):
-    logging.info("Iniciando la subida del archivo XML directamente a GeoNetwork.")
-    
-    # Get the base64 encoded XML from XCom
-    xml_encoded = context['ti'].xcom_pull(task_ids='generate_xml')
+import requests
+import logging
 
-    # Base64 decode the XML content to get back the original bytes
-    xml_content = base64.b64decode(xml_encoded)
+# URL para obtener las credenciales
+credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
 
-    # Construct the URL for the GeoNetwork API
-    url = f"{geonetwork_url}/records"  # Adjust as needed for the specific endpoint
-
-    # User credentials
-    auth = ('angel', '111111')  # Replace with correct user credentials
-
-    # Headers for the POST request
-    headers = {
-        'Content-Type': 'application/xml',  # Content type is set to XML
-    }
-
-    # Try to upload the XML to GeoNetwork
+def get_geonetwork_credentials():
     try:
-        logging.info(f"Subiendo XML a la URL: {url}")
+        # Hacer la solicitud para obtener las credenciales
+        logging.info(f"Obteniendo credenciales de: {credentials_url}")
+        response = requests.get(credentials_url)
 
-        # Making the POST request to GeoNetwork, similar to how it's done in Postman
-        response = requests.post(
-            url,
-            headers=headers,
-            data=xml_content,  # The raw XML content as the request body
-            auth=auth  # Basic authentication with username and password
-        )
-
-        # Check for HTTP errors
+        # Verificar que la respuesta sea exitosa
         response.raise_for_status()
 
-        # Log the success message and the server's response
-        logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
+        # Extraer los headers y tokens necesarios
+        access_token = response.json().get('accessToken')
+        xsrf_token = response.cookies.get('XSRF-TOKEN')
+        set_cookie_header = response.headers.get('Set-Cookie')
 
+        logging.info(f"Credenciales obtenidas: accessToken={access_token}, XSRF-TOKEN={xsrf_token}")
+
+        return access_token, xsrf_token, set_cookie_header
     except requests.exceptions.RequestException as e:
-        # Log the error and raise an exception if the upload fails
+        logging.error(f"Error al obtener credenciales: {e}")
+        raise Exception(f"Error al obtener credenciales: {e}")
+
+def upload_to_geonetwork_with_tokens(xml_content):
+    try:
+        # Obtener los tokens de autenticación
+        access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
+
+        # URL de GeoNetwork para subir el archivo XML
+        geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records"
+
+        # Encabezados que incluyen los tokens
+        headers = {
+            'Content-Type': 'application/xml',
+            'Authorization': f"Bearer {access_token}",  # Token de autenticación
+            'X-XSRF-TOKEN': xsrf_token,                # Token XSRF
+            'Cookie': set_cookie_header                # Encabezado de la cookie
+        }
+
+        # Realizar la solicitud POST para subir el archivo XML
+        logging.info(f"Subiendo XML a la URL: {geonetwork_url}")
+        response = requests.post(geonetwork_url, headers=headers, data=xml_content)
+
+        # Verificar si hubo algún error en la solicitud
+        response.raise_for_status()
+
+        logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
+    except requests.exceptions.RequestException as e:
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
+
+# Llamar la función upload con el contenido XML
+# upload_to_geonetwork_with_tokens(xml_content)
 
 def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
