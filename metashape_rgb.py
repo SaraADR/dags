@@ -26,18 +26,18 @@ def generate_xml(**context):
         'email': 'ignis@organizacion.es',
         'dateStamp': datetime.now().isoformat(),
         'title': 'Ortomosaico_0026_404_611271',
-        # 'publicationDate': '2024-07-29',
-        # 'boundingBox': {
-        #     'westBoundLongitude': '-7.6392',
-        #     'eastBoundLongitude': '-7.6336',
-        #     'southBoundLatitude': '42.8025',
-        #     'northBoundLatitude': '42.8044'
-        # },
-        # 'spatialResolution': '0.026',  # Resolución espacial en metros
-        # 'protocol': 'OGC:WMS-1.3.0-http-get-map',
-        # 'wmsLink': 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms',
-        # 'layerName': 'a__0026_4740004_611271',
-        # 'layerDescription': 'Capa 0026 de prueba'
+        'publicationDate': '2024-07-29',
+        'boundingBox': {
+            'westBoundLongitude': '-7.6392',
+            'eastBoundLongitude': '-7.6336',
+            'southBoundLatitude': '42.8025',
+            'northBoundLatitude': '42.8044'
+        },
+        'spatialResolution': '0.026',  # Resolución espacial en metros
+        'protocol': 'OGC:WMS-1.3.0-http-get-map',
+        'wmsLink': 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms',
+        'layerName': 'a__0026_4740004_611271',
+        'layerDescription': 'Capa 0026 de prueba'
     }
 
     logging.info(f"Contenido JSON cargado: {json_content}")
