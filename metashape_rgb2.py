@@ -84,15 +84,21 @@ def generate_xml(algorithm_result, **context):
     # Regresar la cadena XML generada
     return xml_data
 
-# Función para realizar el POST request a GeoNetwork
-def post_to_geonetwork(xml_data, **context):
+# Función para realizar el POST request a GeoNetwork con autenticación
+def post_to_geonetwork(xml_data, username, password, **context):
     logging.info("Iniciando POST request a GeoNetwork.")
 
     headers = {
         'Content-Type': 'application/xml'
     }
 
-    response = requests.post(geonetwork_url, data=xml_data, headers=headers)
+    # Haciendo la solicitud POST con autenticación
+    response = requests.post(
+        geonetwork_url, 
+        data=xml_data, 
+        headers=headers, 
+        auth=(username, password)
+    )
 
     if response.status_code == 201:
         logging.info("Archivo subido correctamente a GeoNetwork.")
@@ -142,7 +148,11 @@ with DAG(dag_id='metashape_rgb',
     post_to_geonetwork_task = PythonOperator(
         task_id='post_to_geonetwork_task',
         python_callable=post_to_geonetwork,
-        op_kwargs={'xml_data': "{{ task_instance.xcom_pull(task_ids='generate_xml_task') }}"}
+        op_kwargs={
+            'xml_data': "{{ task_instance.xcom_pull(task_ids='generate_xml_task') }}",
+            'username': 'your_username_here',  # Reemplazar con el usuario
+            'password': 'your_password_here'   # Reemplazar con la contraseña
+        }
     )
 
     generate_xml_task >> post_to_geonetwork_task
