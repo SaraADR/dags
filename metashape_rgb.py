@@ -107,7 +107,7 @@ def upload_to_geonetwork(**context):
     xml_content = base64.b64decode(xml_encoded)
 
     # Construct the URL for the GeoNetwork API
-    url = f"{geonetwork_url}/records"
+    url = f"{geonetwork_url}"
 
     # User credentials
     auth = ('angel', '111111')
