@@ -132,6 +132,7 @@ def get_geonetwork_credentials():
         raise Exception(f"Error al obtener credenciales: {e}")
 
 # Función para subir el XML utilizando las credenciales obtenidas
+# Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
     try:
         # Obtener los tokens de autenticación
@@ -148,9 +149,7 @@ def upload_to_geonetwork(**context):
             'file': ('nombre_archivo.xml', base64.b64decode(xml_encoded))
         }
 
-        response = requests.post(upload_url, headers=headers, files=files)
-
-        # URL de GeoNetwork para subir el archivo XML
+        # URL de GeoNetwork para subir el archivo XML (Move this line up)
         upload_url = f"{geonetwork_url}/records"
 
         # Encabezados que incluyen los tokens
@@ -163,7 +162,7 @@ def upload_to_geonetwork(**context):
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
-        response = requests.post(upload_url, headers=headers,files=files)
+        response = requests.post(upload_url, headers=headers, files=files)
 
         # Verificar si hubo algún error en la solicitud
         response.raise_for_status()
@@ -172,6 +171,7 @@ def upload_to_geonetwork(**context):
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
+
 
 # Función para crear el XML metadata
 def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
