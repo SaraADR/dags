@@ -100,42 +100,55 @@ def generate_xml(**context):
 # URL para obtener las credenciales
 credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
 
-# Función para obtener las credenciales de GeoNetwork
+from airflow.hooks.base import BaseHook
+import logging
+import base64
+import requests
+
+# Función para obtener las credenciales de GeoNetwork desde Airflow
 def get_geonetwork_credentials():
     try:
+        # Obtener la conexión desde Airflow
+        connection = BaseHook.get_connection('geonetwork_connection')  # Cambia 'geonetwork_connection_id' por el ID de tu conexión en Airflow
 
-        credential_dody = {
-            "username" : "angel",
-            "password" : "111111"
+        # URL de autenticación de GeoNetwork (puede estar almacenada en 'host' o en 'extra' de la conexión)
+        credentials_url = f"{connection.host}/api/authenticate"
+
+        # Obtener el nombre de usuario y contraseña desde la conexión
+        username = connection.login
+        password = connection.password
+
+        # Crear el cuerpo de la solicitud con las credenciales
+        credential_body = {
+            "username": username,
+            "password": password
         }
 
         # Hacer la solicitud para obtener las credenciales
         logging.info(f"Obteniendo credenciales de: {credentials_url}")
-        response = requests.post(credentials_url,json= credential_dody)
+        response = requests.post(credentials_url, json=credential_body)
 
         # Verificar que la respuesta sea exitosa
         response.raise_for_status()
 
-        # Extraer los headers y tokens necesarios
+        # Extraer los tokens necesarios desde la respuesta
         response_object = response.json()
         access_token = response_object['accessToken']
         xsrf_token = response_object['xsrfToken']
         set_cookie_header = response_object['setCookieHeader']
-        
 
         logging.info(f"Credenciales obtenidas: accessToken={access_token}, XSRF-TOKEN={xsrf_token}")
 
         return [access_token, xsrf_token, set_cookie_header]
-    
+
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al obtener credenciales: {e}")
         raise Exception(f"Error al obtener credenciales: {e}")
 
 # Función para subir el XML utilizando las credenciales obtenidas
-# Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
     try:
-        # Obtener los tokens de autenticación
+        # Obtener los tokens de autenticación desde la función anterior
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
         # Obtener el XML base64 desde XCom
@@ -149,7 +162,9 @@ def upload_to_geonetwork(**context):
             'file': ('nombre_archivo.xml', base64.b64decode(xml_encoded))
         }
 
-        # URL de GeoNetwork para subir el archivo XML (Move this line up)
+        # Obtener la URL de GeoNetwork para subir el archivo desde la conexión
+        connection = BaseHook.get_connection('geonetwork_connection_id')
+        geonetwork_url = connection.host
         upload_url = f"{geonetwork_url}/records"
 
         # Encabezados que incluyen los tokens
@@ -157,7 +172,7 @@ def upload_to_geonetwork(**context):
             'Content-Type': 'multipart/form-data',
             'Authorization': f"Bearer {access_token}",  # Token de autenticación
             'x-xsrf-token': str(xsrf_token),                # Token XSRF
-            'Cookie': str(set_cookie_header[0])                # Encabezado de la cookie
+            'Cookie': str(set_cookie_header[0])             # Encabezado de la cookie
         }
 
         # Realizar la solicitud POST para subir el archivo XML
