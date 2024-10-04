@@ -139,22 +139,33 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_encoded = context['ti'].xcom_pull(task_ids='generate_xml')
-        xml_content = base64.b64decode(xml_encoded)
+        xml_content = {
+            "metadataType": "METADATA",
+            "uuidProcessing": "NOTHING",
+            "transformWith": "_none_",
+            "group": "2",
+            "category": None
+
+        }
+        
+        files = {
+            'file': ('nombre_archivo.xml', base64.b64decode(xml_encoded))
+        }
 
         # URL de GeoNetwork para subir el archivo XML
         upload_url = f"{geonetwork_url}/records"
 
         # Encabezados que incluyen los tokens
         headers = {
-            'Content-Type': 'application/xml',
+            'Content-Type': 'multipart/form-data',
             'Authorization': f"Bearer {access_token}",  # Token de autenticación
-            'X-XSRF-TOKEN': str(xsrf_token),                # Token XSRF
-            'Cookie': str(set_cookie_header)                # Encabezado de la cookie
+            'x-xsrf-token': str(xsrf_token),                # Token XSRF
+            'Cookie': str(set_cookie_header[0])                # Encabezado de la cookie
         }
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
-        response = requests.post(upload_url, headers=headers, data=xml_content)
+        response = requests.post(upload_url, headers=headers, data=xml_content, files=files)
 
         # Verificar si hubo algún error en la solicitud
         response.raise_for_status()
