@@ -33,8 +33,6 @@ def create_mission(**context):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-
-
         # Iniciando una transacción
         with session.begin():
             values_to_insert = {
