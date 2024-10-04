@@ -8,17 +8,17 @@ import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
 
+
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
-# Función para generar el XML
 def generate_xml(**context):
     logging.info("Iniciando la generación del XML.")
     
-    # Simulamos la configuración que normalmente vendría de Airflow o algún input
+    # JSON content as before
     json_content = {
         'fileIdentifier': 'Ortomosaico_testeo',
         'organizationName': 'Instituto geográfico nacional (IGN)',
@@ -41,7 +41,7 @@ def generate_xml(**context):
 
     logging.info(f"Contenido JSON cargado: {json_content}")
 
-    # Parámetros XML
+    # Extract XML parameters (as before)
     file_identifier = json_content['fileIdentifier']
     organization_name = json_content['organizationName']
     email_address = json_content['email']
@@ -59,6 +59,8 @@ def generate_xml(**context):
     layer_description = json_content['layerDescription']
 
     logging.info("Llamando a la función creador_xml_metadata.")
+    
+    # Generate XML tree
     tree = creador_xml_metadata(
         file_identifier=file_identifier,
         organization_name=organization_name,
@@ -83,40 +85,43 @@ def generate_xml(**context):
 
     logging.info("El XML ha sido creado exitosamente en memoria.")
 
-    # Convertir el árbol XML a una cadena de texto (en memoria)
+    # Convert the XML tree to bytes
     xml_bytes_io = io.BytesIO()
     tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
     xml_content = xml_bytes_io.getvalue()
 
-    # Guardar el contenido XML en XCom para la siguiente tarea
-    return xml_content
+    # Base64 encode the XML bytes
+    xml_encoded = base64.b64encode(xml_content).decode('utf-8')
+
+    # Store the base64 encoded XML content in XCom
+    return xml_encoded
 
 # Función para subir el XML a GeoNetwork o EEIOB directamente
 def upload_to_geonetwork(**context):
     logging.info("Iniciando la subida del archivo XML directamente a GeoNetwork.")
     
-     # Obtener el XML codificado desde XCom
+    # Get the base64 encoded XML from XCom
     xml_encoded = context['ti'].xcom_pull(task_ids='generate_xml')
 
-    # Decodificar el XML de base64 a bytes
+    # Base64 decode the XML content to get back the original bytes
     xml_content = base64.b64decode(xml_encoded)
 
-    # Construir la URL de subida
-    url = f"{geonetwork_url}/records"  # Endpoint para subir los registros a GeoNetwork
+    # Construct the URL for the GeoNetwork API
+    url = f"{geonetwork_url}/records"
 
-    # Credenciales de usuario y contraseña proporcionadas
-    auth = ('angel', '111111')  # Usuario y contraseña para autenticación
+    # User credentials
+    auth = ('angel', '111111')
 
-    # Headers para la solicitud
+    # Headers for the POST request
     headers = {
         'Content-Type': 'application/xml',
     }
 
-    # Hacer la solicitud POST para subir el archivo XML a GeoNetwork
+    # Try to upload the XML to GeoNetwork
     try:
         logging.info(f"Subiendo XML a la URL: {url}")
         response = requests.post(url, headers=headers, data=xml_content, auth=auth)
-        response.raise_for_status()  # Levanta una excepción para códigos de error HTTP
+        response.raise_for_status()  # Raise an error for HTTP codes that indicate an error
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
