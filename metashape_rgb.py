@@ -92,7 +92,7 @@ def generate_xml(**context):
     xml_content = xml_bytes_io.getvalue()
 
     # Base64 encode the XML bytes
-    xml_encoded = base64.b64encode(xml_content).decode('utf-8')
+    xml_encoded = base64.b64encode(xml_content)
 
     # Store the base64 encoded XML content in XCom
     return xml_encoded
@@ -140,15 +140,12 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
-        xml_decoded = base64.b64decode(xml_data)
-        file_obj = io.BytesIO(xml_decoded)
+        xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
-        xml_string = xml_decoded.decode('utf-8')
 
-        xml_string = xml_string.replace('\\', '')
+        # xml_string = xml_string.replace('\\', '')
 
         logging.info(f"XML DATA: {xml_data}")
-        logging.info(f"XML file_obj: {file_obj}")
         logging.info(xml_decoded)
 
 
@@ -158,7 +155,7 @@ def upload_to_geonetwork(**context):
             'transformWith': (None, 'none'),
             'group': (None, 2),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', xml_string, 'text/xml')
+            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml')
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
