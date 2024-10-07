@@ -79,7 +79,7 @@ def process_heatmap_data(**context):
 
 
             print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de voluemnes")
-            stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3//Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/launch && docker-compose down --volumes')
+            stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/launch && docker-compose down --volumes')
             
             output = stdout.read().decode()
             error_output = stderr.read().decode()
@@ -89,7 +89,7 @@ def process_heatmap_data(**context):
 
 
 
-            remote_directory = '/home/admin3/Autopymaps/share_data/input'
+            remote_directory = '/home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/input'
             remote_file_name =  str(task_type) + '_' + str(message['message']['id'])
             remote_file_path = os.path.join(remote_directory, remote_file_name)
 
