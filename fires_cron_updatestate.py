@@ -90,7 +90,7 @@ dag = DAG(
 )
 
 lookAtEinforexBd_task = PythonOperator(
-    task_id='update_video_status',
+    task_id='lookAtEinforexBd_task',
     python_callable=lookAtEinforexBd,
     provide_context=True,
     dag=dag,
