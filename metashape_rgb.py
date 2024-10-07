@@ -145,8 +145,7 @@ def upload_to_geonetwork(**context):
 
         logging.info(f"XML DATA: {xml_data}")
         logging.info(f"XML file_obj: {file_obj}")
-        logging.info(f"XML xml_decoded: {xml_decoded}")
-
+        logging.info(xml_decoded)
 
 
         files = {
