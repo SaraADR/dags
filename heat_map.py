@@ -261,6 +261,8 @@ def change_state_job(**context):
         session.rollback()
         print(f"Error durante el guardado del estado del job: {str(e)}")
 
+
+
 # def cambiar_proyeccion_tiff(input_tiff, output_tiff):
 #     # Abrir el archivo TIFF
 #     dataset = gdal.Open(input_tiff, gdal.GA_Update)
@@ -315,10 +317,10 @@ def create_json(params):
         "url4": params.get("url4", None),
         "user": params.get("user", "ITMATI.DES"),
         "password": params.get("password", "Cui_1234"),
-        "minlat": params.get("minlat", None),
-        "maxlat": params.get("maxlat", None),
-        "minlon": params.get("minlon", None),
-        "maxlon": params.get("maxlon", None),
+        "minlat": params.get("minlat", 36.8357),
+        "maxlat": params.get("maxlat", 36.7553),
+        "minlon": params.get("minlon", -3.6328),
+        "maxlon": params.get("maxlon", -3.7864),
         "comunidadAutonomaId": params.get("comunidadAutonomaId", None),
         "lowSearchDate": params.get("lowSearchDate", None),
         "highSearchDate": params.get("highSearchDate", None),
