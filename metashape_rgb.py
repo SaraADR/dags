@@ -143,6 +143,10 @@ def upload_to_geonetwork(**context):
         xml_decoded = base64.b64decode(xml_data)
         file_obj = io.BytesIO(xml_decoded)
 
+        xml_string = xml_decoded.decode('utf-8')
+
+        xml_string = xml_string.replace('\\', '')
+
         logging.info(f"XML DATA: {xml_data}")
         logging.info(f"XML file_obj: {file_obj}")
         logging.info(xml_decoded)
@@ -154,7 +158,7 @@ def upload_to_geonetwork(**context):
             'transformWith': (None, 'none'),
             'group': (None, 2),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', xml_data, 'text/xml')
+            'file': ('nombre_archivo.xml', xml_string, 'text/xml')
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
@@ -351,8 +355,7 @@ def creador_xml_metadata(file_identifier, organization_name, email_address, date
 
     logging.info("XML creado correctamente.")
     
-    xml_str = ET.tostring(root, encoding='utf-8', xml_declaration=True)
-    return xml_str
+    return ET.ElementTree(root)  
 
 # Definición del DAG
 default_args = {
