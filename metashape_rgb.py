@@ -180,7 +180,6 @@ def upload_to_geonetwork(**context):
 
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except requests.exceptions.RequestException as e:
-        logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
