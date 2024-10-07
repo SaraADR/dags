@@ -140,17 +140,22 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
-        logging.info(f"XML DATA: {xml_data}")
+        xml_decoded = base64.b64decode(xml_data)
+        file_obj = io.BytesIO(xml_decoded)
 
-        
+        logging.info(f"XML DATA: {xml_data}")
+        logging.info(f"XML file_obj: {file_obj}")
+        logging.info(f"XML xml_decoded: {xml_decoded}")
+
+
+
         files = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
             'transformWith': (None, 'none'),
             'group': (None, 2),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', xml_data, 'text/xml'),
-
+            'file': ('nombre_archivo.xml', file_obj, 'text/xml')
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
