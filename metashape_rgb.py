@@ -93,6 +93,7 @@ def generate_xml(**context):
 
     # Base64 encode the XML bytes
     xml_encoded = base64.b64encode(xml_content)
+    logging.info ("Xml enconded", xml_encoded)
 
     # Store the base64 encoded XML content in XCom
     return xml_encoded
@@ -140,6 +141,7 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
+        logging.info("XML DATA", xml_data)
         xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
 
