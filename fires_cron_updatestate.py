@@ -20,7 +20,7 @@ def lookAtEinforexBd():
         query = text("""
             SELECT f.id, f.end, f.lastupdate, f.name
             FROM einforex_fleet.fire f
-            WHERE f.lastupdate >= NOW() - INTERVAL '4 day'
+            WHERE f.lastupdate >= NOW() - INTERVAL '1 day'
             ORDER BY f.id DESC;
         """)
 
@@ -89,7 +89,7 @@ dag = DAG(
     'fires_cron_updatestate',
     default_args=default_args,
     description='Control de los incendios',
-    schedule_interval=None,
+    schedule_interval=timedelta(hours=1),
     catchup=False
 )
 
