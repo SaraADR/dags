@@ -51,7 +51,7 @@ def lookAtEinforexBd():
                         UPDATE missions.mss_mission m
                         SET end_date = :fire_end
                         FROM missions.mss_mission_fire mf
-                        WHERE mf.id_fire = :fire_id AND mf.id_mission = m.id
+                        WHERE mf.fire_id = :fire_id AND mf.mission_id = m.id
                     """)
                     
                     # Ejecutar la actualización
