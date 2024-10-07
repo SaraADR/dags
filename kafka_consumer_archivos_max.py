@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import os
+import shutil
 import zipfile
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -136,6 +137,15 @@ def process_zip_file(value, **kwargs):
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido {e}")
         raise AirflowSkipException("El archivo no es un ZIP válido")
+    
+    finally:
+        for temp_dir_a in temp_dir:
+            if os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir_a)
+                    print(f"Directorio temporal {temp_dir_a} eliminado.")
+                except Exception as e:
+                    print(f"Error eliminando {temp_dir}: {e}")
 
 
 def process_json_file(value, **kwargs):
