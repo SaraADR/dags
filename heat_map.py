@@ -62,7 +62,8 @@ def process_heatmap_data(**context):
         "lowSearchDate" : input_data.get('lowSearchDate', None),
         "highSearchDate" : input_data.get('highSearchDate', None),
         "sigma" :  input_data.get('sigma', None),
-        "codigo" : input_data.get('codigo', None)
+        "codigo" : input_data.get('codigo', None),
+        "title": input_data.get('aircrafts', None)
     }
 
     # Generar el archivo JSON dinámicamente con los valores obtenidos
@@ -139,7 +140,6 @@ def process_heatmap_data(**context):
 
                 # Lanzar la excepción para que la tarea falle
                 raise RuntimeError(f"Error durante el guardado de la misión")
-            
 
             
 
