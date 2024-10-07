@@ -147,7 +147,7 @@ def upload_to_geonetwork(**context):
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
             'transformWith': (None, 'none'),
-            'group': (None, '2'),  # Cambia el valor de 'group' si es necesario
+            'group': (None, 2),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
             'file': ('nombre_archivo.xml', xml_decoded)
 
