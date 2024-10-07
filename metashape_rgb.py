@@ -92,7 +92,7 @@ def generate_xml(**context):
     xml_content = xml_bytes_io.getvalue()
 
     # Base64 encode the XML bytes
-    xml_encoded = base64.b64encode(xml_content)
+    xml_encoded = base64.b64encode(xml_content).decode('utf-8')
     logging.info ("Xml enconded", xml_encoded)
 
     # Store the base64 encoded XML content in XCom
