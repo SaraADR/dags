@@ -31,6 +31,13 @@ def lookAtEinforexBd():
 
         # Procesar y mostrar el resultado
         rows = result.fetchall()  # Obtener todos los resultados
+
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
         if rows:
             for row in rows:
                 print(row)
@@ -38,14 +45,6 @@ def lookAtEinforexBd():
                 fire_end = row.end  
                 
                 if fire_end:  # Verificar si end tiene un valor
-                    db_conn = BaseHook.get_connection('biobd')
-                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                    engine = create_engine(connection_string)
-                    Session = sessionmaker(bind=engine)
-                    session = Session()
-
-
-
                     # Actualizar la tabla mission en la otra base de datos
                     update_query = text("""
                         UPDATE missions.mss_mission m
@@ -57,10 +56,11 @@ def lookAtEinforexBd():
                     # Ejecutar la actualización
                     session.execute(update_query, {'fire_end': fire_end, 'fire_id': fire_id})
 
-            # Confirmar cambios
-            session.commit()
         else:
             print("No se encontraron registros con lastupdate en las últimas 24 horas.")
+
+        # Confirmar cambios
+        session.commit()
 
         
     except Exception as e:
