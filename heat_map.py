@@ -294,8 +294,8 @@ def create_json(params):
         "sigma": params.get("sigma", None)
     }
 
-    input_data_json = json.dumps(input_data, indent=4)
-    return input_data_json
+
+    return input_data
 
 
 
