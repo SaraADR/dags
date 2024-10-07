@@ -19,7 +19,7 @@ def lookAtEinforexBd():
         # Definir la consulta SQL cruda
         query = text("""
             SELECT f.id, f.end, f.lastupdate, f.name
-            FROM einforex_fleet.fires f
+            FROM einforex_fleet.fire f
             WHERE f.lastupdate >= NOW() - INTERVAL '1 day'
             ORDER BY f.id DESC;
         """)
@@ -49,9 +49,9 @@ def lookAtEinforexBd():
                     # Actualizar la tabla mission en la otra base de datos
                     update_query = text("""
                         UPDATE missions.mss_mission m
-                        SET end = :fire_end
+                        SET end_date = :fire_end
                         FROM missions.mss_mission_fire mf
-                        WHERE mf.id_fire = :fire_id AND mf.id_mission = m.id
+                        WHERE mf.fire_id = :fire_id AND mf.mission_id = m.id
                     """)
                     
                     # Ejecutar la actualización
