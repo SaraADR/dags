@@ -31,6 +31,7 @@ def lookAtEinforexBd():
 
         # Procesar y mostrar el resultado
         rows = result.fetchall()  # Obtener todos los resultados
+        session.close()
 
         db_conn = BaseHook.get_connection('biobd')
         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
@@ -61,7 +62,7 @@ def lookAtEinforexBd():
 
         # Confirmar cambios
         session.commit()
-
+        session.close()
         
     except Exception as e:
         session.rollback()
