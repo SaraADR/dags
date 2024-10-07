@@ -31,7 +31,7 @@ def process_heatmap_data(**context):
     input_data = json.loads(input_data_str)
     task_type = message['message']['job']
 
-    isIncendio = False
+    isIncendio = "FALSE"
     arincendios = ''
     if task_type == 'heatmap-incendios':
         # Lógica específica para el heatmap de incendios
@@ -39,7 +39,7 @@ def process_heatmap_data(**context):
   
         # Modificaciones o lógica específica para incendios
         arincendios = "historical_fires.csv"
-        isIncendio = True
+        isIncendio = "TRUE"
         # input_data["url_search_fire"] = "https://pre.atcservices.cirpas.gal/rest/FireService/searchByIntersection"
         # input_data["url_fireperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/FireAlgorithm_FirePerimeterService/getByFire?id="
 
@@ -49,15 +49,15 @@ def process_heatmap_data(**context):
         
         # Modificaciones o lógica específica para aeronaves
         arincendios = "historical_aircraft.csv"
-        isIncendio = False
+        isIncendio = "FALSE"
         # input_data["url_search_aircraft"] = "https://pre.atcservices.cirpas.gal/rest/AircraftService/searchByIntersection"
         # input_data["url_aircraftperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/AircraftAlgorithm_AircraftPerimeterService/getByAircraft?id="
     
 
     params = {
-        "directorio_output":  str(task_type) + '_' + str(message['message']['id']) + '.json',
+        "directorio_output":  '/share_data/output/' + str(task_type) + '_' + str(message['message']['id']),
         "incendios" : isIncendio,
-        "ar_incendios": arincendios,
+        "ar_incendios": None,
         "comunidadAutonomaId":  input_data.get('comunidadId', None),
         "lowSearchDate" : input_data.get('lowSearchDate', None),
         "highSearchDate" : input_data.get('highSearchDate', None),
@@ -99,7 +99,7 @@ def process_heatmap_data(**context):
                 print(f"Archivo {remote_file_name} actualizado en {remote_directory}")
 
 
-            config_path = '/share_data/input/' +  str(task_type) + '_' + str(message['message']['id']) 
+            config_path = '/share_data/input/' +  str(task_type) + '_' + str(message['message']['id']) + '.json'
             command = f'cd /home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/launch && CONFIGURATION_PATH={config_path} docker-compose -f compose.yaml up --build'
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
