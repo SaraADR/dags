@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.hooks.base_hook import BaseHook
-from sqlalchemy import create_engine, Table, MetaData, text
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.python import PythonOperator
 
@@ -20,7 +20,7 @@ def lookAtEinforexBd():
         query = text("""
             SELECT f.id, f.end, f.lastupdate, f.name
             FROM einforex_fleet.fire f
-            WHERE f.lastupdate >= NOW() - INTERVAL '10 day'
+            WHERE f.lastupdate >= NOW() - INTERVAL '4 day'
             ORDER BY f.id DESC;
         """)
 
