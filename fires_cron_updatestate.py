@@ -19,7 +19,7 @@ def lookAtEinforexBd():
         # Definir la consulta SQL cruda
         query = text("""
             SELECT f.id, f.end, f.lastupdate, f.name
-            FROM einforex_fleet.fires f
+            FROM einforex_fleet.fire f
             WHERE f.lastupdate >= NOW() - INTERVAL '1 day'
             ORDER BY f.id DESC;
         """)
