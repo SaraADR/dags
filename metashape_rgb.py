@@ -140,13 +140,14 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_encoded = context['ti'].xcom_pull(task_ids='generate_xml')
+        xml_decoded = base64.b64decode(xml_encoded)
         files = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
             'transformWith': (None, 'none'),
             'group': (None, '2'),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', base64.b64decode(xml_encoded))
+            'file': ('nombre_archivo.xml', xml_decoded)
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
@@ -156,8 +157,8 @@ def upload_to_geonetwork(**context):
         headers = {
             'Content-Type': 'multipart/form-data',
             'Authorization': f"Bearer {access_token}",  # Token de autenticación
-            'x-xsrf-token': str(xsrf_token),                # Token XSRF
-            'Cookie': str(set_cookie_header[0])                # Encabezado de la cookie
+            'x-xsrf-token': str(xsrf_token),          # Token XSRF
+            'Cookie': str(set_cookie_header[0])    # Encabezado de la cookie
         }
 
         # Realizar la solicitud POST para subir el archivo XML
