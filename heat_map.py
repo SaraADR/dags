@@ -13,7 +13,7 @@ import codecs
 import re
 import os
 from airflow.hooks.base import BaseHook
-from sqlalchemy import create_engine, Table, MetaData
+from sqlalchemy import create_engine, Table, MetaData, text
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
@@ -30,6 +30,7 @@ def process_heatmap_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
     task_type = message['message']['job']
+    from_user = message['message']['from_user']
 
     isIncendio = "FALSE"
     arincendios = ''
@@ -110,7 +111,7 @@ def process_heatmap_data(**context):
             print("Salida de docker:")
             print(output)
 
-            if error_output:
+            if exit_status != 0:
                 print("Errores al ejecutar run.sh:")
                 print(error_output)
                 message = context['dag_run'].conf
@@ -143,18 +144,112 @@ def process_heatmap_data(**context):
 
             
 
+            else:
+                output_directory = '/home/admin3//Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/output/' + str(task_type) + '_' + str(message['message']['id'])
+                local_output_directory = '/tmp'
+
+                # Crear el directorio local si no existe
+                os.makedirs(local_output_directory, exist_ok=True)
+
+                sftp.chdir(output_directory)
+                print(f"Cambiando al directorio de salida: {output_directory}")
+                downloaded_files = []
+                for filename in sftp.listdir():
+                    remote_file_path = os.path.join(output_directory, filename)
+                    local_file_path = os.path.join(local_output_directory, filename)
+
+                    # Descargar cada archivo
+                    sftp.get(remote_file_path, local_file_path)
+                    print(f"Archivo {filename} descargado a {local_file_path}")
+                    downloaded_files.append(local_file_path)
             sftp.close()
+
+            #Una vez tenemos lo que ha salido lo subimos a minio
+            up_to_minio(local_output_directory, from_user)
+
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
 
 
 
+def up_to_minio(local_output_directory, from_user):
+    key = f"{uuid.uuid4()}"
+    try:
+        # Conexión a MinIO
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
+        bucket_name = 'temp'
+        
+        # Listar todos los archivos en el directorio local de salida
+        for filename in os.listdir(local_output_directory):
+            local_file_path = os.path.join(local_output_directory, filename)
+            
+            # Verificar que es un archivo
+            if os.path.isfile(local_file_path):
+                # Generar un key único para cada archivo en MinIO
+                file_key = f"{key}/{filename}"
+                
+                # Subir el archivo a MinIO
+                s3_client.upload_file(local_file_path, bucket_name, file_key)
+                
+                # Generar la URL del archivo subido
+                file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{file_key}"
+                print(f"Archivo {filename} subido correctamente a MinIO. URL: {file_url}")
+
+    except Exception as e:
+        print(f"Error al subir archivos a MinIO: {str(e)}")
 
 
+    try:
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
+        data_json = json.dumps({
+            "to": from_user,
+            "actions": [
+            {
+            "type": "notify",
+            "data": {
+                "message": "Datos del heatmap procesados correctamente"
+            }
+            },
+            {
+            "type": "paintTiff",
+            "data": {
+                "url": file_url
+            }
+            }
+        ]
+        }, ensure_ascii=False)
+        time = datetime.now().replace(tzinfo=timezone.utc)
 
+        query = text("""
+            INSERT INTO public.notifications
+            (destination, "data", "date", status)
+            VALUES (:destination, :data, :date, NULL);
+        """)
+        session.execute(query, {
+            'destination': 'ignis',
+            'data': data_json,
+            'date': time
+        })
+        session.commit()
 
-
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante la inserción de la notificación: {str(e)}")
+    finally:
+        session.close()
 
 
 
@@ -163,12 +258,6 @@ def process_heatmap_data(**context):
 
     # cambiar_proyeccion_tiff(input_tiff=TIFF,output_tiff=TIFF2)
     # output_tiff = crear el directorio del output tiff con uuid 
-
-
-
-
-
-
 
 
 
@@ -197,6 +286,12 @@ def process_heatmap_data(**context):
     #     except Exception as e:
     #         print(f"Error al subir el TIFF a MinIO: {str(e)}")
     #         return
+
+
+
+
+
+
 
     #     # Preparar la notificación para almacenar en la base de datos
     #     notification_db = {
