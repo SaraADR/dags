@@ -140,17 +140,25 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
-        logging.info(f"XML DATA: {xml_data}")
+        xml_decoded = base64.b64decode(xml_data)
+        file_obj = io.BytesIO(xml_decoded)
 
-        
+        xml_string = xml_decoded.decode('utf-8')
+
+        xml_string = xml_string.replace('\\', '')
+
+        logging.info(f"XML DATA: {xml_data}")
+        logging.info(f"XML file_obj: {file_obj}")
+        logging.info(xml_decoded)
+
+
         files = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
             'transformWith': (None, 'none'),
             'group': (None, 2),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', xml_data, 'text/xml'),
-
+            'file': ('nombre_archivo.xml', xml_string, 'text/xml')
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
@@ -181,7 +189,7 @@ def upload_to_geonetwork(**context):
 # Función para crear el XML metadata
 def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
-    
+
     root = ET.Element("gmd:MD_Metadata", {
         "xmlns:gmd": "http://www.isotc211.org/2005/gmd",
         "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
