@@ -20,7 +20,7 @@ def lookAtEinforexBd():
         query = text("""
             SELECT f.id, f.end, f.lastupdate, f.name
             FROM einforex_fleet.fire f
-            WHERE f.lastupdate >= NOW() - INTERVAL '1 day'
+            WHERE f.lastupdate >= NOW() - INTERVAL '10 day'
             ORDER BY f.id DESC;
         """)
 
