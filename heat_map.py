@@ -55,7 +55,7 @@ def process_heatmap_data(**context):
     
 
     params = {
-        "directorio_output": str(task_type + '_' + message['message']['id']),
+        "directorio_output":  str(task_type) + '_' + str(message['message']['id']),
         "incendios" : isIncendio,
         "ar_incendios": arincendios,
         "comunidadAutonomaId":  input_data['comunidadId'],
@@ -90,7 +90,7 @@ def process_heatmap_data(**context):
 
 
             remote_directory = '/home/admin3/Autopymaps/share_data/input'
-            remote_file_name = str(task_type + '_' + message['message']['id'])
+            remote_file_name =  str(task_type) + '_' + str(message['message']['id']),
             remote_file_path = os.path.join(remote_directory, remote_file_name)
 
             # Guardar los cambios de nuevo en el archivo
@@ -99,7 +99,7 @@ def process_heatmap_data(**context):
                 print(f"Archivo {remote_file_name} actualizado en {remote_directory}")
 
 
-            config_path = '/share_data/input/' + str(task_type + '_' + message['message']['id'])
+            config_path = '/share_data/input/' +  str(task_type) + '_' + str(message['message']['id']),
             command = f'cd /home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/launch && CONFIGURATION_PATH={config_path} docker-compose -f compose.yaml up --build'
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
