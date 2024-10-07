@@ -12,6 +12,7 @@ import io  # Para manejar el archivo XML en memoria
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 
+
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
