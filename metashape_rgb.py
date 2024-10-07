@@ -7,6 +7,34 @@ from airflow.operators.python_operator import PythonOperator
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
+import xml.etree.ElementTree as ET
+
+def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+    logging.info("Iniciando la creación del XML.")
+
+    root = ET.Element("gmd:MD_Metadata", {
+        "xmlns:gmd": "http://www.isotc211.org/2005/gmd",
+        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "xmlns:gco": "http://www.isotc211.org/2005/gco",
+        "xmlns:srv": "http://www.isotc211.org/2005/srv",
+        "xmlns:gmx": "http://www.isotc211.org/2005/gmx",
+        "xmlns:gts": "http://www.isotc211.org/2005/gts",
+        "xmlns:gsr": "http://www.isotc211.org/2005/gsr",
+        "xmlns:gmi": "http://www.isotc211.org/2005/gmi",
+        "xmlns:gml": "http://www.opengis.net/gml/3.2",
+        "xmlns:xlink": "http://www.w3.org/1999/xlink",
+        "xsi:schemaLocation": "http://www.isotc211.org/2005/gmd http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd"
+    })
+
+    # Continúa con la construcción del XML (igual que en tu código anterior)
+
+    # Retornar el árbol XML como un string de texto
+    xml_str = ET.tostring(root, encoding="utf-8", method="xml")
+    xml_str_decoded = xml_str.decode("utf-8")  # Decodificar de bytes a cadena de texto
+    logging.info("XML creado correctamente.")
+
+    return xml_str_decoded
+
 
 
 # Configurar la URL de GeoNetwork
@@ -203,6 +231,13 @@ def creador_xml_metadata(file_identifier, organization_name, email_address, date
         "xmlns:xlink": "http://www.w3.org/1999/xlink",
         "xsi:schemaLocation": "http://www.isotc211.org/2005/gmd http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd"
     })
+
+    # Continúa con la construcción del XML (igual que en tu código anterior)
+
+    # Retornar el árbol XML como un string de texto
+    xml_str = ET.tostring(root, encoding="utf-8", method="xml")
+    xml_str_decoded = xml_str.decode("utf-8")  # Decodificar de bytes a cadena de texto
+    logging.info("XML creado correctamente.")
 
     # fileIdentifier
     fid = ET.SubElement(root, "gmd:fileIdentifier")
