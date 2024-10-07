@@ -354,13 +354,6 @@ def creador_xml_metadata(file_identifier, organization_name, email_address, date
     desc_cs.text = layer_description
 
     logging.info("XML creado correctamente.")
-
-    # Retornar el árbol XML como un string de texto
-    xml_str = ET.tostring(root, encoding="utf-8", method="xml")
-    xml_str_decoded = xml_str.decode("utf-8")  # Decodificar de bytes a cadena de texto
-    logging.info("XML creado correctamente.")
-
-    return xml_str_decoded
     
     return ET.ElementTree(root)  
 
