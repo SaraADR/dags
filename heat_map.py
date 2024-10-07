@@ -58,11 +58,11 @@ def process_heatmap_data(**context):
         "directorio_output":  str(task_type) + '_' + str(message['message']['id']),
         "incendios" : isIncendio,
         "ar_incendios": arincendios,
-        "comunidadAutonomaId":  input_data['comunidadId'],
-        "lowSearchDate" : input_data['lowSearchDate'],
-        "highSearchDate" : input_data['highSearchDate'],
-        "sigma" :  input_data['sigma'],
-        "codigo" : input_data['codigo']
+        "comunidadAutonomaId":  input_data.get('comunidadId', None),
+        "lowSearchDate" : input_data.get('lowSearchDate', None),
+        "highSearchDate" : input_data.get('highSearchDate', None),
+        "sigma" :  input_data.get('sigma', None),
+        "codigo" : input_data.get('codigo', None)
     }
 
     # Generar el archivo JSON dinámicamente con los valores obtenidos
