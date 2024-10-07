@@ -140,14 +140,14 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_encoded = context['ti'].xcom_pull(task_ids='generate_xml')
-        xml_decoded = base64.b64decode(xml_encoded)
+        
         files = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
             'transformWith': (None, 'none'),
             'group': (None, '2'),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', xml_decoded)
+            'file': ('nombre_archivo.xml', open(xml_encoded), 'rb')
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
@@ -170,6 +170,7 @@ def upload_to_geonetwork(**context):
 
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except requests.exceptions.RequestException as e:
+        logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
