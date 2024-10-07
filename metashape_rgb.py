@@ -155,7 +155,7 @@ def upload_to_geonetwork(**context):
             'transformWith': (None, 'none'),
             'group': (None, 2),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', file_obj, 'text/xml')
+            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml')
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
