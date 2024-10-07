@@ -3,6 +3,7 @@ from airflow import DAG
 from airflow.hooks.base_hook import BaseHook
 from sqlalchemy import create_engine, Table, MetaData, text
 from sqlalchemy.orm import sessionmaker
+from airflow.operators.python import PythonOperator
 
 def lookAtEinforexBd():
     try:
@@ -87,3 +88,12 @@ dag = DAG(
     schedule_interval=None,
     catchup=False
 )
+
+lookAtEinforexBd_task = PythonOperator(
+    task_id='update_video_status',
+    python_callable=lookAtEinforexBd,
+    provide_context=True,
+    dag=dag,
+)
+
+lookAtEinforexBd_task
