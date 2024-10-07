@@ -49,7 +49,7 @@ def lookAtEinforexBd():
                     # Actualizar la tabla mission en la otra base de datos
                     update_query = text("""
                         UPDATE missions.mss_mission m
-                        SET end = :fire_end
+                        SET end_date = :fire_end
                         FROM missions.mss_mission_fire mf
                         WHERE mf.id_fire = :fire_id AND mf.id_mission = m.id
                     """)
