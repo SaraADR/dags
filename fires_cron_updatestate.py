@@ -47,6 +47,8 @@ def lookAtEinforexBd():
                 
                 if fire_end:  # Verificar si end tiene un valor
                     # Actualizar la tabla mission en la otra base de datos
+                    print(f"fireend: {fire_end}")
+
                     update_query = text("""
                         UPDATE missions.mss_mission m
                         SET end_date = :fire_end
@@ -56,6 +58,7 @@ def lookAtEinforexBd():
                     
                     # Ejecutar la actualización
                     session.execute(update_query, {'fire_end': fire_end, 'fire_id': fire_id})
+                    print(f"Se ha actualizado la linea con fire_id: {fire_id}" )
 
         else:
             print("No se encontraron registros con lastupdate en las últimas 24 horas.")
