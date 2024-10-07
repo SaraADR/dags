@@ -185,7 +185,7 @@ def upload_to_geonetwork(**context):
 # Función para crear el XML metadata
 def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
-    
+
     root = ET.Element("gmd:MD_Metadata", {
         "xmlns:gmd": "http://www.isotc211.org/2005/gmd",
         "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
@@ -351,7 +351,10 @@ def creador_xml_metadata(file_identifier, organization_name, email_address, date
 
     logging.info("XML creado correctamente.")
     
-    return ET.ElementTree(root)  
+    # Guardar el XML a archivo o retornar como cadena de texto
+    xml_data = ET.tostring(root, encoding="utf-8", method="xml")
+
+    return xml_data.decode('utf-8') 
 
 # Definición del DAG
 default_args = {
