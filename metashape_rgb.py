@@ -143,7 +143,6 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
-        logging.info(f"XML DATA {xml_data}")
         xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
 
