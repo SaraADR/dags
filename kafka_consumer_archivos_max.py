@@ -50,6 +50,7 @@ def process_zip_file(value, **kwargs):
         value_pulled = value
         print("Procesando ZIP")
         print(f"Tipo de value_pulled: {type(value_pulled)}")
+        print(value_pulled[:4])
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_unzip_path = os.path.join(temp_dir, 'unzip')
