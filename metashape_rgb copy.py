@@ -1,171 +1,392 @@
-from collections import defaultdict
-from datetime import datetime, timedelta
-import re
+import base64
+import os
+import xml.etree.ElementTree as ET
+from datetime import datetime
 from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
 import requests
-from requests.auth import HTTPBasicAuth
-from airflow.operators.python import PythonOperator
+import logging
+import io  # Para manejar el archivo XML en memoria
 
-# Función para crear el coverage store en GeoServer si no existe
-def create_coverage_store(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password):
-    coverage_store_url = f"{geoserver_url}/rest/workspaces/{workspace}/coveragestores"
-    headers = {
-        'Content-type': 'application/json'
+
+# Configurar la URL de GeoNetwork
+geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
+
+
+# Configurar el logging
+logging.basicConfig(level=logging.INFO)
+
+# Función para generar el XML
+def generate_xml(**context):
+    logging.info("Iniciando la generación del XML.")
+    
+    # JSON content as before
+    json_content = {
+        'fileIdentifier': 'Ortomosaico_testeo',
+        'organizationName': 'Instituto geográfico nacional (IGN)',
+        'email': 'ignis@organizacion.es',
+        'dateStamp': datetime.now().isoformat(),
+        'title': 'Ortomosaico_0026_404_611271',
+        'publicationDate': '2024-07-29',
+        'boundingBox': {
+            'westBoundLongitude': '-7.6392',
+            'eastBoundLongitude': '-7.6336',
+            'southBoundLatitude': '42.8025',
+            'northBoundLatitude': '42.8044'
+        },
+        'spatialResolution': '0.026',  # Resolución espacial en metros
+        'protocol': 'OGC:WMS-1.3.0-http-get-map',
+        'wmsLink': 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms',
+        'layerName': 'a__0026_4740004_611271',
+        'layerDescription': 'Capa 0026 de prueba'
     }
-    data = {
-        "coverageStore": {
-            "name": datastore_name,
-            "type": "GeoTIFF",
-            "enabled": True,
-            "workspace": {
-                "name": workspace
-            },
-            "url": f"file:data/{datastore_name}.tif"
+
+    logging.info(f"Contenido JSON cargado: {json_content}")
+
+    # Extract XML parameters (as before)
+    file_identifier = json_content['fileIdentifier']
+    organization_name = json_content['organizationName']
+    email_address = json_content['email']
+    date_stamp = json_content['dateStamp']
+    title = json_content['title']
+    publication_date = json_content['publicationDate']
+    west_bound = json_content['boundingBox']['westBoundLongitude']
+    east_bound = json_content['boundingBox']['eastBoundLongitude']
+    south_bound = json_content['boundingBox']['southBoundLatitude']
+    north_bound = json_content['boundingBox']['northBoundLatitude']
+    spatial_resolution = json_content['spatialResolution']
+    protocol = json_content['protocol']
+    wms_link = json_content['wmsLink']
+    layer_name = json_content['layerName']
+    layer_description = json_content['layerDescription']
+
+    logging.info("Llamando a la función creador_xml_metadata.")
+    
+    # Generate XML tree
+    tree = creador_xml_metadata(
+        file_identifier=file_identifier,
+        organization_name=organization_name,
+        email_address=email_address,
+        date_stamp=date_stamp,
+        title=title,
+        publication_date=publication_date,
+        west_bound=west_bound,
+        east_bound=east_bound,
+        south_bound=south_bound,
+        north_bound=north_bound,
+        spatial_resolution=spatial_resolution,
+        protocol=protocol,
+        wms_link=wms_link,
+        layer_name=layer_name,
+        layer_description=layer_description
+    )
+
+    if tree is None:
+        logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
+        raise Exception("Error: creador_xml_metadata retornó None.")
+
+    logging.info("El XML ha sido creado exitosamente en memoria.")
+
+    # Convert the XML tree to bytes
+    xml_bytes_io = io.BytesIO()
+    tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
+    xml_content = xml_bytes_io.getvalue()
+
+    # Base64 encode the XML bytes
+    xml_encoded = base64.b64encode(xml_content).decode('utf-8')
+    logging.info (f"Xml enconded {xml_encoded}")
+
+    # Store the base64 encoded XML content in XCom
+    return xml_encoded
+
+# URL para obtener las credenciales
+credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
+
+# Función para obtener las credenciales de GeoNetwork
+def get_geonetwork_credentials():
+    try:
+
+        credential_dody = {
+            "username" : "angel",
+            "password" : "111111"
         }
-    }
-    try:
-        response = requests.post(coverage_store_url, headers=headers, json=data, auth=HTTPBasicAuth(geoserver_user, geoserver_password))
-        if response.status_code in [200, 201]:
-            print(f"CoverageStore {datastore_name} creado exitosamente.")
-        else:
-            print(f"Error al crear el CoverageStore {datastore_name}: {response.status_code} - {response.text}")
-    except Exception as e:
-        print(f"Error creando el CoverageStore: {str(e)}")
 
-# Función para subir el archivo a GeoServer y crear la capa
-def upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geoserver_user, geoserver_password):
-    headers = {
-        'Content-type': 'image/tiff'
-    }
+        # Hacer la solicitud para obtener las credenciales
+        logging.info(f"Obteniendo credenciales de: {credentials_url}")
+        response = requests.post(credentials_url,json= credential_dody)
 
-    # Cambiar a coverage store para archivos TIFF
-    coverage_store_url = f"{geoserver_url}/rest/workspaces/{workspace}/coveragestores/{datastore_name}/file.geotiff"
+        # Verificar que la respuesta sea exitosa
+        response.raise_for_status()
 
-    try:
-        # Subir el archivo TIFF a GeoServer
-        response = requests.put(
-            coverage_store_url,
-            headers=headers,
-            data=tif_file['content'],  # El contenido del archivo
-            auth=HTTPBasicAuth(geoserver_user, geoserver_password)
-        )
+        # Extraer los headers y tokens necesarios
+        response_object = response.json()
+        access_token = response_object['accessToken']
+        xsrf_token = response_object['xsrfToken']
+        set_cookie_header = response_object['setCookieHeader']
         
-        if response.status_code == 201:
-            print(f"Archivo {tif_file['file_name']} subido exitosamente a GeoServer.")
-        else:
-            print(f"Error al subir el archivo {tif_file['file_name']}: {response.status_code} - {response.text}")
-            return None
 
-        # Devuelve la URL WMS correspondiente a la capa creada
-        wms_url = f"{geoserver_url}/geoserver/{workspace}/wms?service=WMS&version=1.1.0&request=GetMap&layers={workspace}:{datastore_name}&styles=&bbox=-180,-90,180,90&width=768&height=330&srs=EPSG:4326&format=application/openlayers"
-        return wms_url
+        logging.info(f"Credenciales obtenidas: accessToken={access_token}, XSRF-TOKEN={xsrf_token}")
 
-    except Exception as e:
-        print(f"Error subiendo el archivo a GeoServer: {str(e)}")
-        return None
+        return [access_token, xsrf_token, set_cookie_header]
+    
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error al obtener credenciales: {e}")
+        raise Exception(f"Error al obtener credenciales: {e}")
 
-# Primer paso: leer y procesar los archivos
-def process_extracted_files(**kwargs):
-    # Obtenemos los archivos 
-    otros = kwargs['dag_run'].conf.get('otros', [])
-    json_content = kwargs['dag_run'].conf.get('json')
+# Función para subir el XML utilizando las credenciales obtenidas
+# Función para subir el XML utilizando las credenciales obtenidas
+def upload_to_geonetwork(**context):
+    try:
+        # Obtener los tokens de autenticación
+        access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
-    if not json_content:
-        print("Ha habido un error con el traspaso de los documentos")
-        return
+        # Obtener el XML base64 desde XCom
+        xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
+        logging.info(f"XML DATA {xml_data}")
+        xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
-    print("Archivos para procesar preparados")
 
-    # Agrupamos 'otros' por carpetas utilizando regex para extraer el prefijo de la carpeta
-    grouped_files = defaultdict(list)
-    for file_info in otros:
-        file_name = file_info['file_name']
+        # xml_string = xml_string.replace('\\', '')
 
-        # Verificar si el archivo es un .tif
-        match = re.match(r'.+\.tif$', file_name)
-        
-        if match:
-            grouped_files['tif_files'].append(file_info)
+        logging.info(f"XML DATA: {xml_data}")
+        logging.info(xml_decoded)
 
-    # Verificar si se han leído los 3 archivos .tif
-    tif_files = grouped_files.get('tif_files', [])
-    if len(tif_files) == 3:
-        print("Se han leído los 3 archivos TIFF correctamente.")
-    else:
-        print(f"Error: Se esperaban 3 archivos TIFF, pero se encontraron {len(tif_files)}.")
 
-    # Guardamos la lista de archivos TIFF procesados en XCom para la siguiente tarea
-    ti = kwargs['ti']
-    ti.xcom_push(key='tif_files', value=tif_files)
+        files = {
+            'metadataType': (None, 'METADATA'),
+            'uuidProcessing': (None, 'NOTHING'),
+            'transformWith': (None, 'none'),
+            'group': (None, 2),  # Cambia el valor de 'group' si es necesario
+            'category': (None, ''),  # Si no tienes categoría, puede ir vacío
+            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml')
+        }
 
-# Segundo paso: subir los archivos a GeoServer
-def upload_files_to_geoserver(**kwargs):
-    # Recuperar los archivos TIFF procesados de XCom
-    ti = kwargs['ti']
-    tif_files = ti.xcom_pull(key='tif_files', task_ids='process_extracted_files_task')
+        # URL de GeoNetwork para subir el archivo XML (Move this line up)
+        upload_url = f"{geonetwork_url}/records"
 
-    if not tif_files:
-        print("No se encontraron archivos TIFF para subir.")
-        return
+        # Encabezados que incluyen los tokens
+        headers = {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': f"Bearer {access_token}",  # Token de autenticación
+            'x-xsrf-token': str(xsrf_token),          # Token XSRF
+            'Cookie': str(set_cookie_header[0])    # Encabezado de la cookie
+        }
 
-    workspace = "tests-geonetwork"  # Cambia esto por el workspace correcto
-    geoserver_url = "http://vps-52d8b534.vps.ovh.net:8084/geoserver/rest/imports/0"  # URL de tu servidor GeoServer (sin /web/)
-    geoserver_user = "admin"  # Usuario de GeoServer
-    geoserver_password = "geoserver"  # Contraseña de GeoServer
+        # Realizar la solicitud POST para subir el archivo XML
+        logging.info(f"Subiendo XML a la URL: {upload_url}")
+        response = requests.post(upload_url, headers=headers, files=files)
 
-    wms_urls = []
-    for tif_file in tif_files:
-        datastore_name = tif_file['file_name'].split('.')[0]  # Extraemos el nombre del datastore del nombre del archivo
-        print(f"Subiendo archivo TIFF: {tif_file['file_name']} como datastore {datastore_name}")
+        # Verificar si hubo algún error en la solicitud
+        response.raise_for_status()
 
-        # Crear coverage store si no existe
-        create_coverage_store(workspace, datastore_name, geoserver_url, geoserver_user, geoserver_password)
+        logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
+        raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
-        # Llamar a la función para subir el archivo a GeoServer
-        wms_url = upload_to_geoserver(tif_file, datastore_name, workspace, geoserver_url, geoserver_user, geoserver_password)
 
-        if wms_url:
-            print(f"Archivo subido exitosamente. URL WMS: {wms_url}")
-            wms_urls.append(wms_url)
-        else:
-            print(f"Fallo al subir el archivo {tif_file['file_name']} a GeoServer.")
+# Función para crear el XML metadata
+def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+    logging.info("Iniciando la creación del XML.")
 
-    return wms_urls
+    root = ET.Element("gmd:MD_Metadata", {
+        "xmlns:gmd": "http://www.isotc211.org/2005/gmd",
+        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "xmlns:gco": "http://www.isotc211.org/2005/gco",
+        "xmlns:srv": "http://www.isotc211.org/2005/srv",
+        "xmlns:gmx": "http://www.isotc211.org/2005/gmx",
+        "xmlns:gts": "http://www.isotc211.org/2005/gts",
+        "xmlns:gsr": "http://www.isotc211.org/2005/gsr",
+        "xmlns:gmi": "http://www.isotc211.org/2005/gmi",
+        "xmlns:gml": "http://www.opengis.net/gml/3.2",
+        "xmlns:xlink": "http://www.w3.org/1999/xlink",
+        "xsi:schemaLocation": "http://www.isotc211.org/2005/gmd http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd"
+    })
 
-# Configuración del DAG de Airflow
+    # fileIdentifier
+    fid = ET.SubElement(root, "gmd:fileIdentifier")
+    fid_cs = ET.SubElement(fid, "gco:CharacterString")
+    fid_cs.text = file_identifier
+
+    # language
+    language = ET.SubElement(root, "gmd:language")
+    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
+        "codeList": "http://www.loc.gov/standards/iso639-2/",
+        "codeListValue": "spa"
+    })
+
+    # characterSet
+    char_set = ET.SubElement(root, "gmd:characterSet")
+    char_set_code = ET.SubElement(char_set, "gmd:MD_CharacterSetCode", {
+        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_CharacterSetCode",
+        "codeListValue": "utf8"
+    })
+
+    # parentIdentifier
+    parent_identifier = ET.SubElement(root, "gmd:parentIdentifier", {"gco:nilReason": "missing"})
+
+    # hierarchyLevel
+    hierarchy = ET.SubElement(root, "gmd:hierarchyLevel")
+    hierarchy_code = ET.SubElement(hierarchy, "gmd:MD_ScopeCode", {
+        "codeList": "./resources/codelist.xml#MD_ScopeCode",
+        "codeListValue": "dataset"
+    })
+    hierarchy_code.text = "dataset"
+
+    # contact
+    contact = ET.SubElement(root, "gmd:contact")
+    responsible_party = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
+    org_name = ET.SubElement(responsible_party, "gmd:organisationName")
+    org_name_cs = ET.SubElement(org_name, "gco:CharacterString")
+    org_name_cs.text = organization_name
+
+    # contact email
+    contact_info = ET.SubElement(responsible_party, "gmd:contactInfo")
+    ci_contact = ET.SubElement(contact_info, "gmd:CI_Contact")
+    address = ET.SubElement(ci_contact, "gmd:address")
+    ci_address = ET.SubElement(address, "gmd:CI_Address")
+    email = ET.SubElement(ci_address, "gmd:electronicMailAddress")
+    email_cs = ET.SubElement(email, "gco:CharacterString")
+    email_cs.text = email_address
+
+    # role
+    role = ET.SubElement(responsible_party, "gmd:role")
+    role_code = ET.SubElement(role, "gmd:CI_RoleCode", {
+        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode",
+        "codeListValue": "pointOfContact"
+    })
+
+    # dateStamp
+    date_stamp_elem = ET.SubElement(root, "gmd:dateStamp")
+    date_value = ET.SubElement(date_stamp_elem, "gco:DateTime")
+    date_value.text = date_stamp
+
+    # metadataStandardName
+    metadata_standard = ET.SubElement(root, "gmd:metadataStandardName")
+    metadata_standard_cs = ET.SubElement(metadata_standard, "gco:CharacterString")
+    metadata_standard_cs.text = "NEM: ISO 19115:2003 + Reglamento (CE) Nº 1205/2008 de Inspire"
+
+    # metadataStandardVersion
+    metadata_version = ET.SubElement(root, "gmd:metadataStandardVersion")
+    metadata_version_cs = ET.SubElement(metadata_version, "gco:CharacterString")
+    metadata_version_cs.text = "1.2"
+
+    # referenceSystemInfo
+    ref_sys_info = ET.SubElement(root, "gmd:referenceSystemInfo")
+    md_ref_sys = ET.SubElement(ref_sys_info, "gmd:MD_ReferenceSystem")
+    ref_sys_id = ET.SubElement(md_ref_sys, "gmd:referenceSystemIdentifier")
+    rs_id = ET.SubElement(ref_sys_id, "gmd:RS_Identifier")
+    code = ET.SubElement(rs_id, "gmd:code")
+    code_cs = ET.SubElement(code, "gco:CharacterString")
+    code_cs.text = "EPSG:32629"
+    code_space = ET.SubElement(rs_id, "gmd:codeSpace")
+    code_space_cs = ET.SubElement(code_space, "gco:CharacterString")
+    code_space_cs.text = "http://www.ign.es"
+
+    # identificationInfo
+    identification_info = ET.SubElement(root, "gmd:identificationInfo")
+    md_data_identification = ET.SubElement(identification_info, "gmd:MD_DataIdentification")
+    citation = ET.SubElement(md_data_identification, "gmd:citation")
+    ci_citation = ET.SubElement(citation, "gmd:CI_Citation")
+    title_elem = ET.SubElement(ci_citation, "gmd:title")
+    title_cs = ET.SubElement(title_elem, "gco:CharacterString")
+    title_cs.text = title
+
+    # publication date
+    pub_date = ET.SubElement(ci_citation, "gmd:date")
+    ci_date = ET.SubElement(pub_date, "gmd:CI_Date")
+    date = ET.SubElement(ci_date, "gmd:date")
+    gco_date = ET.SubElement(date, "gco:Date")
+    gco_date.text = publication_date
+    date_type = ET.SubElement(ci_date, "gmd:dateType")
+    ci_date_type = ET.SubElement(date_type, "gmd:CI_DateTypeCode", {
+        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode",
+        "codeListValue": "publication"
+    })
+
+    # bounding box
+    extent = ET.SubElement(md_data_identification, "gmd:extent")
+    ex_extent = ET.SubElement(extent, "gmd:EX_Extent")
+    geographic_element = ET.SubElement(ex_extent, "gmd:geographicElement")
+    bbox = ET.SubElement(geographic_element, "gmd:EX_GeographicBoundingBox")
+    west_bound_elem = ET.SubElement(bbox, "gmd:westBoundLongitude")
+    west_bound_cs = ET.SubElement(west_bound_elem, "gco:Decimal")
+    west_bound_cs.text = west_bound
+    east_bound_elem = ET.SubElement(bbox, "gmd:eastBoundLongitude")
+    east_bound_cs = ET.SubElement(east_bound_elem, "gco:Decimal")
+    east_bound_cs.text = east_bound
+    south_bound_elem = ET.SubElement(bbox, "gmd:southBoundLatitude")
+    south_bound_cs = ET.SubElement(south_bound_elem, "gco:Decimal")
+    south_bound_cs.text = south_bound
+    north_bound_elem = ET.SubElement(bbox, "gmd:northBoundLatitude")
+    north_bound_cs = ET.SubElement(north_bound_elem, "gco:Decimal")
+    north_bound_cs.text = north_bound
+
+    # spatial resolution
+    spatial_res = ET.SubElement(md_data_identification, "gmd:spatialResolution")
+    distance = ET.SubElement(spatial_res, "gmd:MD_Resolution")
+    dist_value = ET.SubElement(distance, "gmd:distance")
+    dist_cs = ET.SubElement(dist_value, "gco:Distance", {"uom": "metros"})
+    dist_cs.text = spatial_resolution
+
+    # WMS linkage
+    distribution_info = ET.SubElement(root, "gmd:distributionInfo")
+    md_distribution = ET.SubElement(distribution_info, "gmd:MD_Distribution")
+    transfer_options = ET.SubElement(md_distribution, "gmd:transferOptions")
+    digital_transfer = ET.SubElement(transfer_options, "gmd:MD_DigitalTransferOptions")
+    on_line = ET.SubElement(digital_transfer, "gmd:onLine")
+    online_resource = ET.SubElement(on_line, "gmd:CI_OnlineResource")
+    linkage = ET.SubElement(online_resource, "gmd:linkage")
+    url = ET.SubElement(linkage, "gmd:URL")
+    url.text = wms_link
+
+    protocol_elem = ET.SubElement(online_resource, "gmd:protocol")
+    protocol_cs = ET.SubElement(protocol_elem, "gco:CharacterString")
+    protocol_cs.text = protocol
+
+    name_elem = ET.SubElement(online_resource, "gmd:name")
+    name_cs = ET.SubElement(name_elem, "gco:CharacterString")
+    name_cs.text = layer_name
+
+    desc_elem = ET.SubElement(online_resource, "gmd:description")
+    desc_cs = ET.SubElement(desc_elem, "gco:CharacterString")
+    desc_cs.text = layer_description
+
+    logging.info("XML creado correctamente.")
+    
+    return ET.ElementTree(root)  
+
+# Definición del DAG
 default_args = {
-    'owner': 'oscar',
+    'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2024, 8, 8),
-    'email_on_failure': False,
-    'email_on_retry': False,
+    'start_date': datetime(2024, 10, 1),
     'retries': 1,
-    'retry_delay': timedelta(minutes=5),
 }
 
-# dag = DAG(
-#     'metashape_rgb',
-#     default_args=default_args,
-#     description='Flujo de datos de entrada de elementos de metashape_rgb',
-#     schedule_interval=None,
-#     catchup=False,
-# )
+dag = DAG(
+    'metashape_rgb',
+    default_args=default_args,
+    description='DAG para generar metadatos XML y subirlos a GeoNetwork',
+    schedule_interval=None,  # Se puede ajustar según necesidades
+    catchup=False
+)
 
-# # Primera tarea: procesar los archivos
-# process_extracted_files_task = PythonOperator(
-#     task_id='process_extracted_files_task',
-#     python_callable=process_extracted_files,
-#     provide_context=True,
-#     dag=dag,
-# )
+# Tarea 1: Generar el XML
+generate_xml_task = PythonOperator(
+    task_id='generate_xml',
+    python_callable=generate_xml,
+    provide_context=True,
+    dag=dag
+)
 
-# # Segunda tarea: subir los archivos a GeoServer
-# upload_files_to_geoserver_task = PythonOperator(
-#     task_id='upload_files_to_geoserver_task',
-#     python_callable=upload_files_to_geoserver,
-#     provide_context=True,
-#     dag=dag,
-# )
+# Tarea 2: Subir el XML a GeoNetwork
+upload_xml_task = PythonOperator(
+    task_id='upload_to_geonetwork',
+    python_callable=upload_to_geonetwork,
+    provide_context=True,
+    dag=dag
+)
 
-# # Definir la secuencia de las tareas
-# process_extracted_files_task >> upload_files_to_geoserver_task
+# Definir el flujo de las tareas
+generate_xml_task >> upload_xml_task
