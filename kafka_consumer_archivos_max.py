@@ -212,7 +212,6 @@ dag = DAG(
     description='DAG que consume mensajes de Kafka y dispara otro DAG para archivos',
     schedule_interval='*/2 * * * *',
     catchup=False,
-    max_active_tasks=1,
     concurrency=1
 )
 
