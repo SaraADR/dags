@@ -180,6 +180,7 @@ def upload_to_geonetwork(**context):
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
         response = requests.post(upload_url, headers=headers, files=files)
+        logging.info(response)
 
         # Verificar si hubo algún error en la solicitud
         response.raise_for_status()
