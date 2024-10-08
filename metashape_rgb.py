@@ -165,14 +165,15 @@ def upload_to_geonetwork(**context):
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
         upload_url = f"{geonetwork_url}/records"
         boundary = '----WebKitFormBoundary' + uuid.uuid4().hex
+        
         # Encabezados que incluyen los tokens
+
         headers = {
-            
-            'Content-Type': f'multipart/form-data; boundary={boundary}',
-            'Authorization': f"Bearer {access_token}",  # Token de autenticación
-            'x-xsrf-token': str(xsrf_token),          # Token XSRF
+            # 'Content-Type': 'multipart/form-data',  # Eliminar esta línea
+            'Authorization': f"Bearer {access_token}",
+            'x-xsrf-token': str(xsrf_token),
             'Cookie': str(set_cookie_header[0]),
-            'accept':('application/json')   # Encabezado de la cookie
+            'Accept': 'application/json'
         }
 
         # Realizar la solicitud POST para subir el archivo XML
