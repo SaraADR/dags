@@ -185,8 +185,14 @@ def upload_to_geonetwork(**context):
         # Verificar si hubo algún error en la solicitud
         response.raise_for_status()
 
+        
+
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except Exception as e:
+
+        if response is not None:
+            logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
+            
         logging.error(f"Error al decodificar el XML: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
