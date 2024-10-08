@@ -48,7 +48,7 @@ def consumer_function(message, prefix, **kwargs):
 def process_zip_file(value, **kwargs):
     try:
         zip_file = zipfile.ZipFile(io.BytesIO(value))
-        zip_file.testzip()  # Esto comprueba la integridad del archivo ZIP
+        zip_file.testzip()  
         print("El archivo ZIP es válido.")
     except zipfile.BadZipFile:
         print("El archivo no es un ZIP válido antes del procesamiento.")
@@ -141,8 +141,7 @@ def process_zip_file(value, **kwargs):
 
                 else:
                     raise AirflowSkipException("El archivo no contiene un algoritmo controlado")
-
-                       
+             
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido {e}")
         raise AirflowSkipException("El archivo no es un ZIP válido")
