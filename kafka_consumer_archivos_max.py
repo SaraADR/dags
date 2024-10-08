@@ -52,6 +52,7 @@ def process_zip_file(value, **kwargs):
         print("El archivo ZIP es válido.")
     except zipfile.BadZipFile:
         print("El archivo no es un ZIP válido antes del procesamiento.")
+        return 
 
 
     try:
