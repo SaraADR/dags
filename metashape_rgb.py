@@ -169,7 +169,8 @@ def upload_to_geonetwork(**context):
         # Encabezados que incluyen los tokens
 
         headers = {
-            
+            # 'Content-Type': 'multipart/form-data',  # Eliminar esta línea
+            'content-type': 'multipart/form-data; boundary=ebf9f03029db4c2799ae16b5428b06bd',
             'Authorization': f"Bearer {access_token}",
             'x-xsrf-token': str(xsrf_token),
             'Cookie': str(set_cookie_header[0]),
@@ -184,6 +185,7 @@ def upload_to_geonetwork(**context):
         # Verificar si hubo algún error en la solicitud
         response.raise_for_status()
 
+        
 
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except Exception as e:
@@ -191,6 +193,7 @@ def upload_to_geonetwork(**context):
         if response is not None:
             logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
 
+            
         logging.error(f"Error al decodificar el XML: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
