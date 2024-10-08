@@ -427,31 +427,31 @@ def create_json(params):
         "sigma": params.get("sigma", None)
     }
 
-    input_data = {
-        "directorio_alg": ".",
-        "directorio_output": params.get("directorio_output"),
-        "incendios":  "FALSE",
-        "ar_incendios": None,
-        "url1":  None,
-        "url2":  None,
-        "url3":  None,
-        "url4":  None,
-        "user": params.get("user", "ITMATI.DES"),
-        "password": params.get("password", "Cui_1234"),
-        "minlat": 36.8357,
-        "maxlat": 36.7553,
-        "minlon": -3.6328,
-        "maxlon": -3.7864,
-        "comunidadAutonomaId":  None,
-        "lowSearchDate":  "2023-08-30T01:00:00.000+0000",
-        "highSearchDate": "2023-08-30T23:00:00.000+0000",
-        "navstates":  None,
-        "title": "EC-NBR",
-        "customerIds": "INFOCA",
-        "res": None,
-        "codigo":  None,
-        "sigma": None
-    }
+    # input_data = {
+    #     "directorio_alg": ".",
+    #     "directorio_output": params.get("directorio_output"),
+    #     "incendios":  "FALSE",
+    #     "ar_incendios": None,
+    #     "url1":  None,
+    #     "url2":  None,
+    #     "url3":  None,
+    #     "url4":  None,
+    #     "user": params.get("user", "ITMATI.DES"),
+    #     "password": params.get("password", "Cui_1234"),
+    #     "minlat": 36.8357,
+    #     "maxlat": 36.7553,
+    #     "minlon": -3.6328,
+    #     "maxlon": -3.7864,
+    #     "comunidadAutonomaId":  None,
+    #     "lowSearchDate":  "2023-08-30T01:00:00.000+0000",
+    #     "highSearchDate": "2023-08-30T23:00:00.000+0000",
+    #     "navstates":  None,
+    #     "title": "EC-NBR",
+    #     "customerIds": "INFOCA",
+    #     "res": None,
+    #     "codigo":  None,
+    #     "sigma": None
+    # }
 
 
     return input_data
