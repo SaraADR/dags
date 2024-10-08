@@ -1,5 +1,6 @@
 import base64
 import os
+import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from airflow import DAG
@@ -158,18 +159,21 @@ def upload_to_geonetwork(**context):
             'transformWith': (None, 'none'),
             'group': (None, 2),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml')
+            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
+            
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
         upload_url = f"{geonetwork_url}/records"
-
+        boundary = '----WebKitFormBoundary' + uuid.uuid4().hex
         # Encabezados que incluyen los tokens
         headers = {
-            'Content-Type': 'multipart/form-data',
+            
+            'Content-Type': f'multipart/form-data; boundary={boundary}',
             'Authorization': f"Bearer {access_token}",  # Token de autenticación
             'x-xsrf-token': str(xsrf_token),          # Token XSRF
-            'Cookie': str(set_cookie_header[0])    # Encabezado de la cookie
+            'Cookie': str(set_cookie_header[0]),
+            'accept':('application/json')   # Encabezado de la cookie
         }
 
         # Realizar la solicitud POST para subir el archivo XML
@@ -353,6 +357,7 @@ def creador_xml_metadata(file_identifier, organization_name, email_address, date
     desc_cs.text = layer_description
 
     logging.info("XML creado correctamente.")
+    
     
     return ET.ElementTree(root)  
 
