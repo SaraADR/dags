@@ -47,6 +47,14 @@ def consumer_function(message, prefix, **kwargs):
 
 def process_zip_file(value, **kwargs):
     try:
+        zip_file = zipfile.ZipFile(io.BytesIO(value))
+        zip_file.testzip()  # Esto comprueba la integridad del archivo ZIP
+        print("El archivo ZIP es válido.")
+    except zipfile.BadZipFile:
+        print("El archivo no es un ZIP válido antes del procesamiento.")
+
+
+    try:
         value_pulled = value
         print("Procesando ZIP")
         print(f"Tipo de value_pulled: {type(value_pulled)}")
