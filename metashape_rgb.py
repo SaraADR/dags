@@ -158,8 +158,8 @@ def upload_to_geonetwork(**context):
             'transformWith': (None, 'none'),
             'group': (None, 2),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
-            
+            'file': ('archivo.xml', xml_decoded.encode('utf-8'), 'text/xml')  # Encode as bytes
+
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
@@ -169,13 +169,13 @@ def upload_to_geonetwork(**context):
         # Encabezados que incluyen los tokens
 
         headers = {
-            # 'Content-Type': 'multipart/form-data',  # Eliminar esta línea
-            'content-type': 'multipart/form-data; boundary=ebf9f03029db4c2799ae16b5428b06bd',
+            
             'Authorization': f"Bearer {access_token}",
             'x-xsrf-token': str(xsrf_token),
             'Cookie': str(set_cookie_header[0]),
             'Accept': 'application/json'
         }
+
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
@@ -185,14 +185,13 @@ def upload_to_geonetwork(**context):
         # Verificar si hubo algún error en la solicitud
         response.raise_for_status()
 
-        
 
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except Exception as e:
 
         if response is not None:
             logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
-            
+
         logging.error(f"Error al decodificar el XML: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
