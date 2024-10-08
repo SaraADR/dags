@@ -158,8 +158,8 @@ def upload_to_geonetwork(**context):
             'transformWith': (None, 'none'),
             'group': (None, 2),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('archivo.xml', xml_decoded.encode('utf-8'), 'text/xml')  # Encode as bytes
-
+            'file': ('nombre_archivo.xml', xml_decoded.encode('utf-8'), 'text/xml'),
+            
         }
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
@@ -175,7 +175,6 @@ def upload_to_geonetwork(**context):
             'Cookie': str(set_cookie_header[0]),
             'Accept': 'application/json'
         }
-
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
