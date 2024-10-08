@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-import tempfile
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
@@ -9,8 +8,6 @@ from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 import os
 from airflow.providers.postgres.operators.postgres import PostgresOperator
-import codecs
-import re
 import os
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData, text
@@ -19,7 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from scriptConvertTIff import reproject_tiff
+# import gdal, osr
 
 
 
@@ -268,67 +265,7 @@ def up_to_minio(local_output_directory, from_user):
     #     reproject_tiff(algorithm_output_tiff, temp_dir_file)
     #     # input_data["temp_tiff_path"] = output_tiff
     
-    #     try:
-    #         connection = BaseHook.get_connection('minio_conn')
-    #         extra = json.loads(connection.extra)
-    #         s3_client = boto3.client(
-    #             's3',
-    #             endpoint_url=extra['endpoint_url'],
-    #             aws_access_key_id=extra['aws_access_key_id'],
-    #             aws_secret_access_key=extra['aws_secret_access_key'],
-    #             config=Config(signature_version='s3v4')
-    #         )
-    #         bucket_name = 'temp'
-    #         s3_client.upload_file(temp_dir_file, bucket_name, tiff_key)
-    #         tiff_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{tiff_key}"
-    #         print(f"Archivo TIFF subido correctamente a MinIO. URL: {tiff_url}")
 
-    #     except Exception as e:
-    #         print(f"Error al subir el TIFF a MinIO: {str(e)}")
-    #         return
-
-
-
-
-
-
-
-    #     # Preparar la notificación para almacenar en la base de datos
-    #     notification_db = {
-    #         "to": from_user,
-    #         "actions": [
-    #             {
-    #             "type": "notify",
-    #             "data": {
-    #                 "message": "Datos del heatmap procesados correctamente"
-    #             }
-    #             },
-    #             {
-    #             "type": "paintTiff",
-    #             "data": {
-    #                 "url": tiff_url
-    #             }
-    #             }
-    #         ]
-    #     }
-    #     notification_json = json.dumps(notification_db, ensure_ascii=False)
-
-    #     # Insertar la notificación en la base de datos PostgreSQL
-    #     try:
-    #         connection = BaseHook.get_connection('biobd')
-    #         pg_hook = PostgresOperator(
-    #             task_id='send_notification',
-    #             postgres_conn_id='biobd',
-    #             sql=f"""
-    #             INSERT INTO public.notifications (destination, data)
-    #             VALUES ('ignis', '{notification_json}');
-    #             """
-    #         )
-    #         pg_hook.execute(context)
-    #         print("Notificación almacenada correctamente en la base de datos.")
-
-    #     except Exception as e:
-    #         print(f"Error al almacenar la notificación en la base de datos: {str(e)}")
 
 
 def change_state_job(**context):
