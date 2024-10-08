@@ -1,5 +1,6 @@
 import base64
 import os
+import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from airflow import DAG
@@ -164,10 +165,11 @@ def upload_to_geonetwork(**context):
 
         # URL de GeoNetwork para subir el archivo XML (Move this line up)
         upload_url = f"{geonetwork_url}/records"
-
+        boundary = '----WebKitFormBoundary' + uuid.uuid4().hex
         # Encabezados que incluyen los tokens
         headers = {
-            'Content-Type': 'multipart/form-data',
+            
+            'Content-Type': f'multipart/form-data; boundary={boundary}',
             'Authorization': f"Bearer {access_token}",  # Token de autenticación
             'x-xsrf-token': str(xsrf_token),          # Token XSRF
             'Cookie': str(set_cookie_header[0]),
