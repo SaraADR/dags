@@ -139,6 +139,7 @@ import base64
 import requests
 import logging
 
+# Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
     try:
         # Obtener los tokens de autenticación
@@ -148,12 +149,13 @@ def upload_to_geonetwork(**context):
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
         xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
-        # Convertir el contenido XML a un objeto de tipo stream
+        # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
         xml_file_stream = io.StringIO(xml_decoded)
-        xml_content = xml_file_stream.read()
 
         logging.info(f"XML DATA: {xml_data}")
-        logging.info(f"XML Decoded: {xml_decoded}")
+        logging.info(xml_decoded)
+
+        xml_content = xml_file_stream.read()
 
         files = {
             'metadataType': (None, 'METADATA'),
@@ -163,6 +165,11 @@ def upload_to_geonetwork(**context):
             'category': (None, ''),
             'file': ('nombre_archivo.xml', xml_content, 'text/xml'),
         }
+
+        
+        # files = {
+        #     'file': ('nombre_archivo.xml', xml_file_stream.read(), 'text/xml'),
+        # }
 
         # URL de GeoNetwork para subir el archivo XML
         upload_url = "https://2785-37-135-62-77.ngrok-free.app/api/upload"
@@ -177,7 +184,7 @@ def upload_to_geonetwork(**context):
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
-        response = requests.post(upload_url, files=files, headers=headers)
+        response = requests.post(upload_url,files=files, headers=headers)
         logging.info(response)
 
         # Verificar si hubo algún error en la solicitud
