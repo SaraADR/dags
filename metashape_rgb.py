@@ -155,17 +155,14 @@ def upload_to_geonetwork(**context):
         logging.info(f"XML DATA: {xml_data}")
         logging.info(xml_decoded)
 
-        xml_content = xml_file_stream.read()
-
         files = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
             'transformWith': (None, 'none'),
             'group': (None, 2),
             'category': (None, ''),
-            'file': ('nombre_archivo.xml', xml_content, 'text/xml'),
+            'file': ('nombre_archivo.xml', xml_file_stream.read(), 'text/xml'),
         }
-
         
         # files = {
         #     'file': ('nombre_archivo.xml', xml_file_stream.read(), 'text/xml'),
@@ -184,7 +181,7 @@ def upload_to_geonetwork(**context):
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
-        response = requests.post(upload_url,files=files, headers=headers)
+        response = requests.post(upload_url,files=files,json=files, headers=headers)
         logging.info(response)
 
         # Verificar si hubo algún error en la solicitud
