@@ -1,5 +1,4 @@
 import base64
-import io
 import os
 import uuid
 import xml.etree.ElementTree as ET
@@ -8,9 +7,12 @@ from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 import requests
 import logging
+import io  # Para manejar el archivo XML en memoria
+
 
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
+
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 def generate_xml(**context):
     logging.info("Iniciando la generación del XML.")
     
-    # Contenido JSON
+    # JSON content as before
     json_content = {
         'fileIdentifier': 'Ortomosaico_testeo',
         'organizationName': 'Instituto geográfico nacional (IGN)',
@@ -33,78 +35,109 @@ def generate_xml(**context):
             'southBoundLatitude': '42.8025',
             'northBoundLatitude': '42.8044'
         },
-        'spatialResolution': '0.026',
+        'spatialResolution': '0.026',  # Resolución espacial en metros
         'protocol': 'OGC:WMS-1.3.0-http-get-map',
         'wmsLink': 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms',
         'layerName': 'a__0026_4740004_611271',
         'layerDescription': 'Capa 0026 de prueba'
     }
 
-    # Llamar a la función para crear el XML
+    logging.info(f"Contenido JSON cargado: {json_content}")
+
+    # Extract XML parameters (as before)
+    file_identifier = json_content['fileIdentifier']
+    organization_name = json_content['organizationName']
+    email_address = json_content['email']
+    date_stamp = json_content['dateStamp']
+    title = json_content['title']
+    publication_date = json_content['publicationDate']
+    west_bound = json_content['boundingBox']['westBoundLongitude']
+    east_bound = json_content['boundingBox']['eastBoundLongitude']
+    south_bound = json_content['boundingBox']['southBoundLatitude']
+    north_bound = json_content['boundingBox']['northBoundLatitude']
+    spatial_resolution = json_content['spatialResolution']
+    protocol = json_content['protocol']
+    wms_link = json_content['wmsLink']
+    layer_name = json_content['layerName']
+    layer_description = json_content['layerDescription']
+
+    logging.info("Llamando a la función creador_xml_metadata.")
+    
+    # Generate XML tree
     tree = creador_xml_metadata(
-        file_identifier=json_content['fileIdentifier'],
-        organization_name=json_content['organizationName'],
-        email_address=json_content['email'],
-        date_stamp=json_content['dateStamp'],
-        title=json_content['title'],
-        publication_date=json_content['publicationDate'],
-        west_bound=json_content['boundingBox']['westBoundLongitude'],
-        east_bound=json_content['boundingBox']['eastBoundLongitude'],
-        south_bound=json_content['boundingBox']['southBoundLatitude'],
-        north_bound=json_content['boundingBox']['northBoundLatitude'],
-        spatial_resolution=json_content['spatialResolution'],
-        protocol=json_content['protocol'],
-        wms_link=json_content['wmsLink'],
-        layer_name=json_content['layerName'],
-        layer_description=json_content['layerDescription']
+        file_identifier=file_identifier,
+        organization_name=organization_name,
+        email_address=email_address,
+        date_stamp=date_stamp,
+        title=title,
+        publication_date=publication_date,
+        west_bound=west_bound,
+        east_bound=east_bound,
+        south_bound=south_bound,
+        north_bound=north_bound,
+        spatial_resolution=spatial_resolution,
+        protocol=protocol,
+        wms_link=wms_link,
+        layer_name=layer_name,
+        layer_description=layer_description
     )
 
     if tree is None:
-        logging.error("Error: creador_xml_metadata retornó None.")
+        logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
         raise Exception("Error: creador_xml_metadata retornó None.")
 
     logging.info("El XML ha sido creado exitosamente en memoria.")
 
-    # Convertir el XML a bytes
+    # Convert the XML tree to bytes
     xml_bytes_io = io.BytesIO()
     tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
     xml_content = xml_bytes_io.getvalue()
 
-    # Codificar el XML en base64 para almacenarlo en XCom
+    # Base64 encode the XML bytes
     xml_encoded = base64.b64encode(xml_content).decode('utf-8')
-    logging.info(f"XML encoded: {xml_encoded}")
+    logging.info (f"Xml enconded {xml_encoded}")
 
+    # Store the base64 encoded XML content in XCom
     return xml_encoded
+
+# URL para obtener las credenciales
+credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
 
 # Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
     try:
-        credential_body = {
-            "username": "angel",
-            "password": "111111"
+
+        credential_dody = {
+            "username" : "angel",
+            "password" : "111111"
         }
 
         # Hacer la solicitud para obtener las credenciales
-        credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
         logging.info(f"Obteniendo credenciales de: {credentials_url}")
-        response = requests.post(credentials_url, json=credential_body)
+        response = requests.post(credentials_url,json= credential_dody)
 
         # Verificar que la respuesta sea exitosa
         response.raise_for_status()
 
-        # Extraer los tokens
+        # Extraer los headers y tokens necesarios
         response_object = response.json()
         access_token = response_object['accessToken']
         xsrf_token = response_object['xsrfToken']
         set_cookie_header = response_object['setCookieHeader']
+        
 
         logging.info(f"Credenciales obtenidas: accessToken={access_token}, XSRF-TOKEN={xsrf_token}")
 
         return [access_token, xsrf_token, set_cookie_header]
-
+    
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al obtener credenciales: {e}")
         raise Exception(f"Error al obtener credenciales: {e}")
+
+import requests
+import logging
+import uuid
+import base64
 
 # Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
@@ -112,42 +145,54 @@ def upload_to_geonetwork(**context):
         # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
-        # Obtener el XML codificado en base64 desde XCom
+        # Obtener el XML base64 desde XCom
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
         xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
-        # Preparar los archivos para la solicitud
+        logging.info(f"XML DATA: {xml_data}")
+        logging.info(xml_decoded)
+
+        # Construcción del multipart/form-data
         files = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
             'transformWith': (None, 'none'),
-            'group': (None, 2),  # Cambia el valor de 'group' si es necesario
+            'group': (None, '2'),  # Cambia el valor de 'group' si es necesario
             'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
+            'file': ('test2.xml', xml_decoded, 'text/xml'),
         }
 
         # URL de GeoNetwork para subir el archivo XML
         upload_url = f"{geonetwork_url}/records"
+        
+        # Generar un boundary único
+        boundary = '----WebKitFormBoundary' + uuid.uuid4().hex
 
-        # Encabezados de autenticación
+        # Encabezados que incluyen los tokens
         headers = {
-            'content-type': 'multipart/form-data; boundary=ebf9f03029db4c2799ae16b5428b06bd',
             'Authorization': f"Bearer {access_token}",
-            'x-xsrf-token': xsrf_token,
-            'Cookie': set_cookie_header[0],
-            'Accept': 'application/json'
+            'x-xsrf-token': str(xsrf_token),
+            'Cookie': str(set_cookie_header[0]),
+            'Accept': 'application/json',
         }
 
-        # Hacer la solicitud POST para subir el archivo XML
+        # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
         response = requests.post(upload_url, headers=headers, files=files)
+        logging.info(response)
 
-        # Verificar si hubo errores
+        # Verificar si hubo algún error en la solicitud
         response.raise_for_status()
+
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
+
     except Exception as e:
+        if 'response' in locals() and response is not None:
+            logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
+
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
+
 
 # Función para crear el XML metadata
 def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
