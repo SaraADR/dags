@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 from airflow.providers.ssh.hooks.ssh import SSHHook
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
+import numpy as np
 
 
 def process_heatmap_data(**context):
@@ -189,9 +190,6 @@ def process_heatmap_data(**context):
                 #     session.rollback()
                 #     print(f"Error durante el guardado del estado del job")
 
-
-            print(output_path)
-            
             #Una vez tenemos lo que ha salido lo subimos a minio
             up_to_minio(local_output_directory, from_user, '/tmp')
 
@@ -253,7 +251,6 @@ def up_to_minio(local_output_directory, from_user, temp_dir):
                     
     except Exception as e:
         print(f"Error al subir archivos a MinIO: {str(e)}")
-
 
 
 
@@ -367,16 +364,33 @@ def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
 
         # Copiamos los metadatos y actualizamos con los nuevos parámetros
         kwargs = src.meta.copy()
+
         kwargs.update({
             'crs': dst_crs,
             'transform': transform,
             'width': width,
-            'height': height
+            'height': height,
+            'dtype': 'uint8',  # Cambiamos a tipo de dato uint8
+            'compress': 'lzw',  # Compresión LZW
+            'predictor': 2,  # Predictor de compresión
+            'zlevel': 3,  # Nivel de compresión
+            'nodata': 0  # Establecer valor nodata
         })    
 
         # Abrimos el archivo de salida para escribir
+        # with rasterio.open(output_tiff, 'w', **kwargs) as dst:
+        #     # Reproyectamos cada banda
+        #     for i in range(1, src.count + 1):
+        #         reproject(
+        #             source=rasterio.band(src, i),
+        #             destination=rasterio.band(dst, i),
+        #             src_transform=src.transform,
+        #             src_crs=src.crs,
+        #             dst_transform=transform,
+        #             dst_crs=dst_crs,
+        #             resampling=Resampling.nearest)
+
         with rasterio.open(output_tiff, 'w', **kwargs) as dst:
-            # Reproyectamos cada banda
             for i in range(1, src.count + 1):
                 reproject(
                     source=rasterio.band(src, i),
@@ -386,6 +400,12 @@ def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
                     dst_transform=transform,
                     dst_crs=dst_crs,
                     resampling=Resampling.nearest)
+                band_data = src.read(i)
+                scaled_data = np.clip((band_data / 65535) * 255, 0, 255).astype('uint8')
+
+                # Reproyectamos la banda escalada
+                dst.write(scaled_data, i)
+
         
         print(f"Reproyección completa. Archivo guardado en: {output_tiff}")
 
