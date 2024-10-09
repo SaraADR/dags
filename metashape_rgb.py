@@ -152,21 +152,25 @@ def upload_to_geonetwork(**context):
         logging.info(f"XML DATA: {xml_data}")
         logging.info(xml_decoded)
 
-        # Construcción del multipart/form-data
+        file_stream = io.BytesIO(xml_decoded)
+
+        form_data = {
+                'metadataType': 'METADATA',
+                'uuidProcessing': 'NOTHING',
+                'transformWith': 'none',
+                'group': '2',
+                'category': ''
+            }
+
         files = {
-            'metadataType': (None, 'METADATA'),
-            'uuidProcessing': (None, 'NOTHING'),
-            'transformWith': (None, 'none'),
-            'group': (None, '2'),  # Cambia el valor de 'group' si es necesario
-            'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('test2.xml', xml_decoded, 'text/xml'),
-        }
+                'file': ('test2.xml', file_stream, 'text/xml')
+            }        
+        
+        response = requests.post('URL_DEL_SERVIDOR', data=form_data, files=files)
 
         # URL de GeoNetwork para subir el archivo XML
         upload_url = f"{geonetwork_url}/records"
         
-        # Generar un boundary único
-        boundary = '----WebKitFormBoundary' + uuid.uuid4().hex
 
         # Encabezados que incluyen los tokens
         headers = {
