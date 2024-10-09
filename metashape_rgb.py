@@ -145,6 +145,9 @@ def upload_to_geonetwork(**context):
         # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
+        # URL de GeoNetwork para subir el archivo XML
+        upload_url = f"{geonetwork_url}/records"
+        
         # Obtener el XML base64 desde XCom
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
         xml_decoded = base64.b64decode(xml_data).decode('utf-8')
@@ -166,10 +169,9 @@ def upload_to_geonetwork(**context):
                 'file': ('test2.xml', file_stream, 'text/xml')
             }        
         
-        response = requests.post('URL_DEL_SERVIDOR', data=form_data, files=files)
+        response = requests.post(upload_url, data=form_data, files=files)
 
-        # URL de GeoNetwork para subir el archivo XML
-        upload_url = f"{geonetwork_url}/records"
+       
         
 
         # Encabezados que incluyen los tokens
