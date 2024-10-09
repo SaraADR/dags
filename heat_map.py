@@ -189,18 +189,23 @@ def up_to_minio(local_output_directory, from_user):
             local_file_path = os.path.join(local_output_directory, filename)
             
             print(filename)
-            
+
             # Verificar que es un archivo
-            if os.path.isfile(local_file_path) and filename.lower().endswith('.tiff'):
+            if os.path.isfile(local_file_path) :
                 # Generar un key único para cada archivo en MinIO
                 file_key = f"{key}/{filename}"
                 
                 # Subir el archivo a MinIO
                 s3_client.upload_file(local_file_path, bucket_name, file_key)
-                
-                # Generar la URL del archivo subido
-                file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{file_key}"
-                print(f"Archivo {filename} subido correctamente a MinIO. URL: {file_url}")
+                print(f"Archivo {filename} subido correctamente a MinIO.")
+
+                # Generar la URL del archivo subido           
+                if  filename.lower().endswith(('.tif', '.tiff')):
+                    file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{file_key}"
+                    print(f" URL: {file_url}")
+                    
+
+
 
     except Exception as e:
         print(f"Error al subir archivos a MinIO: {str(e)}")
