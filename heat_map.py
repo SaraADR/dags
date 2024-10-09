@@ -344,10 +344,10 @@ def change_state_job(**context):
         print(f"Error durante el guardado del estado del job: {str(e)}")
 
 
-def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
+def process_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
     """
-    Reproyecta un archivo TIFF de un CRS a otro y guarda el resultado en un nuevo archivo.
-
+    Procesa un archivo TIFF escalando sus valores y reproyectándolo a otro CRS.
+    
     Args:
         input_tiff (str): Ruta del archivo TIFF de entrada.
         output_tiff (str): Ruta del archivo TIFF de salida.
@@ -374,38 +374,29 @@ def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
             'compress': 'lzw',  # Compresión LZW
             'predictor': 2,  # Predictor de compresión
             'zlevel': 3,  # Nivel de compresión
-            'nodata': 0  # Establecer valor nodata
+            'nodata': 0,  # Establecer valor nodata
+            'driver': 'GTiff'  # Formato de salida GTiff
         })    
 
         # Abrimos el archivo de salida para escribir
-        # with rasterio.open(output_tiff, 'w', **kwargs) as dst:
-        #     # Reproyectamos cada banda
-        #     for i in range(1, src.count + 1):
-        #         reproject(
-        #             source=rasterio.band(src, i),
-        #             destination=rasterio.band(dst, i),
-        #             src_transform=src.transform,
-        #             src_crs=src.crs,
-        #             dst_transform=transform,
-        #             dst_crs=dst_crs,
-        #             resampling=Resampling.nearest)
-
         with rasterio.open(output_tiff, 'w', **kwargs) as dst:
             for i in range(1, src.count + 1):
+                # Leemos la banda original
+                band_data = src.read(i)
+                
+                # Escalamos los valores de 0-65535 a 0-255
+                scaled_data = np.clip((band_data / 65535) * 255, 0, 255).astype('uint8')
+
+                # Reproyectamos la banda escalada
                 reproject(
-                    source=rasterio.band(src, i),
+                    source=scaled_data,
                     destination=rasterio.band(dst, i),
                     src_transform=src.transform,
                     src_crs=src.crs,
                     dst_transform=transform,
                     dst_crs=dst_crs,
-                    resampling=Resampling.nearest)
-                band_data = src.read(i)
-                scaled_data = np.clip((band_data / 65535) * 255, 0, 255).astype('uint8')
-
-                # Reproyectamos la banda escalada
-                dst.write(scaled_data, i)
-
+                    resampling=Resampling.nearest
+                )
         
         print(f"Reproyección completa. Archivo guardado en: {output_tiff}")
 
