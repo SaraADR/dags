@@ -134,15 +134,10 @@ def get_geonetwork_credentials():
         logging.error(f"Error al obtener credenciales: {e}")
         raise Exception(f"Error al obtener credenciales: {e}")
 
-import requests
-import logging
-import uuid
-import base64
-
 import io
 import base64
-import logging
 import requests
+import logging
 
 # Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
@@ -150,67 +145,51 @@ def upload_to_geonetwork(**context):
         # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
-        # URL de GeoNetwork para subir el archivo XML
-        upload_url = f"{geonetwork_url}/records"
-        
         # Obtener el XML base64 desde XCom
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
         xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
+        # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
+        xml_file_stream = io.StringIO(xml_decoded)
+
         logging.info(f"XML DATA: {xml_data}")
         logging.info(xml_decoded)
 
-        # Guardar el archivo XML temporalmente para ver si está bien formado
-        with open("/tmp/output.xml", "w") as f:
-            f.write(xml_decoded)
+        data = {
+            'metadataType': (None, 'METADATA'),
+            'uuidProcessing': (None, 'NOTHING'),
+            'transformWith': (None, 'none'),
+            'group': (None, 2),  # Cambia el valor de 'group' si es necesario
+            'category': (None, ''),  # Si no tienes categoría, puede ir vacío
 
-        # Validar si el XML está bien formado
-        import xml.etree.ElementTree as ET
-        try:
-            ET.fromstring(xml_decoded)
-            logging.info("El XML está bien formado.")
-        except ET.ParseError as e:
-            logging.error(f"El XML tiene errores de formato: {e}")
-            raise
-
-        # Crear el flujo de bytes del archivo
-        file_stream = io.BytesIO(xml_decoded.encode('utf-8'))
-
-        # Datos del formulario
-        form_data = {
-            'metadataType': 'METADATA',
-            'uuidProcessing': 'NOTHING',
-            'transformWith': 'none',
-            'group': '2',
-            'category': ''
         }
-
-        # Archivos a enviar
+        
         files = {
-            'file': ('test2.xml', file_stream, 'text/xml')
+            'file': ('nombre_archivo.xml', xml_file_stream.read(), 'text/xml'),
         }
+
+        # URL de GeoNetwork para subir el archivo XML
+        upload_url = f"{geonetwork_url}/records"
 
         # Encabezados que incluyen los tokens
         headers = {
             'Authorization': f"Bearer {access_token}",
             'x-xsrf-token': str(xsrf_token),
             'Cookie': str(set_cookie_header[0]),
-            'Accept': 'application/json',
-            'Content-Type': 'multipart/form-data'
+            'Accept': 'application/json'
         }
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
-        response = requests.post(upload_url, headers=headers, files=files)
+        response = requests.post(upload_url,data=data, files=files, headers=headers)
         logging.info(response)
 
         # Verificar si hubo algún error en la solicitud
         response.raise_for_status()
 
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
-
     except Exception as e:
-        if 'response' in locals() and response is not None:
+        if response is not None:
             logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
 
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
