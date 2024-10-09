@@ -344,7 +344,7 @@ def change_state_job(**context):
         print(f"Error durante el guardado del estado del job: {str(e)}")
 
 
-def process_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
+def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
     """
     Procesa un archivo TIFF escalando sus valores y reproyectándolo a otro CRS.
     
