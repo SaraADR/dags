@@ -173,6 +173,7 @@ def upload_to_geonetwork(**context):
 
         # Encabezados que incluyen los tokens
         headers = {
+            # 'Content-Type': 'multipart/form-data',
             'Authorization': f"Bearer {access_token}",
             'x-xsrf-token': str(xsrf_token),
             'Cookie': str(set_cookie_header[0]),
