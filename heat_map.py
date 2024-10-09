@@ -188,6 +188,8 @@ def up_to_minio(local_output_directory, from_user):
         for filename in os.listdir(local_output_directory):
             local_file_path = os.path.join(local_output_directory, filename)
             
+            print(filename)
+            
             # Verificar que es un archivo
             if os.path.isfile(local_file_path) and filename.lower().endswith('.tiff'):
                 # Generar un key único para cada archivo en MinIO
