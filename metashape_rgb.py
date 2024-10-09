@@ -139,6 +139,11 @@ import logging
 import uuid
 import base64
 
+import io
+import base64
+import logging
+import requests
+
 # Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
     try:
@@ -147,7 +152,7 @@ def upload_to_geonetwork(**context):
 
         # URL de GeoNetwork para subir el archivo XML
         upload_url = f"{geonetwork_url}/records"
-
+        
         # Obtener el XML base64 desde XCom
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
         xml_decoded = base64.b64decode(xml_data).decode('utf-8')
@@ -155,25 +160,35 @@ def upload_to_geonetwork(**context):
         logging.info(f"XML DATA: {xml_data}")
         logging.info(xml_decoded)
 
-        file_stream = io.BytesIO(xml_decoded.encode())  # Esto convierte de string a bytes
+        # Guardar el archivo XML temporalmente para ver si está bien formado
+        with open("/tmp/output.xml", "w") as f:
+            f.write(xml_decoded)
 
+        # Validar si el XML está bien formado
+        import xml.etree.ElementTree as ET
+        try:
+            ET.fromstring(xml_decoded)
+            logging.info("El XML está bien formado.")
+        except ET.ParseError as e:
+            logging.error(f"El XML tiene errores de formato: {e}")
+            raise
 
+        # Crear el flujo de bytes del archivo
+        file_stream = io.BytesIO(xml_decoded.encode('utf-8'))
+
+        # Datos del formulario
         form_data = {
-                'metadataType': 'METADATA',
-                'uuidProcessing': 'NOTHING',
-                'transformWith': 'none',
-                'group': '2',
-                'category': ''
-            }
+            'metadataType': 'METADATA',
+            'uuidProcessing': 'NOTHING',
+            'transformWith': 'none',
+            'group': '2',
+            'category': ''
+        }
 
+        # Archivos a enviar
         files = {
-                'file': ('test2.xml', file_stream, 'text/xml')
-            }        
-        
-        response = requests.post(upload_url, data=form_data, files=files)
-
-       
-        
+            'file': ('test2.xml', file_stream, 'text/xml')
+        }
 
         # Encabezados que incluyen los tokens
         headers = {
@@ -181,6 +196,7 @@ def upload_to_geonetwork(**context):
             'x-xsrf-token': str(xsrf_token),
             'Cookie': str(set_cookie_header[0]),
             'Accept': 'application/json',
+            'Content-Type': 'multipart/form-data'
         }
 
         # Realizar la solicitud POST para subir el archivo XML
