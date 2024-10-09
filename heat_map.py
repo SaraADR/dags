@@ -162,7 +162,7 @@ def process_heatmap_data(**context):
             sftp.close()
 
 
-            output_path = '/temp/tiff_incendios.tif'
+            output_path = '/tmp/tiff_incendios.tif'
             input_path = local_output_directory + '/mapa_calor_incendios.tif'
             reproject_tiff(input_path, output_path)
 
@@ -178,6 +178,7 @@ def process_heatmap_data(**context):
 
 def up_to_minio(local_output_directory, from_user, temp_dir):
     key = f"{uuid.uuid4()}"
+
     try:
         # Conexión a MinIO
         connection = BaseHook.get_connection('minio_conn')
