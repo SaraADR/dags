@@ -346,23 +346,28 @@ def change_state_job(**context):
 
 def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
     """
-    Procesa un archivo TIFF escalando sus valores y reproyectándolo a otro CRS.
+    Processes a TIFF file by scaling its values and reprojecting it to another CRS.
     
     Args:
-        input_tiff (str): Ruta del archivo TIFF de entrada.
-        output_tiff (str): Ruta del archivo TIFF de salida.
-        dst_crs (str): Sistema de referencia de coordenadas de destino (default: 'EPSG:3857').
+        input_tiff (str): Path to the input TIFF file.
+        output_tiff (str): Path to the output TIFF file.
+        dst_crs (str): Target coordinate reference system (default: 'EPSG:3857').
     """
-    # Abrimos el archivo TIFF original
+    # Ensure the output directory exists
+    output_dir = os.path.dirname(output_tiff)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Open the original TIFF file
     with rasterio.open(input_tiff) as src:
-        # Calculamos la transformación y el nuevo tamaño
+        # Calculate the transformation and new size
         transform, width, height = calculate_default_transform(
             src.crs, dst_crs, src.width, src.height, *src.bounds)
         
-        # Mostramos el perfil del archivo fuente
+        # Display the source file profile
         print(src.profile)
 
-        # Copiamos los metadatos y actualizamos con los nuevos parámetros
+        # Copy the metadata and update with the new parameters
         kwargs = src.meta.copy()
 
         kwargs.update({
@@ -370,24 +375,35 @@ def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
             'transform': transform,
             'width': width,
             'height': height,
-            'dtype': 'uint8',  # Cambiamos a tipo de dato uint8
-            'compress': 'lzw',  # Compresión LZW
-            'predictor': 2,  # Predictor de compresión
-            'zlevel': 3,  # Nivel de compresión
-            'nodata': 0,  # Establecer valor nodata
-            'driver': 'GTiff'  # Formato de salida GTiff
+            'dtype': 'uint8',  # Change to uint8 data type
+            'compress': 'lzw',  # LZW compression
+            'predictor': 2,  # Compression predictor
+            'zlevel': 3,  # Compression level
+            'nodata': 0,  # Set nodata value
+            'driver': 'GTiff'  # Output format GTiff
         })    
 
-        # Abrimos el archivo de salida para escribir
+        # Open the output file for writing
         with rasterio.open(output_tiff, 'w', **kwargs) as dst:
             for i in range(1, src.count + 1):
-                # Leemos la banda original
+                # Read the original band
                 band_data = src.read(i)
                 
-                # Escalamos los valores de 0-65535 a 0-255
-                scaled_data = np.clip((band_data / 65535) * 255, 0, 255).astype('uint8')
+                # Check for nodata values and handle them appropriately
+                if src.nodata is not None:
+                    band_data = np.where(band_data == src.nodata, 0, band_data)
 
-                # Reproyectamos la banda escalada
+                # Scale the values from 0-65535 to 0-255 (only for uint16)
+                if band_data.dtype == 'uint16':
+                    scaled_data = np.clip((band_data / 65535) * 255, 0, 255).astype('uint8')
+                elif band_data.dtype == 'float32':
+                    # Scale float32 values directly to 0-255 based on min and max values
+                    scaled_data = np.clip((band_data - band_data.min()) / (band_data.max() - band_data.min()) * 255, 0, 255).astype('uint8')
+                else:
+                    # Handle other data types if necessary
+                    scaled_data = band_data.astype('uint8')
+
+                # Reproject the scaled band
                 reproject(
                     source=scaled_data,
                     destination=rasterio.band(dst, i),
@@ -398,8 +414,7 @@ def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
                     resampling=Resampling.nearest
                 )
         
-        print(f"Reproyección completa. Archivo guardado en: {output_tiff}")
-
+        print(f"Reprojection complete. File saved at: {output_tiff}")
 
 
 def create_json(params):
