@@ -164,12 +164,36 @@ def process_heatmap_data(**context):
 
             output_path = '/tmp/tiff_incendios.tif'
             input_path = local_output_directory + '/mapa_calor_incendios.tif'
-            reproject_tiff(input_path, output_path)
+            try:
+                reproject_tiff(input_path, output_path)
+            except Exception as e:
+                print(f"Error en el proceso: {str(e)}")
+                # try:
+
+                #     # Conexión a la base de datos usando las credenciales almacenadas en Airflow
+                #     db_conn = BaseHook.get_connection('biobd')
+                #     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                #     engine = create_engine(connection_string)
+                #     Session = sessionmaker(bind=engine)
+                #     session = Session()
+                #     metadata = MetaData(bind=engine)
+                #     jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+                    
+                #     # Actualizar el estado del trabajo a "ERROR"
+                #     update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='ERROR')
+                #     session.execute(update_stmt)
+                #     session.commit()
+                #     print(f"Job ID {job_id} status updated to ERROR")
+
+                # except Exception as e:
+                #     session.rollback()
+                #     print(f"Error durante el guardado del estado del job")
+
 
             print(output_path)
             
             #Una vez tenemos lo que ha salido lo subimos a minio
-            up_to_minio(local_output_directory, from_user, output_path)
+            up_to_minio(local_output_directory, from_user, '/tmp')
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
