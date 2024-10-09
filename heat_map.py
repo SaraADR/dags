@@ -16,8 +16,8 @@ from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.providers.ssh.hooks.ssh import SSHHook
-# import gdal, osr
-
+import rasterio
+from rasterio.warp import calculate_default_transform, reproject, Resampling
 
 
 def process_heatmap_data(**context):
@@ -161,15 +161,22 @@ def process_heatmap_data(**context):
                     downloaded_files.append(local_file_path)
             sftp.close()
 
+
+            output_path = '/temp/tiff_incendios.tif'
+            input_path = local_output_directory + '/mapa_calor_incendios.tif'
+            reproject_tiff(input_path, output_path)
+
+            print(output_path)
+            
             #Una vez tenemos lo que ha salido lo subimos a minio
-            up_to_minio(local_output_directory, from_user)
+            up_to_minio(local_output_directory, from_user, output_path)
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
 
 
 
-def up_to_minio(local_output_directory, from_user):
+def up_to_minio(local_output_directory, from_user, temp_dir):
     key = f"{uuid.uuid4()}"
     try:
         # Conexión a MinIO
@@ -199,16 +206,30 @@ def up_to_minio(local_output_directory, from_user):
                 s3_client.upload_file(local_file_path, bucket_name, file_key)
                 print(f"Archivo {filename} subido correctamente a MinIO.")
 
+        for filename in os.listdir(temp_dir):
+            #Subir el tiff que sale del rasterio
+            local_file_path = os.path.join(temp_dir, filename)
+            
+            print(filename)
+
+            # Verificar que es un archivo
+            if os.path.isfile(local_file_path) :
+                # Generar un key único para cada archivo en MinIO
+                file_key = f"{key}/{filename}"
+                
+                # Subir el archivo a MinIO
+                s3_client.upload_file(local_file_path, bucket_name, file_key)
+                print(f"Archivo {filename} subido correctamente a MinIO.")
                 # Generar la URL del archivo subido           
+
                 if  filename.lower().endswith(('.tif', '.tiff')):
                     file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{file_key}"
                     print(f" URL: {file_url}")
                     
-
-
-
     except Exception as e:
         print(f"Error al subir archivos a MinIO: {str(e)}")
+
+
 
 
     try:
@@ -301,46 +322,47 @@ def change_state_job(**context):
         print(f"Error durante el guardado del estado del job: {str(e)}")
 
 
+def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
+    """
+    Reproyecta un archivo TIFF de un CRS a otro y guarda el resultado en un nuevo archivo.
 
-# def cambiar_proyeccion_tiff(input_tiff, output_tiff):
-#     # Abrir el archivo TIFF
-#     dataset = gdal.Open(input_tiff, gdal.GA_Update)
+    Args:
+        input_tiff (str): Ruta del archivo TIFF de entrada.
+        output_tiff (str): Ruta del archivo TIFF de salida.
+        dst_crs (str): Sistema de referencia de coordenadas de destino (default: 'EPSG:3857').
+    """
+    # Abrimos el archivo TIFF original
+    with rasterio.open(input_tiff) as src:
+        # Calculamos la transformación y el nuevo tamaño
+        transform, width, height = calculate_default_transform(
+            src.crs, dst_crs, src.width, src.height, *src.bounds)
+        
+        # Mostramos el perfil del archivo fuente
+        print(src.profile)
 
-#     if dataset is None:
-#         raise FileNotFoundError(f"No se pudo abrir el archivo TIFF: {input_tiff}")
+        # Copiamos los metadatos y actualizamos con los nuevos parámetros
+        kwargs = src.meta.copy()
+        kwargs.update({
+            'crs': dst_crs,
+            'transform': transform,
+            'width': width,
+            'height': height
+        })    
 
-#     # Obtener la proyección actual
-#     proyeccion = dataset.GetProjection()
-
-#     # Crear un objeto SpatialReference
-#     srs = osr.SpatialReference()
-
-#     # Revisar si ya tiene proyección
-#     if proyeccion:
-#         print(f"Proyección actual: {proyeccion}")
-
-#         # Si ya es EPSG:3857, no se cambia
-#         srs.ImportFromWkt(proyeccion)
-#         if srs.IsProjected() and srs.GetAttrValue("AUTHORITY", 1) == '3857':
-#             print("El archivo ya tiene la proyección EPSG:3857.")
-#         else:
-#             # Cambiar proyección a EPSG:3857
-#             print("Cambiando la proyección a EPSG:3857.")
-#             srs.ImportFromEPSG(3857)
-#             dataset.SetProjection(srs.ExportToWkt())
-#     else:
-#         # Si no tiene proyección, aplicar EPSG:3857
-#         print("No tiene proyección, aplicando EPSG:3857.")
-#         srs.ImportFromEPSG(3857)
-#         dataset.SetProjection(srs.ExportToWkt())
-
-#     # Guardar el archivo TIFF con la nueva proyección
-#     gdal.Warp(output_tiff, dataset, dstSRS='EPSG:3857')
-
-#     # Cerrar el dataset
-#     dataset = None
-
-#     print(f"Se ha guardado el archivo con la proyección EPSG:3857 en: {output_tiff}")
+        # Abrimos el archivo de salida para escribir
+        with rasterio.open(output_tiff, 'w', **kwargs) as dst:
+            # Reproyectamos cada banda
+            for i in range(1, src.count + 1):
+                reproject(
+                    source=rasterio.band(src, i),
+                    destination=rasterio.band(dst, i),
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=transform,
+                    dst_crs=dst_crs,
+                    resampling=Resampling.nearest)
+        
+        print(f"Reproyección completa. Archivo guardado en: {output_tiff}")
 
 
 
@@ -370,32 +392,6 @@ def create_json(params):
         "codigo": params.get("codigo", None),
         "sigma": params.get("sigma", None)
     }
-
-    # input_data = {
-    #     "directorio_alg": ".",
-    #     "directorio_output": params.get("directorio_output"),
-    #     "incendios":  "FALSE",
-    #     "ar_incendios": None,
-    #     "url1":  None,
-    #     "url2":  None,
-    #     "url3":  None,
-    #     "url4":  None,
-    #     "user": params.get("user", "ITMATI.DES"),
-    #     "password": params.get("password", "Cui_1234"),
-    #     "minlat": 36.8357,
-    #     "maxlat": 36.7553,
-    #     "minlon": -3.6328,
-    #     "maxlon": -3.7864,
-    #     "comunidadAutonomaId":  None,
-    #     "lowSearchDate":  "2023-08-30T01:00:00.000+0000",
-    #     "highSearchDate": "2023-08-30T23:00:00.000+0000",
-    #     "navstates":  None,
-    #     "title": "EC-NBR",
-    #     "customerIds": "INFOCA",
-    #     "res": None,
-    #     "codigo":  None,
-    #     "sigma": None
-    # }
 
 
     return input_data
