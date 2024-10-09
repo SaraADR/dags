@@ -169,7 +169,7 @@ def upload_to_geonetwork(**context):
         }
 
         # URL de GeoNetwork para subir el archivo XML
-        upload_url = f"{geonetwork_url}/records"
+        upload_url = "https://2785-37-135-62-77.ngrok-free.app/api/upload"
 
         # Encabezados que incluyen los tokens
         headers = {
