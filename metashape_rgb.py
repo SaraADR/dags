@@ -134,7 +134,11 @@ def get_geonetwork_credentials():
         logging.error(f"Error al obtener credenciales: {e}")
         raise Exception(f"Error al obtener credenciales: {e}")
 
-# Función para subir el XML utilizando las credenciales obtenidas
+import io
+import base64
+import requests
+import logging
+
 # Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
     try:
@@ -145,32 +149,30 @@ def upload_to_geonetwork(**context):
         xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
         xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
-
-        # xml_string = xml_string.replace('\\', '')
+        # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
+        xml_file_stream = io.StringIO(xml_decoded)
 
         logging.info(f"XML DATA: {xml_data}")
         logging.info(xml_decoded)
-
 
         files = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
             'transformWith': (None, 'none'),
-            'group': (None, 2),  # Cambia el valor de 'group' si es necesario
-            'category': (None, ''),  # Si no tienes categoría, puede ir vacío
-            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
-            
+            'group': (None, 2),
+            'category': (None, ''),
+            'file': ('nombre_archivo.xml', xml_file_stream.read(), 'text/xml'),
         }
+        
+        # files = {
+        #     'file': ('nombre_archivo.xml', xml_file_stream.read(), 'text/xml'),
+        # }
 
-        # URL de GeoNetwork para subir el archivo XML (Move this line up)
-        upload_url = f"{geonetwork_url}/records"
-        boundary = '----WebKitFormBoundary' + uuid.uuid4().hex
+        # URL de GeoNetwork para subir el archivo XML
+        upload_url = "https://2785-37-135-62-77.ngrok-free.app/api/upload"
 
         # Encabezados que incluyen los tokens
-
         headers = {
-            # 'Content-Type': 'multipart/form-data',  # Eliminar esta línea
-            'content-type': 'multipart/form-data; boundary=ebf9f03029db4c2799ae16b5428b06bd',
             'Authorization': f"Bearer {access_token}",
             'x-xsrf-token': str(xsrf_token),
             'Cookie': str(set_cookie_header[0]),
@@ -179,22 +181,18 @@ def upload_to_geonetwork(**context):
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
-        response = requests.post(upload_url, headers=headers, files=files)
+        response = requests.post(upload_url,files=files,json=files, headers=headers)
         logging.info(response)
 
         # Verificar si hubo algún error en la solicitud
         response.raise_for_status()
 
-        
-
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except Exception as e:
-
         if response is not None:
             logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
 
-            
-        logging.error(f"Error al decodificar el XML: {e}")
+        logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
 
