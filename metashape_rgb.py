@@ -161,11 +161,11 @@ def upload_to_geonetwork(**context):
             'transformWith': (None, 'none'),
             'group': (None, 2),
             'category': (None, ''),
-            'file': ('nombre_archivo.xml', xml_file_stream.read(), 'text/xml'),
+            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
         }
         
         files = {
-            'file': ('nombre_archivo.xml', xml_file_stream.read(), 'text/xml'),
+            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
         }
 
         # URL de GeoNetwork para subir el archivo XML
@@ -182,7 +182,7 @@ def upload_to_geonetwork(**context):
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
-        response = requests.post(upload_url,files=files,data=data,json=files, headers=headers)
+        response = requests.post(upload_url,files=files,data=data, headers=headers)
         logging.info(response)
 
         # Verificar si hubo algún error en la solicitud
