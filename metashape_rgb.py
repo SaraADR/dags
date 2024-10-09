@@ -152,7 +152,7 @@ def upload_to_geonetwork(**context):
         logging.info(f"XML DATA: {xml_data}")
         logging.info(xml_decoded)
 
-        file_stream = io.BytesIO(xml_decoded)
+        file_stream = io.BytesIO(xml_data.encode('utf-8'))
 
         form_data = {
                 'metadataType': 'METADATA',
