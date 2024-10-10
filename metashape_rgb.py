@@ -158,7 +158,7 @@ def upload_to_geonetwork(**context):
         data = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
-            'transformWith': (None, 'none'),
+            'transformWith': (None, '_none_'),
             'group': (None, 2),
             'category': (None, ''),
             'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
@@ -169,7 +169,7 @@ def upload_to_geonetwork(**context):
         }
 
         # URL de GeoNetwork para subir el archivo XML
-        upload_url = "https://2785-37-135-62-77.ngrok-free.app/api/upload"
+        upload_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records"
 
         # Encabezados que incluyen los tokens
         headers = {
