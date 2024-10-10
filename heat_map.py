@@ -475,17 +475,6 @@ default_args = {
     'type': 'incendios',
 }
 
-default_args_aero = {
-    'owner': 'oscar',
-    'depends_on_past': False,
-    'start_date': datetime(2024, 9, 1),
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=1),
-    'type': 'aeronaves',
-}
-
 
 # Definición del DAG incendios
 dag = DAG(
@@ -493,7 +482,8 @@ dag = DAG(
     default_args=default_args,
     description='DAG para procesar datos de heatmap-incendio, subir TIFF a MinIO, y enviar notificaciones',
     schedule_interval=None,
-    catchup=False
+    catchup=False,
+    concurrency=1
 )
 
 # Tarea para el proceso de Heatmap de Incendios
