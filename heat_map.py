@@ -51,7 +51,7 @@ def process_heatmap_data(**context):
         isIncendio = "FALSE"
         # input_data["url_search_aircraft"] = "https://pre.atcservices.cirpas.gal/rest/AircraftService/searchByIntersection"
         # input_data["url_aircraftperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/AircraftAlgorithm_AircraftPerimeterService/getByAircraft?id="
-    if 'lonlat' in data and len(data['lonlat']) == 4:
+    if 'lonlat' in input_data and len(input_data['lonlat']) == 4:
         lonlat = input_data.get['lonlat']
 
         # Asignar los valores a minLon, maxLon, minLat, maxLat
@@ -70,10 +70,10 @@ def process_heatmap_data(**context):
         "sigma" :  input_data.get('sigma', None),
         "codigo" : input_data.get('codigo', None),
         "title": input_data.get('aircrafts', None),
-        "minlat": input_data.get("minLat", None),
-        "maxlat": input_data.get("maxLat", None),
-        "minlon": input_data.get("minLon", None),
-        "maxlon": input_data.get("maxLon", None),
+        "minlat": minLat,
+        "maxlat": maxLat,
+        "minlon": minLon,
+        "maxlon": maxLon,
     }
     print(params)
     print(input_data)
