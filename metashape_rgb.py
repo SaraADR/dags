@@ -26,7 +26,32 @@ def load_algorithm_result_from_dag(**kwargs):
     conf = kwargs.get('conf', None)
     if conf:
         json_content = ast.literal_eval(conf['json'])  # Parses the passed JSON string back into dict
-        return json_content
+        
+        # Process based on file name conditions
+        algorithm_id = None
+        otros = []  # To store other files
+        for file in conf['otros']:
+            file_name = file['file_name'].lower()
+            content = base64.b64decode(file['content'])
+
+            # If the file is 'algorithm_result.json', process the JSON content
+            if file_name == 'algorithm_result.json':
+                try:
+                    json_file_content = json.loads(content)
+                    json_content_metadata = json_file_content.get('metadata', [])
+                    for metadata in json_content_metadata:
+                        if metadata.get('name') == 'AlgorithmID':
+                            algorithm_id = metadata.get('value')
+                    logging.info(f"algorithmId en {file_name}: {algorithm_id}")
+                except json.JSONDecodeError as e:
+                    logging.error(f"Error al decodificar 'algorithm_result.json': {e}")
+                    raise
+            else:
+                encoded_content = base64.b64encode(content).decode('utf-8')
+                otros.append({'file_name': file_name, 'content': encoded_content})
+        
+        # Return relevant algorithm content and other files
+        return {'algorithm_id': algorithm_id, 'otros': otros}
     else:
         raise Exception("No se proporcionó 'conf' para el DAG.")
 
