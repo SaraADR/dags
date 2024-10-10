@@ -31,75 +31,106 @@ def load_algorithm_result_from_dag(**kwargs):
         raise Exception("No se proporcionó 'conf' para el DAG.")
 
 
-# Función para generar el XML
 def generate_xml(**context):
-    logging.info("Iniciando la generación del XML.")
+    try:
+        logging.info("Iniciando la generación del XML.")
+        
+        # Try to load algorithm result
+        try:
+            algorithm_data = load_algorithm_result_from_dag(**context)
+            logging.info(f"Resultado del algoritmo cargado exitosamente: {algorithm_data}")
+        except Exception as e:
+            logging.error(f"Error cargando el resultado del algoritmo: {e}")
+            raise
 
-    # Cargar el contenido dinámico desde el resultado del algoritmo
-    algorithm_data = load_algorithm_result_from_dag(**context)
+        # Verificar si 'executionResources' existe
+        if 'executionResources' not in algorithm_data:
+            logging.error("Falta 'executionResources' en los datos del algoritmo")
+            raise KeyError("'executionResources' no está en los datos del algoritmo.")
 
-    # Obtener los datos dinámicos para el XML
-    output_data = next(item for item in algorithm_data['executionResources'] if item['output'])
-    
-    # JSON content for dynamic XML generation
-    json_content = {
-        'fileIdentifier': output_data['data'][0]['value'],  # e.g., "Ortomosaico_0026_4740004_611271"
-        'organizationName': 'Instituto geográfico nacional (IGN)',
-        'email': 'ignis@organizacion.es',
-        'dateStamp': datetime.now().isoformat(),
-        'title': output_data['data'][0]['value'],
-        'publicationDate': algorithm_data['metadata'][2]['value'],
-        'boundingBox': {
-            'westBoundLongitude': output_data['data'][1]['value']['westBoundLongitude'],
-            'eastBoundLongitude': output_data['data'][1]['value']['eastBoundLongitude'],
-            'southBoundLatitude': output_data['data'][1]['value']['southBoundLatitude'],
-            'northBoundLatitude': output_data['data'][1]['value']['nortBoundLatitude']
-        },
-        'spatialResolution': output_data['data'][3]['value'],  # Resolución espacial
-        'protocol': 'OGC:WMS-1.3.0-http-get-map',
-        'wmsLink': 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms',
-        'layerName': output_data['data'][0]['value'],
-        'layerDescription': output_data['data'][2]['value']
-    }
+        # Obtener los datos dinámicos para el XML
+        try:
+            output_data = next(item for item in algorithm_data['executionResources'] if item['output'])
+            logging.info(f"Datos de salida extraídos correctamente: {output_data}")
+        except StopIteration:
+            logging.error("No se encontró ningún recurso de salida en 'executionResources'.")
+            raise
 
-    logging.info(f"Contenido JSON cargado: {json_content}")
+        # JSON content for dynamic XML generation
+        json_content = {
+            'fileIdentifier': output_data['data'][0]['value'],  # e.g., "Ortomosaico_0026_4740004_611271"
+            'organizationName': 'Instituto geográfico nacional (IGN)',
+            'email': 'ignis@organizacion.es',
+            'dateStamp': datetime.now().isoformat(),
+            'title': output_data['data'][0]['value'],
+            'publicationDate': algorithm_data['metadata'][2]['value'],
+            'boundingBox': {
+                'westBoundLongitude': output_data['data'][1]['value']['westBoundLongitude'],
+                'eastBoundLongitude': output_data['data'][1]['value']['eastBoundLongitude'],
+                'southBoundLatitude': output_data['data'][1]['value']['southBoundLatitude'],
+                'northBoundLatitude': output_data['data'][1]['value']['nortBoundLatitude']
+            },
+            'spatialResolution': output_data['data'][3]['value'],  # Resolución espacial
+            'protocol': 'OGC:WMS-1.3.0-http-get-map',
+            'wmsLink': 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms',
+            'layerName': output_data['data'][0]['value'],
+            'layerDescription': output_data['data'][2]['value']
+        }
 
-    # Generate XML tree
-    tree = creador_xml_metadata(
-        file_identifier=json_content['fileIdentifier'],
-        organization_name=json_content['organizationName'],
-        email_address=json_content['email'],
-        date_stamp=json_content['dateStamp'],
-        title=json_content['title'],
-        publication_date=json_content['publicationDate'],
-        west_bound=json_content['boundingBox']['westBoundLongitude'],
-        east_bound=json_content['boundingBox']['eastBoundLongitude'],
-        south_bound=json_content['boundingBox']['southBoundLatitude'],
-        north_bound=json_content['boundingBox']['northBoundLatitude'],
-        spatial_resolution=json_content['spatialResolution'],
-        protocol=json_content['protocol'],
-        wms_link=json_content['wmsLink'],
-        layer_name=json_content['layerName'],
-        layer_description=json_content['layerDescription']
-    )
+        logging.info(f"Contenido JSON para la generación de XML: {json_content}")
 
-    if tree is None:
-        logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
-        raise Exception("Error: creador_xml_metadata retornó None.")
+        # Generate XML tree
+        try:
+            tree = creador_xml_metadata(
+                file_identifier=json_content['fileIdentifier'],
+                organization_name=json_content['organizationName'],
+                email_address=json_content['email'],
+                date_stamp=json_content['dateStamp'],
+                title=json_content['title'],
+                publication_date=json_content['publicationDate'],
+                west_bound=json_content['boundingBox']['westBoundLongitude'],
+                east_bound=json_content['boundingBox']['eastBoundLongitude'],
+                south_bound=json_content['boundingBox']['southBoundLatitude'],
+                north_bound=json_content['boundingBox']['northBoundLatitude'],
+                spatial_resolution=json_content['spatialResolution'],
+                protocol=json_content['protocol'],
+                wms_link=json_content['wmsLink'],
+                layer_name=json_content['layerName'],
+                layer_description=json_content['layerDescription']
+            )
+            logging.info("Árbol XML creado exitosamente.")
+        except Exception as e:
+            logging.error(f"Error al crear el XML: {e}")
+            raise
 
-    logging.info("El XML ha sido creado exitosamente en memoria.")
+        if tree is None:
+            logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
+            raise Exception("Error: creador_xml_metadata retornó None.")
 
-    # Convert the XML tree to bytes
-    xml_bytes_io = io.BytesIO()
-    tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
-    xml_content = xml_bytes_io.getvalue()
+        # Convert the XML tree to bytes
+        try:
+            xml_bytes_io = io.BytesIO()
+            tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
+            xml_content = xml_bytes_io.getvalue()
+            logging.info("XML convertido a bytes exitosamente.")
+        except Exception as e:
+            logging.error(f"Error al convertir el XML a bytes: {e}")
+            raise
 
-    # Base64 encode the XML bytes
-    xml_encoded = base64.b64encode(xml_content).decode('utf-8')
-    logging.info(f"XML encoded: {xml_encoded}")
+        # Base64 encode the XML bytes
+        try:
+            xml_encoded = base64.b64encode(xml_content).decode('utf-8')
+            logging.info(f"XML codificado en Base64: {xml_encoded}")
+        except Exception as e:
+            logging.error(f"Error al codificar el XML en Base64: {e}")
+            raise
 
-    # Store the base64 encoded XML content in XCom
-    return xml_encoded
+        # Store the base64 encoded XML content in XCom
+        return xml_encoded
+
+    except Exception as e:
+        logging.error(f"Error en el proceso de generación de XML: {e}")
+        raise
 
 
 # URL para obtener las credenciales
