@@ -23,7 +23,7 @@ def generate_xml(**context):
     
     # JSON content as before
     json_content = {
-        'fileIdentifier': 'Ortomosaico_testeo',
+        'fileIdentifier': file_identifier,
         'organizationName': 'Instituto geográfico nacional (IGN)',
         'email': 'ignis@organizacion.es',
         'dateStamp': datetime.now().isoformat(),
