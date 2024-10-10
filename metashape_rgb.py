@@ -8,48 +8,14 @@ from airflow.operators.python_operator import PythonOperator
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
-from enum import Enum  # Importar Enum para crear los tipos enumerados
-import io
-import base64
-import requests
-import logging
-from airflow.hooks.base_hook import BaseHook
 
 
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 
+
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
-
-# Definición del Enum para metadataType
-class MetadataType(Enum):
-    METADATA = "METADATA"
-    TEMPLATE = "TEMPLATE"
-    SUB_TEMPLATE = "SUB_TEMPLATE"
-    TEMPLATE_OF_SUB_TEMPLATE = "TEMPLATE_OF_SUB_TEMPLATE"
-
-# Definición del Enum para uuidProcessing
-class UuidProcessing(Enum):
-    GENERATEUUID = "GENERATEUUID"
-    NOTHING = "NOTHING"
-    OVERWRITE = "OVERWRITE"
-    REMOVE_AND_REPLACE = "REMOVE_AND_REPLACE"
-
-# Función para validar metadataType
-def is_valid_metadata_type(value):
-    return value in MetadataType._value2member_map_
-
-# Función para validar uuidProcessing
-def is_valid_uuid_processing(value):
-    return value in UuidProcessing._value2member_map_
-
-# Ejemplo de uso
-print(is_valid_metadata_type("METADATA"))  # True
-print(is_valid_metadata_type("INVALID"))   # False
-
-print(is_valid_uuid_processing("OVERWRITE"))  # True
-print(is_valid_uuid_processing("INVALID"))    # False
 
 # Función para generar el XML
 def generate_xml(**context):
@@ -137,25 +103,18 @@ def generate_xml(**context):
 # URL para obtener las credenciales
 credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
 
-# Función para obtener las credenciales de GeoNetwork usando una conexión de Airflow
+# Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
     try:
-        # Obtener la conexión de Airflow
-        conn = BaseHook.get_connection('geonetwork_conn')  # Reemplazar con el ID de tu conexión
 
-        # Obtener el usuario y la contraseña desde la conexión
-        username = conn.login
-        password = conn.password
-        credentials_url = conn.host  # URL base configurada en la conexión
-
-        credential_body = {
-            "username": username,
-            "password": password
+        credential_dody = {
+            "username" : "angel",
+            "password" : "111111"
         }
 
         # Hacer la solicitud para obtener las credenciales
         logging.info(f"Obteniendo credenciales de: {credentials_url}")
-        response = requests.post(f"{credentials_url}/geonetwork/credentials", json=credential_body)
+        response = requests.post(credentials_url,json= credential_dody)
 
         # Verificar que la respuesta sea exitosa
         response.raise_for_status()
@@ -165,17 +124,22 @@ def get_geonetwork_credentials():
         access_token = response_object['accessToken']
         xsrf_token = response_object['xsrfToken']
         set_cookie_header = response_object['setCookieHeader']
+        
 
         logging.info(f"Credenciales obtenidas: accessToken={access_token}, XSRF-TOKEN={xsrf_token}")
 
         return [access_token, xsrf_token, set_cookie_header]
-
+    
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al obtener credenciales: {e}")
         raise Exception(f"Error al obtener credenciales: {e}")
 
+import io
+import base64
+import requests
+import logging
 
-
+# Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
     try:
         # Obtener los tokens de autenticación
@@ -191,11 +155,6 @@ def upload_to_geonetwork(**context):
         logging.info(f"XML DATA: {xml_data}")
         logging.info(xml_decoded)
 
-        # Configurar la carga de archivos
-        files = {
-            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
-        }
-
         data = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
@@ -204,13 +163,17 @@ def upload_to_geonetwork(**context):
             'category': (None, ''),
             'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
         }
+        
+        files = {
+            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
+        }
 
-        # Obtener la URL de subida desde la conexión de Airflow
-        conn = BaseHook.get_connection('geonetwork_conn')
-        upload_url = f"{conn.host}/geonetwork/srv/api/records"
+        # URL de GeoNetwork para subir el archivo XML
+        upload_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records"
 
         # Encabezados que incluyen los tokens
         headers = {
+            # 'Content-Type': 'multipart/form-data',
             'Authorization': f"Bearer {access_token}",
             'x-xsrf-token': str(xsrf_token),
             'Cookie': str(set_cookie_header[0]),
@@ -219,7 +182,7 @@ def upload_to_geonetwork(**context):
 
         # Realizar la solicitud POST para subir el archivo XML
         logging.info(f"Subiendo XML a la URL: {upload_url}")
-        response = requests.post(upload_url, files=files, data=data, headers=headers)
+        response = requests.post(upload_url,files=files,data=data, headers=headers)
         logging.info(response)
 
         # Verificar si hubo algún error en la solicitud
@@ -227,10 +190,12 @@ def upload_to_geonetwork(**context):
 
         logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except Exception as e:
+        if response is not None:
+            logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
+
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
-    
 
 # Función para crear el XML metadata
 def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
