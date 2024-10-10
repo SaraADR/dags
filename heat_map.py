@@ -52,7 +52,8 @@ def process_heatmap_data(**context):
         # input_data["url_search_aircraft"] = "https://pre.atcservices.cirpas.gal/rest/AircraftService/searchByIntersection"
         # input_data["url_aircraftperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/AircraftAlgorithm_AircraftPerimeterService/getByAircraft?id="
     if 'lonlat' in input_data and len(input_data['lonlat']) == 4:
-        lonlat = input_data.get['lonlat']
+        lonlat = input_data.get('lonlat')
+        
 
         # Asignar los valores a minLon, maxLon, minLat, maxLat
         minLon = lonlat[0]
