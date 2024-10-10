@@ -62,7 +62,11 @@ def process_heatmap_data(**context):
         "highSearchDate" : input_data.get('highSearchDate', None),
         "sigma" :  input_data.get('sigma', None),
         "codigo" : input_data.get('codigo', None),
-        "title": input_data.get('aircrafts', None)
+        "title": input_data.get('aircrafts', None),
+        "minlat": input_data.get("minlat", None),
+        "maxlat": input_data.get("maxlat", None),
+        "minlon": input_data.get("minlon", None),
+        "maxlon": input_data.get("maxlon", None),
     }
     print(params)
     print(input_data)
@@ -445,7 +449,7 @@ def create_json(params):
         "codigo": params.get("codigo", None),
         "sigma": params.get("sigma", None)
     }
-
+    print("INPUT DATA")
     print(input_data)
     return input_data
 
