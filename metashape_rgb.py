@@ -17,69 +17,72 @@ geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
-# Función para generar el XML
+import json
+
+# Updated generate_xml function to use the data from algorithm_result.json
 def generate_xml(**context):
-    logging.info("Iniciando la generación del XML.")
+    logging.info("Iniciando la generación del XML con datos dinámicos.")
+
+    # Load algorithm result data (you can pass the file path or load directly)
+    with open('/mnt/data/algorithm_result.json', 'r') as file:
+        algorithm_result = json.load(file)
+
+    # Extract data from the JSON output for filling the XML
+    execution_resources = algorithm_result['executionResources']
+    ortomosaico_data = next((res for res in execution_resources if res['output'] and 'Ortomosaico' in res['path']), None)
     
-    # JSON content as before
+    if not ortomosaico_data:
+        raise Exception("Ortomosaico data not found in the algorithm result.")
+
+    bounding_box = ortomosaico_data['data'][0]['value']
+    identifier = ortomosaico_data['data'][0]['value']
+    pixel_size = ortomosaico_data['data'][3]['value']  # pixelSize from the JSON
+    publication_date = algorithm_result['metadata'][2]['value']  # citationDate from the metadata
+    title = identifier
+
+    logging.info(f"Datos extraídos: Identificador: {identifier}, Resolución: {pixel_size}, Fecha de publicación: {publication_date}")
+
+    # Continue with the JSON content for XML generation
     json_content = {
-        'fileIdentifier': 'Ortomosaico_testeo',
+        'fileIdentifier': identifier,
         'organizationName': 'Instituto geográfico nacional (IGN)',
         'email': 'ignis@organizacion.es',
         'dateStamp': datetime.now().isoformat(),
-        'title': 'Ortomosaico_0026_404_611271',
-        'publicationDate': '2024-07-29',
+        'title': title,
+        'publicationDate': publication_date,
         'boundingBox': {
-            'westBoundLongitude': '-7.6392',
-            'eastBoundLongitude': '-7.6336',
-            'southBoundLatitude': '42.8025',
-            'northBoundLatitude': '42.8044'
+            'westBoundLongitude': bounding_box['westBoundLongitude'],
+            'eastBoundLongitude': bounding_box['eastBoundLongitude'],
+            'southBoundLatitude': bounding_box['southBoundLatitude'],
+            'northBoundLatitude': bounding_box['nortBoundLatitude']
         },
-        'spatialResolution': '0.026',  # Resolución espacial en metros
+        'spatialResolution': str(pixel_size),  # Resolución espacial en metros
         'protocol': 'OGC:WMS-1.3.0-http-get-map',
         'wmsLink': 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms',
-        'layerName': 'a__0026_4740004_611271',
-        'layerDescription': 'Capa 0026 de prueba'
+        'layerName': identifier,
+        'layerDescription': 'Capa ortomosaico generada dinámicamente'
     }
 
-    logging.info(f"Contenido JSON cargado: {json_content}")
-
-    # Extract XML parameters (as before)
-    file_identifier = json_content['fileIdentifier']
-    organization_name = json_content['organizationName']
-    email_address = json_content['email']
-    date_stamp = json_content['dateStamp']
-    title = json_content['title']
-    publication_date = json_content['publicationDate']
-    west_bound = json_content['boundingBox']['westBoundLongitude']
-    east_bound = json_content['boundingBox']['eastBoundLongitude']
-    south_bound = json_content['boundingBox']['southBoundLatitude']
-    north_bound = json_content['boundingBox']['northBoundLatitude']
-    spatial_resolution = json_content['spatialResolution']
-    protocol = json_content['protocol']
-    wms_link = json_content['wmsLink']
-    layer_name = json_content['layerName']
-    layer_description = json_content['layerDescription']
-
+    # Continue with the rest of the XML generation as you already have
     logging.info("Llamando a la función creador_xml_metadata.")
-    
+
     # Generate XML tree
     tree = creador_xml_metadata(
-        file_identifier=file_identifier,
-        organization_name=organization_name,
-        email_address=email_address,
-        date_stamp=date_stamp,
-        title=title,
-        publication_date=publication_date,
-        west_bound=west_bound,
-        east_bound=east_bound,
-        south_bound=south_bound,
-        north_bound=north_bound,
-        spatial_resolution=spatial_resolution,
-        protocol=protocol,
-        wms_link=wms_link,
-        layer_name=layer_name,
-        layer_description=layer_description
+        file_identifier=json_content['fileIdentifier'],
+        organization_name=json_content['organizationName'],
+        email_address=json_content['email'],
+        date_stamp=json_content['dateStamp'],
+        title=json_content['title'],
+        publication_date=json_content['publicationDate'],
+        west_bound=json_content['boundingBox']['westBoundLongitude'],
+        east_bound=json_content['boundingBox']['eastBoundLongitude'],
+        south_bound=json_content['boundingBox']['southBoundLatitude'],
+        north_bound=json_content['boundingBox']['northBoundLatitude'],
+        spatial_resolution=json_content['spatialResolution'],
+        protocol=json_content['protocol'],
+        wms_link=json_content['wmsLink'],
+        layer_name=json_content['layerName'],
+        layer_description=json_content['layerDescription']
     )
 
     if tree is None:
@@ -95,7 +98,7 @@ def generate_xml(**context):
 
     # Base64 encode the XML bytes
     xml_encoded = base64.b64encode(xml_content).decode('utf-8')
-    logging.info (f"Xml enconded {xml_encoded}")
+    logging.info(f"Xml encoded {xml_encoded}")
 
     # Store the base64 encoded XML content in XCom
     return xml_encoded
