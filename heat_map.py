@@ -61,6 +61,15 @@ def process_heatmap_data(**context):
         minLat = lonlat[2]
         maxLat = lonlat[3]
 
+    # Convertir las fechas a datetime
+    low_search_date = datetime.strptime(input_data['lowSearchDate'], '%Y-%m-%dT%H:%M:%S.%fZ')
+    high_search_date = datetime.strptime(input_data['highSearchDate'], '%Y-%m-%dT%H:%M:%S.%fZ')
+
+    # Formatear las fechas al nuevo formato con zona horaria '+0000'
+    input_data['lowSearchDate'] = low_search_date.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+0000'
+    input_data['highSearchDate'] = high_search_date.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+0000'
+
+
     params = {
         "directorio_output":  '/share_data/output/' + str(task_type) + '_' + str(message['message']['id']),
         "incendios" : isIncendio,
