@@ -64,6 +64,7 @@ def process_heatmap_data(**context):
 
     if 'lonlat' in input_data and len(input_data['lonlat']) == 4:
         lonlat = input_data.get('lonlat')
+        aircrafts_string = ", ".join(input_data.get('aircrafts', None))
         
 
         # Asignar los valores a minLon, maxLon, minLat, maxLat
@@ -80,7 +81,7 @@ def process_heatmap_data(**context):
             "highSearchDate" : input_data.get('highSearchDate', None),
             "sigma" :  input_data.get('sigma', None),
             "codigo" : input_data.get('codigo', None),
-            "title": input_data.get('aircrafts', None),
+            "title": aircrafts_string,
             "minlat": minLat,
             "maxlat": maxLat,
             "minlon": minLon,
