@@ -8,14 +8,42 @@ from airflow.operators.python_operator import PythonOperator
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
-
+from enum import Enum  # Importar Enum para crear los tipos enumerados
 
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 
-
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
+
+# Definición del Enum para metadataType
+class MetadataType(Enum):
+    METADATA = "METADATA"
+    TEMPLATE = "TEMPLATE"
+    SUB_TEMPLATE = "SUB_TEMPLATE"
+    TEMPLATE_OF_SUB_TEMPLATE = "TEMPLATE_OF_SUB_TEMPLATE"
+
+# Definición del Enum para uuidProcessing
+class UuidProcessing(Enum):
+    GENERATEUUID = "GENERATEUUID"
+    NOTHING = "NOTHING"
+    OVERWRITE = "OVERWRITE"
+    REMOVE_AND_REPLACE = "REMOVE_AND_REPLACE"
+
+# Función para validar metadataType
+def is_valid_metadata_type(value):
+    return value in MetadataType._value2member_map_
+
+# Función para validar uuidProcessing
+def is_valid_uuid_processing(value):
+    return value in UuidProcessing._value2member_map_
+
+# Ejemplo de uso
+print(is_valid_metadata_type("METADATA"))  # True
+print(is_valid_metadata_type("INVALID"))   # False
+
+print(is_valid_uuid_processing("OVERWRITE"))  # True
+print(is_valid_uuid_processing("INVALID"))    # False
 
 # Función para generar el XML
 def generate_xml(**context):
@@ -155,6 +183,12 @@ def upload_to_geonetwork(**context):
         logging.info(f"XML DATA: {xml_data}")
         logging.info(xml_decoded)
 
+        #AÑADIR VALIDACION DE CAMPOS. 
+        # if not (is_valid_uuid_processing (context["MetadataType"])) { 
+
+        # raise Exception(f"Error en la validacion del metadataType: {}")
+        # }
+
         data = {
             'metadataType': (None, 'METADATA'),
             'uuidProcessing': (None, 'NOTHING'),
@@ -195,7 +229,7 @@ def upload_to_geonetwork(**context):
 
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
-
+    
 
 # Función para crear el XML metadata
 def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
