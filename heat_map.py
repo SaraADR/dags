@@ -66,13 +66,14 @@ def process_heatmap_data(**context):
         lonlat = input_data.get('lonlat')
         if isIncendio == "False":
             aircrafts_string = ", ".join(input_data.get('aircrafts', None))
-        
-
+        else:
+            aircrafts_string = ''
         # Asignar los valores a minLon, maxLon, minLat, maxLat
         minLon = lonlat[0]
         maxLon = lonlat[1]
         minLat = lonlat[2]
         maxLat = lonlat[3]
+
         params = {
             "directorio_output":  '/share_data/output/' + str(task_type) + '_' + str(message['message']['id']),
             "incendios" : isIncendio,
@@ -97,7 +98,7 @@ def process_heatmap_data(**context):
             "lowSearchDate" : input_data.get('lowSearchDate', None),
             "highSearchDate" : input_data.get('highSearchDate', None),
             "sigma" :  input_data.get('sigma', None),
-            "codigo" : input_data.get('codigo', None),
+            "codigo" : input_data.get('codigo', None)
         }
            
     print(params)
