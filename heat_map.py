@@ -64,6 +64,8 @@ def process_heatmap_data(**context):
         "codigo" : input_data.get('codigo', None),
         "title": input_data.get('aircrafts', None)
     }
+    print(params)
+    print(input_data)
 
     # Generar el archivo JSON dinámicamente con los valores obtenidos
     json_file_path = create_json(params)
