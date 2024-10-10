@@ -51,16 +51,8 @@ def process_heatmap_data(**context):
         isIncendio = "FALSE"
         # input_data["url_search_aircraft"] = "https://pre.atcservices.cirpas.gal/rest/AircraftService/searchByIntersection"
         # input_data["url_aircraftperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/AircraftAlgorithm_AircraftPerimeterService/getByAircraft?id="
-    if 'lonlat' in input_data and len(input_data['lonlat']) == 4:
-        lonlat = input_data.get('lonlat')
-        
-
-        # Asignar los valores a minLon, maxLon, minLat, maxLat
-        minLon = lonlat[0]
-        maxLon = lonlat[1]
-        minLat = lonlat[2]
-        maxLat = lonlat[3]
-
+    
+    
     # Convertir las fechas a datetime
     low_search_date = datetime.strptime(input_data['lowSearchDate'], '%Y-%m-%dT%H:%M:%S.%fZ')
     high_search_date = datetime.strptime(input_data['highSearchDate'], '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -70,24 +62,44 @@ def process_heatmap_data(**context):
     input_data['highSearchDate'] = high_search_date.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+0000'
 
 
-    params = {
-        "directorio_output":  '/share_data/output/' + str(task_type) + '_' + str(message['message']['id']),
-        "incendios" : isIncendio,
-        "ar_incendios": None,
-        "comunidadAutonomaId":  input_data.get('comunidadId', None),
-        "lowSearchDate" : input_data.get('lowSearchDate', None),
-        "highSearchDate" : input_data.get('highSearchDate', None),
-        "sigma" :  input_data.get('sigma', None),
-        "codigo" : input_data.get('codigo', None),
-        "title": input_data.get('aircrafts', None),
-        "minlat": minLat,
-        "maxlat": maxLat,
-        "minlon": minLon,
-        "maxlon": maxLon,
-    }
-    print(params)
-    print(input_data)
+    if 'lonlat' in input_data and len(input_data['lonlat']) == 4:
+        lonlat = input_data.get('lonlat')
+        
 
+        # Asignar los valores a minLon, maxLon, minLat, maxLat
+        minLon = lonlat[0]
+        maxLon = lonlat[1]
+        minLat = lonlat[2]
+        maxLat = lonlat[3]
+        params = {
+            "directorio_output":  '/share_data/output/' + str(task_type) + '_' + str(message['message']['id']),
+            "incendios" : isIncendio,
+            "ar_incendios": None,
+            "comunidadAutonomaId":  input_data.get('comunidadId', None),
+            "lowSearchDate" : input_data.get('lowSearchDate', None),
+            "highSearchDate" : input_data.get('highSearchDate', None),
+            "sigma" :  input_data.get('sigma', None),
+            "codigo" : input_data.get('codigo', None),
+            "title": input_data.get('aircrafts', None),
+            "minlat": minLat,
+            "maxlat": maxLat,
+            "minlon": minLon,
+            "maxlon": maxLon,
+        }
+    else:
+        params = {
+            "directorio_output":  '/share_data/output/' + str(task_type) + '_' + str(message['message']['id']),
+            "incendios" : isIncendio,
+            "ar_incendios": None,
+            "comunidadAutonomaId":  input_data.get('comunidadId', None),
+            "lowSearchDate" : input_data.get('lowSearchDate', None),
+            "highSearchDate" : input_data.get('highSearchDate', None),
+            "sigma" :  input_data.get('sigma', None),
+            "codigo" : input_data.get('codigo', None),
+            "title": input_data.get('aircrafts', None),
+        }
+           
+    print(params)
     # Generar el archivo JSON dinámicamente con los valores obtenidos
     json_file_path = create_json(params)
 
