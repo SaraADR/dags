@@ -9,6 +9,8 @@ import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
 import re
+from pyproj import CRS
+
 
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
@@ -41,6 +43,7 @@ def convertir_coords(epsg_input,south, west, north, east):
     
 
 def generate_xml(**kwargs):
+    
     logging.info("Iniciando la generación del XML.")
 
     xml_encoded = []
