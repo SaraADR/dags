@@ -80,6 +80,7 @@ def process_zip_file(value, **kwargs):
                 otros = []
                 algorithm_id = None
 
+                indexJson = 0
                 for file_name in file_list:
                     if file_name.endswith('/'):
                         continue
@@ -127,10 +128,12 @@ def process_zip_file(value, **kwargs):
                         trigger_dag_name = 'metashape_rgb'
                         print("Ejecutando lógica para MetashapeRGB")
 
+                    indexJson = indexJson + 1
+                    task_id = 'trigger_email_handler_inner_' + str(indexJson) 
                     if trigger_dag_name is not None:
                         try:
                             trigger = TriggerDagRunOperator(
-                                task_id='trigger_email_handler_inner',
+                                task_id=task_id,
                                 trigger_dag_id=trigger_dag_name,
                                 conf={ 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
