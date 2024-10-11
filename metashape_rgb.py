@@ -60,6 +60,7 @@ def generate_xml(**kwargs):
     protocol = 'OGC:WMS-1.3.0-http-get-map'
     wms_base_link = 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms'
     file_identifier_base = "Ortomosaico_testeo"  # Un identificador base, que puede ajustarse
+    specificUsage = "Conocimiento y estudio con precisión de la ubicación, forma y dimensiones en el espacio de los objetos presentes en la superficie de la tierra"
 
     # Datos del algoritmo
     executionResources = algoritm_result['executionResources']
@@ -100,7 +101,6 @@ def generate_xml(**kwargs):
         # Extraer la información relevante del recurso
         identifier = next((obj for obj in resource['data'] if obj['name'] == 'identifier'), None)["value"]
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
-        specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
 
         # Datos para el XML
         layer_name = identifier
@@ -111,6 +111,7 @@ def generate_xml(**kwargs):
         layer_description = "Descripción de la capa generada"  # Descripción genérica
         file_identifier = f"{file_identifier_base}_{identifier}"  # Un identificador único (se puede derivar)
         date_stamp = datetime.now().isoformat()
+        
 
         logging.info("Llamando a la función creador_xml_metadata.")
         
