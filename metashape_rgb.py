@@ -105,6 +105,7 @@ def generate_xml(**kwargs):
         # Datos para el XML
         layer_name = identifier
         title = identifier
+        specificUsage = specificUsage
 
         # Asignar un WMS link para este recurso (puedes modificar esto según el contexto)
         wms_link = wms_base_link + f"?layer={layer_name}"
@@ -128,7 +129,6 @@ def generate_xml(**kwargs):
             # south_bound=south_bound,
             # north_bound=north_bound,
             spatial_resolution=spatial_resolution,
-            specificUsage=specificUsage,
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
