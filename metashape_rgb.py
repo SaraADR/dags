@@ -8,7 +8,6 @@ from airflow.operators.python_operator import PythonOperator
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
-from pyproj import Proj, transform, CRS
 import re
 
 # Configurar la URL de GeoNetwork
@@ -18,7 +17,6 @@ geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 logging.basicConfig(level=logging.INFO)
 
 def convertir_coords(epsg_input,south, west, north, east):
-
 
     # Entrada: EPSG de la proyección origen, en formato cadena (e.g., "32629")
     # epsg_input = "32629"  # UTM Zona 29 Norte
@@ -52,19 +50,31 @@ def generate_xml(**kwargs):
 
     logging.info(f"Contenido JSON cargado: {algoritm_result}")
 
+    # Obtener los metadatos estáticos
+    organization_name = 'Avincis'
+    email_address = 'avincis@organizacion.es'
+    protocol = 'OGC:WMS-1.3.0-http-get-map'
+    wms_base_link = 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms'
+    file_identifier_base = "Ortomosaico_testeo"  # Un identificador base, que puede ajustarse
+
+    # Datos del algoritmo
     executionResources = algoritm_result['executionResources']
+    executionArguments = algoritm_result['executionArguments']
+    metadata = algoritm_result['metadata']
+
+    # Fechas y datos misceláneos
+    publication_date = metadata[0]['value']  # Suponiendo que 'dateStampDate' es el primer elemento
+    mission_id = next((m for m in metadata if m['name'] == 'MissionID'), None)['value']
+    sensor_sn = next((m for m in metadata if m['name'] == 'SensorSN'), None)['value']
+    aircraft_number = next((m for m in metadata if m['name'] == 'AircraftNumberPlate'), None)['value']
+    pilot_name = next((m for m in metadata if m['name'] == 'PilotName'), None)['value']
+    operator_name = next((m for m in metadata if m['name'] == 'OperatorName'), None)['value']
 
     # Se extrae la información del BBOX y el sistema de referencia
     outputFalse = next((obj for obj in executionResources if obj["output"] == False), None)["data"]
     bboxData = next((obj for obj in outputFalse if obj["type"] == "BBOX"), None)
     bbox = bboxData["value"]
     coordinate_system = bboxData["ReferenceSystem"]
-
-    # Datos que no varían
-    organization_name = 'Avincis'
-    email_address = 'avincis@organizacion.es'
-    protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link = 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms'
 
     # Coords BBOX
     west_bound_pre = bbox['westBoundLongitude']
@@ -83,6 +93,7 @@ def generate_xml(**kwargs):
         if not re.search(r'\.tif$', resource['path'], re.IGNORECASE):
             continue
 
+        # Extraer la información relevante del recurso
         identifier = next((obj for obj in resource['data'] if obj['name'] == 'identifier'), None)["value"]
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
         specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
@@ -91,12 +102,11 @@ def generate_xml(**kwargs):
         layer_name = identifier
         title = identifier
 
-        # JSON dinámico con los valores correspondientes
-        wms_link = algoritm_result['executionResources'][0]['path']  # Link de WMS para este recurso específico
-        layer_description = "Descripción de la capa generada"  # Puedes extraer o generar esto según el contexto
-        file_identifier = "Ortomosaico_testeo"  # Un identificador único (se puede derivar)
+        # Asignar un WMS link para este recurso (puedes modificar esto según el contexto)
+        wms_link = wms_base_link + f"?layer={layer_name}"
+        layer_description = "Descripción de la capa generada"  # Descripción genérica
+        file_identifier = f"{file_identifier_base}_{identifier}"  # Un identificador único (se puede derivar)
         date_stamp = datetime.now().isoformat()
-        publication_date = "2024-07-29"  # Basado en la fecha proporcionada en el archivo
 
         logging.info("Llamando a la función creador_xml_metadata.")
         
@@ -138,6 +148,7 @@ def generate_xml(**kwargs):
 
     # Devolver el contenido codificado en base64
     return xml_encoded
+
 
 # Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
