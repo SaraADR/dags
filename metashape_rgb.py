@@ -50,29 +50,12 @@ def generate_xml(**kwargs):
     
     algoritm_result = kwargs['dag_run'].conf.get('json')
 
-    # JSON content as before
-    # json_content = {
-    #     'fileIdentifier': 'Ortomosaico_testeo',
-    #     'dateStamp': datetime.now().isoformat(), cada uno 
-    #     'title': 'Ortomosaico_0026_404_611271',
-    #     'publicationDate': '2024-07-29',
-    #     'boundingBox': {
-    #         'westBoundLongitude': '-7.6392',
-    #         'eastBoundLongitude': '-7.6336',
-    #         'southBoundLatitude': '42.8025',
-    #         'northBoundLatitude': '42.8044'
-    #     },
-    #     'spatialResolution': '0.026',  # Resolución espacial en metros
-    #     'layerName': 'a__0026_4740004_611271',
-    #     'layerDescription': 'Capa 0026 de prueba'
-    # }
-
     logging.info(f"Contenido JSON cargado: {algoritm_result}")
 
     executionResources = algoritm_result['executionResources']
 
+    # Se extrae la información del BBOX y el sistema de referencia
     outputFalse = next((obj for obj in executionResources if obj["output"] == False), None)["data"]
-
     bboxData = next((obj for obj in outputFalse if obj["type"] == "BBOX"), None)
     bbox = bboxData ["value"]
     coordinate_system = bboxData ["ReferenceSystem"]
@@ -86,13 +69,17 @@ def generate_xml(**kwargs):
     email_address = 'avincis@organizacion.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
     wms_link = 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms'
+
+    # Coords BBOX
     west_bound_pre = bbox['westBoundLongitude']
     east_bound_pre = bbox['eastBoundLongitude']
     south_bound_pre = bbox['southBoundLatitude']
     north_bound_pre = bbox['northBoundLatitude']
 
+    # Función de conversión (debe estar definida en tu código)
     south_bound, west_bound, north_bound, east_bound = convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
 
+    # Procesar recursos de salida
     for resource in executionResources:
         if resource['output'] == False:
             continue
@@ -104,19 +91,18 @@ def generate_xml(**kwargs):
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
         specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
 
-
+        # Datos para el XML
         layer_name = identifier
         title = identifier
         
 
-        wms_link = json_content['wmsLink']
-        
-        layer_description = json_content['layerDescription']
-        file_identifier = json_content['fileIdentifier']
-       
-        date_stamp = json_content['dateStamp']
-        
-        publication_date = json_content['publicationDate']
+      # JSON dinámico con los valores correspondientes
+        wms_link = algoritm_result['executionResources'][0]['path']  # Link de WMS para este recurso específico
+        layer_description = "Descripción de la capa generada"  # Puedes extraer o generar esto según el contexto
+        file_identifier = "Ortomosaico_testeo"  # Un identificador único (se puede derivar)
+        date_stamp = datetime.now().isoformat()
+        publication_date = "2024-07-29"  # Basado en la fecha proporcionada en el archivo
+
         logging.info("Llamando a la función creador_xml_metadata.")
         
         # Generate XML tree
@@ -156,6 +142,25 @@ def generate_xml(**kwargs):
 
     # Store the base64 encoded XML content in XCom
     return xml_encoded
+
+
+ # JSON content as before
+    # json_content = {
+    #     'fileIdentifier': 'Ortomosaico_testeo',
+    #     'dateStamp': datetime.now().isoformat(), cada uno 
+    #     'title': 'Ortomosaico_0026_404_611271',
+    #     'publicationDate': '2024-07-29',
+    #     'boundingBox': {
+    #         'westBoundLongitude': '-7.6392',
+    #         'eastBoundLongitude': '-7.6336',
+    #         'southBoundLatitude': '42.8025',
+    #         'northBoundLatitude': '42.8044'
+    #     },
+    #     'spatialResolution': '0.026',  # Resolución espacial en metros
+    #     'layerName': 'a__0026_4740004_611271',
+    #     'layerDescription': 'Capa 0026 de prueba'
+    # }
+
 
 # URL para obtener las credenciales
 credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
