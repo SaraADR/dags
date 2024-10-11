@@ -1,0 +1,389 @@
+{
+    "startTimestamp": "20200211T1084046",
+    "endTimestamp": "20200211T084350",
+    "exitCode": 0,
+    "executionResources": [
+        {
+            "path": "/share_data/input/P0123",
+            "tag": "photogrametry burst RGB aerial-photography Opendata",
+            "output": false,
+            "data": [
+                {
+                    "name": "ImageBurstQuantity",
+                    "type": "int",
+                    "value": 109
+                },
+                {
+                    "name": "FrontOverlap",
+                    "type": "String",
+                    "value": "80%"
+                },
+                {
+                    "name": "SideOverlap",
+                    "type": "String",
+                    "value": "80%"
+                },
+                {
+                    "name": "BBOX",
+                    "type": "BBOX",
+                    "value": {
+                        "westBoundLongitude": "611271.6716",
+                        "eastBoundLongitude": "611725.0085",
+                        "southBoundLatitude": "4739776.3222",
+                        "nortBoundLatitude": "4740004.5330"
+                    },
+                    "ReferenceSystem": "32629"
+                }
+            ]
+        },
+        {
+            "path": "/resources/output/P0123/Ortomosaico_0026_4740004_611271.tif",
+            "tag": "photogrametry burst orthomosaic RGB aerial-photography Opendata",
+            "output": true,
+            "data": [
+                {
+                    "name": "identifier",
+                    "type": "String",
+                    "value": "Ortomosaico_0026_4740004_611271"
+                },
+                {
+                    "name": "presentationForm",
+                    "type": "String",
+                    "value": "Modelo Digital"
+                },
+                {
+                    "name": "specificUsage",
+                    "type": "String",
+                    "value": "Conocimiento y estudio con precisión de la ubicación, forma y dimensiones en el espacio de los objetos presentes en la superficie de la tierra"
+                },
+                {
+                    "name": "pixelSize",
+                    "type": "float",
+                    "value": 0.026
+                },
+                {
+                    "name": "SpatialRepresentationTypeCode",
+                    "type": "String",
+                    "value": "grid"
+                },
+                {
+                    "name": "TopicCategoryCode",
+                    "type": "String",
+                    "value": "Cobertura-de-la-tierra-con-mapas-básicos-e-imágenes Planeamiento-Catastral"
+                },
+                {
+                    "name": "InspireThemes",
+                    "type": "String",
+                    "value": "Ortoimagen Cobertura-Terrestre Uso-del-Suelo"
+                },
+                {
+                    "name": "hierarchyLevel",
+                    "type": "String",
+                    "value": "Conjunto-de-Datos"
+                }
+            ]
+        },
+        {
+            "path": "/resources/output/P01231/MDT_015_4740004_611271.tif",
+            "tag": "photogrametry burst orthomosaic elevation ground aerial-photography Opendata",
+            "output": true,
+            "data": [
+                {
+                    "name": "identifier",
+                    "type": "String",
+                    "value": "MDT_015_4740004_611271"
+                },
+                {
+                    "name": "presentationForm",
+                    "type": "String",
+                    "value": "Modelo Digital"
+                },
+                {
+                    "name": "specificUsage",
+                    "type": "String",
+                    "value": "Conocimiento y estudio con precisión de las eleveaciones de la superficie terreste sin tener en cuenta las alturas de los objetos presentes en esta."
+                },
+                {
+                    "name": "pixelSize",
+                    "type": "float",
+                    "value": 0.15
+                },
+                {
+                    "name": "SpatialRepresentationTypeCode",
+                    "type": "String",
+                    "value": "grid"
+                },
+                {
+                    "name": "TopicCategoryCode",
+                    "type": "String",
+                    "value": "Elevación"
+                },
+                {
+                    "name": "InspireThemes",
+                    "type": "String",
+                    "value": "Elevación"
+                },
+                {
+                    "name": "hierarchyLevel",
+                    "type": "String",
+                    "value": "Conjunto de datos"
+                }
+            ]
+        },
+        {
+            "path": "/resources/output/P0001/MDS_015_4740004_611271.tif",
+            "tag": "photogrametry burst orthomosaic elevation surface aerial-photography Opendata",
+            "output": true,
+            "data": [
+                {
+                    "name": "identifier",
+                    "type": "String",
+                    "value": "MDS_015_4740004_611271"
+                },
+                {
+                    "name": "presentationForm",
+                    "type": "String",
+                    "value": "Modelo Digital"
+                },
+                {
+                    "name": "specificUsage",
+                    "type": "String",
+                    "value": "whatever explanation"
+                },
+                {
+                    "name": "pixelSize",
+                    "type": "float",
+                    "value": 0.15
+                },
+                {
+                    "name": "SpatialRepresentationTypeCode",
+                    "type": "String",
+                    "value": "grid"
+                },
+                {
+                    "name": "TopicCategoryCode",
+                    "type": "String",
+                    "value": "Elevaciones"
+                },
+                {
+                    "name": "InspireThemes",
+                    "type": "String",
+                    "value": "Elevaciones Cobertura-Terrestre"
+                },
+                {
+                    "name": "hierarchyLevel",
+                    "type": "String",
+                    "value": "dataset"
+                }
+            ]
+        },
+        {
+            "path": "/share_data/output/P0001/Cloud-COL_80_4740004_611271.las",
+            "tag": "photogrametry burst pointcloud aerial-photography openData 3DModel color",
+            "output": true,
+            "data": [
+                {
+                    "name": "identifier",
+                    "type": "String",
+                    "value": "Cloud-COL-80_4740004_611271"
+                },
+                {
+                    "name": "presentationForm",
+                    "type": "String",
+                    "value": "Modelo Digital"
+                },
+                {
+                    "name": "specificUsage",
+                    "type": "String",
+                    "value": ""
+                },
+                {
+                    "name":"PointCloudDensity",
+                    "type":"String",
+                    "value": "80 ptos./m2"
+                },
+                {
+                    "name": "SpatialRepresentationTypeCode",
+                    "type": "String",
+                    "value": "vector"
+                },
+                {
+                    "name": "TopicCategoryCode",
+                    "type": "String",
+                    "value": "Elevaciones"
+                },
+                {
+                    "name": "InspireThemes",
+                    "type": "String",
+                    "value": "Elevaciones Cobertura-Terrestre"
+                },
+                {
+                    "name": "hierarchyLevel",
+                    "type": "String",
+                    "value": "Conjunto de datos"
+                }
+            ]
+        },
+        {
+            "path": "/share_data/output/P0001/Cloud-CLAS_1_3_80_4740004_611271.las",
+            "tag": "photogrametry burst pointcloud aerial-photography openData 3DModel classified",
+            "output": true,
+            "data": [
+                {
+                    "name": "identifier",
+                    "type": "String",
+                    "value": "cloud-CLAS_1_3_80_4740004_611271"
+                },
+                {
+                    "name": "presentationForm",
+                    "type": "String",
+                    "value": "Modelo Digital"
+                },
+                {
+                    "name": "specificUsage",
+                    "type": "String",
+                    "value": "Modelado 3D"
+                },
+                {
+                    "name":"PointCloudDensity",
+                    "type":"String",
+                    "value": "80 ptos./m2"
+                },
+                {
+                    "name": "SpatialRepresentationTypeCode",
+                    "type": "String",
+                    "value": "vector"
+                },
+                {
+                    "name": "TopicCategoryCode",
+                    "type": "String",
+                    "value": "Elevaciones"
+                },
+                {
+                    "name": "InspireThemes",
+                    "type": "String",
+                    "value": "Elevaciones"
+                },
+                {
+                    "name": "hierarchyLevel",
+                    "type": "String",
+                    "value": "Conjunto de Datos"
+                }
+            ]
+        }
+    ],
+    "executionArguments": [
+        {
+            "name": "Alignement",
+            "type": "String",
+            "value": "Medium"
+        },
+        {
+            "name": "KeyPoints",
+            "type": "Int",
+            "value": 40000
+        },
+        {
+            "name": "TiePoints",
+            "type": "Int",
+            "value": 4000
+        },
+        {
+            "name": "Densification",
+            "type": "String",
+            "value": 40000
+        },
+        {
+            "name": "DepthFilter",
+            "type": "String",
+            "value": "Moderate"
+        },
+        {
+            "name": "ExportDenseCloud",
+            "type": "String",
+            "value": "False"
+        },
+        {
+            "name": "ExportMDS",
+            "type": "String",
+            "value": "False"
+        },
+        {
+            "name": "ExportMDT",
+            "type": "String",
+            "value": "False"
+        },
+        {
+            "name": "ExportMultiClas",
+            "type": "String",
+            "value": "True"
+        },
+        {
+            "name": "ClassificationClasses",
+            "type": "String",
+            "value": "Ground LowVetegatetion"
+        },
+        {
+            "name": "Confidence",
+            "type": "Float",
+            "value": 0.3
+        }
+    ],
+    "metadata": [
+        {
+            "name": "ExecutionID",
+            "type": "String",
+            "value": "a2f18ca5-d232-11ee-8201-40ec99c6d521"
+        },
+        {
+            "name": "AlgorithmID",
+            "type": "String",
+            "value": "MetashapeRGB"
+        },
+        {
+            "name": "citationDate (viene del padre)",
+            "type": "String",
+            "value": "2024-07-29"
+        },
+        {
+            "name": "MissionID",
+            "type": "int",
+            "value": 1250
+        },
+        {
+            "name": "SensorSN",
+            "type": "String",
+            "value": "Vux001"
+        },
+        {
+            "name": "PilotName",
+            "type": "String",
+            "value": "Guillermo"
+        },
+        {
+            "name": "OperatorName",
+            "type": "String",
+            "value": "Rafael"
+        },
+        {
+            "name": "AircraftNumberPlate",
+            "type": "String",
+            "value": "MA01M000"
+        },
+        {
+            "name": "IdentificadorRafaga",
+            "type": "String",
+            "value": "P01231"
+        },
+        {
+            "name": "DataSetLanguage",
+            "type": "String",
+            "value": "ang ISO 639-2 Code"
+        },
+        {
+            "name": "dateStampDate (viene de cartotools)",
+            "type": "String",
+            "value": "2024-07-29"
+        }
+    ]
+}
