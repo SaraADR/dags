@@ -10,6 +10,8 @@ import logging
 import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
+from pyproj import CRS
+
 
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
