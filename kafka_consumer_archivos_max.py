@@ -27,7 +27,7 @@ def consumer_function(message, prefix, **kwargs):
         print(f"archivo: {nombre_fichero}, Extensión del archivo: {file_extension}")
         
         if file_extension == '.zip':
-            process_zip_file(message.value())
+            process_zip_file(message.value(), nombre_fichero)
             return 'process_zip_task'
         elif file_extension == '.tiff' or file_extension == '.tif':
             return 'process_tiff_task'
@@ -45,7 +45,7 @@ def consumer_function(message, prefix, **kwargs):
             return 'unknown_or_none_file_task'
 
 
-def process_zip_file(value, **kwargs):
+def process_zip_file(value, nombre_fichero, **kwargs):
     try:
         zip_file = zipfile.ZipFile(io.BytesIO(value))
         zip_file.testzip()  
@@ -80,7 +80,6 @@ def process_zip_file(value, **kwargs):
                 otros = []
                 algorithm_id = None
 
-                indexJson = 0
                 for file_name in file_list:
                     if file_name.endswith('/'):
                         continue
@@ -128,12 +127,12 @@ def process_zip_file(value, **kwargs):
                         trigger_dag_name = 'metashape_rgb'
                         print("Ejecutando lógica para MetashapeRGB")
 
-                    indexJson = indexJson + 1
-                    task_id = 'trigger_email_handler_inner_' + str(indexJson) 
+
+                    task_id_inner = 'trigger_email_handler_inner_' + str(nombre_fichero) 
                     if trigger_dag_name is not None:
                         try:
                             trigger = TriggerDagRunOperator(
-                                task_id=task_id,
+                                task_id=task_id_inner,
                                 trigger_dag_id=trigger_dag_name,
                                 conf={ 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
