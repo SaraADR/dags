@@ -4,6 +4,7 @@ import io
 import json
 import os
 import shutil
+import uuid
 import zipfile
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -128,11 +129,11 @@ def process_zip_file(value, nombre_fichero, **kwargs):
                         print("Ejecutando lógica para MetashapeRGB")
 
 
-                    task_id_inner = 'trigger_email_handler_inner_' + str(nombre_fichero) 
+                    unique_id = uuid.uuid4()
                     if trigger_dag_name is not None:
                         try:
                             trigger = TriggerDagRunOperator(
-                                task_id=task_id_inner,
+                                task_id=unique_id,
                                 trigger_dag_id=trigger_dag_name,
                                 conf={ 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
