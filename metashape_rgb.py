@@ -8,6 +8,7 @@ from airflow.operators.python_operator import PythonOperator
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
+from pyproj import Proj, transform, CRS
 import re
 
 # Configurar la URL de GeoNetwork
@@ -17,6 +18,7 @@ geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 logging.basicConfig(level=logging.INFO)
 
 def convertir_coords(epsg_input,south, west, north, east):
+
 
     # Entrada: EPSG de la proyección origen, en formato cadena (e.g., "32629")
     # epsg_input = "32629"  # UTM Zona 29 Norte
