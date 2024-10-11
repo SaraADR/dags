@@ -429,19 +429,21 @@ def creador_xml_metadata(file_identifier, organization_name, email_address, date
     
     return ET.ElementTree(root)  
 
-# Definición del DAG
+# Definición de argumentos por defecto
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2024, 10, 1),
-    'retries': 1,
+    'retries': 0,  # Se desactivan los intentos de reintento
+    'retry_delay': None  # No es necesario, ya que retries es 0
 }
 
+# Definir el DAG
 dag = DAG(
     'metashape_rgb',
     default_args=default_args,
     description='DAG para generar metadatos XML y subirlos a GeoNetwork',
-    schedule_interval=None,  # Se puede ajustar según necesidades
+    schedule_interval=None,  # Se puede ajustar según las necesidades
     catchup=False
 )
 
