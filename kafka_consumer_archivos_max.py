@@ -133,7 +133,7 @@ def process_zip_file(value, nombre_fichero, **kwargs):
                     if trigger_dag_name is not None:
                         try:
                             trigger = TriggerDagRunOperator(
-                                task_id=unique_id,
+                                task_id=str(unique_id),
                                 trigger_dag_id=trigger_dag_name,
                                 conf={ 'json' : json_content, 'otros' : otros}, 
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
