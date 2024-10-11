@@ -8,89 +8,91 @@ from airflow.operators.python_operator import PythonOperator
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
+from pyproj import Proj, transform, CRS
 import re
 
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 
-#DEJE EL CODIGO LISTO HASTA QUE SARA INSTALE LAS LIBRERIAS NO SE PUEDE ANDAR CON EL CRS
-
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
-# COMENTADO TEMPORALMENTE HASTA QUE LAS LIBRERIAS SE INSTALEN EN AIRFLOW
-
-# def convertir_coords(epsg_input,south, west, north, east):
-
-#     # Entrada: EPSG de la proyección origen, en formato cadena (e.g., "32629")
-#     # epsg_input = "32629"  # UTM Zona 29 Norte
+def convertir_coords(epsg_input,south, west, north, east):
 
 
-#     # Crear objetos Proj para las proyecciones
-#     # Proyección de origen basada en la cadena EPSG "32629"
-#     crs_from = CRS.from_string(f"EPSG:{epsg_input}")
-#     proj_from = Proj(crs_from)
+    # Entrada: EPSG de la proyección origen, en formato cadena (e.g., "32629")
+    # epsg_input = "32629"  # UTM Zona 29 Norte
 
-#     # Proyección de destino, EPSG:4326 (WGS84, lat/long)
+
+    # Crear objetos Proj para las proyecciones
+    # Proyección de origen basada en la cadena EPSG "32629"
+    crs_from = CRS.from_string(f"EPSG:{epsg_input}")
+    proj_from = Proj(crs_from)
+
+    # Proyección de destino, EPSG:4326 (WGS84, lat/long)
     
-#     crs_to = CRS.from_string("EPSG:4326")
-#     proj_to = Proj(crs_to)
+    crs_to = CRS.from_string("EPSG:4326")
+    proj_to = Proj(crs_to)
 
-#     # Transformar de UTM a WGS84
-#     west2, south2 = transform(proj_from, proj_to, west, south)
-#     east2, north2 = transform(proj_from, proj_to, east, north)
+    # Transformar de UTM a WGS84
+    west2, south2 = transform(proj_from, proj_to, west, south)
+    east2, north2 = transform(proj_from, proj_to, east, north)
 
-#     return south2, west2, north2, east2
+    return south2, west2, north2, east2
 
     
 
+# Función para generar el XML
 def generate_xml(**kwargs):
     logging.info("Iniciando la generación del XML.")
 
     xml_encoded = []
     
-    # Recupera el resultado del algoritmo del contexto de ejecución (dag_run)
     algoritm_result = kwargs['dag_run'].conf.get('json')
+
+    # JSON content as before
+    # json_content = {
+    #     'fileIdentifier': 'Ortomosaico_testeo',
+    #     'dateStamp': datetime.now().isoformat(), cada uno 
+    #     'title': 'Ortomosaico_0026_404_611271',
+    #     'publicationDate': '2024-07-29',
+    #     'boundingBox': {
+    #         'westBoundLongitude': '-7.6392',
+    #         'eastBoundLongitude': '-7.6336',
+    #         'southBoundLatitude': '42.8025',
+    #         'northBoundLatitude': '42.8044'
+    #     },
+    #     'spatialResolution': '0.026',  # Resolución espacial en metros
+    #     'layerName': 'a__0026_4740004_611271',
+    #     'layerDescription': 'Capa 0026 de prueba'
+    # }
 
     logging.info(f"Contenido JSON cargado: {algoritm_result}")
 
-    # Obtener los metadatos estáticos
+    executionResources = algoritm_result['executionResources']
+
+    outputFalse = next((obj for obj in executionResources if obj["output"] == False), None)["data"]
+
+    bboxData = next((obj for obj in outputFalse if obj["type"] == "BBOX"), None)
+    bbox = bboxData ["value"]
+    coordinate_system = bboxData ["ReferenceSystem"]
+
+
+    # Extract XML parameters (as before)
+    
+    # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
+
     organization_name = 'Avincis'
     email_address = 'avincis@organizacion.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_base_link = 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms'
-    file_identifier_base = "Ortomosaico_testeo"  # Un identificador base, que puede ajustarse
-    specificUsage = "Conocimiento y estudio con precisión de la ubicación, forma y dimensiones en el espacio de los objetos presentes en la superficie de la tierra"
+    wms_link = 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms'
+    west_bound_pre = bbox['westBoundLongitude']
+    east_bound_pre = bbox['eastBoundLongitude']
+    south_bound_pre = bbox['southBoundLatitude']
+    north_bound_pre = bbox['northBoundLatitude']
 
-    # Datos del algoritmo
-    executionResources = algoritm_result['executionResources']
-    executionArguments = algoritm_result['executionArguments']
-    metadata = algoritm_result['metadata']
+    south_bound, west_bound, north_bound, east_bound = convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
 
-    # Fechas y datos misceláneos
-    publication_date = metadata[0]['value']  # Suponiendo que 'dateStampDate' es el primer elemento
-    mission_id = next((m for m in metadata if m['name'] == 'MissionID'), None)['value']
-    sensor_sn = next((m for m in metadata if m['name'] == 'SensorSN'), None)['value']
-    aircraft_number = next((m for m in metadata if m['name'] == 'AircraftNumberPlate'), None)['value']
-    pilot_name = next((m for m in metadata if m['name'] == 'PilotName'), None)['value']
-    operator_name = next((m for m in metadata if m['name'] == 'OperatorName'), None)['value']
-
-    # Se extrae la información del BBOX y el sistema de referencia
-    outputFalse = next((obj for obj in executionResources if obj["output"] == False), None)["data"]
-    bboxData = next((obj for obj in outputFalse if obj["type"] == "BBOX"), None)
-    bbox = bboxData["value"]
-    # coordinate_system = bboxData["ReferenceSystem"]
-
-    # # Coords BBOX
-    # west_bound_pre = bbox['westBoundLongitude']
-    # east_bound_pre = bbox['eastBoundLongitude']
-    # south_bound_pre = bbox['southBoundLatitude']
-    # north_bound_pre = bbox['nortBoundLatitude']
-
-    # Función de conversión (debe estar definida en tu código)
-    # south_bound, west_bound, north_bound, east_bound = convertir_coords(coordinate_system, south_bound_pre, west_bound_pre, north_bound_pre, east_bound_pre)
-
-    # Procesar recursos de salida
     for resource in executionResources:
         if resource['output'] == False:
             continue
@@ -98,25 +100,26 @@ def generate_xml(**kwargs):
         if not re.search(r'\.tif$', resource['path'], re.IGNORECASE):
             continue
 
-        # Extraer la información relevante del recurso
         identifier = next((obj for obj in resource['data'] if obj['name'] == 'identifier'), None)["value"]
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
+        specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
 
-        # Datos para el XML
+
         layer_name = identifier
         title = identifier
-        specificUsage = specificUsage
-
-        # Asignar un WMS link para este recurso (puedes modificar esto según el contexto)
-        wms_link = wms_base_link + f"?layer={layer_name}"
-        layer_description = "Descripción de la capa generada"  # Descripción genérica
-        file_identifier = f"{file_identifier_base}_{identifier}"  # Un identificador único (se puede derivar)
-        date_stamp = datetime.now().isoformat()
         
 
+        wms_link = json_content['wmsLink']
+        
+        layer_description = json_content['layerDescription']
+        file_identifier = json_content['fileIdentifier']
+       
+        date_stamp = json_content['dateStamp']
+        
+        publication_date = json_content['publicationDate']
         logging.info("Llamando a la función creador_xml_metadata.")
         
-        # Generar árbol XML (suponiendo que la función creador_xml_metadata esté definida)
+        # Generate XML tree
         tree = creador_xml_metadata(
             file_identifier=file_identifier,
             organization_name=organization_name,
@@ -124,42 +127,41 @@ def generate_xml(**kwargs):
             date_stamp=date_stamp,
             title=title,
             publication_date=publication_date,
-            # west_bound=west_bound,
-            # east_bound=east_bound,
-            # south_bound=south_bound,
-            # north_bound=north_bound,
+            west_bound=west_bound,
+            east_bound=east_bound,
+            south_bound=south_bound,
+            north_bound=north_bound,
             spatial_resolution=spatial_resolution,
+            specificUsage = specificUsage,
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
             layer_description=layer_description
         )
 
-    # Verificación si el árbol se creó correctamente
     if tree is None:
         logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
         raise Exception("Error: creador_xml_metadata retornó None.")
 
     logging.info("El XML ha sido creado exitosamente en memoria.")
 
-    # Convertir el árbol XML en bytes
+    # Convert the XML tree to bytes
     xml_bytes_io = io.BytesIO()
     tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
     xml_content = xml_bytes_io.getvalue()
 
-    # Codificar el contenido XML a base64
+    # Base64 encode the XML bytes
     xml_encoded = base64.b64encode(xml_content).decode('utf-8')
-    logging.info(f"XML codificado: {xml_encoded}")
+    logging.info (f"Xml enconded {xml_encoded}")
 
-    # Devolver el contenido codificado en base64
+    # Store the base64 encoded XML content in XCom
     return xml_encoded
 
+# URL para obtener las credenciales
+credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
 
 # Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
-
-    credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
-
     try:
 
         credential_dody = {
@@ -189,7 +191,10 @@ def get_geonetwork_credentials():
         logging.error(f"Error al obtener credenciales: {e}")
         raise Exception(f"Error al obtener credenciales: {e}")
 
-
+import io
+import base64
+import requests
+import logging
 
 # Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
@@ -434,7 +439,7 @@ default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2024, 10, 1),
-    'retries': 0,
+    'retries': 1,
 }
 
 dag = DAG(
