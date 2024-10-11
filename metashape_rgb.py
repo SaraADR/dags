@@ -18,27 +18,29 @@ geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
-def convertir_coords(epsg_input,south, west, north, east):
+# COMENTADO TEMPORALMENTE HASTA QUE LAS LIBRERIAS SE INSTALEN EN AIRFLOW
 
-    # Entrada: EPSG de la proyección origen, en formato cadena (e.g., "32629")
-    # epsg_input = "32629"  # UTM Zona 29 Norte
+# def convertir_coords(epsg_input,south, west, north, east):
+
+#     # Entrada: EPSG de la proyección origen, en formato cadena (e.g., "32629")
+#     # epsg_input = "32629"  # UTM Zona 29 Norte
 
 
-    # Crear objetos Proj para las proyecciones
-    # Proyección de origen basada en la cadena EPSG "32629"
-    crs_from = CRS.from_string(f"EPSG:{epsg_input}")
-    proj_from = Proj(crs_from)
+#     # Crear objetos Proj para las proyecciones
+#     # Proyección de origen basada en la cadena EPSG "32629"
+#     crs_from = CRS.from_string(f"EPSG:{epsg_input}")
+#     proj_from = Proj(crs_from)
 
-    # Proyección de destino, EPSG:4326 (WGS84, lat/long)
+#     # Proyección de destino, EPSG:4326 (WGS84, lat/long)
     
-    crs_to = CRS.from_string("EPSG:4326")
-    proj_to = Proj(crs_to)
+#     crs_to = CRS.from_string("EPSG:4326")
+#     proj_to = Proj(crs_to)
 
-    # Transformar de UTM a WGS84
-    west2, south2 = transform(proj_from, proj_to, west, south)
-    east2, north2 = transform(proj_from, proj_to, east, north)
+#     # Transformar de UTM a WGS84
+#     west2, south2 = transform(proj_from, proj_to, west, south)
+#     east2, north2 = transform(proj_from, proj_to, east, north)
 
-    return south2, west2, north2, east2
+#     return south2, west2, north2, east2
 
     
 
@@ -76,16 +78,16 @@ def generate_xml(**kwargs):
     outputFalse = next((obj for obj in executionResources if obj["output"] == False), None)["data"]
     bboxData = next((obj for obj in outputFalse if obj["type"] == "BBOX"), None)
     bbox = bboxData["value"]
-    coordinate_system = bboxData["ReferenceSystem"]
+    # coordinate_system = bboxData["ReferenceSystem"]
 
-    # Coords BBOX
-    west_bound_pre = bbox['westBoundLongitude']
-    east_bound_pre = bbox['eastBoundLongitude']
-    south_bound_pre = bbox['southBoundLatitude']
-    north_bound_pre = bbox['nortBoundLatitude']
+    # # Coords BBOX
+    # west_bound_pre = bbox['westBoundLongitude']
+    # east_bound_pre = bbox['eastBoundLongitude']
+    # south_bound_pre = bbox['southBoundLatitude']
+    # north_bound_pre = bbox['nortBoundLatitude']
 
     # Función de conversión (debe estar definida en tu código)
-    south_bound, west_bound, north_bound, east_bound = convertir_coords(coordinate_system, south_bound_pre, west_bound_pre, north_bound_pre, east_bound_pre)
+    # south_bound, west_bound, north_bound, east_bound = convertir_coords(coordinate_system, south_bound_pre, west_bound_pre, north_bound_pre, east_bound_pre)
 
     # Procesar recursos de salida
     for resource in executionResources:
@@ -120,10 +122,10 @@ def generate_xml(**kwargs):
             date_stamp=date_stamp,
             title=title,
             publication_date=publication_date,
-            west_bound=west_bound,
-            east_bound=east_bound,
-            south_bound=south_bound,
-            north_bound=north_bound,
+            # west_bound=west_bound,
+            # east_bound=east_bound,
+            # south_bound=south_bound,
+            # north_bound=north_bound,
             spatial_resolution=spatial_resolution,
             specificUsage=specificUsage,
             protocol=protocol,
