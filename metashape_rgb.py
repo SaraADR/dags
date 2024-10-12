@@ -198,7 +198,7 @@ default_args = {
     'retries': 0
 }
 
-dag = DAG('generate_and_upload_xml', default_args=default_args, schedule_interval=None)
+dag = DAG('metashape_rgb', default_args=default_args, schedule_interval=None)
 
 # Tarea para generar el XML
 generate_xml_task = PythonOperator(
