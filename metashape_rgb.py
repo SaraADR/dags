@@ -118,7 +118,7 @@ def generate_xml(**kwargs):
             # south_bound=south_bound,
             # north_bound=north_bound,
             spatial_resolution=spatial_resolution,
-            specificUsage = specificUsage,
+            # specificUsage = specificUsage,
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
