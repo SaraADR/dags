@@ -66,6 +66,7 @@ def generate_xml(**kwargs):
     coordinate_system = bboxData['ReferenceSystem']
 
 
+    
     # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
 
     organization_name = 'Avincis'
@@ -80,7 +81,7 @@ def generate_xml(**kwargs):
     north_bound_pre = bbox['northBoundLatitude']
 
     # Función de conversión (debe estar definida en tu código)
-    south_bound, west_bound, north_bound, east_bound = convertir_coords(coordinate_system, south_bound_pre, west_bound_pre, north_bound_pre, east_bound_pre)
+    south_bound, west_bound, north_bound, east_bound = convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
 
     # Procesar recursos de salida
     for resource in executionResources:
@@ -101,7 +102,8 @@ def generate_xml(**kwargs):
         layer_name = identifier
         title = identifier
         
-        # JSON dinámico con los valores correspondientes
+
+      # JSON dinámico con los valores correspondientes
         wms_link = algoritm_result['executionResources'][0]['path']  # Link de WMS para este recurso específico
         layer_description = "Descripción de la capa generada"  # Puedes extraer o generar esto según el contexto
         file_identifier = "Ortomosaico_testeo"  # Un identificador único (se puede derivar)
@@ -122,8 +124,8 @@ def generate_xml(**kwargs):
             east_bound=east_bound,
             south_bound=south_bound,
             north_bound=north_bound,
-            spatial_resolution=spatial_resolution_str,  # Converted to string
-            specificUsage=specificUsage,
+            spatial_resolution=spatial_resolution,
+            specificUsage = specificUsage,
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
@@ -143,10 +145,11 @@ def generate_xml(**kwargs):
 
     # Base64 encode the XML bytes
     xml_encoded = base64.b64encode(xml_content).decode('utf-8')
-    logging.info(f"Xml enconded {xml_encoded}")
+    logging.info (f"Xml enconded {xml_encoded}")
 
     # Store the base64 encoded XML content in XCom
     return xml_encoded
+
 
  # JSON content as before
     # json_content = {
@@ -379,23 +382,37 @@ def creador_xml_metadata(file_identifier, specificUsage, organization_name, emai
         "codeListValue": "publication"
     })
 
-    # bounding box
-    extent = ET.SubElement(md_data_identification, "gmd:extent")
+    import xml.etree.ElementTree as ET
+
+    # Crear la estructura XML
+    extent = ET.Element("gmd:extent")
     ex_extent = ET.SubElement(extent, "gmd:EX_Extent")
     geographic_element = ET.SubElement(ex_extent, "gmd:geographicElement")
     bbox = ET.SubElement(geographic_element, "gmd:EX_GeographicBoundingBox")
+
+    # Crear los elementos del bounding box
     west_bound_elem = ET.SubElement(bbox, "gmd:westBoundLongitude")
     west_bound_cs = ET.SubElement(west_bound_elem, "gco:Decimal")
-    west_bound_cs.text = west_bound
+    west_bound_cs.text = "westBoundLongitude"  # Reemplazar con el valor real
+
     east_bound_elem = ET.SubElement(bbox, "gmd:eastBoundLongitude")
     east_bound_cs = ET.SubElement(east_bound_elem, "gco:Decimal")
-    east_bound_cs.text = east_bound
+    east_bound_cs.text = "eastBoundLongitude"  # Reemplazar con el valor real
+
     south_bound_elem = ET.SubElement(bbox, "gmd:southBoundLatitude")
     south_bound_cs = ET.SubElement(south_bound_elem, "gco:Decimal")
-    south_bound_cs.text = south_bound
+    south_bound_cs.text = "southBoundLatitude"  # Reemplazar con el valor real
+
     north_bound_elem = ET.SubElement(bbox, "gmd:northBoundLatitude")
     north_bound_cs = ET.SubElement(north_bound_elem, "gco:Decimal")
-    north_bound_cs.text = north_bound
+    north_bound_cs.text = "northBoundLatitude"  # Reemplazar con el valor real
+
+    # Convertir el elemento a una cadena de texto XML
+    xml_str = ET.tostring(extent, encoding='unicode')
+
+    # Mostrar el resultado
+    print(xml_str)
+
 
     # spatial resolution
     spatial_res = ET.SubElement(md_data_identification, "gmd:spatialResolution")
