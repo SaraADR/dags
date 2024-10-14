@@ -17,19 +17,13 @@ geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
-def convertir_coords(epsg_input,south, west, north, east):
-
-
-    # Entrada: EPSG de la proyección origen, en formato cadena (e.g., "32629")
-    # epsg_input = "32629"  # UTM Zona 29 Norte
-
-
+def convertir_coords(epsg_input, south, west, north, east):
+    logging.info(f"Convirtiendo coordenadas de EPSG:{epsg_input} a EPSG:4326.")
+    logging.info(f"Coordenadas antes de la conversión: sur={south}, oeste={west}, norte={north}, este={east}")
+    
     # Crear objetos Proj para las proyecciones
-    # Proyección de origen basada en la cadena EPSG "32629"
     crs_from = CRS.from_string(f"EPSG:{epsg_input}")
     proj_from = Proj(crs_from)
-
-    # Proyección de destino, EPSG:4326 (WGS84, lat/long)
     crs_to = CRS.from_string("EPSG:4326")
     proj_to = Proj(crs_to)
 
@@ -43,6 +37,8 @@ def convertir_coords(epsg_input,south, west, north, east):
     east2 = round(east2, 6)
     north2 = round(north2, 6)
 
+    logging.info(f"Coordenadas después de la conversión: sur={south2}, oeste={west2}, norte={north2}, este={east2}")
+
     return south2, west2, north2, east2
 
     
@@ -50,50 +46,49 @@ def convertir_coords(epsg_input,south, west, north, east):
 # Función para generar el XML
 def generate_xml(**kwargs):
     logging.info("Iniciando la generación del XML.")
-
-    xml_encoded = []
-    
     algoritm_result = kwargs['dag_run'].conf.get('json')
-
+    if not algoritm_result:
+        logging.error("No se encontró la clave 'json' en los argumentos proporcionados.")
+        raise ValueError("JSON de entrada no proporcionado.")
+    
     logging.info(f"Contenido JSON cargado: {algoritm_result}")
 
+    # Obtener recursos de ejecución
     executionResources = algoritm_result['executionResources']
+    logging.info(f"Execution Resources encontrados: {len(executionResources)} recursos")
 
-    # Se extrae la información del BBOX y el sistema de referencia
+    # Obtener el BBOX y el sistema de coordenadas
     outputFalse = next((obj for obj in executionResources if obj['output'] == False), None)['data']
     bboxData = next((obj for obj in outputFalse if obj['name'] == 'BBOX'), None)
     bbox = bboxData['value']
     coordinate_system = bboxData['ReferenceSystem']
+    logging.info(f"Coordenadas del BBOX: {bbox} en sistema de referencia {coordinate_system}")
 
-
-    
-    # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
-
-    organization_name = 'Avincis'
-    email_address = 'avincis@organizacion.es'
-    protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link = 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms'
-
-    # Coords BBOX
+    # Coordenadas BBOX
     west_bound_pre = bbox['westBoundLongitude']
     east_bound_pre = bbox['eastBoundLongitude']
     south_bound_pre = bbox['southBoundLatitude']
     north_bound_pre = bbox['northBoundLatitude']
-
-    # Función de conversión (debe estar definida en tu código)
-    south_bound, west_bound, north_bound, east_bound = convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
-
-    # Procesar recursos de salida
+    
+    # Llamada a convertir_coords
+    logging.info("Llamando a convertir_coords.")
+    south_bound, west_bound, north_bound, east_bound = convertir_coords(coordinate_system, south_bound_pre, west_bound_pre, north_bound_pre, east_bound_pre)
+    
+    # Generar XML para los recursos de salida
     for resource in executionResources:
         if resource['output'] == False:
+            logging.info("Saltando recurso que no es de salida.")
             continue
 
         if not re.search(r'\.tif$', resource['path'], re.IGNORECASE):
+            logging.info("Saltando recurso que no es un archivo TIFF.")
             continue
 
         identifier = next((obj for obj in resource['data'] if obj['name'] == 'identifier'), None)["value"]
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
         specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
+        
+        logging.info(f"Procesando recurso con identifier={identifier} y resolución={spatial_resolution}")
 
         # Ensure spatial_resolution (float) is converted to a string
         spatial_resolution_str = str(spatial_resolution)
