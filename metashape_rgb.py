@@ -92,7 +92,7 @@ def generate_xml(**kwargs):
     logging.info("Llamando a convertir_coords.")
 
     # Función de conversión (debe estar definida en tu código)
-    south_bound, west_bound, north_bound, east_bound = convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
+    west_bound,south_bound,east_bound,north_bound= convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
 
     # Procesar recursos de salida
     for resource in executionResources:
