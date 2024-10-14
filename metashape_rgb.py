@@ -30,7 +30,6 @@ def convertir_coords(epsg_input,south, west, north, east):
     proj_from = Proj(crs_from)
 
     # Proyección de destino, EPSG:4326 (WGS84, lat/long)
-    
     crs_to = CRS.from_string("EPSG:4326")
     proj_to = Proj(crs_to)
 
@@ -67,7 +66,6 @@ def generate_xml(**kwargs):
     coordinate_system = bboxData['ReferenceSystem']
 
 
-    
     # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
 
     organization_name = 'Avincis'
@@ -82,7 +80,7 @@ def generate_xml(**kwargs):
     north_bound_pre = bbox['northBoundLatitude']
 
     # Función de conversión (debe estar definida en tu código)
-    south_bound, west_bound, north_bound, east_bound = convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
+    south_bound, west_bound, north_bound, east_bound = convertir_coords(coordinate_system, south_bound_pre, west_bound_pre, north_bound_pre, east_bound_pre)
 
     # Procesar recursos de salida
     for resource in executionResources:
@@ -96,12 +94,14 @@ def generate_xml(**kwargs):
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
         specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
 
+        # Ensure spatial_resolution (float) is converted to a string
+        spatial_resolution_str = str(spatial_resolution)
+
         # Datos para el XML
         layer_name = identifier
         title = identifier
         
-
-      # JSON dinámico con los valores correspondientes
+        # JSON dinámico con los valores correspondientes
         wms_link = algoritm_result['executionResources'][0]['path']  # Link de WMS para este recurso específico
         layer_description = "Descripción de la capa generada"  # Puedes extraer o generar esto según el contexto
         file_identifier = "Ortomosaico_testeo"  # Un identificador único (se puede derivar)
@@ -122,8 +122,8 @@ def generate_xml(**kwargs):
             east_bound=east_bound,
             south_bound=south_bound,
             north_bound=north_bound,
-            spatial_resolution=spatial_resolution,
-            specificUsage = specificUsage,
+            spatial_resolution=spatial_resolution_str,  # Converted to string
+            specificUsage=specificUsage,
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
@@ -143,11 +143,10 @@ def generate_xml(**kwargs):
 
     # Base64 encode the XML bytes
     xml_encoded = base64.b64encode(xml_content).decode('utf-8')
-    logging.info (f"Xml enconded {xml_encoded}")
+    logging.info(f"Xml enconded {xml_encoded}")
 
     # Store the base64 encoded XML content in XCom
     return xml_encoded
-
 
  # JSON content as before
     # json_content = {
