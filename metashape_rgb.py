@@ -284,7 +284,7 @@ def creador_xml_metadata(file_identifier, specificUsage, organization_name, emai
     # fileIdentifier
     fid = ET.SubElement(root, "gmd:fileIdentifier")
     fid_cs = ET.SubElement(fid, "gco:CharacterString")
-    fid_cs.text = file_identifier
+    fid_cs.text = str(file_identifier)
 
     # language
     language = ET.SubElement(root, "gmd:language")
@@ -316,7 +316,7 @@ def creador_xml_metadata(file_identifier, specificUsage, organization_name, emai
     responsible_party = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
     org_name = ET.SubElement(responsible_party, "gmd:organisationName")
     org_name_cs = ET.SubElement(org_name, "gco:CharacterString")
-    org_name_cs.text = organization_name
+    org_name_cs.text = str(organization_name)
 
     # contact email
     contact_info = ET.SubElement(responsible_party, "gmd:contactInfo")
@@ -325,7 +325,7 @@ def creador_xml_metadata(file_identifier, specificUsage, organization_name, emai
     ci_address = ET.SubElement(address, "gmd:CI_Address")
     email = ET.SubElement(ci_address, "gmd:electronicMailAddress")
     email_cs = ET.SubElement(email, "gco:CharacterString")
-    email_cs.text = email_address
+    email_cs.text = str(email_address)
 
     # role
     role = ET.SubElement(responsible_party, "gmd:role")
@@ -368,14 +368,14 @@ def creador_xml_metadata(file_identifier, specificUsage, organization_name, emai
     ci_citation = ET.SubElement(citation, "gmd:CI_Citation")
     title_elem = ET.SubElement(ci_citation, "gmd:title")
     title_cs = ET.SubElement(title_elem, "gco:CharacterString")
-    title_cs.text = title
+    title_cs.text = str(title)
 
     # publication date
     pub_date = ET.SubElement(ci_citation, "gmd:date")
     ci_date = ET.SubElement(pub_date, "gmd:CI_Date")
     date = ET.SubElement(ci_date, "gmd:date")
     gco_date = ET.SubElement(date, "gco:Date")
-    gco_date.text = publication_date
+    gco_date.text = str(publication_date)
     date_type = ET.SubElement(ci_date, "gmd:dateType")
     ci_date_type = ET.SubElement(date_type, "gmd:CI_DateTypeCode", {
         "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode",
@@ -405,7 +405,7 @@ def creador_xml_metadata(file_identifier, specificUsage, organization_name, emai
     distance = ET.SubElement(spatial_res, "gmd:MD_Resolution")
     dist_value = ET.SubElement(distance, "gmd:distance")
     dist_cs = ET.SubElement(dist_value, "gco:Distance", {"uom": "metros"})
-    dist_cs.text = spatial_resolution
+    dist_cs.text = str(spatial_resolution)
 
     # WMS linkage
     distribution_info = ET.SubElement(root, "gmd:distributionInfo")
@@ -416,28 +416,28 @@ def creador_xml_metadata(file_identifier, specificUsage, organization_name, emai
     online_resource = ET.SubElement(on_line, "gmd:CI_OnlineResource")
     linkage = ET.SubElement(online_resource, "gmd:linkage")
     url = ET.SubElement(linkage, "gmd:URL")
-    url.text = wms_link
+    url.text = str(wms_link)
 
     protocol_elem = ET.SubElement(online_resource, "gmd:protocol")
     protocol_cs = ET.SubElement(protocol_elem, "gco:CharacterString")
-    protocol_cs.text = protocol
+    protocol_cs.text = str(protocol)
 
     name_elem = ET.SubElement(online_resource, "gmd:name")
     name_cs = ET.SubElement(name_elem, "gco:CharacterString")
-    name_cs.text = layer_name
+    name_cs.text = str(layer_name)
 
     desc_elem = ET.SubElement(online_resource, "gmd:description")
     desc_cs = ET.SubElement(desc_elem, "gco:CharacterString")
-    desc_cs.text = layer_description
+    desc_cs.text = str(layer_description)
 
     resSpecific_usage = ET.SubElement(md_data_identification, "gmd:resourceSpecificUsage")
     usage = ET.SubElement(resSpecific_usage, "gmd:MD_Usage")
     specificUsageXml = ET.SubElement(usage, "gmd:specificUsage")
     specificUsageText = ET.SubElement(specificUsageXml, "gco:CharacterString")
-    specificUsageText.text = specificUsage
+    specificUsageText.text = str(specificUsage)
 
     desc_cs = ET.SubElement(desc_elem, "gco:CharacterString")
-    desc_cs.text = layer_description
+    desc_cs.text = str(layer_description)
 
     logging.info("XML creado correctamente.")
     
