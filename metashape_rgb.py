@@ -368,7 +368,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "codeListValue": "download"
     })
 
-     # Añadir language (anteriormente proporcionado)
+     # Añadir language
     language = ET.SubElement(root, "gmd:language")
     lang_code = ET.SubElement(language, "gmd:LanguageCode", {
         "codeList": "http://www.loc.gov/standards/iso639-2/",
@@ -571,8 +571,8 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "codeListValue": "publication"
     })
 
-# Añadir resourceSpecificUsage
-    resourceSpecificUsage = ET.SubElement(root.find(".//gmd:MD_DataIdentification"), "gmd:resourceSpecificUsage")
+    # Añadir resourceSpecificUsage
+    resourceSpecificUsage = ET.SubElement(md_data_identification, "gmd:resourceSpecificUsage")
     md_usage = ET.SubElement(resourceSpecificUsage, "gmd:MD_Usage")
     specificUsage = ET.SubElement(md_usage, "gmd:specificUsage")
     gco_characterString = ET.SubElement(specificUsage, "gco:CharacterString")
@@ -599,7 +599,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     })
 
     # Añadir resourceConstraints (primera parte)
-    resourceConstraints = ET.SubElement(root.find(".//gmd:MD_DataIdentification"), "gmd:resourceConstraints")
+    resourceConstraints = ET.SubElement(md_data_identification, "gmd:resourceConstraints")
     md_legal_constraints = ET.SubElement(resourceConstraints, "gmd:MD_LegalConstraints")
     accessConstraints = ET.SubElement(md_legal_constraints, "gmd:accessConstraints")
     md_restriction_code = ET.SubElement(accessConstraints, "gmd:MD_RestrictionCode", {
@@ -613,25 +613,25 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gmx_anchor.text = "Sin limitaciones al acceso público"
 
     # Añadir resourceConstraints (otras partes con nilReason)
-    resourceConstraints_nil1 = ET.SubElement(root.find(".//gmd:MD_DataIdentification"), "gmd:resourceConstraints", {"gco:nilReason": "missing"})
-    resourceConstraints_nil2 = ET.SubElement(root.find(".//gmd:MD_DataIdentification"), "gmd:resourceConstraints", {"gco:nilReason": "missing"})
+    resourceConstraints_nil1 = ET.SubElement(md_data_identification, "gmd:resourceConstraints", {"gco:nilReason": "missing"})
+    resourceConstraints_nil2 = ET.SubElement(md_data_identification, "gmd:resourceConstraints", {"gco:nilReason": "missing"})
 
     # Añadir spatialRepresentationType
-    spatial_rep_type = ET.SubElement(root.find(".//gmd:MD_DataIdentification"), "gmd:spatialRepresentationType")
+    spatial_rep_type = ET.SubElement(md_data_identification, "gmd:spatialRepresentationType")
     md_spatial_rep_type_code = ET.SubElement(spatial_rep_type, "gmd:MD_SpatialRepresentationTypeCode", {
         "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_SpatialRepresentationTypeCode",
         "codeListValue": "grid"
     })
 
     # Añadir spatialResolution
-    spatial_res = ET.SubElement(root.find(".//gmd:MD_DataIdentification"), "gmd:spatialResolution")
+    spatial_res = ET.SubElement(md_data_identification, "gmd:spatialResolution")
     md_resolution = ET.SubElement(spatial_res, "gmd:MD_Resolution")
     distance = ET.SubElement(md_resolution, "gmd:distance")
     gco_distance = ET.SubElement(distance, "gco:Distance", {"uom": "metros"})
     gco_distance.text = "0.026"
 
     # Añadir extent (bounding box)
-    extent = ET.SubElement(root.find(".//gmd:MD_DataIdentification"), "gmd:extent")
+    extent = ET.SubElement(md_data_identification, "gmd:extent")
     ex_extent = ET.SubElement(extent, "gmd:EX_Extent")
     geographic_element = ET.SubElement(ex_extent, "gmd:geographicElement")
     bbox = ET.SubElement(geographic_element, "gmd:EX_GeographicBoundingBox")
@@ -649,7 +649,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gco_decimal.text = "42.8044"
 
     # Añadir presentationForm
-    presentation_form = ET.SubElement(root.find(".//gmd:MD_DataIdentification"), "gmd:presentationForm")
+    presentation_form = ET.SubElement(md_data_identification, "gmd:presentationForm")
     gco_characterString = ET.SubElement(presentation_form, "gco:CharacterString")
     gco_characterString.text = "Modelo Digital"
 
@@ -736,9 +736,8 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gco_characterString.text = ("Ortomosaico generado mediante el procesamiento de imágenes aéreas capturadas con una "
                                 "cobertura longitudinal del 60% y transversal del 30%, con un error medio cuadrático de hasta 40 cm.")
 
-    logging.info("XML creado correctamente.")
-    
     return ET.ElementTree(root)
+
 
 # Definición del DAG
 default_args = {
