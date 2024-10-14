@@ -257,7 +257,7 @@ def upload_to_geonetwork(**context):
 
 
 # Función para crear el XML metadata
-def creador_xml_metadata(file_identifier, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description, su):
+def creador_xml_metadata(file_identifier, specificUsage, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
 
     root = ET.Element("gmd:MD_Metadata", {
@@ -425,9 +425,9 @@ def creador_xml_metadata(file_identifier, organization_name, email_address, date
 
     resSpecific_usage = ET.SubElement(md_data_identification, "gmd:resourceSpecificUsage")
     usage = ET.SubElement(resSpecific_usage, "gmd:MD_Usage")
-    specificUsage = ET.SubElement(usage, "gmd:specificUsage")
-    specificUsageText = ET.SubElement(specificUsage, "gco:CharacterString")
-    specificUsageText.text = su
+    specificUsageXml = ET.SubElement(usage, "gmd:specificUsage")
+    specificUsageText = ET.SubElement(specificUsageXml, "gco:CharacterString")
+    specificUsageText.text = specificUsage
 
     desc_cs = ET.SubElement(desc_elem, "gco:CharacterString")
     desc_cs.text = layer_description
