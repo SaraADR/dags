@@ -452,7 +452,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     ci_citation = ET.SubElement(citation, "gmd:CI_Citation")
     title = ET.SubElement(ci_citation, "gmd:title")
     gco_characterString = ET.SubElement(title, "gco:CharacterString")
-    gco_characterString.text = "Ortomosaico_0026_4740004_611271"
+    gco_characterString.text = file_identifier
 
     # Añadir publication date
     pub_date = ET.SubElement(ci_citation, "gmd:date")
