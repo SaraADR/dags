@@ -38,6 +38,12 @@ def convertir_coords(epsg_input,south, west, north, east):
     west2, south2 = transform(proj_from, proj_to, west, south)
     east2, north2 = transform(proj_from, proj_to, east, north)
 
+    # Redondear las coordenadas a 6 decimales
+    west2 = round(west2, 6)
+    south2 = round(south2, 6)
+    east2 = round(east2, 6)
+    north2 = round(north2, 6)
+
     return south2, west2, north2, east2
 
     
