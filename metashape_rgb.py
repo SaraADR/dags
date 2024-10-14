@@ -325,6 +325,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_RestrictionCode",
         "codeListValue": "otherRestrictions"
     })
+    gmd_MD_RestrictionCode.text = "otherRestrictions"
 
     # Añadir gmd:otherConstraints dentro de MD_LegalConstraints
     gmd_otherConstraints = ET.SubElement(gmd_MD_LegalConstraints, "gmd:otherConstraints")
