@@ -392,6 +392,58 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     })
     hierarchy_code.text = "dataset"
 
+
+        # Añadir gmd:descriptiveKeywords al root
+    gmd_descriptiveKeywords = ET.SubElement(root, "gmd:descriptiveKeywords")
+
+    # Añadir gmd:MD_Keywords dentro de descriptiveKeywords
+    gmd_MD_Keywords = ET.SubElement(gmd_descriptiveKeywords, "gmd:MD_Keywords")
+
+    # Añadir gmd:keyword y gco:CharacterString dentro de MD_Keywords para cada keyword
+    keywords = ["photogrametry", "burst", "orthomosaic", "RGB", "aerial-photography", "Opendata"]
+
+    for keyword in keywords:
+        gmd_keyword = ET.SubElement(gmd_MD_Keywords, "gmd:keyword")
+        gco_CharacterString = ET.SubElement(gmd_keyword, "gco:CharacterString")
+        gco_CharacterString.text = keyword
+
+    # Añadir gmd:type dentro de MD_Keywords
+    gmd_type = ET.SubElement(gmd_MD_Keywords, "gmd:type")
+    gmd_MD_KeywordTypeCode = ET.SubElement(gmd_type, "gmd:MD_KeywordTypeCode", {
+        "codeList": "https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_KeywordTypeCode",
+        "codeListValue": "theme"
+    })
+
+    # Añadir gmd:thesaurusName dentro de MD_Keywords
+    gmd_thesaurusName = ET.SubElement(gmd_MD_Keywords, "gmd:thesaurusName")
+
+    # Añadir gmd:CI_Citation dentro de thesaurusName
+    gmd_CI_Citation = ET.SubElement(gmd_thesaurusName, "gmd:CI_Citation")
+
+    # Añadir gmd:title dentro de CI_Citation
+    gmd_title = ET.SubElement(gmd_CI_Citation, "gmd:title")
+    gmx_Anchor = ET.SubElement(gmd_title, "gmx:Anchor", {
+        "xlink:href": "http://www.eionet.europa.eu/gemet/inspire_themes"
+    })
+    gmx_Anchor.text = "Keywords"
+
+    # Añadir gmd:date dentro de CI_Citation
+    gmd_date = ET.SubElement(gmd_CI_Citation, "gmd:date")
+    gmd_CI_Date = ET.SubElement(gmd_date, "gmd:CI_Date")
+
+    # Añadir gmd:date y gco:Date dentro de CI_Date
+    gmd_date_inner = ET.SubElement(gmd_CI_Date, "gmd:date")
+    gco_Date = ET.SubElement(gmd_date_inner, "gco:Date")
+    gco_Date.text = "2008-06-01"
+
+    # Añadir gmd:dateType dentro de CI_Date
+    gmd_dateType = ET.SubElement(gmd_CI_Date, "gmd:dateType")
+    gmd_CI_DateTypeCode = ET.SubElement(gmd_dateType, "gmd:CI_DateTypeCode", {
+        "codeList": "https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode",
+        "codeListValue": "publication"
+    })
+
+
     # Añadir contact
     contact = ET.SubElement(root, "gmd:contact")
     responsible_party = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
