@@ -74,8 +74,6 @@ def generate_xml(**kwargs):
     logging.info(f"Coordenadas del BBOX: {bbox} en sistema de referencia {coordinate_system}")
 
 
-
-    
     # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
 
     organization_name = 'Avincis'
@@ -150,20 +148,24 @@ def generate_xml(**kwargs):
             layer_description=layer_description
         )
 
-    if tree is None:
-        logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
-        raise Exception("Error: creador_xml_metadata retornó None.")
+        if tree is None:
+            logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
+            raise Exception("Error: creador_xml_metadata retornó None.")
 
-    logging.info("El XML ha sido creado exitosamente en memoria.")
+        logging.info("El XML ha sido creado exitosamente en memoria.")
 
-    # Convert the XML tree to bytes
-    xml_bytes_io = io.BytesIO()
-    tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
-    xml_content = xml_bytes_io.getvalue()
+        # Convert the XML tree to bytes
+        xml_bytes_io = io.BytesIO()
+        tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
+        xml_content = xml_bytes_io.getvalue()
 
-    # Base64 encode the XML bytes
-    xml_encoded = base64.b64encode(xml_content).decode('utf-8')
-    logging.info (f"Xml enconded {xml_encoded}")
+        # Base64 encode the XML bytes
+        xml_encoded_to_push = base64.b64encode(xml_content).decode('utf-8')
+
+        xml_encoded.append (xml_encoded_to_push)
+
+
+        # logging.info (f"Xml enconded {xml_encoded}")
 
     # Store the base64 encoded XML content in XCom
     return xml_encoded
@@ -230,49 +232,52 @@ def upload_to_geonetwork(**context):
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
         # Obtener el XML base64 desde XCom
-        xml_data = context['ti'].xcom_pull(task_ids='generate_xml')
-        xml_decoded = base64.b64decode(xml_data).decode('utf-8')
+        xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
 
-        # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
-        xml_file_stream = io.StringIO(xml_decoded)
-
-        logging.info(f"XML DATA: {xml_data}")
-        logging.info(xml_decoded)
-
-        data = {
-            'metadataType': (None, 'METADATA'),
-            'uuidProcessing': (None, 'NOTHING'),
-            'transformWith': (None, '_none_'),
-            'group': (None, 2),
-            'category': (None, ''),
-            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
-        }
+        for xml_data in xml_data_array:
         
-        files = {
-            'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
-        }
+            xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
-        # URL de GeoNetwork para subir el archivo XML
-        upload_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records"
+            # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
+            xml_file_stream = io.StringIO(xml_decoded)
 
-        # Encabezados que incluyen los tokens
-        headers = {
-            # 'Content-Type': 'multipart/form-data',
-            'Authorization': f"Bearer {access_token}",
-            'x-xsrf-token': str(xsrf_token),
-            'Cookie': str(set_cookie_header[0]),
-            'Accept': 'application/json'
-        }
+            logging.info(f"XML DATA: {xml_data}")
+            logging.info(xml_decoded)
 
-        # Realizar la solicitud POST para subir el archivo XML
-        logging.info(f"Subiendo XML a la URL: {upload_url}")
-        response = requests.post(upload_url,files=files,data=data, headers=headers)
-        logging.info(response)
+            data = {
+                'metadataType': (None, 'METADATA'),
+                'uuidProcessing': (None, 'NOTHING'),
+                'transformWith': (None, '_none_'),
+                'group': (None, 2),
+                'category': (None, ''),
+                'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
+            }
+            
+            files = {
+                'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
+            }
 
-        # Verificar si hubo algún error en la solicitud
-        response.raise_for_status()
+            # URL de GeoNetwork para subir el archivo XML
+            upload_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records"
 
-        logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
+            # Encabezados que incluyen los tokens
+            headers = {
+                # 'Content-Type': 'multipart/form-data',
+                'Authorization': f"Bearer {access_token}",
+                'x-xsrf-token': str(xsrf_token),
+                'Cookie': str(set_cookie_header[0]),
+                'Accept': 'application/json'
+            }
+
+            # Realizar la solicitud POST para subir el archivo XML
+            logging.info(f"Subiendo XML a la URL: {upload_url}")
+            response = requests.post(upload_url,files=files,data=data, headers=headers)
+            logging.info(response)
+
+            # Verificar si hubo algún error en la solicitud
+            response.raise_for_status()
+
+            logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
     except Exception as e:
         if response is not None:
             logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
