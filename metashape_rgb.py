@@ -382,37 +382,23 @@ def creador_xml_metadata(file_identifier, specificUsage, organization_name, emai
         "codeListValue": "publication"
     })
 
-    import xml.etree.ElementTree as ET
-
-    # Crear la estructura XML
-    extent = ET.Element("gmd:extent")
+    # bounding box
+    extent = ET.SubElement(md_data_identification, "gmd:extent")
     ex_extent = ET.SubElement(extent, "gmd:EX_Extent")
     geographic_element = ET.SubElement(ex_extent, "gmd:geographicElement")
     bbox = ET.SubElement(geographic_element, "gmd:EX_GeographicBoundingBox")
-
-    # Crear los elementos del bounding box
     west_bound_elem = ET.SubElement(bbox, "gmd:westBoundLongitude")
     west_bound_cs = ET.SubElement(west_bound_elem, "gco:Decimal")
-    west_bound_cs.text = "westBoundLongitude"  # Reemplazar con el valor real
-
+    west_bound_cs.text = str(west_bound)
     east_bound_elem = ET.SubElement(bbox, "gmd:eastBoundLongitude")
     east_bound_cs = ET.SubElement(east_bound_elem, "gco:Decimal")
-    east_bound_cs.text = "eastBoundLongitude"  # Reemplazar con el valor real
-
+    east_bound_cs.text = str(east_bound)
     south_bound_elem = ET.SubElement(bbox, "gmd:southBoundLatitude")
     south_bound_cs = ET.SubElement(south_bound_elem, "gco:Decimal")
-    south_bound_cs.text = "southBoundLatitude"  # Reemplazar con el valor real
-
+    south_bound_cs.text = str(south_bound)
     north_bound_elem = ET.SubElement(bbox, "gmd:northBoundLatitude")
     north_bound_cs = ET.SubElement(north_bound_elem, "gco:Decimal")
-    north_bound_cs.text = "northBoundLatitude"  # Reemplazar con el valor real
-
-    # Convertir el elemento a una cadena de texto XML
-    xml_str = ET.tostring(extent, encoding='unicode')
-
-    # Mostrar el resultado
-    print(xml_str)
-
+    north_bound_cs.text = str(north_bound)
 
     # spatial resolution
     spatial_res = ET.SubElement(md_data_identification, "gmd:spatialResolution")
