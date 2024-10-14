@@ -375,11 +375,18 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     })
 
 
-    gmd_identificationInfo = ET.SubElement(root, "gmd_identificationInfo")
-    gmd_MD_DataIdentification = ET.SubElement(gmd_identificationInfo, "MD_DataIdentification")
+        # Padre gmd:identificationInfo
+    gmd_identificationInfo = ET.SubElement(root, "gmd:identificationInfo")
+
+    # Añadir gmd:MD_DataIdentification dentro de identificationInfo
+    gmd_MD_DataIdentification = ET.SubElement(gmd_identificationInfo, "gmd:MD_DataIdentification")
+
+    # Añadir gmd:abstract dentro de MD_DataIdentification
     gmd_abstract = ET.SubElement(gmd_MD_DataIdentification, "gmd:abstract")
-    gco_CharacterString = ET.SubElement(gmd_abstract, "gmd:CharacterString")
-    gco_CharacterString.text = "Conocimiento y estudio con precisión de la ubicación, forma y dimensiones en el espacio de los objetos presentes en la superficie de la tierra"
+
+    # Añadir gco:CharacterString dentro de abstract (aquí está el texto que mencionas)
+    gco_CharacterString_abstract = ET.SubElement(gmd_abstract, "gco:CharacterString")
+    gco_CharacterString_abstract.text = "Conocimiento y estudio con precisión de la ubicación, forma y dimensiones en el espacio de los objetos presentes en la superficie de la tierra"
 
 
     # Añadir characterSet
