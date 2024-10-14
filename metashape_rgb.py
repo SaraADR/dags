@@ -131,6 +131,7 @@ def generate_xml(**kwargs):
         
         # Generate XML tree
         tree = creador_xml_metadata(
+            wmsLayer=layer_name,
             file_identifier=file_identifier,
             organization_name=organization_name,
             email_address=email_address,
@@ -281,7 +282,7 @@ def upload_to_geonetwork(**context):
 
 
 # Función para crear el XML metadata
-def creador_xml_metadata(file_identifier, specificUsage,wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
 
     root = ET.Element("gmd:MD_Metadata", {
