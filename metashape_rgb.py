@@ -309,6 +309,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     fid_cs.text = str(file_identifier)
     
 
+
         # Padre gmd:descriptiveKeywords
     gmd_descriptiveKeywords = ET.SubElement(root, "gmd:descriptiveKeywords")
 
@@ -338,29 +339,9 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
 
     # WMS LAYER 
    
-    gmd_identificationInfo = ET.SubElement(root, "gmd_identificationInfo")
-    gmd_MD_DataIdentification = ET.SubElement(gmd_identificationInfo, "MD_DataIdentification")
-    gmd_abstract = ET.SubElement(gmd_MD_DataIdentification, "gmd:abstract")
-    gco_CharacterString = ET.SubElement(gmd_abstract, "gmd:CharacterString")
-    gco_CharacterString.text = "Conocimiento y estudio con precisión de la ubicación, forma y dimensiones en el espacio de los objetos presentes en la superficie de la tierra"
-
-
-
-    gmd_MD_DigitalTransferOptions = ET.SubElement(gmd_transferOptions, "gmd:MD_DigitalTransferOptions")
-    gmd_onLine = ET.SubElement(gmd_MD_DigitalTransferOptions, "gmd:onLine")
-    gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
-    linkage = ET.SubElement(gmd_CI_OnlineResource, "gmd:linkage")
-    linkageUrl = ET.SubElement(linkage, "gmd:URL")
-    linkageUrl.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
-
-   
-   
-   
-   
     gmd_distributionInfo = ET.SubElement(root, "gmd:distributionInfo")
     gmd_MD_Distribution = ET.SubElement(gmd_distributionInfo, "gmd:MD_Distribution")
     gmd_transferOptions = ET.SubElement(gmd_MD_Distribution, "gmd:transferOptions")
-
 
     gmd_MD_DigitalTransferOptions = ET.SubElement(gmd_transferOptions, "gmd:MD_DigitalTransferOptions")
     gmd_onLine = ET.SubElement(gmd_MD_DigitalTransferOptions, "gmd:onLine")
