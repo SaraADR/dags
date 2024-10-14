@@ -374,12 +374,25 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "codeListValue": "spa"
     })
 
-
-        # Padre gmd:identificationInfo
+    # Padre gmd:identificationInfo
     gmd_identificationInfo = ET.SubElement(root, "gmd:identificationInfo")
 
     # Añadir gmd:MD_DataIdentification dentro de identificationInfo
     gmd_MD_DataIdentification = ET.SubElement(gmd_identificationInfo, "gmd:MD_DataIdentification")
+
+    # Añadir gmd:citation dentro de MD_DataIdentification
+    gmd_citation = ET.SubElement(gmd_MD_DataIdentification, "gmd:citation")
+
+    # Añadir gmd:CI_Citation dentro de citation
+    gmd_CI_Citation = ET.SubElement(gmd_citation, "gmd:CI_Citation")
+
+    # Añadir gmd:title dentro de CI_Citation
+    gmd_title = ET.SubElement(gmd_CI_Citation, "gmd:title")
+
+    # Añadir gco:CharacterString dentro de title (aquí está el texto que mencionas)
+    gco_CharacterString_title = ET.SubElement(gmd_title, "gco:CharacterString")
+    gco_CharacterString_title.text = file_identifier
+
 
     # Añadir gmd:abstract dentro de MD_DataIdentification
     gmd_abstract = ET.SubElement(gmd_MD_DataIdentification, "gmd:abstract")
