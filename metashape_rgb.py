@@ -500,7 +500,9 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     md_data_identification = ET.SubElement(identification_info, "gmd:MD_DataIdentification")
     citation = ET.SubElement(md_data_identification, "gmd:citation")
     ci_citation = ET.SubElement(citation, "gmd:CI_Citation")
- 
+    title_elem = ET.SubElement(ci_citation, "gmd:title")
+    title_cs = ET.SubElement(title_elem, "gco:CharacterString")
+    title_cs.text = str(file_identifier)
 
     # Añadir publication date
     pub_date = ET.SubElement(ci_citation, "gmd:date")
