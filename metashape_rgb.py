@@ -308,8 +308,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     fid_cs = ET.SubElement(fid, "gco:CharacterString")
     fid_cs.text = str(file_identifier)
     
-
-
         # Padre gmd:descriptiveKeywords
     gmd_descriptiveKeywords = ET.SubElement(root, "gmd:descriptiveKeywords")
 
@@ -375,6 +373,14 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "codeList": "http://www.loc.gov/standards/iso639-2/",
         "codeListValue": "spa"
     })
+
+
+    gmd_identificationInfo = ET.SubElement(root, "gmd_identificationInfo")
+    gmd_MD_DataIdentification = ET.SubElement(gmd_identificationInfo, "MD_DataIdentification")
+    gmd_abstract = ET.SubElement(gmd_MD_DataIdentification, "gmd:abstract")
+    gco_CharacterString = ET.SubElement(gmd_abstract, "gmd:CharacterString")
+    gco_CharacterString.text = "Conocimiento y estudio con precisión de la ubicación, forma y dimensiones en el espacio de los objetos presentes en la superficie de la tierra"
+
 
     # Añadir characterSet
     char_set = ET.SubElement(root, "gmd:characterSet")
