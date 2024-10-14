@@ -56,12 +56,11 @@ def generate_xml(**kwargs):
 
     # Se extrae la información del BBOX y el sistema de referencia
     outputFalse = next((obj for obj in executionResources if obj["output"] == False), None)["data"]
-    bboxData = next((obj for obj in outputFalse if obj["type"] == "BBOX"), None)
+    bboxData = next((obj for obj in outputFalse["data"] if obj["name"] == "BBOX"), None)
     bbox = bboxData["value"]
     coordinate_system = bboxData["ReferenceSystem"]
 
 
-    # Extract XML parameters (as before)
     
     # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
 
