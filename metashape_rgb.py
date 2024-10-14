@@ -308,7 +308,26 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     fid_cs = ET.SubElement(fid, "gco:CharacterString")
     fid_cs.text = str(file_identifier)
     
+
+
+ # Añadir resourceConstraints
+    resource_constraints = ET.SubElement(root, "gmd:resourceConstraints")
+    legal_constraints = ET.SubElement(resource_constraints, "gmd:MD_LegalConstraints")
+
+    access_constraints = ET.SubElement(legal_constraints, "gmd:accessConstraints")
+    restriction_code = ET.SubElement(access_constraints, "gmd:MD_RestrictionCode", {
+        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_RestrictionCode",
+        "codeListValue": "otherRestrictions"
+    })
+
+    other_constraints = ET.SubElement(legal_constraints, "gmd:otherConstraints")
+    gmx_anchor = ET.SubElement(other_constraints, "gmx:Anchor", {
+        "xlink:href": "http://inspire.ec.europa.eu/metadata-codelist/LimitationsOnPublicAccess/noLimitations"
+    })
+    gmx_anchor.text = "Sin limitaciones al acceso público"
+
     # WMS LAYER 
+
    
     gmd_distributionInfo = ET.SubElement(root, "gmd:distributionInfo")
     gmd_MD_Distribution = ET.SubElement(gmd_distributionInfo, "gmd:MD_Distribution")
