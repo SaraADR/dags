@@ -78,7 +78,6 @@ def generate_xml(**kwargs):
 
     organization_name = 'Avincis'
     email_address = 'avincis@organizacion.es'
-    content_description = 'Conocimiento y estudio con precisión de la ubicación, forma y dimensiones en el espacio de los objetos presentes en la superficie de la tierra'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
     wms_link = 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms'
 
@@ -132,7 +131,6 @@ def generate_xml(**kwargs):
         tree = creador_xml_metadata(
             wmsLayer=layer_name,
             file_identifier=file_identifier,
-            content_description=content_description,
             organization_name=organization_name,
             email_address=email_address,
             date_stamp=date_stamp,
