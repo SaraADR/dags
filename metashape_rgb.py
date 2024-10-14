@@ -121,7 +121,7 @@ def generate_xml(**kwargs):
       # JSON dinámico con los valores correspondientes
         wms_link = algoritm_result['executionResources'][0]['path']  # Link de WMS para este recurso específico
         layer_description = "Descripción de la capa generada"  # Puedes extraer o generar esto según el contexto
-        file_identifier = "Ortomosaico_testeo"  # Un identificador único (se puede derivar)
+        file_identifier = identifier # Un identificador único (se puede derivar)
         date_stamp = datetime.now().isoformat()
         publication_date = "2024-07-29"  # Basado en la fecha proporcionada en el archivo
 
