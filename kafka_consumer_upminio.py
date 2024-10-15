@@ -13,7 +13,9 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.exceptions import AirflowSkipException
 import tempfile
-
+from airflow.hooks.base_hook import BaseHook
+import boto3
+from botocore.client import Config
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
@@ -23,187 +25,134 @@ def consumer_function(message, prefix, **kwargs):
     except Exception as e:
         print(f"Error al procesar el mensaje: {e}")
 
-
-    # if message is not None:
-    #     nombre_fichero = message.key()
-
-    #     if nombre_fichero is None:
-    #         print("El nombre del fichero es erroneo, no se puede procesar")
-    #         return 'no_message_task'
+    
+    file_path_in_minio = msg_value  # path que recibes de Kafka
         
-    #     file_extension = os.path.splitext(nombre_fichero.decode('utf-8'))[1].strip().lower().replace("'", "")
-    #     print(f"archivo: {nombre_fichero}, Extensión del archivo: {file_extension}")
-        
-    #     if file_extension == '.zip':
-    #         process_zip_file(message.value(), nombre_fichero)
-    #         return 'process_zip_task'
-    #     elif file_extension == '.tiff' or file_extension == '.tif':
-    #         return 'process_tiff_task'
-    #     elif file_extension == '.jpg' or file_extension == '.jpeg':
-    #         return 'process_jpg_task'
-    #     elif file_extension == '.png':
-    #         return 'process_png_task'
-    #     elif file_extension == '.mp4' or file_extension == '.avi' or file_extension == '.mov':
-    #         return 'process_video_task'
-    #     elif file_extension == '.json':
-    #         process_json_file(message.value())
-    #     elif file_extension == 'no_message_task':
-    #         return 'no_message_task'
-    #     else:
-    #         return 'unknown_or_none_file_task'
+    # Establecer conexión con MinIO
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
+
+        # Nombre del bucket donde está almacenado el archivo/carpeta
+    bucket_name = 'temp'
+
+    # Descargar el archivo desde MinIO
+    local_directory = 'tmp'  # Cambia este path al local
+    local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory)
+    process_zip_file(local_zip_path, file_path_in_minio, **kwargs)
 
 
-def process_zip_file(value, nombre_fichero, **kwargs):
+
+def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory):
+    """
+    Función para descargar archivos o carpetas desde MinIO.
+    """
+    # Crear el directorio local si no existe
+    if not os.path.exists(local_directory):
+        os.makedirs(local_directory)
+
+    local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
+    print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
+    s3_client.download_file(Bucket=bucket_name, Key=file_path_in_minio, Filename=local_file)
+
+    return local_file
+
+
+def process_zip_file(local_zip_path, nombre_fichero, **kwargs):
     try:
-        zip_file = zipfile.ZipFile(io.BytesIO(value))
-        zip_file.testzip()  
-        print("El archivo ZIP es válido.")
+        # Abre y procesa el archivo ZIP desde el sistema de archivos
+        with zipfile.ZipFile(local_zip_path, 'r') as zip_file:
+            zip_file.testzip()  # Verifica la integridad del ZIP
+            print("El archivo ZIP es válido.")
     except zipfile.BadZipFile:
         print("El archivo no es un ZIP válido antes del procesamiento.")
-        return 
-
+        return
 
     try:
-        value_pulled = value
-        print("Procesando ZIP")
-        print(f"Tipo de value_pulled: {type(value_pulled)}")
-        print(value_pulled[:4])
-
+        # Procesar el archivo ZIP en un directorio temporal
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_unzip_path = os.path.join(temp_dir, 'unzip')
-            temp_zip_path = os.path.join(temp_dir, 'zip')
+            print(f"Directorio temporal creado: {temp_dir}")
 
-            # Crear los subdirectorios temporales
-            os.makedirs(temp_unzip_path, exist_ok=True)
-            os.makedirs(temp_zip_path, exist_ok=True)
+            # Extraer el contenido del ZIP en el directorio temporal
+            zip_file.extractall(temp_dir)
 
-            with zipfile.ZipFile(io.BytesIO(value_pulled)) as zip_file:
-                
-                # Obtener la lista de archivos dentro del ZIP
-                file_list = zip_file.namelist()
-                print("Archivos en el ZIP:", file_list)
+            # Obtener la lista de archivos dentro del ZIP
+            file_list = zip_file.namelist()
+            print("Archivos en el ZIP:", file_list)
 
-                # Para almacenar la estructura de carpetas y archivos
-                folder_structure = {}
-                otros = []
-                algorithm_id = None
+            # Estructura para almacenar los archivos
+            folder_structure = {}
+            otros = []
+            algorithm_id = None
 
-                for file_name in file_list:
-                    if file_name.endswith('/'):
-                        continue
+            for file_name in file_list:
+                file_path = os.path.join(temp_dir, file_name)
 
-                    with zip_file.open(file_name) as file:
-                        content = file.read()
+                if os.path.isdir(file_path):
+                    # Si es un directorio, saltamos
+                    continue
 
-                    # Determinar la carpeta a la que pertenece el archivo
-                    directory = os.path.dirname(file_name)
-                    if directory not in folder_structure:
-                        folder_structure[directory] = []
-                    folder_structure[directory].append(file_name)
+                print(f"Procesando archivo: {file_name}")
 
-                    print(file_name)
+                with open(file_path, 'rb') as f:
+                    content = f.read()
 
+                directory = os.path.dirname(file_name)
+                if directory not in folder_structure:
+                    folder_structure[directory] = []
+                folder_structure[directory].append(file_name)
 
-                    if os.path.basename(file_name).lower() == 'algorithm_result.json' or file_name == 'algorithm_result.json':
-                        # Procesar el archivo JSON
-                        json_content = json.loads(content)
-                        json_content_metadata = json_content.get('metadata', [])
-                        for metadata in json_content_metadata:
-                            if metadata.get('name') == 'AlgorithmID':
-                                algorithm_id = metadata.get('value')
-                        print(f"algorithmId en {file_name}: {algorithm_id}")
-                    else:
-                        encoded_content = base64.b64encode(content).decode('utf-8')
-                        otros.append({'file_name': file_name, 'content': encoded_content})
-
-
-                print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
-                print("otros:", otros)
-
-
-                if algorithm_id:
-                    # Aquí tomas decisiones basadas en el valor de algorithmId
-                    if algorithm_id == 'PowerLineVideoAnalisysRGB':
-                        trigger_dag_name = 'video'
-                        print("Ejecutando lógica para Video")
-
-                    elif algorithm_id == 'PowerLineCloudAnalisys':   
-                        trigger_dag_name = 'vegetacion'
-                        print("Ejecutando lógica para vegetacion")
-
-                    elif algorithm_id == 'MetashapeRGB':   
-                        trigger_dag_name = 'metashape_rgb'
-                        print("Ejecutando lógica para MetashapeRGB")
-
-
-                    unique_id = uuid.uuid4()
-                    if trigger_dag_name is not None:
-                        try:
-                            trigger = TriggerDagRunOperator(
-                                task_id=str(unique_id),
-                                trigger_dag_id=trigger_dag_name,
-                                conf={ 'json' : json_content, 'otros' : otros}, 
-                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                                dag=dag,
-                            )
-                            trigger.execute(context=kwargs)
-                        except Exception as e:
-                            print(f"Task instance incorrecto: {e}")
-
+                if os.path.basename(file_name).lower() == 'algorithm_result.json':
+                    json_content = json.loads(content)
+                    json_content_metadata = json_content.get('metadata', [])
+                    for metadata in json_content_metadata:
+                        if metadata.get('name') == 'AlgorithmID':
+                            algorithm_id = metadata.get('value')
+                    print(f"AlgorithmID encontrado en {file_name}: {algorithm_id}")
                 else:
-                    raise AirflowSkipException("El archivo no contiene un algoritmo controlado")
-             
+                    encoded_content = base64.b64encode(content).decode('utf-8')
+                    otros.append({'file_name': file_name, 'content': encoded_content})
+
+            print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
+            print("Archivos adicionales procesados:", otros)
+
+            # Realiza el procesamiento basado en el AlgorithmID
+            if algorithm_id:
+                if algorithm_id == 'PowerLineVideoAnalisysRGB':
+                    trigger_dag_name = 'video'
+                    print("Ejecutando lógica para Video")
+                elif algorithm_id == 'PowerLineCloudAnalisys':
+                    trigger_dag_name = 'vegetacion'
+                    print("Ejecutando lógica para Vegetación")
+                elif algorithm_id == 'MetashapeRGB':
+                    trigger_dag_name = 'metashape_rgb'
+                    print("Ejecutando lógica para MetashapeRGB")
+
+                unique_id = uuid.uuid4()
+                if trigger_dag_name:
+                    try:
+                        trigger = TriggerDagRunOperator(
+                            task_id=str(unique_id),
+                            trigger_dag_id=trigger_dag_name,
+                            conf={'json': json_content, 'otros': otros},
+                            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                            dag=kwargs.get('dag'),
+                        )
+                        trigger.execute(context=kwargs)
+                    except Exception as e:
+                        print(f"Error al desencadenar el DAG: {e}")
+            else:
+                print("Advertencia: No se encontró AlgorithmID en el archivo ZIP.")
+                raise AirflowSkipException("El archivo no contiene un algoritmo controlado")
     except zipfile.BadZipFile as e:
-        print(f"El archivo no es un ZIP válido {e}")
+        print(f"El archivo no es un ZIP válido: {e}")
         raise AirflowSkipException("El archivo no es un ZIP válido")
-    
-    finally:
-        for temp_dir_a in temp_dir:
-            if os.path.exists(temp_dir):
-                try:
-                    shutil.rmtree(temp_dir_a)
-                    print(f"Directorio temporal {temp_dir_a} eliminado.")
-                except Exception as e:
-                    print(f"Error eliminando {temp_dir}: {e}")
-
-
-def process_json_file(value, **kwargs):
-    try:
-        value_pulled = value
-        print("Processing JSON file")
-        
-        if not value_pulled:
-            print("No data to process")
-            raise AirflowSkipException("No data to process")
-
-        # En el caso de que el json sea visto como objeto lo limpiamos
-        if isinstance(value_pulled, str) and value_pulled.startswith("b'") and value_pulled.endswith("'"):
-            value_pulled = value_pulled[2:-1]
-            value_pulled = value_pulled.replace('\\r', '').replace('\\n', '').strip()
-
-        json_content = json.loads(value_pulled)
-        print(f"Processed JSON content: {json_content}")
-
-        # Agregar trigger para enviar datos al DAG 'save_coordinates_to_minio'
-        trigger = TriggerDagRunOperator(
-            task_id='trigger_save_coordinates',
-            trigger_dag_id='save_coordinates_to_minio',
-            conf={'message': json_content}, 
-            execution_date=datetime.now().replace(tzinfo=timezone.utc),
-            dag=dag,
-        )
-        trigger.execute(context=kwargs)
-
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        print(f"Value pulled: {value_pulled}")  
-        raise AirflowSkipException("The file content is not a valid JSON")
-    except KeyError:
-        print("Variable value does not exist")
-        raise AirflowSkipException("Variable value does not exist")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        raise AirflowSkipException("An unexpected error occurred")
 
 
 default_args = {
