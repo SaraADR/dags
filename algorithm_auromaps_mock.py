@@ -156,7 +156,7 @@ default_args = {
 }
 
 dag = DAG(
-    'algorithm_automaps',
+    'algorithm_automaps_mock',
     default_args=default_args,
     description='Algoritmo automaps',
     schedule_interval=None,
