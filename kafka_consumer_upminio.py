@@ -228,7 +228,7 @@ dag = DAG(
 
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
-    task_id="consume_from_topic_sftp",
+    task_id="consume_from_topic_minio",
     topics=["minio"],
     max_messages=1,
     max_batch_size = 1,
