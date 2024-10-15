@@ -231,6 +231,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     task_id="consume_from_topic_sftp",
     topics=["minio"],
     max_messages=1,
+    max_batch_size = 1,
     apply_function=consumer_function,
     commit_cadence="end_of_batch",
     dag=dag,
