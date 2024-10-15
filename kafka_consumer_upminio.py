@@ -210,7 +210,7 @@ default_args = {
 }
 
 dag = DAG(
-    'kafka_consumer_archivos_max',
+    'kafka_consumer_archivos_max_minio',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG para archivos',
     schedule_interval='*/2 * * * *',
