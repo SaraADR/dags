@@ -70,8 +70,8 @@ def process_heatmap_data(**context):
             aircrafts_string = ''
         # Asignar los valores a minLon, maxLon, minLat, maxLat
         minLon = lonlat[0]
-        maxLon = lonlat[1]
-        minLat = lonlat[2]
+        maxLon = lonlat[2]
+        minLat = lonlat[1]
         maxLat = lonlat[3]
 
         params = {
