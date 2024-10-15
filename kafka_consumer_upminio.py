@@ -17,33 +17,40 @@ import tempfile
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje: {message}")
-    if message is not None:
-        nombre_fichero = message.key()
 
-        if nombre_fichero is None:
-            print("El nombre del fichero es erroneo, no se puede procesar")
-            return 'no_message_task'
+    msg_value = message.value().decode('utf-8')
+    print("Esto es el mensaje")
+    print(f"{msg_value}")
+
+
+
+    # if message is not None:
+    #     nombre_fichero = message.key()
+
+    #     if nombre_fichero is None:
+    #         print("El nombre del fichero es erroneo, no se puede procesar")
+    #         return 'no_message_task'
         
-        file_extension = os.path.splitext(nombre_fichero.decode('utf-8'))[1].strip().lower().replace("'", "")
-        print(f"archivo: {nombre_fichero}, Extensión del archivo: {file_extension}")
+    #     file_extension = os.path.splitext(nombre_fichero.decode('utf-8'))[1].strip().lower().replace("'", "")
+    #     print(f"archivo: {nombre_fichero}, Extensión del archivo: {file_extension}")
         
-        if file_extension == '.zip':
-            process_zip_file(message.value(), nombre_fichero)
-            return 'process_zip_task'
-        elif file_extension == '.tiff' or file_extension == '.tif':
-            return 'process_tiff_task'
-        elif file_extension == '.jpg' or file_extension == '.jpeg':
-            return 'process_jpg_task'
-        elif file_extension == '.png':
-            return 'process_png_task'
-        elif file_extension == '.mp4' or file_extension == '.avi' or file_extension == '.mov':
-            return 'process_video_task'
-        elif file_extension == '.json':
-            process_json_file(message.value())
-        elif file_extension == 'no_message_task':
-            return 'no_message_task'
-        else:
-            return 'unknown_or_none_file_task'
+    #     if file_extension == '.zip':
+    #         process_zip_file(message.value(), nombre_fichero)
+    #         return 'process_zip_task'
+    #     elif file_extension == '.tiff' or file_extension == '.tif':
+    #         return 'process_tiff_task'
+    #     elif file_extension == '.jpg' or file_extension == '.jpeg':
+    #         return 'process_jpg_task'
+    #     elif file_extension == '.png':
+    #         return 'process_png_task'
+    #     elif file_extension == '.mp4' or file_extension == '.avi' or file_extension == '.mov':
+    #         return 'process_video_task'
+    #     elif file_extension == '.json':
+    #         process_json_file(message.value())
+    #     elif file_extension == 'no_message_task':
+    #         return 'no_message_task'
+    #     else:
+    #         return 'unknown_or_none_file_task'
 
 
 def process_zip_file(value, nombre_fichero, **kwargs):
