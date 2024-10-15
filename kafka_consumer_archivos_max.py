@@ -21,7 +21,7 @@ def consumer_function(message, prefix, **kwargs):
         msg_value = message.value().decode('utf-8')
         print("Mensaje procesado: ", msg_value)
     except Exception as e:
-        print(f"Error al procesar el mensaje: {e}")
+        print(f"El mensaje no es un texto plano: {e}")
 
     if message is not None:
         nombre_fichero = message.key()
@@ -230,7 +230,7 @@ dag = DAG(
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic_sftp",
-    topics=["sftp4"],
+    topics=["sftp5"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
