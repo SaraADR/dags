@@ -73,7 +73,6 @@ def process_zip_file(local_zip_path, nombre_fichero, **kwargs):
     except zipfile.BadZipFile:
         print("El archivo no es un ZIP válido antes del procesamiento.")
         return
-
     try:
         # Procesar el archivo ZIP en un directorio temporal
         with tempfile.TemporaryDirectory() as temp_dir:
