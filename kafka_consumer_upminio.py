@@ -16,12 +16,12 @@ import tempfile
 
 
 def consumer_function(message, prefix, **kwargs):
-    print(f"Mensaje: {message}")
-
-    msg_value = message.value().decode('utf-8')
-    print("Esto es el mensaje")
-    print(f"{msg_value}")
-
+    print(f"Mensaje crudo: {message}")
+    try:
+        msg_value = message.value().decode('utf-8')
+        print("Mensaje procesado: ", msg_value)
+    except Exception as e:
+        print(f"Error al procesar el mensaje: {e}")
 
 
     # if message is not None:
@@ -234,7 +234,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     max_batch_size = 1,
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_batch",
+    commit_cadence="after_each_message",
     dag=dag,
 )
 
