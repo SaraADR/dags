@@ -250,7 +250,7 @@ default_args = {
 }
 
 dag = DAG(
-    'dag_prueba_docker2',
+    'algorithm_automaps_docker',
     default_args=default_args,
     description='Algoritmo dag_prueba_docker',
     schedule_interval=None,
