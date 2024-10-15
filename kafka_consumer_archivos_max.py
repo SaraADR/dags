@@ -17,6 +17,12 @@ import tempfile
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje: {message}")
+    try:
+        msg_value = message.value().decode('utf-8')
+        print("Mensaje procesado: ", msg_value)
+    except Exception as e:
+        print(f"Error al procesar el mensaje: {e}")
+
     if message is not None:
         nombre_fichero = message.key()
 
