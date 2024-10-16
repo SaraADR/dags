@@ -14,8 +14,6 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import Variable
 
 
-# Configurar la URL de GeoNetwork
-geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
