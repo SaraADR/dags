@@ -4,22 +4,28 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
+from airflow.providers.apache.kafka.hooks.kafka import KafkaConsumerHook
+import time
 
-
-def consumer_function(message, prefix, **kwargs):
-    if message is not None:
-        msg_value = message.value().decode('utf-8')
-        print(f"message: {msg_value}")
-        
-        if msg_value:
-            sendEmail(msg_value)
+def consumer_function(**kwargs):
+    # Conectar con Kafka
+    kafka_conn_id = "kafka_connection"
+    topic = "debezium.public.notifications"  # Cambia esto al topic que necesitas
+    consumer = KafkaConsumerHook(kafka_conn_id=kafka_conn_id, topics=[topic])
+    
+    while True:  # Loop continuo para consumir mensajes
+        message_batch = consumer.get_consumer().poll(timeout_ms=1000)  # Intentar consumir mensajes
+        if message_batch:
+            for partition, records in message_batch.items():
+                for record in records:
+                    msg_value = record.value.decode('utf-8')
+                    print(f"Received message: {msg_value}")
+                    
+                    # Procesar el mensaje
+                    sendEmail(msg_value)
         else:
-            print("Empty message received")    
-            return None 
-    else:
-        print("Empty message received")    
-        return None  
-         
+            print("No message received, waiting...")
+            time.sleep(5)  # Esperar antes de intentar nuevamente
 
 
 
@@ -62,23 +68,19 @@ dag = DAG(
     'kafka_consumer_notificaciones_dag',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG si destination=email',
-    schedule_interval=None, 
+    schedule_interval=None,  # Sin cron para ejecución continua
     catchup=False,
-    is_paused_upon_creation=False, 
-    max_active_runs=1  #
+    max_active_runs=1,  # Solo una instancia activa del DAG
+    is_paused_upon_creation=False,  # Inicia el DAG activo
 )
 
-consume_from_topic = ConsumeFromTopicOperator(
-    kafka_config_id="kafka_connection",
-    task_id="consume_from_topic",
-    topics=["notificaciones"],
-    apply_function=consumer_function,
-    apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_batch",
-    max_messages=None,
-    max_batch_size=2,
+# PythonOperator para consumir mensajes de Kafka
+continuous_consumer_task = PythonOperator(
+    task_id='continuous_kafka_consumer',
+    python_callable=consumer_function,
+    provide_context=True,
     dag=dag,
 )
 
 
-consume_from_topic 
+continuous_consumer_task
