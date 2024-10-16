@@ -221,7 +221,7 @@ dag = DAG(
     'kafka_consumer_archivos_max',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG para archivos',
-    schedule_interval='*/2 * * * *',
+    schedule_interval='*/1 * * * *',
     catchup=False,
     max_active_runs=1,
     concurrency=1
@@ -234,6 +234,8 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
+    max_messages=1,
+    max_batch_size=1,
     dag=dag,
 )
 
