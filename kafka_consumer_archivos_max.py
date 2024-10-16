@@ -17,6 +17,12 @@ import tempfile
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje: {message}")
+    try:
+        msg_value = message.value().decode('utf-8')
+        print("Mensaje procesado: ", msg_value)
+    except Exception as e:
+        print(f"El mensaje no es un texto plano: {e}")
+
     if message is not None:
         nombre_fichero = message.key()
 
@@ -209,6 +215,8 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
+
+
 dag = DAG(
     'kafka_consumer_archivos_max',
     default_args=default_args,
@@ -222,7 +230,7 @@ dag = DAG(
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic_sftp",
-    topics=["sftp2"],
+    topics=["sftp5"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",

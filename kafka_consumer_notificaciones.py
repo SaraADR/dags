@@ -62,8 +62,10 @@ dag = DAG(
     'kafka_consumer_notificaciones_dag',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG si destination=email',
-    schedule_interval='*/3 * * * *',
-    catchup=False
+    schedule_interval=None, 
+    catchup=False,
+    is_paused_upon_creation=False, 
+    max_active_runs=1  #
 )
 
 consume_from_topic = ConsumeFromTopicOperator(
@@ -73,7 +75,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
-    max_messages=1,
+    max_messages=None,
     max_batch_size=2,
     dag=dag,
 )
