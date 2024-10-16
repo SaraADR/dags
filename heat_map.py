@@ -201,7 +201,11 @@ def process_heatmap_data(**context):
 
 
             output_path = '/tmp/tiff_incendios.tif'
-            input_path = local_output_directory + '/mapa_calor_incendios.tif'
+            if isIncendio == 'TRUE':
+                input_path = local_output_directory + '/mapa_calor_incendios.tif'
+            else:
+                input_path = local_output_directory + '/mapa_calor_vuelos.tif'
+
             try:
                 reproject_tiff(input_path, output_path)
             except Exception as e:
