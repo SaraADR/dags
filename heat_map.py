@@ -200,7 +200,7 @@ def process_heatmap_data(**context):
             sftp.close()
 
 
-            output_path = '/tmp/tiff_incendios.tif'
+            output_path = '/tmp/tiff_procesado.tif'
             if isIncendio == 'TRUE':
                 input_path = local_output_directory + '/mapa_calor_incendios.tif'
             else:
@@ -232,14 +232,14 @@ def process_heatmap_data(**context):
                 #     print(f"Error durante el guardado del estado del job")
 
             #Una vez tenemos lo que ha salido lo subimos a minio
-            up_to_minio(local_output_directory, from_user, '/tmp')
+            up_to_minio(local_output_directory, from_user, isIncendio, '/tmp')
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
 
 
 
-def up_to_minio(local_output_directory, from_user, temp_dir):
+def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
     key = f"{uuid.uuid4()}"
 
     try:
@@ -286,7 +286,7 @@ def up_to_minio(local_output_directory, from_user, temp_dir):
                 print(f"Archivo {filename} subido correctamente a MinIO.")
                 # Generar la URL del archivo subido           
 
-                if  filename.lower().endswith(('.tif', '.tiff')):
+                if filename.lower().endswith(('tiff_procesado.tif')):
                     file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{file_key}"
                     print(f" URL: {file_url}")
                     
