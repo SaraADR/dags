@@ -17,6 +17,7 @@ import tempfile
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje: {message}")
+
     try:
         msg_value = message.value().decode('utf-8')
         print("Mensaje procesado: ", msg_value)
@@ -229,7 +230,7 @@ dag = DAG(
 
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
-    task_id="consume_from_topic_sftp",
+    task_id="consume_from_topic",
     topics=["sftp"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
