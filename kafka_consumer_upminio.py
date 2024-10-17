@@ -42,25 +42,49 @@ def consumer_function(message, prefix, **kwargs):
 
         # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'temp'
+    folder_prefix = 'temp/sftp/'
 
     # Descargar el archivo desde MinIO
     local_directory = 'temp'  # Cambia este path al local
     try:
-        local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory)
+        local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
         process_zip_file(local_zip_path, file_path_in_minio, **kwargs)
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
         raise 
 
 
+def list_files_in_minio_folder(s3_client, bucket_name, prefix):
+    """
+    Lista todos los archivos dentro de un prefijo (directorio) en MinIO.
+    """
+    try:
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+        
+        if 'Contents' not in response:
+            print(f"No se encontraron archivos en la carpeta: {prefix}")
+            return []
+
+        files = [content['Key'] for content in response['Contents']]
+        print(f"Archivos encontrados: {files}")
+        return files
+
+    except ClientError as e:
+        print(f"Error al listar archivos en MinIO: {str(e)}")
+        return []
 
 
-def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory):
+def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
     """
     Función para descargar archivos o carpetas desde MinIO.
     """
     if not os.path.exists(local_directory):
         os.makedirs(local_directory)
+
+    files = list_files_in_minio_folder(s3_client, bucket_name, folder_prefix)
+    if not files:
+        print(f"No se encontraron archivos para descargar en la carpeta: {folder_prefix}")
+        return
 
     local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
     print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
