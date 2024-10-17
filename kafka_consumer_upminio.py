@@ -16,6 +16,7 @@ import tempfile
 from airflow.hooks.base_hook import BaseHook
 import boto3
 from botocore.client import Config
+from botocore.exceptions import ClientError
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
@@ -58,21 +59,23 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
     """
     Función para descargar archivos o carpetas desde MinIO.
     """
-    # Crear el directorio local si no existe
     if not os.path.exists(local_directory):
         os.makedirs(local_directory)
 
-    print(f"Ruta del archivo en MinIO: {file_path_in_minio}")
-
     local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
     print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
-    try:
-        s3_client.download_file(Bucket=bucket_name, Key=file_path_in_minio, Filename=local_file)
-    except Exception as e:
-        print(f"Error en el proceso: {str(e)}")
-        return
     
-    return local_file
+    try:
+        # Verificar si el archivo existe antes de intentar descargarlo
+        s3_client.head_object(Bucket=bucket_name, Key=file_path_in_minio)
+        s3_client.download_file(Bucket=bucket_name, Key=file_path_in_minio, Filename=local_file)
+        return local_file
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            print(f"Error 404: El archivo no fue encontrado en MinIO: {file_path_in_minio}")
+        else:
+            print(f"Error en el proceso: {str(e)}")
+        return None  # Devolver None si hay un error
 
 
 def process_zip_file(local_zip_path, nombre_fichero, **kwargs):
