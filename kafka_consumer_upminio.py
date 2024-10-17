@@ -43,7 +43,7 @@ def consumer_function(message, prefix, **kwargs):
     bucket_name = 'temp'
 
     # Descargar el archivo desde MinIO
-    local_directory = 'tmp'  # Cambia este path al local
+    local_directory = 'temp'  # Cambia este path al local
     try:
         local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory)
         process_zip_file(local_zip_path, file_path_in_minio, **kwargs)
