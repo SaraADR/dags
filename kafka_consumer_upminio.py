@@ -27,7 +27,7 @@ def consumer_function(message, prefix, **kwargs):
         print(f"Error al procesar el mensaje: {e}")
 
     
-    file_path_in_minio = '/' + msg_value  
+    file_path_in_minio =  msg_value  
         
     # Establecer conexión con MinIO
     connection = BaseHook.get_connection('minio_conn')
