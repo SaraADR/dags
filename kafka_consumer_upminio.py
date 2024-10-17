@@ -57,10 +57,16 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
     if not os.path.exists(local_directory):
         os.makedirs(local_directory)
 
+    print(f"Ruta del archivo en MinIO: {file_path_in_minio}")
+
     local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
     print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
-    s3_client.download_file(Bucket=bucket_name, Key=file_path_in_minio, Filename=local_file)
-
+    try:
+        s3_client.download_file(Bucket=bucket_name, Key=file_path_in_minio, Filename=local_file)
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")
+        return
+    
     return local_file
 
 
