@@ -92,8 +92,8 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
     try:
         # Verificar si el archivo existe antes de intentar descargarlo
         s3_client.head_object(Bucket=bucket_name, Key=file_path_in_minio)
-        s3_client.download_file(Bucket=bucket_name, Key=file_path_in_minio, Filename=local_file)
-        return local_file
+    #     s3_client.download_file(Bucket=bucket_name, Key=file_path_in_minio, Filename=local_file)
+    #     return local_file
     except ClientError as e:
         if e.response['Error']['Code'] == '404':
             print(f"Error 404: El archivo no fue encontrado en MinIO: {file_path_in_minio}")
