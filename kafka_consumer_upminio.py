@@ -26,26 +26,26 @@ def consumer_function(message, prefix, **kwargs):
         print(f"Error al procesar el mensaje: {e}")
 
     
-    # file_path_in_minio = msg_value  # path que recibes de Kafka
+    file_path_in_minio = msg_value  
         
-    # # Establecer conexión con MinIO
-    # connection = BaseHook.get_connection('minio_conn')
-    # extra = json.loads(connection.extra)
-    # s3_client = boto3.client(
-    #     's3',
-    #     endpoint_url=extra['endpoint_url'],
-    #     aws_access_key_id=extra['aws_access_key_id'],
-    #     aws_secret_access_key=extra['aws_secret_access_key'],
-    #     config=Config(signature_version='s3v4')
-    # )
+    # Establecer conexión con MinIO
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
 
-    #     # Nombre del bucket donde está almacenado el archivo/carpeta
-    # bucket_name = 'temp'
+        # Nombre del bucket donde está almacenado el archivo/carpeta
+    bucket_name = 'temp'
 
-    # # Descargar el archivo desde MinIO
-    # local_directory = 'tmp'  # Cambia este path al local
-    # local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory)
-    # process_zip_file(local_zip_path, file_path_in_minio, **kwargs)
+    # Descargar el archivo desde MinIO
+    local_directory = 'tmp'  # Cambia este path al local
+    local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory)
+    process_zip_file(local_zip_path, file_path_in_minio, **kwargs)
 
 
 
