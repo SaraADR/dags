@@ -485,7 +485,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
-    gco_characterString.text = "https://upload.wikimedia.org/wikipedia/commons/0/0f/Domaio_-_R%C3%ADa_de_Vigo.jpg"
+    gco_characterString.text = None,
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
     gco_characterString.text = "Sustituir"
