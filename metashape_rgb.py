@@ -10,6 +10,9 @@ import logging
 import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
+from airflow.hooks.http_hook import HttpHook
+from airflow.models import Variable
+
 
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
@@ -192,18 +195,27 @@ def generate_xml(**kwargs):
 # URL para obtener las credenciales
 credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
 
-# Función para obtener las credenciales de GeoNetwork
+
 def get_geonetwork_credentials():
     try:
+        # Usar HttpHook para obtener los detalles de la conexión
+        hook = HttpHook(http_conn_id='geonetwork_api', method='POST')
+        
+        # Obtener la URL de credenciales desde una variable de Airflow
+        credentials_url = Variable.get("credentials_url")
 
-        credential_dody = {
-            "username" : "angel",
-            "password" : "111111"
+        # Preparar el body de la solicitud con las credenciales almacenadas en Airflow
+        credential_body = {
+            "username": hook.login,  # username almacenado en Airflow
+            "password": hook.password  # password almacenado en Airflow
         }
 
         # Hacer la solicitud para obtener las credenciales
         logging.info(f"Obteniendo credenciales de: {credentials_url}")
-        response = requests.post(credentials_url,json= credential_dody)
+        response = hook.run(
+            endpoint=credentials_url,
+            json=credential_body
+        )
 
         # Verificar que la respuesta sea exitosa
         response.raise_for_status()
