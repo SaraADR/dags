@@ -271,6 +271,7 @@ def process_extracted_files(**kwargs):
                     session.execute(query, {'vegchild_id': inserted_id, 'impact': impact, 'detected_type': detected_obj_type,'line_height': line_height, 'alert_level': alert_level, 'distance': distance, 'geometry': point_geometry, 'rev_status': 1})
                     session.commit()
                     print(f"mss_inspection_vegetation_conflict subido correctamente")
+                    
     except Exception as e:
         session.rollback()
         print(f"Error al insertar video en mss_inspection_vegetation_conflicts: {str(e)}")

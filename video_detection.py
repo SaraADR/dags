@@ -4,8 +4,6 @@ from airflow.operators.python import PythonOperator
 import json
 import uuid
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.hooks.base_hook import BaseHook
 from sqlalchemy import create_engine, Table, MetaData, text
 from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
