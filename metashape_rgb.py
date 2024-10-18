@@ -10,10 +10,10 @@ import logging
 import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
-from airflow.hooks.base_hook import BaseHook
-from airflow.models import Variable
+from airflow.hooks.base import BaseHook
 
-
+# Configurar la URL de GeoNetwork
+geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
@@ -193,23 +193,19 @@ def generate_xml(**kwargs):
 # URL para obtener las credenciales
 credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
 
+# Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
     try:
-        # Obtener la conexión desde Airflow
-        connection = BaseHook.get_connection("geonetwork_connection")
-        
-        # Construir la URL del servicio de credenciales
-        credentials_url = f"{connection.host}/geonetwork/credentials"
 
-        # Obtener el login y password de la conexión
-        credential_body = {
-            "username": connection.login,
-            "password": connection.password
+        conn = BaseHook.get_connection('geonetwork_credentials')
+        credential_dody = {
+            "username" : conn.login,
+            "password" : conn.password
         }
 
         # Hacer la solicitud para obtener las credenciales
-        logging.info(f"Obteniendo credenciales de: {credentials_url}")
-        response = requests.post(credentials_url, json=credential_body)
+        logging.info(f"Obteniendo credenciales de: {conn.host}")
+        response = requests.post(conn.host,json= credential_dody)
 
         # Verificar que la respuesta sea exitosa
         response.raise_for_status()
@@ -219,15 +215,13 @@ def get_geonetwork_credentials():
         access_token = response_object['accessToken']
         xsrf_token = response_object['xsrfToken']
         set_cookie_header = response_object['setCookieHeader']
-
-        logging.info(f"Credenciales obtenidas: accessToken={access_token}, XSRF-TOKEN={xsrf_token}")
-
+    
+    
         return [access_token, xsrf_token, set_cookie_header]
-
+    
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al obtener credenciales: {e}")
         raise Exception(f"Error al obtener credenciales: {e}")
-
 
 
 
@@ -237,17 +231,14 @@ def upload_to_geonetwork(**context):
         # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
-        # Obtener la conexión de GeoNetwork desde Airflow
-        geonetwork_connection = BaseHook.get_connection("geonetwork_connection")
-        upload_url = f"{geonetwork_connection.host}/srv/api/records"
-
         # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
 
         for xml_data in xml_data_array:
+        
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
-            # Convertir el contenido XML a un objeto de tipo stream
+            # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
             xml_file_stream = io.StringIO(xml_decoded)
 
             logging.info(f"XML DATA: {xml_data}")
@@ -261,9 +252,17 @@ def upload_to_geonetwork(**context):
                 'category': (None, ''),
                 'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
             }
+            
+            files = {
+                'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
+            }
+
+            # URL de GeoNetwork para subir el archivo XML
+            upload_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records"
 
             # Encabezados que incluyen los tokens
             headers = {
+                # 'Content-Type': 'multipart/form-data',
                 'Authorization': f"Bearer {access_token}",
                 'x-xsrf-token': str(xsrf_token),
                 'Cookie': str(set_cookie_header[0]),
@@ -272,17 +271,17 @@ def upload_to_geonetwork(**context):
 
             # Realizar la solicitud POST para subir el archivo XML
             logging.info(f"Subiendo XML a la URL: {upload_url}")
-            response = requests.post(upload_url, files=data, headers=headers)
+            response = requests.post(upload_url,files=files,data=data, headers=headers)
             logging.info(response)
 
             # Verificar si hubo algún error en la solicitud
             response.raise_for_status()
 
             logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
-
     except Exception as e:
         if response is not None:
             logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
+
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
@@ -453,7 +452,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     citation = ET.SubElement(md_data_identification, "gmd:citation")
     ci_citation = ET.SubElement(citation, "gmd:CI_Citation")
     title = ET.SubElement(ci_citation, "gmd:title")
-    gco_characterString = ET.SubElement(file_identifier, "gco:CharacterString")
+    gco_characterString = ET.SubElement(title, "gco:CharacterString")
     gco_characterString.text = file_identifier
 
     # Añadir publication date
@@ -487,7 +486,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
-    gco_characterString.text = "https://upload.wikimedia.org/wikipedia/commons/0/0f/Domaio_-_R%C3%ADa_de_Vigo.jpg"
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
     gco_characterString.text = "Sustituir"
