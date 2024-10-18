@@ -16,6 +16,7 @@ import tempfile
 from airflow.hooks.base_hook import BaseHook
 import boto3
 from botocore.client import Config
+from botocore.exceptions import ClientError
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
@@ -26,7 +27,7 @@ def consumer_function(message, prefix, **kwargs):
         print(f"Error al procesar el mensaje: {e}")
 
     
-    file_path_in_minio = msg_value  
+    file_path_in_minio =  msg_value  
         
     # Establecer conexión con MinIO
     connection = BaseHook.get_connection('minio_conn')
@@ -41,38 +42,64 @@ def consumer_function(message, prefix, **kwargs):
 
         # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'temp'
+    folder_prefix = 'temp/sftp/'
 
     # Descargar el archivo desde MinIO
     local_directory = 'temp'  # Cambia este path al local
     try:
-        local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory)
+        local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
         process_zip_file(local_zip_path, file_path_in_minio, **kwargs)
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
         raise 
 
 
+def list_files_in_minio_folder(s3_client, bucket_name, prefix):
+    """
+    Lista todos los archivos dentro de un prefijo (directorio) en MinIO.
+    """
+    try:
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+        
+        if 'Contents' not in response:
+            print(f"No se encontraron archivos en la carpeta: {prefix}")
+            return []
+
+        files = [content['Key'] for content in response['Contents']]
+        print(f"Archivos encontrados: {files}")
+        return files
+
+    except ClientError as e:
+        print(f"Error al listar archivos en MinIO: {str(e)}")
+        return []
 
 
-def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory):
+def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
     """
     Función para descargar archivos o carpetas desde MinIO.
     """
-    # Crear el directorio local si no existe
     if not os.path.exists(local_directory):
         os.makedirs(local_directory)
 
-    print(f"Ruta del archivo en MinIO: {file_path_in_minio}")
+    files = list_files_in_minio_folder(s3_client, bucket_name, folder_prefix)
+    if not files:
+        print(f"No se encontraron archivos para descargar en la carpeta: {folder_prefix}")
+        return
 
     local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
     print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
-    try:
-        s3_client.download_file(Bucket=bucket_name, Key=file_path_in_minio, Filename=local_file)
-    except Exception as e:
-        print(f"Error en el proceso: {str(e)}")
-        return
     
-    return local_file
+    try:
+        # Verificar si el archivo existe antes de intentar descargarlo
+        s3_client.head_object(Bucket=bucket_name, Key=file_path_in_minio)
+    #     s3_client.download_file(Bucket=bucket_name, Key=file_path_in_minio, Filename=local_file)
+    #     return local_file
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            print(f"Error 404: El archivo no fue encontrado en MinIO: {file_path_in_minio}")
+        else:
+            print(f"Error en el proceso: {str(e)}")
+        return None  # Devolver None si hay un error
 
 
 def process_zip_file(local_zip_path, nombre_fichero, **kwargs):
