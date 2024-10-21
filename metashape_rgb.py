@@ -11,108 +11,7 @@ import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
-from PIL import Image
-import boto3
-from botocore.client import Config
-import json
 
-
-def convert_tiff_to_image(tiff_path, output_format='JPEG'):
-    try:
-        # Abrir la imagen TIFF usando Pillow
-        with Image.open(tiff_path) as img:
-            # Verificar el formato de salida
-            if output_format.lower() == 'png':
-                output_ext = '.png'
-                output_format = 'PNG'
-            else:
-                output_ext = '.jpg'
-                output_format = 'JPEG'
-
-            # Definir la ruta de salida con el mismo nombre de archivo pero diferente extensión
-            output_image_path = tiff_path.replace('.tif', output_ext)
-
-            # Convertir la imagen a RGB si no lo está (JPEG no soporta imágenes en paleta ni en escala de grises)
-            if img.mode in ("P", "1"):
-                img = img.convert("RGB")
-
-            # Guardar la imagen convertida
-            img.save(output_image_path, output_format)
-
-            print(f"Imagen convertida guardada en {output_image_path}")
-            return output_image_path
-    except Exception as e:
-        print(f"Error al convertir la imagen: {str(e)}")
-        return None
-    
-
-def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
-    key = f"{uuid.uuid4()}"
-    thumbnail_url = None
-
-    try:
-        # Conexión a MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
-        bucket_name = 'temp'
-        
-        # Listar todos los archivos en el directorio local de salida
-        for filename in os.listdir(local_output_directory):
-            local_file_path = os.path.join(local_output_directory, filename)
-            print(filename)
-
-            # Verificar que es un archivo
-            if os.path.isfile(local_file_path):
-                # Generar un key único para cada archivo en MinIO
-                file_key = f"{key}/{filename}"
-                
-                # Subir el archivo a MinIO
-                s3_client.upload_file(local_file_path, bucket_name, file_key)
-                print(f"Archivo {filename} subido correctamente a MinIO.")
-
-        for filename in os.listdir(temp_dir):
-            # Subir el tiff que sale del rasterio
-            local_file_path = os.path.join(temp_dir, filename)
-            print(filename)
-
-            if os.path.isfile(local_file_path):
-                # Generar un key único para cada archivo en MinIO
-                file_key = f"{key}/{filename}"
-
-                # Subir el archivo a MinIO
-                s3_client.upload_file(local_file_path, bucket_name, file_key)
-                print(f"Archivo {filename} subido correctamente a MinIO.")
-                
-                # Generar la URL del archivo subido
-                if filename.lower().endswith('tiff_procesado.tif'):
-                    file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{file_key}"
-                    print(f" URL: {file_url}")
-
-                    # Convertir TIFF a imagen (JPG o PNG)
-                    converted_image_path = convert_tiff_to_image(local_file_path, output_format='JPEG')
-                    if converted_image_path:
-                        converted_file_key = f"{key}/thumbnail_{os.path.basename(converted_image_path)}"
-
-                        # Subir la imagen convertida (miniatura) a MinIO
-                        s3_client.upload_file(converted_image_path, bucket_name, converted_file_key)
-                        print(f"Miniatura {converted_image_path} subida correctamente a MinIO.")
-
-                        # Generar la URL de la miniatura
-                        thumbnail_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{converted_file_key}"
-                        print(f"Miniatura URL: {thumbnail_url}")
-
-        return thumbnail_url
-    
-    except Exception as e:
-        print(f"Error al subir archivos a MinIO: {str(e)}")
-        return None
 
 
 # Configurar el logging
@@ -387,7 +286,7 @@ def upload_to_geonetwork(**context):
 
 
 # Función para crear el XML metadata
-def creador_xml_metadata(file_identifier, specificUsage, wmsLayer,thumbnail_url, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
 
     root = ET.Element("gmd:MD_Metadata", {
@@ -581,36 +480,17 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer,thumbnail_url,
         "codeListValue": "notPlanned"
     })
 
-    # # Añadir graphicOverview
-    # graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
-    # md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
-    # fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
-    # gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
-    # fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
-    # gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
-    # gco_characterString.text = "Sustituir"
-    # fileType = ET.SubElement(md_browse_graphic, "gmd:fileType")
-    # gco_characterString = ET.SubElement(fileType, "gco:CharacterString")
-    # gco_characterString.text = "image/jpeg"
-
-
-     # Añadir la miniatura en el XML
+    # Añadir graphicOverview
     graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
-    
-    # Ruta de la miniatura en MinIO
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
-    gco_characterString.text = thumbnail_url  # Añadir la URL de la miniatura
-    
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
-    gco_characterString.text = "Miniatura generada del TIFF original"
-
+    gco_characterString.text = "Sustituir"
     fileType = ET.SubElement(md_browse_graphic, "gmd:fileType")
     gco_characterString = ET.SubElement(fileType, "gco:CharacterString")
-    gco_characterString.text = "image/jpeg"  # o "image/png" si es el caso
-
+    gco_characterString.text = "image/jpeg"
 
     # Añadir descriptiveKeywords (primero)
     descriptiveKeywords = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
@@ -874,13 +754,6 @@ dag = DAG(
     catchup=False
 )
 
-upload_to_minio_task = PythonOperator(
-    task_id='upload_to_minio',
-    python_callable=up_to_minio,
-    provide_context=True,
-    dag=dag
-)
-
 # Tarea 1: Generar el XML
 generate_xml_task = PythonOperator(
     task_id='generate_xml',
@@ -898,4 +771,4 @@ upload_xml_task = PythonOperator(
 )
 
 # Definir el flujo de las tareas
-upload_to_minio_task >> generate_xml_task >> upload_xml_task
+generate_xml_task >> upload_xml_task
