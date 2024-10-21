@@ -12,8 +12,7 @@ from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
 
-# Configurar la URL de GeoNetwork
-geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
+
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
@@ -80,8 +79,10 @@ def generate_xml(**kwargs):
     organization_name = 'Avincis'
     email_address = 'avincis@organizacion.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link = 'https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms'
-
+    wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
+    wms_link = wms_link_conn.host
+            
+     
     # Coords BBOX
     west_bound_pre = bbox['westBoundLongitude']
     east_bound_pre = bbox['eastBoundLongitude']
@@ -190,8 +191,6 @@ def generate_xml(**kwargs):
     # }
 
 
-# URL para obtener las credenciales
-credentials_url = "https://sgm.dev.cuatrodigital.com/geonetwork/credentials"
 
 # Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
@@ -216,7 +215,7 @@ def get_geonetwork_credentials():
         xsrf_token = response_object['xsrfToken']
         set_cookie_header = response_object['setCookieHeader']
     
-    
+
         return [access_token, xsrf_token, set_cookie_header]
     
     except requests.exceptions.RequestException as e:
