@@ -11,9 +11,26 @@ import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
-from PIL import Image  # Importar la biblioteca para manipulación de imágenes
+from PIL import Image
 
-
+def generar_miniatura(tiff_path, output_format='JPEG', thumbnail_size=(200, 200)):
+    
+    try:
+        # Abrir el archivo TIFF usando Pillow
+        with Image.open(tiff_path) as img:
+            img.thumbnail(thumbnail_size)
+            
+            # Generar un nombre temporal para la miniatura
+            thumbnail_path = f"/tmp/{uuid.uuid4()}.{output_format.lower()}"
+            
+            # Guardar la miniatura en el formato solicitado
+            img.save(thumbnail_path, output_format)
+            
+            logging.info(f"Miniatura generada en: {thumbnail_path}")
+            return thumbnail_path
+    except Exception as e:
+        logging.error(f"Error al generar miniatura para {tiff_path}: {e}")
+        raise
 
 
 # Configurar el logging
@@ -52,36 +69,9 @@ def convertir_coords(epsg_input,south, west, north, east):
 
     return south2, west2, north2, east2
 
-import tempfile  # Importar módulo para manejo de archivos temporales
+    
 
-# Función para convertir TIFF a JPEG y almacenar temporalmente
-def convert_tiff_to_jpg(tiff_path):
-    try:
-        logging.info(f"Convirtiendo TIFF a JPEG: {tiff_path}")
-
-        # Crear un directorio temporal que será eliminado al salir del bloque with
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Abrir el archivo TIFF
-            with Image.open(tiff_path) as img:
-                # Verificar si el archivo es en modo 'RGBA' o 'RGB' y convertir si es necesario
-                if img.mode in ('RGBA', 'LA'):
-                    img = img.convert('RGB')
-
-                # Definir la ruta del archivo JPEG temporal
-                jpg_path = os.path.join(temp_dir, os.path.basename(tiff_path).replace('.tif', '.jpg'))
-
-                # Guardar la imagen como JPEG en el directorio temporal
-                img.save(jpg_path, 'JPEG')
-                logging.info(f"Imagen convertida a JPEG temporal: {jpg_path}")
-
-                # Retornar la ruta del archivo JPEG
-                return jpg_path
-    except Exception as e:
-        logging.error(f"Error al convertir TIFF a JPEG: {e}")
-        raise
-
-
-# Actualiza la función de generación de XML para incluir la miniatura
+# Función para generar el XML
 def generate_xml(**kwargs):
     logging.info("Iniciando la generación del XML.")
 
@@ -94,32 +84,41 @@ def generate_xml(**kwargs):
     executionResources = algoritm_result['executionResources']
     logging.info(f"Execution Resources encontrados: {len(executionResources)} recursos")
 
+
+    # Se extrae la información del BBOX y el sistema de referencia
     outputFalse = next((obj for obj in executionResources if obj['output'] == False), None)['data']
     bboxData = next((obj for obj in outputFalse if obj['name'] == 'BBOX'), None)
     bbox = bboxData['value']
     coordinate_system = bboxData['ReferenceSystem']
     logging.info(f"Coordenadas del BBOX: {bbox} en sistema de referencia {coordinate_system}")
 
+
+    # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
+
     organization_name = 'Avincis'
     email_address = 'avincis@organizacion.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link_conn = BaseHook.get_connection('geoserver_capabilites')
+    wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
     wms_link = wms_link_conn.host
             
+     
+    # Coords BBOX
     west_bound_pre = bbox['westBoundLongitude']
     east_bound_pre = bbox['eastBoundLongitude']
     south_bound_pre = bbox['southBoundLatitude']
     north_bound_pre = bbox['northBoundLatitude']
 
     logging.info("Llamando a convertir_coords.")
-    west_bound, south_bound, east_bound, north_bound = convertir_coords(
-        coordinate_system, south_bound_pre, west_bound_pre, north_bound_pre, east_bound_pre
-    )
 
+    # Función de conversión (debe estar definida en tu código)
+    west_bound,south_bound,east_bound,north_bound= convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
+
+    # Procesar recursos de salida
     for resource in executionResources:
         if resource['output'] == False:
             logging.info("Saltando recurso que no es de salida.")
             continue
+            
 
         if not re.search(r'\.tif$', resource['path'], re.IGNORECASE):
             logging.info("Saltando recurso que no es un archivo TIFF.")
@@ -129,24 +128,31 @@ def generate_xml(**kwargs):
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
         specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
 
+
         logging.info(f"Procesando recurso con identifier={identifier} y resolución={spatial_resolution}")
 
-        # Convertir TIFF a JPEG temporalmente
+         # Generar miniatura a partir del archivo TIFF
         tiff_path = resource['path']
-        jpg_path = convert_tiff_to_jpg(tiff_path)
+        thumbnail_path = generar_miniatura(tiff_path)
+
+        # Ensure spatial_resolution (float) is converted to a string
+        spatial_resolution_str = str(spatial_resolution)
 
         # Datos para el XML
         layer_name = identifier
         title = identifier
-        wms_link = algoritm_result['executionResources'][0]['path']
-        layer_description = "Descripción de la capa generada"
-        file_identifier = identifier
+        
+
+      # JSON dinámico con los valores correspondientes
+        wms_link = algoritm_result['executionResources'][0]['path']  # Link de WMS para este recurso específico
+        layer_description = "Descripción de la capa generada"  # Puedes extraer o generar esto según el contexto
+        file_identifier = identifier # Un identificador único (se puede derivar)
         date_stamp = datetime.now().isoformat()
-        publication_date = "2024-07-29"
+        publication_date = "2024-07-29"  # Basado en la fecha proporcionada en el archivo
 
         logging.info("Llamando a la función creador_xml_metadata.")
         
-        # Generar el XML usando la miniatura temporal
+        # Generate XML tree
         tree = creador_xml_metadata(
             wmsLayer=layer_name,
             file_identifier=file_identifier,
@@ -160,12 +166,13 @@ def generate_xml(**kwargs):
             south_bound=south_bound,
             north_bound=north_bound,
             spatial_resolution=spatial_resolution,
-            specificUsage=specificUsage,
+            specificUsage = specificUsage,
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
-            layer_description=layer_description,
-            thumbnail=jpg_path  # Pasar la miniatura al creador XML
+            layer_description=layer_description
+            thumbnail_path=thumbnail_path  # Agregamos la miniatura
+
         )
 
         if tree is None:
@@ -181,11 +188,14 @@ def generate_xml(**kwargs):
 
         # Base64 encode the XML bytes
         xml_encoded_to_push = base64.b64encode(xml_content).decode('utf-8')
-        xml_encoded.append(xml_encoded_to_push)
+
+        xml_encoded.append (xml_encoded_to_push)
+
+
+        # logging.info (f"Xml enconded {xml_encoded}")
 
     # Store the base64 encoded XML content in XCom
     return xml_encoded
-
 
 
  # JSON content as before
@@ -301,7 +311,7 @@ def upload_to_geonetwork(**context):
 
 
 # Función para crear el XML metadata
-def creador_xml_metadata(file_identifier, specificUsage, wmsLayer,thumbnail, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+def creador_xml_metadata(file_identifier, specificUsage,thumbnail_path, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
 
     root = ET.Element("gmd:MD_Metadata", {
@@ -507,12 +517,14 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer,thumbnail, org
     # gco_characterString = ET.SubElement(fileType, "gco:CharacterString")
     # gco_characterString.text = "image/jpeg"
 
-    # Añadir la miniatura en el bloque graphicOverview
-    graphicOverview = ET.SubElement(root, "gmd:graphicOverview")
-    md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
-    fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
-    gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
-    gco_characterString.text = thumbnail  # Añadir el archivo de la miniatura
+
+
+    # Añadir información de la miniatura
+    graphic_overview = ET.SubElement(root, "gmd:graphicOverview")
+    md_browse_graphic = ET.SubElement(graphic_overview, "gmd:MD_BrowseGraphic")
+    file_name = ET.SubElement(md_browse_graphic, "gmd:fileName")
+    gco_characterString = ET.SubElement(file_name, "gco:CharacterString")
+    gco_characterString.text = thumbnail_path  # Agregar la ruta de la miniatura
 
     # Añadir descriptiveKeywords (primero)
     descriptiveKeywords = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
