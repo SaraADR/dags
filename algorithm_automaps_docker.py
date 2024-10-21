@@ -110,8 +110,14 @@ def find_the_folder(**context):
 
             print("Salida de run.sh:")
             print(output)
+
+            irrelevant_messages = [
+                "Network launch_default Creating",
+                "Network launch_default Created",
             
-            if error_output:
+            ]
+            
+            if error_output and not any(msg in error_output for msg in irrelevant_messages):
                 print("Errores al ejecutar run.sh:")
                 print(error_output)
                 message = context['dag_run'].conf
@@ -190,18 +196,6 @@ def find_the_folder(**context):
                     subject='Automaps ha generado un archivo ',
                     html_content='<p>Adjunto encontrarás el PDF generado.</p>',
                     files=downloaded_files,
-                    conn_id='test_mailing',
-                    dag=context['dag']
-                )
-                email_operator.execute(context)
-        else:
-            for email in emails:
-                email = email.replace("'", "")
-                email_operator = EmailOperator(
-                    task_id=f'send_email_{email.replace("@", "-")}',
-                    to=email,
-                    subject='Automaps  ',
-                    html_content='<p>El peoceso de automaps ha dado un error y no ha podido exportar sus resultados.</p>',
                     conn_id='test_mailing',
                     dag=context['dag']
                 )
