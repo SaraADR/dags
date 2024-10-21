@@ -111,13 +111,30 @@ def find_the_folder(**context):
             print("Salida de run.sh:")
             print(output)
 
-            irrelevant_messages = [
-                "Network launch_default Creating",
-                "Network launch_default Created",
+            sftp = ssh_client.open_sftp()
+            output_directory = '/home/admin3/Autopymaps/share_data/output'
+            local_output_directory = '/tmp'
+              
+            # Crear el directorio local si no existe
+            os.makedirs(local_output_directory, exist_ok=True)
+
+            sftp.chdir(output_directory)
+            print(f"Cambiando al directorio de salida: {output_directory}")
+
+
+            downloaded_files = []
+            for filename in sftp.listdir():
+                remote_file_path = os.path.join(output_directory, filename)
+                local_file_path = os.path.join(local_output_directory, filename)
+
+                # Descargar cada archivo
+                sftp.get(remote_file_path, local_file_path)
+                print(f"Archivo {filename} descargado a {local_file_path}")
+                downloaded_files.append(local_file_path)
+            sftp.close()
+
             
-            ]
-            
-            if error_output and not any(msg in error_output for msg in irrelevant_messages):
+            if not downloaded_files:
                 print("Errores al ejecutar run.sh:")
                 print(error_output)
                 message = context['dag_run'].conf
@@ -145,36 +162,35 @@ def find_the_folder(**context):
                     session.rollback()
                     print(f"Error durante el guardado del estado del job")
 
+                try:
+                    message = context['dag_run'].conf
+                    input_data_str = message['message']['input_data']
+                    input_data = json.loads(input_data_str)
+                    emails = input_data['emails']
+
+                    if downloaded_files:
+                        # Enviar correos electrónicos
+                        for email in emails:
+                            email = email.replace("'", "")
+                            email_operator = EmailOperator(
+                                task_id=f'send_email_{email.replace("@", "-")}',
+                                to=email,
+                                subject='Automaps no ha podido generar archivos ',
+                                html_content='<p>Ha habido un error en el proceso de automaps.</p>',
+                                files=downloaded_files,
+                                conn_id='test_mailing',
+                                dag=context['dag']
+                            )
+                            email_operator.execute(context)
+
+                except Exception as e:
+                    print(f"Error: {str(e)}")
+
                 # Lanzar la excepción para que la tarea falle
                 raise RuntimeError(f"Error durante el guardado de la misión")
 
-
-
-            sftp = ssh_client.open_sftp()
-            output_directory = '/home/admin3/Autopymaps/share_data/output'
-            local_output_directory = '/tmp'
-              
-            # Crear el directorio local si no existe
-            os.makedirs(local_output_directory, exist_ok=True)
-
-            sftp.chdir(output_directory)
-            print(f"Cambiando al directorio de salida: {output_directory}")
-
-            downloaded_files = []
-            for filename in sftp.listdir():
-                remote_file_path = os.path.join(output_directory, filename)
-                local_file_path = os.path.join(local_output_directory, filename)
-
-                # Descargar cada archivo
-                sftp.get(remote_file_path, local_file_path)
-                print(f"Archivo {filename} descargado a {local_file_path}")
-                downloaded_files.append(local_file_path)
-            sftp.close()
-
-
             print_directory_contents(local_output_directory)
             
-
     except Exception as e:
         print(f"Error: {str(e)}")    
     except Exception as e:
