@@ -177,7 +177,6 @@ def find_the_folder(**context):
                                 to=email,
                                 subject='Automaps no ha podido generar archivos ',
                                 html_content='<p>Ha habido un error en el proceso de automaps.</p>',
-                                files=downloaded_files,
                                 conn_id='test_mailing',
                                 dag=context['dag']
                             )
