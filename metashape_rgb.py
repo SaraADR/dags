@@ -14,8 +14,20 @@ from airflow.hooks.base import BaseHook
 from PIL import Image
 
 def generar_miniatura(tiff_path, output_format='JPEG', thumbnail_size=(200, 200)):
+    """
+    Convierte un archivo TIFF en una miniatura JPEG o PNG.
     
+    :param tiff_path: Ruta del archivo TIFF
+    :param output_format: Formato de salida de la miniatura ('JPEG' o 'PNG')
+    :param thumbnail_size: Tamaño de la miniatura (ancho, alto)
+    :return: La ruta del archivo miniatura generado
+    """
     try:
+        # Verificar si el archivo TIFF existe
+        if not os.path.isfile(tiff_path):
+            logging.error(f"El archivo TIFF no existe en la ruta: {tiff_path}")
+            raise FileNotFoundError(f"El archivo TIFF no existe: {tiff_path}")
+        
         # Abrir el archivo TIFF usando Pillow
         with Image.open(tiff_path) as img:
             img.thumbnail(thumbnail_size)
@@ -31,6 +43,7 @@ def generar_miniatura(tiff_path, output_format='JPEG', thumbnail_size=(200, 200)
     except Exception as e:
         logging.error(f"Error al generar miniatura para {tiff_path}: {e}")
         raise
+
 
 
 # Configurar el logging
