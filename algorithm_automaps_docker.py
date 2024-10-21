@@ -33,6 +33,16 @@ def process_element(**context):
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
 
+            print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de voluemnes")
+            stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/launch && docker-compose down --volumes')
+            
+            output = stdout.read().decode()
+            error_output = stderr.read().decode()
+
+            print("Salida de docker volumes:")
+            print(output)
+
+
             print(f"Sftp abierto")
 
             remote_directory = '/home/admin3/Autopymaps/share_data/input'
