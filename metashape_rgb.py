@@ -52,32 +52,6 @@ def convertir_coords(epsg_input,south, west, north, east):
 
     return south2, west2, north2, east2
 
-    # Función para convertir TIFF a JPEG
-def convert_tiff_to_jpg(tiff_path):
-    try:
-        logging.info(f"Convirtiendo TIFF a JPEG: {tiff_path}")
-
-        # Abrir el archivo TIFF
-        with Image.open(tiff_path) as img:
-            # Verificar si el archivo es en modo 'RGBA' o 'RGB' y convertir si es necesario
-            if img.mode in ('RGBA', 'LA'):
-                img = img.convert('RGB')
-            
-            # Definir el nombre del archivo de salida
-            jpg_path = tiff_path.replace('.tif', '.jpg')
-
-            # Guardar la imagen como JPEG
-            img.save(jpg_path, 'JPEG')
-            logging.info(f"Imagen convertida a JPEG: {jpg_path}")
-
-        return jpg_path
-    except Exception as e:
-        logging.error(f"Error al convertir TIFF a JPEG: {e}")
-        raise
-
-from PIL import Image  # Importar la biblioteca para manipulación de imágenes
-import os
-
 # Función para convertir TIFF a JPEG
 def convert_tiff_to_jpg(tiff_path):
     try:
