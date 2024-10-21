@@ -52,28 +52,34 @@ def convertir_coords(epsg_input,south, west, north, east):
 
     return south2, west2, north2, east2
 
-# Función para convertir TIFF a JPEG
+import tempfile  # Importar módulo para manejo de archivos temporales
+
+# Función para convertir TIFF a JPEG y almacenar temporalmente
 def convert_tiff_to_jpg(tiff_path):
     try:
         logging.info(f"Convirtiendo TIFF a JPEG: {tiff_path}")
 
-        # Abrir el archivo TIFF
-        with Image.open(tiff_path) as img:
-            # Verificar si el archivo es en modo 'RGBA' o 'RGB' y convertir si es necesario
-            if img.mode in ('RGBA', 'LA'):
-                img = img.convert('RGB')
-            
-            # Definir el nombre del archivo de salida
-            jpg_path = tiff_path.replace('.tif', '.jpg')
+        # Crear un directorio temporal que será eliminado al salir del bloque with
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Abrir el archivo TIFF
+            with Image.open(tiff_path) as img:
+                # Verificar si el archivo es en modo 'RGBA' o 'RGB' y convertir si es necesario
+                if img.mode in ('RGBA', 'LA'):
+                    img = img.convert('RGB')
 
-            # Guardar la imagen como JPEG
-            img.save(jpg_path, 'JPEG')
-            logging.info(f"Imagen convertida a JPEG: {jpg_path}")
+                # Definir la ruta del archivo JPEG temporal
+                jpg_path = os.path.join(temp_dir, os.path.basename(tiff_path).replace('.tif', '.jpg'))
 
-        return jpg_path
+                # Guardar la imagen como JPEG en el directorio temporal
+                img.save(jpg_path, 'JPEG')
+                logging.info(f"Imagen convertida a JPEG temporal: {jpg_path}")
+
+                # Retornar la ruta del archivo JPEG
+                return jpg_path
     except Exception as e:
         logging.error(f"Error al convertir TIFF a JPEG: {e}")
         raise
+
 
 # Actualiza la función de generación de XML para incluir la miniatura
 def generate_xml(**kwargs):
@@ -125,7 +131,7 @@ def generate_xml(**kwargs):
 
         logging.info(f"Procesando recurso con identifier={identifier} y resolución={spatial_resolution}")
 
-        # Convertir TIFF a JPEG para usar como miniatura
+        # Convertir TIFF a JPEG temporalmente
         tiff_path = resource['path']
         jpg_path = convert_tiff_to_jpg(tiff_path)
 
@@ -140,7 +146,7 @@ def generate_xml(**kwargs):
 
         logging.info("Llamando a la función creador_xml_metadata.")
         
-        # Generar el XML usando la miniatura
+        # Generar el XML usando la miniatura temporal
         tree = creador_xml_metadata(
             wmsLayer=layer_name,
             file_identifier=file_identifier,
