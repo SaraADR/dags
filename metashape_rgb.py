@@ -170,7 +170,7 @@ def generate_xml(**kwargs):
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
-            layer_description=layer_description
+            layer_description=layer_description,
             thumbnail_path=thumbnail_path  # Agregamos la miniatura
 
         )
