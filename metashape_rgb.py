@@ -303,10 +303,17 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "xsi:schemaLocation": "http://www.isotc211.org/2005/gmd http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd"
     })
 
-    # fileIdentifier
+ # fileIdentifier
     fid = ET.SubElement(root, "gmd:fileIdentifier")
     fid_cs = ET.SubElement(fid, "gco:CharacterString")
     fid_cs.text = str(file_identifier)
+
+    # Añadir language
+    language = ET.SubElement(root, "gmd:language")
+    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
+        "codeList": "http://www.loc.gov/standards/iso639-2/",
+        "codeListValue": "spa"
+    })
     
         # Padre gmd:descriptiveKeywords
     gmd_descriptiveKeywords = ET.SubElement(root, "gmd:descriptiveKeywords")
@@ -347,7 +354,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
     linkage = ET.SubElement(gmd_CI_OnlineResource, "gmd:linkage")
     linkageUrl = ET.SubElement(linkage, "gmd:URL")
-    linkageUrl.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
 
     protocol = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
     protocolCharacterString = ET.SubElement(protocol, "gco:CharacterString")
@@ -368,12 +374,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "codeListValue": "download"
     })
 
-     # Añadir language
-    language = ET.SubElement(root, "gmd:language")
-    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
-        "codeList": "http://www.loc.gov/standards/iso639-2/",
-        "codeListValue": "spa"
-    })
 
     # Añadir characterSet
     characterSet = ET.SubElement(root, "gmd:characterSet")
