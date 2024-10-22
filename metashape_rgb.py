@@ -417,24 +417,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gco_characterString = ET.SubElement(email, "gco:CharacterString")
     gco_characterString.text = "ignis@organizacion.es"
 
-    # Añadir categoría adecuada
-    descriptiveKeywords = ET.SubElement(root, "gmd:descriptiveKeywords")
-    md_keywords = ET.SubElement(descriptiveKeywords, "gmd:MD_Keywords")
-    keywords = ["Cobertura de la tierra", "Mapas básicos", "Imágenes", "Fotogrametría"]
-
-    for keyword in keywords:
-        gmd_keyword = ET.SubElement(md_keywords, "gmd:keyword")
-        gco_CharacterString = ET.SubElement(gmd_keyword, "gco:CharacterString")
-        gco_CharacterString.text = keyword
-
-        # Añadir thesaurusName con categoría
-    thesaurusName = ET.SubElement(md_keywords, "gmd:thesaurusName")
-    ci_citation = ET.SubElement(thesaurusName, "gmd:CI_Citation")
-    gmd_title = ET.SubElement(ci_citation, "gmd:title")
-    gmx_anchor = ET.SubElement(gmd_title, "gmx:Anchor", {
-        "xlink:href": "http://inspire.ec.europa.eu/metadata-codelist/LimitationsOnPublicAccess/noLimitations"
-    })
-    gmx_anchor.text = "Cobertura de la tierra con mapas básicos e imágenes"
+    
 
     # Añadir role
     role = ET.SubElement(responsibleParty, "gmd:role")
