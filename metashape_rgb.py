@@ -505,7 +505,8 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gco_characterString = ET.SubElement(specificUsage_el, "gco:CharacterString")
     gco_characterString.text = specificUsage
 
-    # WMS LAYER
+    # WMS LAYER 
+   
     gmd_distributionInfo = ET.SubElement(root, "gmd:distributionInfo")
     gmd_MD_Distribution = ET.SubElement(gmd_distributionInfo, "gmd:MD_Distribution")
     gmd_transferOptions = ET.SubElement(gmd_MD_Distribution, "gmd:transferOptions")
@@ -515,19 +516,26 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
     linkage = ET.SubElement(gmd_CI_OnlineResource, "gmd:linkage")
     linkageUrl = ET.SubElement(linkage, "gmd:URL")
-    linkageUrl.text = wms_link
+    linkageUrl.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
 
-    protocol_el = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
-    protocolCharacterString = ET.SubElement(protocol_el, "gco:CharacterString")
-    protocolCharacterString.text = protocol
+    protocol = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
+    protocolCharacterString = ET.SubElement(protocol, "gco:CharacterString")
+    protocolCharacterString.text = "OGC:WMS-1.3.0-http-get-map"
 
-    name = ET.SubElement(gmd_CI_OnlineResource, "gmd:name")
+    name = ET.SubElement(gmd_CI_OnlineResource)
     nameCharacterString = ET.SubElement(name, "gco:CharacterString")
     nameCharacterString.text = wmsLayer
 
     description = ET.SubElement(gmd_CI_OnlineResource, "gmd:description")
     descriptionCharacterString = ET.SubElement(description, "gco:CharacterString")
-    descriptionCharacterString.text = layer_description
+    descriptionCharacterString.text = "Capa 0026 de prueba"
+    
+    function = ET.SubElement(gmd_CI_OnlineResource, "gmd:function")
+    functionCharacterString = ET.SubElement(function, "gco:CI_OnLineFunctionCode")
+    functionCharacterString = ET.SubElement(functionCharacterString, "gmd:CI_OnLineFunctionCode", {
+        "codeList":"http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode",
+        "codeListValue": "download"
+    })
 
     return ET.ElementTree(root)
 
