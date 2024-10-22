@@ -285,7 +285,9 @@ def upload_to_geonetwork(**context):
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
 
 
-# Función para crear el XML metadata
+import xml.etree.ElementTree as ET
+import logging
+
 def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
 
@@ -308,67 +310,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     fid_cs = ET.SubElement(fid, "gco:CharacterString")
     fid_cs.text = str(file_identifier)
     
-        # Padre gmd:descriptiveKeywords
-    gmd_descriptiveKeywords = ET.SubElement(root, "gmd:descriptiveKeywords")
-
-    # Añadir gmd:resourceConstraints dentro de descriptiveKeywords
-    gmd_resourceConstraints = ET.SubElement(gmd_descriptiveKeywords, "gmd:resourceConstraints")
-
-    # Añadir gmd:MD_LegalConstraints
-    gmd_MD_LegalConstraints = ET.SubElement(gmd_resourceConstraints, "gmd:MD_LegalConstraints")
-
-    # Añadir gmd:accessConstraints dentro de MD_LegalConstraints
-    gmd_accessConstraints = ET.SubElement(gmd_MD_LegalConstraints, "gmd:accessConstraints")
-
-    # Añadir gmd:MD_RestrictionCode dentro de accessConstraints
-    gmd_MD_RestrictionCode = ET.SubElement(gmd_accessConstraints, "gmd:MD_RestrictionCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_RestrictionCode",
-        "codeListValue": "otherRestrictions"
-    })
-    gmd_MD_RestrictionCode.text = "z"
-
-    # Añadir gmd:otherConstraints dentro de MD_LegalConstraints
-    gmd_otherConstraints = ET.SubElement(gmd_MD_LegalConstraints, "gmd:otherConstraints")
-
-    # Añadir gmx:Anchor dentro de otherConstraints
-    gmx_Anchor = ET.SubElement(gmd_otherConstraints, "gmx:Anchor", {
-        "xlink:href": "http://inspire.ec.europa.eu/metadata-codelist/LimitationsOnPublicAccess/noLimitations"
-    })
-    gmx_Anchor.text = "Sin limitaciones al acceso público"
-
-    # WMS LAYER 
-   
-    gmd_distributionInfo = ET.SubElement(root, "gmd:distributionInfo")
-    gmd_MD_Distribution = ET.SubElement(gmd_distributionInfo, "gmd:MD_Distribution")
-    gmd_transferOptions = ET.SubElement(gmd_MD_Distribution, "gmd:transferOptions")
-
-    gmd_MD_DigitalTransferOptions = ET.SubElement(gmd_transferOptions, "gmd:MD_DigitalTransferOptions")
-    gmd_onLine = ET.SubElement(gmd_MD_DigitalTransferOptions, "gmd:onLine")
-    gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
-    linkage = ET.SubElement(gmd_CI_OnlineResource, "gmd:linkage")
-    linkageUrl = ET.SubElement(linkage, "gmd:URL")
-    linkageUrl.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
-
-    protocol = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
-    protocolCharacterString = ET.SubElement(protocol, "gco:CharacterString")
-    protocolCharacterString.text = "OGC:WMS-1.3.0-http-get-map"
-
-    name = ET.SubElement(gmd_CI_OnlineResource)
-    nameCharacterString = ET.SubElement(name, "gco:CharacterString")
-    nameCharacterString.text = wmsLayer
-
-    description = ET.SubElement(gmd_CI_OnlineResource, "gmd:description")
-    descriptionCharacterString = ET.SubElement(description, "gco:CharacterString")
-    descriptionCharacterString.text = "Capa 0026 de prueba"
-    
-    function = ET.SubElement(gmd_CI_OnlineResource, "gmd:function")
-    functionCharacterString = ET.SubElement(function, "gco:CI_OnLineFunctionCode")
-    functionCharacterString = ET.SubElement(functionCharacterString, "gmd:CI_OnLineFunctionCode", {
-        "codeList":"http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode",
-        "codeListValue": "download"
-    })
-
-     # Añadir language
+    # Añadir el lenguaje
     language = ET.SubElement(root, "gmd:language")
     lang_code = ET.SubElement(language, "gmd:LanguageCode", {
         "codeList": "http://www.loc.gov/standards/iso639-2/",
@@ -393,21 +335,21 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     })
     scope_code.text = "dataset"
 
-    # Añadir contact
+    # Añadir contacto
     contact = ET.SubElement(root, "gmd:contact")
     responsibleParty = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
     orgName = ET.SubElement(responsibleParty, "gmd:organisationName")
     gco_characterString = ET.SubElement(orgName, "gco:CharacterString")
-    gco_characterString.text = "Instituto geográfico nacional (IGN)"
+    gco_characterString.text = organization_name
 
-    # Añadir contactInfo
+    # Añadir email
     contactInfo = ET.SubElement(responsibleParty, "gmd:contactInfo")
     ciContact = ET.SubElement(contactInfo, "gmd:CI_Contact")
     address = ET.SubElement(ciContact, "gmd:address")
     ciAddress = ET.SubElement(address, "gmd:CI_Address")
     email = ET.SubElement(ciAddress, "gmd:electronicMailAddress")
     gco_characterString = ET.SubElement(email, "gco:CharacterString")
-    gco_characterString.text = "ignis@organizacion.es"
+    gco_characterString.text = email_address
 
     # Añadir role
     role = ET.SubElement(responsibleParty, "gmd:role")
@@ -419,14 +361,13 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     # Añadir dateStamp
     dateStamp = ET.SubElement(root, "gmd:dateStamp")
     date_time = ET.SubElement(dateStamp, "gco:DateTime")
-    date_time.text = "2024-07-12T05:22:04"
+    date_time.text = date_stamp
 
-    # Añadir metadataStandardName
+    # Añadir metadataStandardName y version
     metadataStandardName = ET.SubElement(root, "gmd:metadataStandardName")
     gco_characterString = ET.SubElement(metadataStandardName, "gco:CharacterString")
     gco_characterString.text = "NEM: ISO 19115:2003 + Reglamento (CE) Nº 1205/2008 de Inspire"
 
-    # Añadir metadataStandardVersion
     metadataStandardVersion = ET.SubElement(root, "gmd:metadataStandardVersion")
     gco_characterString = ET.SubElement(metadataStandardVersion, "gco:CharacterString")
     gco_characterString.text = "1.2"
@@ -454,12 +395,12 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gco_characterString = ET.SubElement(title, "gco:CharacterString")
     gco_characterString.text = file_identifier
 
-    # Añadir publication date
+    # Publicación
     pub_date = ET.SubElement(ci_citation, "gmd:date")
     ci_date = ET.SubElement(pub_date, "gmd:CI_Date")
     date = ET.SubElement(ci_date, "gmd:date")
     gco_date = ET.SubElement(date, "gco:Date")
-    gco_date.text = "2024-07-29"
+    gco_date.text = publication_date
     date_type = ET.SubElement(ci_date, "gmd:dateType")
     ci_date_type = ET.SubElement(date_type, "gmd:CI_DateTypeCode", {
         "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode",
@@ -476,7 +417,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     md_maintenance_information = ET.SubElement(resourceMaintenance, "gmd:MD_MaintenanceInformation")
     maintenance_frequency = ET.SubElement(md_maintenance_information, "gmd:maintenanceAndUpdateFrequency")
     md_frequency_code = ET.SubElement(maintenance_frequency, "gmd:MD_FrequencyCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_MaintenanceFrequencyCode",
+        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_FrequencyCode",
         "codeListValue": "notPlanned"
     })
 
@@ -485,6 +426,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
+    gco_characterString.text = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records/Ortomosaico_0026_474004_611271/attachments/Screenshot_14.png"
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
     gco_characterString.text = "Sustituir"
@@ -531,104 +473,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "codeListValue": "publication"
     })
 
-    # Añadir la segunda sección de descriptiveKeywords
-    descriptiveKeywords2 = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
-    md_keywords2 = ET.SubElement(descriptiveKeywords2, "gmd:MD_Keywords")
-    keyword_anchor = ET.SubElement(md_keywords2, "gmd:keyword")
-    gmx_anchor2 = ET.SubElement(keyword_anchor, "gmx:Anchor", {
-        "xlink:href": "http://inspire.ec.europa.eu/theme/oi"
-    })
-    gmx_anchor2.text = "Ortoimágenes"
-
-    # Añadir type
-    gmd_type2 = ET.SubElement(md_keywords2, "gmd:type")
-    gmd_MD_KeywordTypeCode2 = ET.SubElement(gmd_type2, "gmd:MD_KeywordTypeCode", {
-        "codeList": "https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_KeywordTypeCode",
-        "codeListValue": "theme"
-    })
-
-    # Añadir thesaurusName
-    thesaurusName2 = ET.SubElement(md_keywords2, "gmd:thesaurusName")
-    ci_citation2 = ET.SubElement(thesaurusName2, "gmd:CI_Citation")
-    gmd_title2 = ET.SubElement(ci_citation2, "gmd:title")
-    gmx_anchor3 = ET.SubElement(gmd_title2, "gmx:Anchor", {
-        "xlink:href": "http://www.eionet.europa.eu/gemet/inspire_themes"
-    })
-    gmx_anchor3.text = "Temas INSPIRE"
-
-    # Añadir date
-    gmd_date2 = ET.SubElement(ci_citation2, "gmd:date")
-    ci_date2 = ET.SubElement(gmd_date2, "gmd:CI_Date")
-    gmd_date_inner2 = ET.SubElement(ci_date2, "gmd:date")
-    gco_Date2 = ET.SubElement(gmd_date_inner2, "gco:Date")
-    gco_Date2.text = "2008-06-01"
-
-    # Añadir dateType
-    date_type2 = ET.SubElement(ci_date2, "gmd:dateType")
-    gmd_CI_DateTypeCode3 = ET.SubElement(date_type2, "gmd:CI_DateTypeCode", {
-        "codeList": "https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode",
-        "codeListValue": "publication"
-    })
-
-    # Añadir resourceSpecificUsage
-    resourceSpecificUsage = ET.SubElement(md_data_identification, "gmd:resourceSpecificUsage")
-    md_usage = ET.SubElement(resourceSpecificUsage, "gmd:MD_Usage")
-    specificUsage = ET.SubElement(md_usage, "gmd:specificUsage")
-    gco_characterString = ET.SubElement(specificUsage, "gco:CharacterString")
-    gco_characterString.text = "Uso para análisis geoespacial detallado en estudios ambientales y urbanísticos"
-
-    # Añadir userContactInfo
-    userContactInfo = ET.SubElement(md_usage, "gmd:userContactInfo")
-    ci_responsible_party = ET.SubElement(userContactInfo, "gmd:CI_ResponsibleParty")
-    individualName = ET.SubElement(ci_responsible_party, "gmd:individualName", {"gco:nilReason": "inapplicable"})
-    organisationName = ET.SubElement(ci_responsible_party, "gmd:organisationName")
-    gco_characterString = ET.SubElement(organisationName, "gco:CharacterString")
-    gco_characterString.text = "Cuatro Digital"
-    contactInfo = ET.SubElement(ci_responsible_party, "gmd:contactInfo")
-    ci_contact = ET.SubElement(contactInfo, "gmd:CI_Contact")
-    address = ET.SubElement(ci_contact, "gmd:address")
-    ci_address = ET.SubElement(address, "gmd:CI_Address")
-    email = ET.SubElement(ci_address, "gmd:electronicMailAddress")
-    gco_characterString = ET.SubElement(email, "gco:CharacterString")
-    gco_characterString.text = "jperez@cuatrodigital.com"
-    role = ET.SubElement(ci_responsible_party, "gmd:role")
-    role_code = ET.SubElement(role, "gmd:CI_RoleCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode",
-        "codeListValue": "user"
-    })
-
-    # Añadir resourceConstraints (primera parte)
-    resourceConstraints = ET.SubElement(md_data_identification, "gmd:resourceConstraints")
-    md_legal_constraints = ET.SubElement(resourceConstraints, "gmd:MD_LegalConstraints")
-    accessConstraints = ET.SubElement(md_legal_constraints, "gmd:accessConstraints")
-    md_restriction_code = ET.SubElement(accessConstraints, "gmd:MD_RestrictionCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_RestrictionCode",
-        "codeListValue": "otherRestrictions"
-    })
-    otherConstraints = ET.SubElement(md_legal_constraints, "gmd:otherConstraints")
-    gmx_anchor = ET.SubElement(otherConstraints, "gmx:Anchor", {
-        "xlink:href": "http://inspire.ec.europa.eu/metadata-codelist/LimitationsOnPublicAccess/noLimitations"
-    })
-    gmx_anchor.text = "Sin limitaciones al acceso público"
-
-    # Añadir resourceConstraints (otras partes con nilReason)
-    resourceConstraints_nil1 = ET.SubElement(md_data_identification, "gmd:resourceConstraints", {"gco:nilReason": "missing"})
-    resourceConstraints_nil2 = ET.SubElement(md_data_identification, "gmd:resourceConstraints", {"gco:nilReason": "missing"})
-
-    # Añadir spatialRepresentationType
-    spatial_rep_type = ET.SubElement(md_data_identification, "gmd:spatialRepresentationType")
-    md_spatial_rep_type_code = ET.SubElement(spatial_rep_type, "gmd:MD_SpatialRepresentationTypeCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_SpatialRepresentationTypeCode",
-        "codeListValue": "grid"
-    })
-
-    # Añadir spatialResolution
-    spatial_res = ET.SubElement(md_data_identification, "gmd:spatialResolution")
-    md_resolution = ET.SubElement(spatial_res, "gmd:MD_Resolution")
-    distance = ET.SubElement(md_resolution, "gmd:distance")
-    gco_distance = ET.SubElement(distance, "gco:Distance", {"uom": "metros"})
-    gco_distance.text = "0.026"
-
     # Añadir extent (bounding box)
     extent = ET.SubElement(md_data_identification, "gmd:extent")
     ex_extent = ET.SubElement(extent, "gmd:EX_Extent")
@@ -636,104 +480,54 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     bbox = ET.SubElement(geographic_element, "gmd:EX_GeographicBoundingBox")
     west_bound = ET.SubElement(bbox, "gmd:westBoundLongitude")
     gco_decimal = ET.SubElement(west_bound, "gco:Decimal")
-    gco_decimal.text = "-7.6392"
+    gco_decimal.text = str(west_bound)
     east_bound = ET.SubElement(bbox, "gmd:eastBoundLongitude")
     gco_decimal = ET.SubElement(east_bound, "gco:Decimal")
-    gco_decimal.text = "-7.6336"
+    gco_decimal.text = str(east_bound)
     south_bound = ET.SubElement(bbox, "gmd:southBoundLatitude")
     gco_decimal = ET.SubElement(south_bound, "gco:Decimal")
-    gco_decimal.text = "42.8025"
+    gco_decimal.text = str(south_bound)
     north_bound = ET.SubElement(bbox, "gmd:northBoundLatitude")
     gco_decimal = ET.SubElement(north_bound, "gco:Decimal")
-    gco_decimal.text = "42.8044"
+    gco_decimal.text = str(north_bound)
 
-    # Añadir presentationForm
-    presentation_form = ET.SubElement(md_data_identification, "gmd:presentationForm")
-    gco_characterString = ET.SubElement(presentation_form, "gco:CharacterString")
-    gco_characterString.text = "Modelo Digital"
+    # Añadir spatialResolution
+    spatial_res = ET.SubElement(md_data_identification, "gmd:spatialResolution")
+    md_resolution = ET.SubElement(spatial_res, "gmd:MD_Resolution")
+    distance = ET.SubElement(md_resolution, "gmd:distance")
+    gco_distance = ET.SubElement(distance, "gco:Distance", {"uom": "metros"})
+    gco_distance.text = str(spatial_resolution)
 
-    # Añadir distributionInfo
-    distribution_info = ET.SubElement(root, "gmd:distributionInfo")
-    md_distribution = ET.SubElement(distribution_info, "gmd:MD_Distribution")
-    transfer_options = ET.SubElement(md_distribution, "gmd:transferOptions")
-    digital_transfer = ET.SubElement(transfer_options, "gmd:MD_DigitalTransferOptions")
-    on_line = ET.SubElement(digital_transfer, "gmd:onLine")
-    ci_online_resource = ET.SubElement(on_line, "gmd:CI_OnlineResource")
-    linkage = ET.SubElement(ci_online_resource, "gmd:linkage")
-    gmd_url = ET.SubElement(linkage, "gmd:URL")
-    gmd_url.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
-    protocol = ET.SubElement(ci_online_resource, "gmd:protocol")
-    gco_characterString = ET.SubElement(protocol, "gco:CharacterString")
-    gco_characterString.text = "OGC:WMS-1.3.0-http-get-map"
-    name = ET.SubElement(ci_online_resource, "gmd:name")
-    gco_characterString = ET.SubElement(name, "gco:CharacterString")
-    gco_characterString.text = "a__0026_4740004_611271"
-    description = ET.SubElement(ci_online_resource, "gmd:description")
-    gco_characterString = ET.SubElement(description, "gco:CharacterString")
-    gco_characterString.text = "Capa 0026 de prueba"
-    function = ET.SubElement(ci_online_resource, "gmd:function")
-    ci_online_function_code = ET.SubElement(function, "gmd:CI_OnLineFunctionCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode",
-        "codeListValue": "download"
-    })
+    # Añadir resourceSpecificUsage
+    resourceSpecificUsage = ET.SubElement(md_data_identification, "gmd:resourceSpecificUsage")
+    md_usage = ET.SubElement(resourceSpecificUsage, "gmd:MD_Usage")
+    specificUsage_el = ET.SubElement(md_usage, "gmd:specificUsage")
+    gco_characterString = ET.SubElement(specificUsage_el, "gco:CharacterString")
+    gco_characterString.text = specificUsage
 
-    # Añadir resourceMaintenance (actualización dinámica)
-    resource_maintenance = ET.SubElement(root, "gmd:resourceMaintenance")
-    md_maintenance_information = ET.SubElement(resource_maintenance, "gmd:MD_MaintenanceInformation")
-    maintenance_frequency = ET.SubElement(md_maintenance_information, "gmd:maintenanceAndUpdateFrequency")
-    md_frequency_code = ET.SubElement(maintenance_frequency, "gmd:MD_FrequencyCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_MaintenanceFrequencyCode",
-        "codeListValue": "continual"
-    })
-    maintenance_note = ET.SubElement(md_maintenance_information, "gmd:maintenanceNote")
-    gco_characterString = ET.SubElement(maintenance_note, "gco:CharacterString")
-    gco_characterString.text = "El contenido del dataset puede actualizarse de manera dinámica conforme se adquieran nuevos datos."
+    # WMS LAYER
+    gmd_distributionInfo = ET.SubElement(root, "gmd:distributionInfo")
+    gmd_MD_Distribution = ET.SubElement(gmd_distributionInfo, "gmd:MD_Distribution")
+    gmd_transferOptions = ET.SubElement(gmd_MD_Distribution, "gmd:transferOptions")
 
-    # Añadir Licencias específicas
-    resource_constraints = ET.SubElement(root, "gmd:resourceConstraints")
-    md_legal_constraints = ET.SubElement(resource_constraints, "gmd:MD_LegalConstraints")
-    access_constraints = ET.SubElement(md_legal_constraints, "gmd:accessConstraints")
-    md_restriction_code = ET.SubElement(access_constraints, "gmd:MD_RestrictionCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_RestrictionCode",
-        "codeListValue": "license"
-    })
-    other_constraints = ET.SubElement(md_legal_constraints, "gmd:otherConstraints")
-    gco_characterString = ET.SubElement(other_constraints, "gco:CharacterString")
-    gco_characterString.text = "Licencia específica por perfil, según lo indicado por el proveedor de datos."
+    gmd_MD_DigitalTransferOptions = ET.SubElement(gmd_transferOptions, "gmd:MD_DigitalTransferOptions")
+    gmd_onLine = ET.SubElement(gmd_MD_DigitalTransferOptions, "gmd:onLine")
+    gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
+    linkage = ET.SubElement(gmd_CI_OnlineResource, "gmd:linkage")
+    linkageUrl = ET.SubElement(linkage, "gmd:URL")
+    linkageUrl.text = wms_link
 
-    # Añadir DQ_DataQuality
-    dq_data_quality = ET.SubElement(root, "gmd:DQ_DataQuality")
-    dq_scope = ET.SubElement(dq_data_quality, "gmd:scope")
-    dq_scope_inner = ET.SubElement(dq_scope, "gmd:DQ_Scope")
-    level = ET.SubElement(dq_scope_inner, "gmd:level")
-    md_scope_code = ET.SubElement(level, "gmd:MD_ScopeCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_ScopeCode",
-        "codeListValue": "dataset"
-    })
-    md_scope_code.text = "dataset"
+    protocol_el = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
+    protocolCharacterString = ET.SubElement(protocol_el, "gco:CharacterString")
+    protocolCharacterString.text = protocol
 
-    # Añadir DQ report
-    dq_report = ET.SubElement(dq_data_quality, "gmd:report")
-    dq_domain_consistency = ET.SubElement(dq_report, "gmd:DQ_DomainConsistency")
-    result = ET.SubElement(dq_domain_consistency, "gmd:result")
-    dq_conformance_result = ET.SubElement(result, "gmd:DQ_ConformanceResult")
-    specification = ET.SubElement(dq_conformance_result, "gmd:specification")
-    ci_citation = ET.SubElement(specification, "gmd:CI_Citation")
-    title = ET.SubElement(ci_citation, "gmd:title")
-    gmx_anchor = ET.SubElement(title, "gmx:Anchor", {
-        "xlink:href": "https://data.europa.eu/eli/reg/2010/1089"
-    })
-    gmx_anchor.text = ("Reglamento (UE) n o 1089/2010 de la Comisión de 23 de noviembre de 2010 por "
-                       "el que se aplica la Directiva 2007/2/CE del Parlamento Europeo y del Consejo "
-                       "en lo que se refiere a la interoperabilidad de los conjuntos y los servicios de datos espaciales")
+    name = ET.SubElement(gmd_CI_OnlineResource, "gmd:name")
+    nameCharacterString = ET.SubElement(name, "gco:CharacterString")
+    nameCharacterString.text = wmsLayer
 
-    # Añadir lineage
-    lineage = ET.SubElement(dq_data_quality, "gmd:lineage")
-    li_lineage = ET.SubElement(lineage, "gmd:LI_Lineage")
-    statement = ET.SubElement(li_lineage, "gmd:statement")
-    gco_characterString = ET.SubElement(statement, "gco:CharacterString")
-    gco_characterString.text = ("Ortomosaico generado mediante el procesamiento de imágenes aéreas capturadas con una "
-                                "cobertura longitudinal del 60% y transversal del 30%, con un error medio cuadrático de hasta 40 cm.")
+    description = ET.SubElement(gmd_CI_OnlineResource, "gmd:description")
+    descriptionCharacterString = ET.SubElement(description, "gco:CharacterString")
+    descriptionCharacterString.text = layer_description
 
     return ET.ElementTree(root)
 
