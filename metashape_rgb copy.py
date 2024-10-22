@@ -11,56 +11,11 @@ import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
-from PIL import Image  # Librería para convertir TIFF a JPG o PNG
-import boto3
-from botocore.client import Config
-import json
 
 
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
-
-
-
-# Función para convertir TIFF a JPG/PNG
-def convert_tiff_to_thumbnail(tiff_path, output_format='JPEG'):
-    """Convierte un archivo TIFF a JPG o PNG y genera una miniatura."""
-    try:
-        with Image.open(tiff_path) as img:
-            img.thumbnail((128, 128))  # Ajusta el tamaño de la miniatura si es necesario
-            output_io = io.BytesIO()
-            img.save(output_io, format=output_format)
-            output_io.seek(0)
-            return output_io  # Retorna el archivo en memoria como BytesIO
-    except Exception as e:
-        logging.error(f"Error al convertir TIFF a {output_format}: {e}")
-        raise
-
-
-# Función para subir un archivo a MinIO
-def upload_to_minio(file_obj, file_name, bucket_name='temp'):
-    """Sube el archivo convertido a MinIO."""
-    try:
-        # Conexión a MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
-
-        # Subir el archivo
-        s3_client.put_object(Bucket=bucket_name, Key=file_name, Body=file_obj.getvalue(), ContentType='image/jpeg')
-        logging.info(f"Archivo {file_name} subido correctamente a MinIO.")
-        return f"{extra['endpoint_url']}/{bucket_name}/{file_name}"
-    except Exception as e:
-        logging.error(f"Error al subir el archivo a MinIO: {e}")
-        raise
-
 
 def convertir_coords(epsg_input,south, west, north, east):
 
@@ -97,32 +52,37 @@ def convertir_coords(epsg_input,south, west, north, east):
 
     
 
-# Modificar la función generate_xml para incluir la conversión y subida de la miniatura
+# Función para generar el XML
 def generate_xml(**kwargs):
     logging.info("Iniciando la generación del XML.")
 
     xml_encoded = []
     
     algoritm_result = kwargs['dag_run'].conf.get('json')
+
     logging.info(f"Contenido JSON cargado: {algoritm_result}")
 
     executionResources = algoritm_result['executionResources']
     logging.info(f"Execution Resources encontrados: {len(executionResources)} recursos")
 
-    # Extraer información del BBOX y el sistema de referencia
+
+    # Se extrae la información del BBOX y el sistema de referencia
     outputFalse = next((obj for obj in executionResources if obj['output'] == False), None)['data']
     bboxData = next((obj for obj in outputFalse if obj['name'] == 'BBOX'), None)
     bbox = bboxData['value']
     coordinate_system = bboxData['ReferenceSystem']
     logging.info(f"Coordenadas del BBOX: {bbox} en sistema de referencia {coordinate_system}")
 
-    # DATOS FIJOS
+
+    # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
+
     organization_name = 'Avincis'
     email_address = 'avincis@organizacion.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link_conn = BaseHook.get_connection('geoserver_capabilites')
+    wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
     wms_link = wms_link_conn.host
-
+            
+     
     # Coords BBOX
     west_bound_pre = bbox['westBoundLongitude']
     east_bound_pre = bbox['eastBoundLongitude']
@@ -130,13 +90,16 @@ def generate_xml(**kwargs):
     north_bound_pre = bbox['northBoundLatitude']
 
     logging.info("Llamando a convertir_coords.")
-    west_bound, south_bound, east_bound, north_bound = convertir_coords(coordinate_system, south_bound_pre, west_bound_pre, north_bound_pre, east_bound_pre)
+
+    # Función de conversión (debe estar definida en tu código)
+    west_bound,south_bound,east_bound,north_bound= convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
 
     # Procesar recursos de salida
     for resource in executionResources:
         if resource['output'] == False:
             logging.info("Saltando recurso que no es de salida.")
             continue
+            
 
         if not re.search(r'\.tif$', resource['path'], re.IGNORECASE):
             logging.info("Saltando recurso que no es un archivo TIFF.")
@@ -146,27 +109,27 @@ def generate_xml(**kwargs):
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
         specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
 
+
         logging.info(f"Procesando recurso con identifier={identifier} y resolución={spatial_resolution}")
 
-        # Convertir TIFF a JPG/PNG y subir la miniatura a MinIO
-        logging.info(f"Convirtiendo archivo TIFF {resource['path']} a miniatura.")
-        thumbnail = convert_tiff_to_thumbnail(resource['path'], output_format='JPEG')
-        thumbnail_name = f"{identifier}_thumbnail.jpg"
-        thumbnail_url = upload_to_minio(thumbnail, thumbnail_name)
+        # Ensure spatial_resolution (float) is converted to a string
+        spatial_resolution_str = str(spatial_resolution)
 
-        logging.info(f"Miniatura subida: {thumbnail_url}")
-
-        # Generar XML
+        # Datos para el XML
         layer_name = identifier
         title = identifier
-        wms_link = algoritm_result['executionResources'][0]['path']
-        layer_description = "Descripción de la capa generada"
-        file_identifier = identifier
+        
+
+      # JSON dinámico con los valores correspondientes
+        wms_link = algoritm_result['executionResources'][0]['path']  # Link de WMS para este recurso específico
+        layer_description = "Descripción de la capa generada"  # Puedes extraer o generar esto según el contexto
+        file_identifier = identifier # Un identificador único (se puede derivar)
         date_stamp = datetime.now().isoformat()
-        publication_date = "2024-07-29"
+        publication_date = "2024-07-29"  # Basado en la fecha proporcionada en el archivo
 
         logging.info("Llamando a la función creador_xml_metadata.")
         
+        # Generate XML tree
         tree = creador_xml_metadata(
             wmsLayer=layer_name,
             file_identifier=file_identifier,
@@ -180,32 +143,53 @@ def generate_xml(**kwargs):
             south_bound=south_bound,
             north_bound=north_bound,
             spatial_resolution=spatial_resolution,
-            specificUsage=specificUsage,
+            specificUsage = specificUsage,
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
-            layer_description=layer_description,
-            thumbnail_url=thumbnail_url  # Incluir la URL de la miniatura en el XML
+            layer_description=layer_description
         )
 
         if tree is None:
-            logging.error("La función creador_xml_metadata retornó None.")
+            logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
             raise Exception("Error: creador_xml_metadata retornó None.")
 
         logging.info("El XML ha sido creado exitosamente en memoria.")
 
-        # Convertir el árbol XML a bytes
+        # Convert the XML tree to bytes
         xml_bytes_io = io.BytesIO()
         tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
         xml_content = xml_bytes_io.getvalue()
 
-        # Codificar el XML en base64
+        # Base64 encode the XML bytes
         xml_encoded_to_push = base64.b64encode(xml_content).decode('utf-8')
-        xml_encoded.append(xml_encoded_to_push)
 
+        xml_encoded.append (xml_encoded_to_push)
+
+
+        # logging.info (f"Xml enconded {xml_encoded}")
+
+    # Store the base64 encoded XML content in XCom
     return xml_encoded
 
- 
+
+ # JSON content as before
+    # json_content = {
+    #     'fileIdentifier': 'Ortomosaico_testeo',
+    #     'dateStamp': datetime.now().isoformat(), cada uno 
+    #     'title': 'Ortomosaico_0026_404_611271',
+    #     'publicationDate': '2024-07-29',
+    #     'boundingBox': {
+    #         'westBoundLongitude': '-7.6392',
+    #         'eastBoundLongitude': '-7.6336',
+    #         'southBoundLatitude': '42.8025',
+    #         'northBoundLatitude': '42.8044'
+    #     },
+    #     'spatialResolution': '0.026',  # Resolución espacial en metros
+    #     'layerName': 'a__0026_4740004_611271',
+    #     'layerDescription': 'Capa 0026 de prueba'
+    # }
+
 
 
 # Función para obtener las credenciales de GeoNetwork
@@ -302,7 +286,7 @@ def upload_to_geonetwork(**context):
 
 
 # Función para crear el XML metadata
-def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description, thumbnail_url):
+def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
 
     root = ET.Element("gmd:MD_Metadata", {
@@ -498,13 +482,10 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     })
 
     # Añadir graphicOverview
-    graphicOverview = ET.SubElement(root, "gmd:graphicOverview")
+    graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
-    gco_characterString.text = thumbnail_url  # URL de la miniatura
-
-
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
     gco_characterString.text = "Sustituir"
