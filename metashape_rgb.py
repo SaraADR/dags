@@ -352,8 +352,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gmd_MD_DigitalTransferOptions = ET.SubElement(gmd_transferOptions, "gmd:MD_DigitalTransferOptions")
     gmd_onLine = ET.SubElement(gmd_MD_DigitalTransferOptions, "gmd:onLine")
     gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
-    linkage = ET.SubElement(gmd_CI_OnlineResource)
-    linkageUrl = ET.SubElement(linkage, "gmd:URL")
+    linkageUrl = ET.SubElement(gmd_CI_OnlineResource, "gmd:URL")
     linkageUrl.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
 
     protocol = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
