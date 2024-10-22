@@ -641,7 +641,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     "codeList": "http://www.loc.gov/standards/iso639-2/",
     "codeListValue": "spa"
     
-})
+    })
     lang_code.text = "Idioma"
 
     # Añadir extent (bounding box)
