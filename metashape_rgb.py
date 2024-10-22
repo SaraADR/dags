@@ -81,7 +81,6 @@ def generate_xml(**kwargs):
     protocol = 'OGC:WMS-1.3.0-http-get-map'
     wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
     wms_link = wms_link_conn.host
-    
             
      
     # Coords BBOX
@@ -337,13 +336,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     })
     gmx_Anchor.text = "Sin limitaciones al acceso público"
 
-    # Añadir idioma
-    language = ET.SubElement(root, "gmd:language")
-    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
-        "codeList": "http://www.loc.gov/standards/iso639-2/",
-        "codeListValue": "spa"
-    })
-
     # WMS LAYER 
    
     gmd_distributionInfo = ET.SubElement(root, "gmd:distributionInfo")
@@ -406,7 +398,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     responsibleParty = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
     orgName = ET.SubElement(responsibleParty, "gmd:organisationName")
     gco_characterString = ET.SubElement(orgName, "gco:CharacterString")
-    gco_characterString.text = "Avincis technics"
+    gco_characterString.text = "Instituto geográfico nacional (IGN)"
 
     # Añadir contactInfo
     contactInfo = ET.SubElement(responsibleParty, "gmd:contactInfo")
@@ -416,8 +408,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     email = ET.SubElement(ciAddress, "gmd:electronicMailAddress")
     gco_characterString = ET.SubElement(email, "gco:CharacterString")
     gco_characterString.text = "ignis@organizacion.es"
-
-    
 
     # Añadir role
     role = ET.SubElement(responsibleParty, "gmd:role")
