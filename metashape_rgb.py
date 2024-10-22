@@ -635,6 +635,14 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     topicCategoryCode = ET.SubElement(topicCategory, "gmd:MD_TopicCategoryCode")
     topicCategoryCode.text = "imageryBaseMapsEarthCover"
 
+    # Añadir language
+    language = ET.SubElement(root, "gmd:language")
+    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
+    "codeList": "http://www.loc.gov/standards/iso639-2/",
+    "codeListValue": "spa"
+})
+
+
     # Añadir extent (bounding box)
     extent = ET.SubElement(md_data_identification, "gmd:extent")
     ex_extent = ET.SubElement(extent, "gmd:EX_Extent")
