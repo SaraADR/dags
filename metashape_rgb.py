@@ -81,6 +81,7 @@ def generate_xml(**kwargs):
     protocol = 'OGC:WMS-1.3.0-http-get-map'
     wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
     wms_link = wms_link_conn.host
+    
             
      
     # Coords BBOX
@@ -336,6 +337,13 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     })
     gmx_Anchor.text = "Sin limitaciones al acceso público"
 
+    # Añadir idioma
+    language = ET.SubElement(root, "gmd:language")
+    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
+        "codeList": "http://www.loc.gov/standards/iso639-2/",
+        "codeListValue": "spa"
+    })
+
     # WMS LAYER 
    
     gmd_distributionInfo = ET.SubElement(root, "gmd:distributionInfo")
@@ -353,7 +361,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     protocolCharacterString = ET.SubElement(protocol, "gco:CharacterString")
     protocolCharacterString.text = "OGC:WMS-1.3.0-http-get-map"
 
-    name = ET.SubElement(gmd_CI_OnlineResource, "gmd:name")
+    name = ET.SubElement(gmd_CI_OnlineResource)
     nameCharacterString = ET.SubElement(name, "gco:CharacterString")
     nameCharacterString.text = wmsLayer
 
@@ -398,7 +406,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     responsibleParty = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
     orgName = ET.SubElement(responsibleParty, "gmd:organisationName")
     gco_characterString = ET.SubElement(orgName, "gco:CharacterString")
-    gco_characterString.text = "Instituto geográfico nacional (IGN)"
+    gco_characterString.text = "Avincis technics"
 
     # Añadir contactInfo
     contactInfo = ET.SubElement(responsibleParty, "gmd:contactInfo")
@@ -408,6 +416,25 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     email = ET.SubElement(ciAddress, "gmd:electronicMailAddress")
     gco_characterString = ET.SubElement(email, "gco:CharacterString")
     gco_characterString.text = "ignis@organizacion.es"
+
+    # Añadir categoría adecuada
+    descriptiveKeywords = ET.SubElement(root, "gmd:descriptiveKeywords")
+    md_keywords = ET.SubElement(descriptiveKeywords, "gmd:MD_Keywords")
+    keywords = ["Cobertura de la tierra", "Mapas básicos", "Imágenes", "Fotogrametría"]
+
+    for keyword in keywords:
+        gmd_keyword = ET.SubElement(md_keywords, "gmd:keyword")
+        gco_CharacterString = ET.SubElement(gmd_keyword, "gco:CharacterString")
+        gco_CharacterString.text = keyword
+
+        # Añadir thesaurusName con categoría
+    thesaurusName = ET.SubElement(md_keywords, "gmd:thesaurusName")
+    ci_citation = ET.SubElement(thesaurusName, "gmd:CI_Citation")
+    gmd_title = ET.SubElement(ci_citation, "gmd:title")
+    gmx_anchor = ET.SubElement(gmd_title, "gmx:Anchor", {
+        "xlink:href": "http://inspire.ec.europa.eu/metadata-codelist/LimitationsOnPublicAccess/noLimitations"
+    })
+    gmx_anchor.text = "Cobertura de la tierra con mapas básicos e imágenes"
 
     # Añadir role
     role = ET.SubElement(responsibleParty, "gmd:role")
