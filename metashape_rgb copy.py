@@ -74,43 +74,36 @@ def up_to_minio(temp_dir, filename, key):
             endpoint_url=extra['endpoint_url'],
             aws_access_key_id=extra['aws_access_key_id'],
             aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
+            config=boto3.session.Config(signature_version='s3v4')
         )
         bucket_name = 'metashapetiffs'
         
-        # Ruta completa del archivo local a subir
         local_file_path = os.path.join(temp_dir, filename)
 
-        # Verificar que es un archivo
         if os.path.isfile(local_file_path):
-            # Subir el archivo a MinIO
             s3_client.upload_file(local_file_path, bucket_name, f"{key}.jpg")
-            print(f"Archivo {filename} subido correctamente a MinIO.")
-            
-            # Generar la URL del archivo subido
             file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{key}.jpg"
-            print(f"URL: {file_url}")
+            logging.info(f"Archivo {filename} subido correctamente a MinIO con URL: {file_url}")
             return file_url
 
     except Exception as e:
-        print(f"Error al subir archivos a MinIO: {str(e)}")
+        logging.error(f"Error al subir archivos a MinIO: {str(e)}")
         return None
+
 
 def tiff_to_jpg(tiff_path, jpg_path):
     try:
-        # Abrir el archivo TIFF
         with Image.open(tiff_path) as img:
-            # Convertir a modo RGB si no está en ese modo
             if img.mode != 'RGB':
                 img = img.convert('RGB')
-            
-            # Guardar el archivo como JPG
             img.save(jpg_path, 'JPEG')
-        
-        print(f"Archivo convertido y guardado como {jpg_path}")
-
+            logging.info(f"Archivo convertido y guardado como {jpg_path}")
     except Exception as e:
-        print(f"Error al convertir TIFF a JPG: {e}")
+        logging.error(f"Error al convertir TIFF a JPG: {e}")
+
+
+
+
 
 def upload_miniature(**kwargs):
     files = kwargs['dag_run'].conf.get('otros', [])
@@ -120,39 +113,28 @@ def upload_miniature(**kwargs):
         for file in files:
             file_name = file['file_name']
 
-            # Si el archivo no termina en .tif o .tiff, continúa con el siguiente archivo
             if not (file_name.endswith('.tif') or file_name.endswith('.tiff')):
                 continue
 
-            # Decodificar el contenido del archivo desde base64
             file_content = base64.b64decode(file['content'])
-
-            # Crear la ruta completa del archivo dentro del directorio temporal
             temp_file_path = os.path.join(temp_dir, file_name)
 
-            # Guardar el contenido en el archivo temporal
             with open(temp_file_path, 'wb') as temp_file:
                 temp_file.write(file_content)
 
-            print(f"Archivo guardado temporalmente en: {temp_file_path}")
+            logging.info(f"Archivo guardado temporalmente en: {temp_file_path}")
 
-            # Generar un UUID para el archivo convertido a JPG
             unique_key = str(uuid.uuid4())
-
-            # Crear ruta para el archivo JPG
             file_jpg_name = f"{unique_key}.jpg"
             temp_jpg_path = os.path.join(temp_dir, file_jpg_name)
 
-            # Convertir TIFF a JPG
             tiff_to_jpg(temp_file_path, temp_jpg_path)
-
-            # Subir el archivo JPG a MinIO y obtener la URL
             file_url = up_to_minio(temp_dir, file_jpg_name, unique_key)
 
-            # Añadir nombre y URL al array de archivos
             array_files.append({'name': file_name, 'url': file_url})
 
     return array_files
+
 
 # Ejemplo de uso:
 # dag_run.conf['otros'] sería el array de archivos
@@ -201,6 +183,9 @@ def generate_xml(**kwargs):
     # Función de conversión (debe estar definida en tu código)
     west_bound,south_bound,east_bound,north_bound= convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
 
+
+    file_url_array = kwargs['ti'].xcom_pull(task_ids='upload_miniature')
+
     # Procesar recursos de salida
     for resource in executionResources:
         if resource['output'] == False:
@@ -225,6 +210,14 @@ def generate_xml(**kwargs):
         # Datos para el XML
         layer_name = identifier
         title = identifier
+
+        # Obtener la URL de la miniatura correspondiente
+        matching_url = next((file['url'] for file in file_url_array if file['name'] == resource['path']), None)
+        
+        if matching_url:
+            logging.info(f"Miniatura encontrada para {identifier}: {matching_url}")
+        else:
+            logging.warning(f"No se encontró una miniatura para {identifier}")
         
 
       # JSON dinámico con los valores correspondientes
@@ -254,7 +247,9 @@ def generate_xml(**kwargs):
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
-            layer_description=layer_description
+            layer_description=layer_description,
+            miniature_url=matching_url  # Pasa la URL de la miniatura
+
         )
 
         if tree is None:
@@ -377,7 +372,7 @@ def upload_to_geonetwork(**context):
 
 
 # Función para crear el XML metadata
-def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description, miniature_url):
     logging.info("Iniciando la creación del XML.")
 
     root = ET.Element("gmd:MD_Metadata", {
@@ -576,6 +571,8 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
+    fileName.text = miniature_url  # Aquí se agrega la URL de la miniatura
+
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
