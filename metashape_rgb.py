@@ -353,7 +353,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     protocolCharacterString = ET.SubElement(protocol, "gco:CharacterString")
     protocolCharacterString.text = "OGC:WMS-1.3.0-http-get-map"
 
-    name = ET.SubElement(gmd_CI_OnlineResource)
+    name = ET.SubElement(gmd_CI_OnlineResource, "gmd:name")
     nameCharacterString = ET.SubElement(name, "gco:CharacterString")
     nameCharacterString.text = wmsLayer
 
