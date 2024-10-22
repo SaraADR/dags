@@ -630,6 +630,11 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gco_distance = ET.SubElement(distance, "gco:Distance", {"uom": "metros"})
     gco_distance.text = "0.026"
 
+    # Añadir topicCategory
+    topicCategory = ET.SubElement(md_data_identification, "gmd:topicCategory")
+    topicCategoryCode = ET.SubElement(topicCategory, "gmd:MD_TopicCategoryCode")
+    topicCategoryCode.text = "imageryBaseMapsEarthCover"
+
     # Añadir extent (bounding box)
     extent = ET.SubElement(md_data_identification, "gmd:extent")
     ex_extent = ET.SubElement(extent, "gmd:EX_Extent")
