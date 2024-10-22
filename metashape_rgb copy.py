@@ -27,7 +27,7 @@ def fetch_minio_image(identifier, s3_client, bucket_name):
         logging.info(f"Fetching image {identifier} from MinIO bucket {bucket_name}.")
         
         # Object key is assumed to be the identifier (i.e., the image filename matches the identifier)
-        object_key = f"{identifier}.jpg"  # Assuming .jpg images
+        object_key = f"{identifier}.png"  # Assuming .jpg images
 
         # Fetch the object from MinIO
         response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
