@@ -11,7 +11,95 @@ import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
+from PIL import Image  # Librería para convertir TIFF a JPG o PNG
+import boto3
+from botocore.client import Config
+import json
 
+# Configurar el logging
+logging.basicConfig(level=logging.INFO)
+
+# Función para subir el archivo TIFF a MinIO
+def upload_tiff_to_minio(tiff_path, identifier, bucket_name='temp'):
+    """Sube el archivo TIFF a MinIO."""
+    try:
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
+        
+        # Leer el archivo TIFF
+        with open(tiff_path, 'rb') as tiff_file:
+            s3_client.put_object(Bucket=bucket_name, Key=f"{identifier}.tiff", Body=tiff_file, ContentType='image/tiff')
+            logging.info(f"Archivo TIFF {identifier}.tiff subido correctamente a MinIO.")
+        
+        return f"{extra['endpoint_url']}/{bucket_name}/{identifier}.tiff"
+    
+    except Exception as e:
+        logging.error(f"Error al subir el archivo a MinIO: {e}")
+        raise
+
+# Función para convertir el TIFF a JPG/PNG directamente desde MinIO
+def convert_tiff_from_minio(identifier, bucket_name='temp', output_format='JPEG'):
+    """Descarga el archivo TIFF desde MinIO, lo convierte a JPG o PNG, y genera una miniatura."""
+    try:
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
+
+        # Descargar el archivo TIFF desde MinIO
+        tiff_obj = s3_client.get_object(Bucket=bucket_name, Key=f"{identifier}.tiff")
+        tiff_content = tiff_obj['Body'].read()
+
+        # Convertir TIFF a miniatura JPG/PNG
+        tiff_io = io.BytesIO(tiff_content)
+        with Image.open(tiff_io) as img:
+            img.thumbnail((128, 128))
+            output_io = io.BytesIO()
+            img.save(output_io, format=output_format)
+            output_io.seek(0)
+
+        return output_io
+    
+    except Exception as e:
+        logging.error(f"Error al convertir el archivo TIFF desde MinIO: {e}")
+        raise
+
+# Función para subir la miniatura a MinIO
+def upload_thumbnail_to_minio(thumbnail_io, identifier, bucket_name='temp'):
+    """Sube la miniatura a MinIO."""
+    try:
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
+        
+        # Subir la miniatura
+        thumbnail_name = f"{identifier}_thumbnail.jpg"
+        s3_client.put_object(Bucket=bucket_name, Key=thumbnail_name, Body=thumbnail_io.getvalue(), ContentType='image/jpeg')
+        logging.info(f"Miniatura {thumbnail_name} subida correctamente a MinIO.")
+        
+        return f"{extra['endpoint_url']}/{bucket_name}/{thumbnail_name}"
+    
+    except Exception as e:
+        logging.error(f"Error al subir la miniatura a MinIO: {e}")
+        raise
 
 
 # Configurar el logging
@@ -52,37 +140,33 @@ def convertir_coords(epsg_input,south, west, north, east):
 
     
 
-# Función para generar el XML
+
+# Función generate_xml sin cambios mayores en la estructura
 def generate_xml(**kwargs):
     logging.info("Iniciando la generación del XML.")
 
     xml_encoded = []
     
     algoritm_result = kwargs['dag_run'].conf.get('json')
-
     logging.info(f"Contenido JSON cargado: {algoritm_result}")
 
     executionResources = algoritm_result['executionResources']
     logging.info(f"Execution Resources encontrados: {len(executionResources)} recursos")
 
-
-    # Se extrae la información del BBOX y el sistema de referencia
+    # Extraer información del BBOX y el sistema de referencia
     outputFalse = next((obj for obj in executionResources if obj['output'] == False), None)['data']
     bboxData = next((obj for obj in outputFalse if obj['name'] == 'BBOX'), None)
     bbox = bboxData['value']
     coordinate_system = bboxData['ReferenceSystem']
     logging.info(f"Coordenadas del BBOX: {bbox} en sistema de referencia {coordinate_system}")
 
-
-    # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
-
+    # DATOS FIJOS
     organization_name = 'Avincis'
     email_address = 'avincis@organizacion.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
+    wms_link_conn = BaseHook.get_connection('geoserver_capabilites')
     wms_link = wms_link_conn.host
-            
-     
+
     # Coords BBOX
     west_bound_pre = bbox['westBoundLongitude']
     east_bound_pre = bbox['eastBoundLongitude']
@@ -90,16 +174,13 @@ def generate_xml(**kwargs):
     north_bound_pre = bbox['northBoundLatitude']
 
     logging.info("Llamando a convertir_coords.")
-
-    # Función de conversión (debe estar definida en tu código)
-    west_bound,south_bound,east_bound,north_bound= convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
+    west_bound, south_bound, east_bound, north_bound = convertir_coords(coordinate_system, south_bound_pre, west_bound_pre, north_bound_pre, east_bound_pre)
 
     # Procesar recursos de salida
     for resource in executionResources:
         if resource['output'] == False:
             logging.info("Saltando recurso que no es de salida.")
             continue
-            
 
         if not re.search(r'\.tif$', resource['path'], re.IGNORECASE):
             logging.info("Saltando recurso que no es un archivo TIFF.")
@@ -109,27 +190,33 @@ def generate_xml(**kwargs):
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
         specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
 
-
         logging.info(f"Procesando recurso con identifier={identifier} y resolución={spatial_resolution}")
 
-        # Ensure spatial_resolution (float) is converted to a string
-        spatial_resolution_str = str(spatial_resolution)
+        # 1. Subir archivo TIFF a MinIO
+        logging.info(f"Subiendo archivo TIFF {resource['path']} a MinIO.")
+        tiff_url = upload_tiff_to_minio(resource['path'], identifier)
 
-        # Datos para el XML
+        # 2. Convertir TIFF a miniatura desde MinIO
+        logging.info(f"Convirtiendo archivo TIFF {identifier} desde MinIO a miniatura.")
+        thumbnail = convert_tiff_from_minio(identifier, output_format='JPEG')
+
+        # 3. Subir la miniatura a MinIO
+        logging.info(f"Subiendo miniatura de {identifier} a MinIO.")
+        thumbnail_url = upload_thumbnail_to_minio(thumbnail, identifier)
+
+        logging.info(f"Miniatura subida: {thumbnail_url}")
+
+        # Continuar con la generación del XML
         layer_name = identifier
         title = identifier
-        
-
-      # JSON dinámico con los valores correspondientes
-        wms_link = algoritm_result['executionResources'][0]['path']  # Link de WMS para este recurso específico
-        layer_description = "Descripción de la capa generada"  # Puedes extraer o generar esto según el contexto
-        file_identifier = identifier # Un identificador único (se puede derivar)
+        wms_link = algoritm_result['executionResources'][0]['path']
+        layer_description = "Descripción de la capa generada"
+        file_identifier = identifier
         date_stamp = datetime.now().isoformat()
-        publication_date = "2024-07-29"  # Basado en la fecha proporcionada en el archivo
+        publication_date = "2024-07-29"
 
         logging.info("Llamando a la función creador_xml_metadata.")
         
-        # Generate XML tree
         tree = creador_xml_metadata(
             wmsLayer=layer_name,
             file_identifier=file_identifier,
@@ -143,33 +230,29 @@ def generate_xml(**kwargs):
             south_bound=south_bound,
             north_bound=north_bound,
             spatial_resolution=spatial_resolution,
-            specificUsage = specificUsage,
+            specificUsage=specificUsage,
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
-            layer_description=layer_description
+            layer_description=layer_description,
+            thumbnail_url=thumbnail_url  # Incluir la URL de la miniatura en el XML
         )
 
         if tree is None:
-            logging.error("La función creador_xml_metadata retornó None. Asegúrate de que está retornando un ElementTree válido.")
+            logging.error("La función creador_xml_metadata retornó None.")
             raise Exception("Error: creador_xml_metadata retornó None.")
 
         logging.info("El XML ha sido creado exitosamente en memoria.")
 
-        # Convert the XML tree to bytes
+        # Convertir el árbol XML a bytes
         xml_bytes_io = io.BytesIO()
         tree.write(xml_bytes_io, encoding='utf-8', xml_declaration=True)
         xml_content = xml_bytes_io.getvalue()
 
-        # Base64 encode the XML bytes
+        # Codificar el XML en base64
         xml_encoded_to_push = base64.b64encode(xml_content).decode('utf-8')
+        xml_encoded.append(xml_encoded_to_push)
 
-        xml_encoded.append (xml_encoded_to_push)
-
-
-        # logging.info (f"Xml enconded {xml_encoded}")
-
-    # Store the base64 encoded XML content in XCom
     return xml_encoded
 
 
