@@ -399,7 +399,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     responsibleParty = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
     orgName = ET.SubElement(responsibleParty, "gmd:organisationName")
     gco_characterString = ET.SubElement(orgName, "gco:CharacterString")
-    gco_characterString.text = "Instituto geográfico nacional (IGN)"
+    gco_characterString.text = "Avincis Technics"
 
     # Añadir contactInfo
     contactInfo = ET.SubElement(responsibleParty, "gmd:contactInfo")
@@ -584,7 +584,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     individualName = ET.SubElement(ci_responsible_party, "gmd:individualName", {"gco:nilReason": "inapplicable"})
     organisationName = ET.SubElement(ci_responsible_party, "gmd:organisationName")
     gco_characterString = ET.SubElement(organisationName, "gco:CharacterString")
-    gco_characterString.text = "Cuatro Digital"
+    gco_characterString.text = "Avincis"
     contactInfo = ET.SubElement(ci_responsible_party, "gmd:contactInfo")
     ci_contact = ET.SubElement(contactInfo, "gmd:CI_Contact")
     address = ET.SubElement(ci_contact, "gmd:address")
@@ -640,8 +640,9 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     lang_code = ET.SubElement(language, "gmd:LanguageCode", {
     "codeList": "http://www.loc.gov/standards/iso639-2/",
     "codeListValue": "spa"
+    
 })
-
+    lang_code.text = "Idioma"
 
     # Añadir extent (bounding box)
     extent = ET.SubElement(md_data_identification, "gmd:extent")
