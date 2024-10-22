@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 import uuid
 import xml.etree.ElementTree as ET
@@ -11,7 +12,9 @@ import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
-
+from PIL import Image
+import rasterio
+import boto3
 
 
 # Configurar el logging
@@ -49,6 +52,23 @@ def convertir_coords(epsg_input,south, west, north, east):
 
 
     return south2, west2, north2, east2
+
+
+# Función para generar miniaturas
+def generar_miniatura(tiff_path, output_path, max_size=(128, 128)):
+    try:
+        with rasterio.open(tiff_path) as tiff:
+            array = tiff.read()
+            # Convertir el TIFF en imagen
+            img = Image.fromarray(array.transpose(1, 2, 0))  # Transponer para ordenar bien los canales
+            img.thumbnail(max_size)
+            img.save(output_path, "JPEG")  # Guardar en formato JPEG
+        logging.info(f"Miniatura generada correctamente: {output_path}")
+    except Exception as e:
+        logging.error(f"Error al generar miniatura: {str(e)}")
+        raise
+
+    
 
     
 
@@ -106,6 +126,21 @@ def generate_xml(**kwargs):
             continue
 
         identifier = next((obj for obj in resource['data'] if obj['name'] == 'identifier'), None)["value"]
+
+        # Procesar el archivo TIFF
+        tiff_path = resource['path']
+        miniatura_path = f"/tmp/{identifier}_thumbnail.jpg" 
+
+         # Generar miniatura de TIFF
+        generar_miniatura(tiff_path, miniatura_path)
+        
+        # Subir el archivo TIFF y miniatura a MinIO
+        urls_subidos = up_to_minio("/tmp", from_user, isIncendio, miniatura_path)
+        
+       
+        # Obtener URL de la miniatura subida
+        url_miniatura = [url for url in urls_subidos if url.endswith('_thumbnail.jpg')][0]
+        
         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
         specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
 
@@ -131,6 +166,7 @@ def generate_xml(**kwargs):
         
         # Generate XML tree
         tree = creador_xml_metadata(
+            miniatura_url=url_miniatura,
             wmsLayer=layer_name,
             file_identifier=file_identifier,
             organization_name=organization_name,
@@ -189,6 +225,38 @@ def generate_xml(**kwargs):
     #     'layerName': 'a__0026_4740004_611271',
     #     'layerDescription': 'Capa 0026 de prueba'
     # }
+
+def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
+    key = f"{uuid.uuid4()}"
+    uploaded_urls = []
+    
+    try:
+        # Conexión a MinIO
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
+        bucket_name = 'temp'
+        
+        # Subir todos los archivos en el directorio local de salida
+        for filename in os.listdir(local_output_directory):
+            local_file_path = os.path.join(local_output_directory, filename)
+            if os.path.isfile(local_file_path):
+                file_key = f"{key}/{filename}"
+                s3_client.upload_file(local_file_path, bucket_name, file_key)
+                file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{file_key}"
+                uploaded_urls.append(file_url)
+
+        return uploaded_urls
+
+    except Exception as e:
+        logging.error(f"Error al subir archivos a MinIO: {str(e)}")
+        raise
 
 
 
@@ -286,7 +354,7 @@ def upload_to_geonetwork(**context):
 
 
 # Función para crear el XML metadata
-def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+def creador_xml_metadata(file_identifier, specificUsage,miniatura_url, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
 
     root = ET.Element("gmd:MD_Metadata", {
@@ -353,7 +421,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     protocolCharacterString = ET.SubElement(protocol, "gco:CharacterString")
     protocolCharacterString.text = "OGC:WMS-1.3.0-http-get-map"
 
-    name = ET.SubElement(gmd_CI_OnlineResource, "gmd:name")
+    name = ET.SubElement(gmd_CI_OnlineResource)
     nameCharacterString = ET.SubElement(name, "gco:CharacterString")
     nameCharacterString.text = wmsLayer
 
@@ -480,17 +548,28 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "codeListValue": "notPlanned"
     })
 
-    # Añadir graphicOverview
-    graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
+    # # Añadir graphicOverview
+    # graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
+    # md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
+    # fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
+   
+    # gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
+    # fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
+    # gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
+    # gco_characterString.text = "Sustituir"
+    # fileType = ET.SubElement(md_browse_graphic, "gmd:fileType")
+    # gco_characterString = ET.SubElement(fileType, "gco:CharacterString")
+    # gco_characterString.text = "image/jpeg"
+
+
+    graphicOverview = ET.SubElement(root, "gmd:graphicOverview")
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
-    gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
+    fileName.text = miniatura_url  # Añadir la URL de la miniatura
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
-    gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
-    gco_characterString.text = "Sustituir"
+    fileDescription.text = "Miniatura generada automáticamente"
     fileType = ET.SubElement(md_browse_graphic, "gmd:fileType")
-    gco_characterString = ET.SubElement(fileType, "gco:CharacterString")
-    gco_characterString.text = "image/jpeg"
+    fileType.text = "image/jpeg"
 
     # Añadir descriptiveKeywords (primero)
     descriptiveKeywords = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
