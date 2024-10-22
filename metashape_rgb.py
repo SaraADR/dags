@@ -307,6 +307,13 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     fid = ET.SubElement(root, "gmd:fileIdentifier")
     fid_cs = ET.SubElement(fid, "gco:CharacterString")
     fid_cs.text = str(file_identifier)
+
+     # Añadir idioma
+    language = ET.SubElement(root, "gmd:language")
+    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
+        "codeList": "http://www.loc.gov/standards/iso639-2/",
+        "codeListValue": "spa"
+    })
     
         # Padre gmd:descriptiveKeywords
     gmd_descriptiveKeywords = ET.SubElement(root, "gmd:descriptiveKeywords")
@@ -368,12 +375,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         "codeListValue": "download"
     })
 
-     # Añadir language
-    language = ET.SubElement(root, "gmd:language")
-    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
-        "codeList": "http://www.loc.gov/standards/iso639-2/",
-        "codeListValue": "spa"
-    })
+  
 
     # Añadir characterSet
     characterSet = ET.SubElement(root, "gmd:characterSet")
@@ -398,7 +400,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     responsibleParty = ET.SubElement(contact, "gmd:CI_ResponsibleParty")
     orgName = ET.SubElement(responsibleParty, "gmd:organisationName")
     gco_characterString = ET.SubElement(orgName, "gco:CharacterString")
-    gco_characterString.text = "Instituto geográfico nacional (IGN)"
+    gco_characterString.text = "Avincis Technics"
 
     # Añadir contactInfo
     contactInfo = ET.SubElement(responsibleParty, "gmd:contactInfo")
@@ -502,19 +504,14 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
         gco_CharacterString = ET.SubElement(gmd_keyword, "gco:CharacterString")
         gco_CharacterString.text = keyword
 
-    # Añadir type y thesaurusName
-    gmd_type = ET.SubElement(md_keywords, "gmd:type")
-    gmd_MD_KeywordTypeCode = ET.SubElement(gmd_type, "gmd:MD_KeywordTypeCode", {
-        "codeList": "https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_KeywordTypeCode",
-        "codeListValue": "theme"
-    })
-
+     # Añadir thesaurusName con categoría
     thesaurusName = ET.SubElement(md_keywords, "gmd:thesaurusName")
     ci_citation = ET.SubElement(thesaurusName, "gmd:CI_Citation")
     gmd_title = ET.SubElement(ci_citation, "gmd:title")
     gmx_anchor = ET.SubElement(gmd_title, "gmx:Anchor", {
-        "xlink:href": "http://www.eionet.europa.eu/gemet/inspire_themes"
+        "xlink:href": "http://inspire.ec.europa.eu/metadata-codelist/LimitationsOnPublicAccess/noLimitations"
     })
+    gmx_anchor.text = "Cobertura de la tierra con mapas básicos e imágenes"
     gmx_anchor.text = "Keywords"
 
     # Añadir date
