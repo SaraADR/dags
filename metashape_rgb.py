@@ -352,7 +352,8 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     gmd_MD_DigitalTransferOptions = ET.SubElement(gmd_transferOptions, "gmd:MD_DigitalTransferOptions")
     gmd_onLine = ET.SubElement(gmd_MD_DigitalTransferOptions, "gmd:onLine")
     gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
-    linkageUrl = ET.SubElement(gmd_CI_OnlineResource, "gmd:URL")
+    linkage = ET.SubElement(gmd_CI_OnlineResource, "gmd:linkage")
+    linkageUrl = ET.SubElement(linkage, "gmd:URL")
     linkageUrl.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
 
     protocol = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
@@ -659,9 +660,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     digital_transfer = ET.SubElement(transfer_options, "gmd:MD_DigitalTransferOptions")
     on_line = ET.SubElement(digital_transfer, "gmd:onLine")
     ci_online_resource = ET.SubElement(on_line, "gmd:CI_OnlineResource")
-    linkage = ET.SubElement(ci_online_resource, "gmd:linkage")
-    gmd_url = ET.SubElement(linkage, "gmd:URL")
-    gmd_url.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
     protocol = ET.SubElement(ci_online_resource, "gmd:protocol")
     gco_characterString = ET.SubElement(protocol, "gco:CharacterString")
     gco_characterString.text = "OGC:WMS-1.3.0-http-get-map"
