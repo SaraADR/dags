@@ -64,7 +64,7 @@ def process_heatmap_data(**context):
 
     if 'lonlat' in input_data and len(input_data['lonlat']) == 4:
         lonlat = input_data.get('lonlat')
-        if isIncendio == "False":
+        if isIncendio == "FALSE":
             aircrafts_string = ", ".join(input_data.get('aircrafts', None))
         else:
             aircrafts_string = ''
@@ -479,7 +479,7 @@ def create_json(params):
         "highSearchDate": params.get("highSearchDate", None),
         "navstates": params.get("navstates", None),
         "title": params.get("title", None),
-        "customerIds": params.get("customerIds", "XUNTAGALICIA_MEDIORURAL"),
+        "customerIds": params.get("customerIds", None),
         "res": params.get("res", None),
         "codigo": params.get("codigo", None),
         "sigma": params.get("sigma", None)
