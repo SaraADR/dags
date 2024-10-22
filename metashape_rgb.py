@@ -1,16 +1,22 @@
 import base64
+import json
 import os
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from flask import Config
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
+import boto3
+from PIL import Image
+import os
+
 
 
 
@@ -22,9 +28,6 @@ def convertir_coords(epsg_input,south, west, north, east):
     logging.info(f"Convirtiendo coordenadas de EPSG:{epsg_input} a EPSG:4326.")
     logging.info(f"Coordenadas antes de la conversión: sur={south}, oeste={west}, norte={north}, este={east}")
     
-    # Entrada: EPSG de la proyección origen, en formato cadena (e.g., "32629")
-    # epsg_input = "32629"  # UTM Zona 29 Norte
-
 
     # Crear objetos Proj para las proyecciones
     # Proyección de origen basada en la cadena EPSG "32629"
@@ -51,6 +54,92 @@ def convertir_coords(epsg_input,south, west, north, east):
     return south2, west2, north2, east2
 
     
+import os
+import base64
+import tempfile
+import uuid
+import json
+import boto3
+from botocore.config import Config
+from airflow.hooks.base_hook import BaseHook
+from PIL import Image
+
+def up_to_minio(temp_dir, filename, key):
+    try:
+        # Conexión a MinIO
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=boto3.session.Config(signature_version='s3v4')
+        )
+        bucket_name = 'metashapetiffs'
+        
+        local_file_path = os.path.join(temp_dir, filename)
+
+        if os.path.isfile(local_file_path):
+            s3_client.upload_file(local_file_path, bucket_name, f"{key}.jpg")
+            file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{key}.jpg"
+            logging.info(f"Archivo {filename} subido correctamente a MinIO con URL: {file_url}")
+            return file_url
+
+    except Exception as e:
+        logging.error(f"Error al subir archivos a MinIO: {str(e)}")
+        return None
+
+
+def tiff_to_jpg(tiff_path, jpg_path):
+    try:
+        with Image.open(tiff_path) as img:
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            img.save(jpg_path, 'JPEG')
+            logging.info(f"Archivo convertido y guardado como {jpg_path}")
+    except Exception as e:
+        logging.error(f"Error al convertir TIFF a JPG: {e}")
+
+
+
+
+
+def upload_miniature(**kwargs):
+    files = kwargs['dag_run'].conf.get('otros', [])
+    array_files = []
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        for file in files:
+            file_name = file['file_name']
+
+            if not (file_name.endswith('.tif') or file_name.endswith('.tiff')):
+                continue
+
+            file_content = base64.b64decode(file['content'])
+            temp_file_path = os.path.join(temp_dir, file_name)
+
+            with open(temp_file_path, 'wb') as temp_file:
+                temp_file.write(file_content)
+
+            logging.info(f"Archivo guardado temporalmente en: {temp_file_path}")
+
+            unique_key = str(uuid.uuid4())
+            file_jpg_name = f"{unique_key}.jpg"
+            temp_jpg_path = os.path.join(temp_dir, file_jpg_name)
+
+            tiff_to_jpg(temp_file_path, temp_jpg_path)
+            file_url = up_to_minio(temp_dir, file_jpg_name, unique_key)
+
+            array_files.append({'name': file_name, 'url': file_url})
+
+    return array_files
+
+
+# Ejemplo de uso:
+# dag_run.conf['otros'] sería el array de archivos
+# El contenido debe estar en base64
+
 
 # Función para generar el XML
 def generate_xml(**kwargs):
@@ -94,6 +183,9 @@ def generate_xml(**kwargs):
     # Función de conversión (debe estar definida en tu código)
     west_bound,south_bound,east_bound,north_bound= convertir_coords (coordinate_system, south_bound_pre,west_bound_pre,north_bound_pre, east_bound_pre)
 
+
+    file_url_array = kwargs['ti'].xcom_pull(task_ids='upload_miniature')
+
     # Procesar recursos de salida
     for resource in executionResources:
         if resource['output'] == False:
@@ -118,6 +210,14 @@ def generate_xml(**kwargs):
         # Datos para el XML
         layer_name = identifier
         title = identifier
+
+        # Obtener la URL de la miniatura correspondiente
+        matching_url = next((file['url'] for file in file_url_array if file['name'] == resource['path']), None)
+        
+        if matching_url:
+            logging.info(f"Miniatura encontrada para {identifier}: {matching_url}")
+        else:
+            logging.warning(f"No se encontró una miniatura para {identifier}")
         
 
       # JSON dinámico con los valores correspondientes
@@ -147,7 +247,9 @@ def generate_xml(**kwargs):
             protocol=protocol,
             wms_link=wms_link,
             layer_name=layer_name,
-            layer_description=layer_description
+            layer_description=layer_description,
+            miniature_url=matching_url  # Pasa la URL de la miniatura
+
         )
 
         if tree is None:
@@ -215,6 +317,7 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
+        file_url_array = context['ti'].xcom_pull(task_ids='upload_miniature')
 
         for xml_data in xml_data_array:
         
@@ -269,7 +372,7 @@ def upload_to_geonetwork(**context):
 
 
 # Función para crear el XML metadata
-def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description, miniature_url):
     logging.info("Iniciando la creación del XML.")
 
     root = ET.Element("gmd:MD_Metadata", {
@@ -468,6 +571,8 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
+    fileName.text = miniature_url  # Aquí se agrega la URL de la miniatura
+
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
@@ -753,6 +858,14 @@ dag = DAG(
 generate_xml_task = PythonOperator(
     task_id='generate_xml',
     python_callable=generate_xml,
+    provide_context=True,
+    dag=dag
+)
+
+# Tarea 2: Subir miniatura
+upload_miniature_task = PythonOperator(
+    task_id='upload_miniature',
+    python_callable=upload_miniature,
     provide_context=True,
     dag=dag
 )
