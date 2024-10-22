@@ -13,6 +13,8 @@ import re
 import json
 import boto3
 from botocore.client import Config
+from airflow.hooks.base import BaseHook
+
 
 # Configurar la URL de GeoNetwork
 geonetwork_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api"
