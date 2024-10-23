@@ -4,7 +4,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
-
+import uuid
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
@@ -32,10 +32,10 @@ def sendEmail(message, **kwargs):
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
 
-
+        unique_id = uuid.uuid4()
         conf = {'message': msg_json}
         trigger_dag_run = TriggerDagRunOperator(
-            task_id=f'trigger_email_handler_inner',
+            task_id=str(unique_id),
             trigger_dag_id='send_email_plantilla',
             conf=conf,
             execution_date=datetime.now().replace(tzinfo=timezone.utc),
