@@ -62,7 +62,7 @@ dag = DAG(
     'kafka_consumer_notificaciones_dag',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG si destination=email',
-    schedule_interval=None, 
+    schedule_interval='*/1 * * * *',
     catchup=False,
     is_paused_upon_creation=False, 
     max_active_runs=1  #
