@@ -1,22 +1,16 @@
 import base64
-import json
 import os
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from flask import Config
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
-import boto3
-from PIL import Image
-import os
-
 
 
 
@@ -28,6 +22,9 @@ def convertir_coords(epsg_input,south, west, north, east):
     logging.info(f"Convirtiendo coordenadas de EPSG:{epsg_input} a EPSG:4326.")
     logging.info(f"Coordenadas antes de la conversión: sur={south}, oeste={west}, norte={north}, este={east}")
     
+    # Entrada: EPSG de la proyección origen, en formato cadena (e.g., "32629")
+    # epsg_input = "32629"  # UTM Zona 29 Norte
+
 
     # Crear objetos Proj para las proyecciones
     # Proyección de origen basada en la cadena EPSG "32629"
@@ -54,110 +51,6 @@ def convertir_coords(epsg_input,south, west, north, east):
     return south2, west2, north2, east2
 
     
-import os
-import base64
-import tempfile
-import uuid
-import json
-import boto3
-from botocore.config import Config
-from airflow.hooks.base_hook import BaseHook
-from PIL import Image
-
-def up_to_minio(temp_dir, filename, key):
-    try:
-        # Conexión a MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
-        bucket_name = 'metashapetiffs'
-        
-        # Ruta completa del archivo local a subir
-        local_file_path = os.path.join(temp_dir, filename)
-
-        # Verificar que es un archivo
-        if os.path.isfile(local_file_path):
-            # Subir el archivo a MinIO
-            s3_client.upload_file(local_file_path, bucket_name, f"{key}.jpg")
-            print(f"Archivo {filename} subido correctamente a MinIO.")
-            
-            # Generar la URL del archivo subido
-            file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{key}.jpg"
-            print(f"URL: {file_url}")
-            return file_url
-
-    except Exception as e:
-        print(f"Error al subir archivos a MinIO: {str(e)}")
-        return None
-
-def tiff_to_jpg(tiff_path, jpg_path):
-    try:
-        # Abrir el archivo TIFF
-        with Image.open(tiff_path) as img:
-            # Convertir a modo RGB si no está en ese modo
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
-            
-            # Guardar el archivo como JPG
-            img.save(jpg_path, 'JPEG')
-        
-        print(f"Archivo convertido y guardado como {jpg_path}")
-
-    except Exception as e:
-        print(f"Error al convertir TIFF a JPG: {e}")
-
-def upload_miniature(**kwargs):
-    files = kwargs['dag_run'].conf.get('otros', [])
-    array_files = []
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        for file in files:
-            file_name = file['file_name']
-
-            # Si el archivo no termina en .tif o .tiff, continúa con el siguiente archivo
-            if not (file_name.endswith('.tif') or file_name.endswith('.tiff')):
-                continue
-
-            # Decodificar el contenido del archivo desde base64
-            file_content = base64.b64decode(file['content'])
-
-            # Crear la ruta completa del archivo dentro del directorio temporal
-            temp_file_path = os.path.join(temp_dir, file_name)
-
-            # Guardar el contenido en el archivo temporal
-            with open(temp_file_path, 'wb') as temp_file:
-                temp_file.write(file_content)
-
-            print(f"Archivo guardado temporalmente en: {temp_file_path}")
-
-            # Generar un UUID para el archivo convertido a JPG
-            unique_key = str(uuid.uuid4())
-
-            # Crear ruta para el archivo JPG
-            file_jpg_name = f"{unique_key}.jpg"
-            temp_jpg_path = os.path.join(temp_dir, file_jpg_name)
-
-            # Convertir TIFF a JPG
-            tiff_to_jpg(temp_file_path, temp_jpg_path)
-
-            # Subir el archivo JPG a MinIO y obtener la URL
-            file_url = up_to_minio(temp_dir, file_jpg_name, unique_key)
-
-            # Añadir nombre y URL al array de archivos
-            array_files.append({'name': file_name, 'url': file_url})
-
-    return array_files
-
-# Ejemplo de uso:
-# dag_run.conf['otros'] sería el array de archivos
-# El contenido debe estar en base64
-
 
 # Función para generar el XML
 def generate_xml(**kwargs):
@@ -280,6 +173,23 @@ def generate_xml(**kwargs):
     return xml_encoded
 
 
+ # JSON content as before
+    # json_content = {
+    #     'fileIdentifier': 'Ortomosaico_testeo',
+    #     'dateStamp': datetime.now().isoformat(), cada uno 
+    #     'title': 'Ortomosaico_0026_404_611271',
+    #     'publicationDate': '2024-07-29',
+    #     'boundingBox': {
+    #         'westBoundLongitude': '-7.6392',
+    #         'eastBoundLongitude': '-7.6336',
+    #         'southBoundLatitude': '42.8025',
+    #         'northBoundLatitude': '42.8044'
+    #     },
+    #     'spatialResolution': '0.026',  # Resolución espacial en metros
+    #     'layerName': 'a__0026_4740004_611271',
+    #     'layerDescription': 'Capa 0026 de prueba'
+    # }
+
 
 
 # Función para obtener las credenciales de GeoNetwork
@@ -322,7 +232,6 @@ def upload_to_geonetwork(**context):
 
         # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
-        file_url_array = context['ti'].xcom_pull(task_ids='upload_miniature')
 
         for xml_data in xml_data_array:
         
@@ -732,7 +641,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_
     "codeList": "http://www.loc.gov/standards/iso639-2/",
     "codeListValue": "spa"
     
-    })
+})
     lang_code.text = "Idioma"
 
     # Añadir extent (bounding box)
@@ -861,14 +770,6 @@ dag = DAG(
 generate_xml_task = PythonOperator(
     task_id='generate_xml',
     python_callable=generate_xml,
-    provide_context=True,
-    dag=dag
-)
-
-# Tarea 2: Subir miniatura
-upload_miniature_task = PythonOperator(
-    task_id='upload_miniature',
-    python_callable=upload_miniature,
     provide_context=True,
     dag=dag
 )
