@@ -6,7 +6,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import datetime
 from airflow import DAG
-from sqlalchemy import create_engine, Table, MetaData
+from sqlalchemy import create_engine, Table, MetaData, text
 
 
 def check_jobs_status(**context):
@@ -92,6 +92,85 @@ def change_state_job(**context):
 
  
 
+def generate_notify_job(**context):
+    message = context['dag_run'].conf
+    input_data_str = message['message']['input_data']
+
+    input_data = json.loads(input_data_str)
+    video_id = input_data['video_id']
+    
+
+    #Buscamos la carpeta correspondiente
+    try:
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        query = text("""
+            SELECT mi.mission_id
+            FROM missions.mss_mission_inspection mi
+            JOIN missions.mss_inspection_video vp ON vp.mission_inspection_id = mi.id               
+            WHERE vp.id = :video_id;
+        """)
+        result = session.execute(query, {'video_id': video_id})
+        row = result.fetchone()
+        if row is not None:
+            mission_id = row[0]
+            print(f"Resource ID: {mission_id}")
+        else:
+            mission_id = None
+            print("No se encontró el mission_id por lo que no se puede completar la notificación")
+            return None
+
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante la busqueda del mission_inspection: {str(e)}")
+    finally:
+        session.close()
+
+    if mission_id is not None:
+        #Añadimos notificacion
+        
+        try:
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
+
+            data_json = json.dumps({
+                "to":"all_users",
+                "actions":[{
+                    "type":"reloadMission",
+                    "data":{
+                        "missionId":mission_id
+                    }
+                }]
+            })
+            time = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc)
+
+            query = text("""
+                INSERT INTO public.notifications
+                (destination, "data", "date", status)
+                VALUES (:destination, :data, :date, NULL);
+            """)
+            session.execute(query, {
+                'destination': 'inspection',
+                'data': data_json,
+                'date': time
+            })
+            session.commit()
+
+        except Exception as e:
+            session.rollback()
+            print(f"Error durante la inserción de la notificación: {str(e)}")
+        finally:
+            session.close()
+
+
+
 
 default_args = {
     'owner': 'sadr',
@@ -136,5 +215,14 @@ change_state_task = PythonOperator(
     dag=dag,
 )
 
+#Generar notificación de vuelta
+generate_notify = PythonOperator(
+    task_id='generate_notify_job',
+    python_callable=generate_notify_job,
+    provide_context=True,
+    dag=dag,
+)
+
+
 # Definir dependencias
-wait_for_jobs_sensor >> update_video_task >> change_state_task
+wait_for_jobs_sensor >> update_video_task >> change_state_task >> generate_notify
