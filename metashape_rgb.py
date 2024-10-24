@@ -224,6 +224,8 @@ def generate_xml(**kwargs):
         file_name = os.path.basename(resource['path'])
         miniature_url = next((item['url'] for item in file_url_array if item['name'] == file_name), None)
 
+        logging.info(miniature_url)
+
         logging.info (file_name)
 
         logging.info(f"Procesando recurso con identifier={identifier} y resolución={spatial_resolution}")
@@ -585,7 +587,7 @@ def creador_xml_metadata(file_identifier,miniature_url, specificUsage, wmsLayer,
     graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
-    fileName.text = miniature_url
+    fileName.text = "https://www.guiarepsol.com/content/dam/repsol-guia/contenidos-imagenes/viajar/vamos-de-excursion/diez-curiosidades-de-las-islas-cies-pontevedra/gr-cms-media-featured_images-2413-2718197a-5d86-4924-abcb-dd795c693ce7-illas-cies-61.jpg.transform/rp-rendition-md/image.jpg"
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
