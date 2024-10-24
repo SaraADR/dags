@@ -127,7 +127,7 @@ def upload_miniature(**kwargs):
 
             # Decodificar el contenido del archivo desde base64
             file_content = base64.b64decode(file['content'])
-            logging (f"Nombre del fichero Messi: {file_name}")
+            logging (file_name)
 
             # Crear la ruta completa del archivo dentro del directorio temporal
             temp_file_path = os.path.join(temp_dir, file_name)
