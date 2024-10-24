@@ -235,8 +235,7 @@ def generate_xml(**kwargs):
 
         # Datos para el XML
         layer_name = identifier
-        title = identifier
-        
+        title = identifier       
 
       # JSON dinámico con los valores correspondientes
         wms_link = algoritm_result['executionResources'][0]['path']  # Link de WMS para este recurso específico
@@ -388,7 +387,7 @@ def upload_to_geonetwork(**context):
 
 
 # Función para crear el XML metadata
-def creador_xml_metadata(file_identifier,miniature_url, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
     logging.info("Iniciando la creación del XML.")
 
     root = ET.Element("gmd:MD_Metadata", {
@@ -588,7 +587,7 @@ def creador_xml_metadata(file_identifier,miniature_url, specificUsage, wmsLayer,
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
-    gco_characterString.text = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT2IQeZG-L73uzPS2NGRTllORnJOotuTTtXng&s"
+    gco_characterString.text = miniature_url
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
     fileType = ET.SubElement(md_browse_graphic, "gmd:fileType")
