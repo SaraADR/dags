@@ -584,30 +584,17 @@ def creador_xml_metadata(file_identifier,miniature_url, specificUsage, wmsLayer,
     })
 
     # Añadir graphicOverview
-    import xml.etree.ElementTree as ET
-
-    # Suponiendo que ya tienes definido `md_data_identification` y el contexto de tu XML.
-
-    # Añadir graphicOverview
     graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
-
-    # Añadir URL a fileName
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
-    gco_characterString_filename = ET.SubElement(fileName, "gco:CharacterString")
-    gco_characterString_filename.text = miniature_url  # URL de la imagen
-
-    # Añadir descripción a fileDescription
+    gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
+    gco_characterString.text = miniature_url
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
-    gco_characterString_description = ET.SubElement(fileDescription, "gco:CharacterString")
-    gco_characterString_description.text = "Descripción de la imagen"
-
-    # Añadir tipo de archivo a fileType
+    gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
     fileType = ET.SubElement(md_browse_graphic, "gmd:fileType")
-    gco_characterString_fileType = ET.SubElement(fileType, "gco:CharacterString")
-    gco_characterString_fileType.text = "image/jpg"  # Tipo de archivo de la imagen
-
+    gco_characterString = ET.SubElement(fileType, "gco:CharacterString")
     
+
     # Añadir descriptiveKeywords (primero)
     descriptiveKeywords = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
     md_keywords = ET.SubElement(descriptiveKeywords, "gmd:MD_Keywords")
