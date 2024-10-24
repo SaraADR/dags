@@ -127,6 +127,7 @@ def upload_miniature(**kwargs):
 
             # Decodificar el contenido del archivo desde base64
             file_content = base64.b64decode(file['content'])
+            logging ("Nombre del fichero Messi:",file_content)
 
             # Crear la ruta completa del archivo dentro del directorio temporal
             temp_file_path = os.path.join(temp_dir, file_name)
@@ -135,7 +136,7 @@ def upload_miniature(**kwargs):
             with open(temp_file_path, 'wb') as temp_file:
                 temp_file.write(file_content)
 
-            print(f"Archivo guardado temporalmente en: {temp_file_path}")
+            logging(f"Archivo guardado temporalmente en: {temp_file_path}")
 
             # Generar un UUID para el archivo convertido a JPG
             unique_key = str(uuid.uuid4())
