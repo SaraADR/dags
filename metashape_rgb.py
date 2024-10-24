@@ -586,7 +586,7 @@ def creador_xml_metadata(file_identifier,miniature_url, specificUsage, wmsLayer,
     # Añadir graphicOverview
     graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
-    md_browse_graphic.text = miniature_url
+    md_browse_graphic.text = "https://www.guiarepsol.com/content/dam/repsol-guia/contenidos-imagenes/viajar/vamos-de-excursion/diez-curiosidades-de-las-islas-cies-pontevedra/gr-cms-media-featured_images-2413-2718197a-5d86-4924-abcb-dd795c693ce7-illas-cies-61.jpg.transform/rp-rendition-md/image.jpg"
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
