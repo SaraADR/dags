@@ -76,21 +76,12 @@ def up_to_minio(temp_dir, filename):
         )
         bucket_name = 'metashapetiffs'
         
-        # Verificar si el bucket existe, si no lo crea
-        try:
-            s3_client.head_bucket(Bucket=bucket_name)
-            print(f"El bucket {bucket_name} ya existe.")
-        except Exception as e:
-            # Si el bucket no existe, lo creamos
-            print(f"El bucket {bucket_name} no existe, creando uno nuevo.")
-            s3_client.create_bucket(Bucket=bucket_name)
-            print(f"Bucket {bucket_name} creado correctamente.")
-
         # Ruta completa del archivo local a subir
         local_file_path = os.path.join(temp_dir, filename)
 
         # Verificar que es un archivo
         if os.path.isfile(local_file_path):
+
             # Subir el archivo a MinIO
             s3_client.upload_file(local_file_path, bucket_name, f"{filename}")
             print(f"Archivo {filename} subido correctamente a MinIO.")
@@ -103,7 +94,6 @@ def up_to_minio(temp_dir, filename):
     except Exception as e:
         print(f"Error al subir archivos a MinIO: {str(e)}")
         return None
-
 
 
 def tiff_to_jpg(tiff_path, jpg_path):
@@ -138,16 +128,19 @@ def upload_miniature(**kwargs):
 
             # Decodificar el contenido del archivo desde base64
             file_content = base64.b64decode(file['content'])
-            logging.info (file_name)
+            logging.info(file_name)
 
             # Crear la ruta completa del archivo dentro del directorio temporal
             temp_file_path = os.path.join(temp_dir, file_name)
+
+            # Asegurarse de que la estructura del directorio existe
+            os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
 
             # Guardar el contenido en el archivo temporal
             with open(temp_file_path, 'wb') as temp_file:
                 temp_file.write(file_content)
 
-            logging(f"Archivo guardado temporalmente en: {temp_file_path}")
+            logging.info(f"Archivo guardado temporalmente en: {temp_file_path}")
 
             # Generar un UUID para el archivo convertido a JPG
             unique_key = str(uuid.uuid4())
@@ -164,9 +157,9 @@ def upload_miniature(**kwargs):
 
             # Añadir nombre y URL al array de archivos
             array_files.append({'name': file_name, 'url': file_url})
-            
 
     return array_files
+
 
 
 # Función para generar el XML
