@@ -156,7 +156,7 @@ def upload_miniature(**kwargs):
             file_url = up_to_minio(temp_dir, file_jpg_name)
 
             # Añadir nombre y URL al array de archivos
-            array_files.append({'name': file_name, 'url': file_url})
+            array_files.append({'name': os.path.basename(file_name), 'url': file_url})
 
     return array_files
 
