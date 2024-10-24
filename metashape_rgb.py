@@ -878,7 +878,7 @@ upload_miniature_task = PythonOperator(
     dag=dag
 )
 
-# Tarea 2: Subir el XML a GeoNetwork
+# Tarea 3: Subir el XML a GeoNetwork
 upload_xml_task = PythonOperator(
     task_id='upload_to_geonetwork',
     python_callable=upload_to_geonetwork,
@@ -887,4 +887,4 @@ upload_xml_task = PythonOperator(
 )
 
 # Definir el flujo de las tareas
-generate_xml_task >> upload_xml_task
+generate_xml_task >> upload_miniature_task >> upload_xml_task
