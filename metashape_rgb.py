@@ -591,7 +591,7 @@ def creador_xml_metadata(file_identifier,miniature_url, specificUsage, wmsLayer,
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
-    gco_characterString.text = miniature_url
+    gco_characterString.text = "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.motyvel.com%2Fislas-cies-fondeo-en-las-mejores-playas-del-mundo%2F&psig=AOvVaw0tLdPcN1lKxl-8pRBK3K7Q&ust=1729857180514000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCLD72Kf6pokDFQAAAAAdAAAAABAE"
     fileType = ET.SubElement(md_browse_graphic, "gmd:fileType")
     gco_characterString = ET.SubElement(fileType, "gco:CharacterString")
     gco_characterString.text = "image/jpeg"
