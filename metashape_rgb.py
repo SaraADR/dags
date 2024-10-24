@@ -416,6 +416,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     lang_code = ET.SubElement(language, "gmd:LanguageCode", {
         "codeList": "http://www.loc.gov/standards/iso639-2/",
         "codeListValue": "spa"
+        
     })
     
         # Padre gmd:descriptiveKeywords
@@ -733,19 +734,20 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     gco_distance = ET.SubElement(distance, "gco:Distance", {"uom": "metros"})
     gco_distance.text = "0.026"
 
+    
+    # Añadir language
+    language = ET.SubElement(root, "gmd:language")
+    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
+        "codeList": "http://www.loc.gov/standards/iso639-2/",
+        "codeListValue": "spa"
+        
+    })
     # Añadir topicCategory
     topicCategory = ET.SubElement(md_data_identification, "gmd:topicCategory")
     topicCategoryCode = ET.SubElement(topicCategory, "gmd:MD_TopicCategoryCode")
     topicCategoryCode.text = "imageryBaseMapsEarthCover"
 
-    # Añadir language
-    language = ET.SubElement(root, "gmd:language")
-    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
-    "codeList": "http://www.loc.gov/standards/iso639-2/",
-    "codeListValue": "spa"
-    
-    })
-    lang_code.text = "Idioma"
+   
 
     # Añadir extent (bounding box)
     extent = ET.SubElement(md_data_identification, "gmd:extent")
