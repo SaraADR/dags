@@ -887,4 +887,4 @@ upload_xml_task = PythonOperator(
 )
 
 # Definir el flujo de las tareas
-generate_xml_task >> upload_miniature_task >> upload_xml_task
+upload_miniature_task >> generate_xml_task>> upload_xml_task
