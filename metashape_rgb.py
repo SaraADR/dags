@@ -76,6 +76,16 @@ def up_to_minio(temp_dir, filename):
         )
         bucket_name = 'metashapetiffs'
         
+        # Verificar si el bucket existe, si no lo crea
+        try:
+            s3_client.head_bucket(Bucket=bucket_name)
+            print(f"El bucket {bucket_name} ya existe.")
+        except Exception as e:
+            # Si el bucket no existe, lo creamos
+            print(f"El bucket {bucket_name} no existe, creando uno nuevo.")
+            s3_client.create_bucket(Bucket=bucket_name)
+            print(f"Bucket {bucket_name} creado correctamente.")
+
         # Ruta completa del archivo local a subir
         local_file_path = os.path.join(temp_dir, filename)
 
@@ -93,6 +103,7 @@ def up_to_minio(temp_dir, filename):
     except Exception as e:
         print(f"Error al subir archivos a MinIO: {str(e)}")
         return None
+
 
 
 def tiff_to_jpg(tiff_path, jpg_path):
