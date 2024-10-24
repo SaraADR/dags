@@ -223,6 +223,8 @@ def generate_xml(**kwargs):
 
         file_name = os.path.basename(resource['path'])
         miniature_url = next((item['url'] for item in file_url_array if item['name'] == file_name), None)
+        
+        logging.info(file_url_array)
 
         logging.info(miniature_url)
 
