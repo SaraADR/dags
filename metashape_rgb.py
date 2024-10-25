@@ -629,14 +629,16 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
         "codeListValue": "publication"
     })
 
-    # Añadir la segunda sección de descriptiveKeywords
+        # Añadir la segunda sección de descriptiveKeywords
     descriptiveKeywords2 = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
     md_keywords2 = ET.SubElement(descriptiveKeywords2, "gmd:MD_Keywords")
+
+    # Añadir keyword con Anchor
     keyword_anchor = ET.SubElement(md_keywords2, "gmd:keyword")
-    gmx_anchor2 = ET.SubElement(keyword_anchor, "gmx:Ortoimágenes", {
+    gmx_anchor2 = ET.SubElement(keyword_anchor, "gmx:Anchor", {
         "xlink:href": "http://inspire.ec.europa.eu/theme/oi"
     })
-    gmx_anchor2.text = "Ortoimágenes"
+    gmx_anchor2.text = "Orthoimagery"
 
     # Añadir type
     gmd_type2 = ET.SubElement(md_keywords2, "gmd:type")
@@ -727,12 +729,12 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     gco_distance = ET.SubElement(distance, "gco:Distance", {"uom": "metros"})
     gco_distance.text = "0.026"
 
-    
 
     # Añadir categories (categoría) dentro de MD_DataIdentification
     topicCategory = ET.SubElement(md_data_identification, "gmd:topicCategory")
     topicCategoryCode = ET.SubElement(topicCategory, "gmd:MD_TopicCategoryCode")
     topicCategoryCode.text = "imageryBaseMapsEarthCover"
+
 
     # Añadir language (idioma) después de las categorías en MD_DataIdentification
     language = ET.SubElement(md_data_identification, "gmd:language")
@@ -742,8 +744,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     })
     lang_code.text = "Spanish"
 
-
-   
 
     # Añadir extent (bounding box)
     extent = ET.SubElement(md_data_identification, "gmd:extent")
