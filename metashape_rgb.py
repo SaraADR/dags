@@ -592,6 +592,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 
     # Añadir descriptiveKeywords (primero)
     descriptiveKeywords = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
+    descriptiveKeywords.text = "Ortomosáico"
     md_keywords = ET.SubElement(descriptiveKeywords, "gmd:MD_Keywords")
     keywords = ["photogrametry", "burst", "orthomosaic", "RGB", "aerial-photography", "Opendata"]
 
@@ -629,16 +630,14 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
         "codeListValue": "publication"
     })
 
-        # Añadir la segunda sección de descriptiveKeywords
+    # Añadir la segunda sección de descriptiveKeywords
     descriptiveKeywords2 = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
     md_keywords2 = ET.SubElement(descriptiveKeywords2, "gmd:MD_Keywords")
-
-    # Añadir keyword con Anchor
     keyword_anchor = ET.SubElement(md_keywords2, "gmd:keyword")
     gmx_anchor2 = ET.SubElement(keyword_anchor, "gmx:Anchor", {
         "xlink:href": "http://inspire.ec.europa.eu/theme/oi"
     })
-    gmx_anchor2.text = "Orthoimagery"
+    gmx_anchor2.text = "Ortoimágenes"
 
     # Añadir type
     gmd_type2 = ET.SubElement(md_keywords2, "gmd:type")
@@ -728,7 +727,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     distance = ET.SubElement(md_resolution, "gmd:distance")
     gco_distance = ET.SubElement(distance, "gco:Distance", {"uom": "metros"})
     gco_distance.text = "0.026"
-
+    
 
     # Añadir categories (categoría) dentro de MD_DataIdentification
     topicCategory = ET.SubElement(md_data_identification, "gmd:topicCategory")
