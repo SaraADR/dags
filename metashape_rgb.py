@@ -411,14 +411,15 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     fid_cs = ET.SubElement(fid, "gco:CharacterString")
     fid_cs.text = str(file_identifier)
 
-    # Añadir language
-    language = ET.SubElement(root, "gmd:language")
+    # Añadir language (idioma) después de las categorías en MD_DataIdentification
+    language = ET.SubElement(md_data_identification, "gmd:language")
     lang_code = ET.SubElement(language, "gmd:LanguageCode", {
         "codeList": "http://www.loc.gov/standards/iso639-2/",
         "codeListValue": "spa"
-        
     })
-    
+    lang_code.text = "Spanish"
+
+
         # Padre gmd:descriptiveKeywords
     gmd_descriptiveKeywords = ET.SubElement(root, "gmd:descriptiveKeywords")
 
@@ -742,10 +743,18 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
         "codeListValue": "spa"
         
     })
-    # Añadir topicCategory
+    # Añadir categories (categoría) dentro de MD_DataIdentification
     topicCategory = ET.SubElement(md_data_identification, "gmd:topicCategory")
     topicCategoryCode = ET.SubElement(topicCategory, "gmd:MD_TopicCategoryCode")
     topicCategoryCode.text = "imageryBaseMapsEarthCover"
+
+    # Añadir language (idioma) después de las categorías en MD_DataIdentification
+    language = ET.SubElement(md_data_identification, "gmd:language")
+    lang_code = ET.SubElement(language, "gmd:LanguageCode", {
+        "codeList": "http://www.loc.gov/standards/iso639-2/",
+        "codeListValue": "spa"
+    })
+    lang_code.text = "Spanish"
 
    
 
