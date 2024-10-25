@@ -636,14 +636,38 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
         "codeListValue": "publication"
     })
 
-    # Añadir la segunda sección de descriptiveKeywords
-    descriptiveKeywords2 = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
+        # Crear el elemento raíz del XML
+    root = ET.Element("gmd:MD_DataIdentification")
+
+    # Primera sección de descriptiveKeywords
+    descriptiveKeywords1 = ET.SubElement(root, "gmd:descriptiveKeywords")
+    md_keywords1 = ET.SubElement(descriptiveKeywords1, "gmd:MD_Keywords")
+    keyword1 = ET.SubElement(md_keywords1, "gmd:keyword", attrib={"xsi:type": "gmd:PT_FreeText_PropertyType"})
+
+    # Añadir el texto principal del keyword
+    character_string1 = ET.SubElement(keyword1, "gco:CharacterString")
+    character_string1.text = "Geología general.geología"
+
+    # Añadir el elemento gmd:PT_FreeText
+    pt_free_text1 = ET.SubElement(keyword1, "gmd:PT_FreeText")
+
+    # Añadir el elemento gmd:textGroup dentro de gmd:PT_FreeText
+    text_group1 = ET.SubElement(pt_free_text1, "gmd:textGroup")
+
+    # Añadir el elemento gmd:LocalisedCharacterString dentro de gmd:textGroup
+    localised_character_string1 = ET.SubElement(text_group1, "gmd:LocalisedCharacterString", attrib={"locale": "#EN"})
+    localised_character_string1.text = "Geology"
+
+    # Segunda sección de descriptiveKeywords
+    descriptiveKeywords2 = ET.SubElement(root, "gmd:descriptiveKeywords")
     md_keywords2 = ET.SubElement(descriptiveKeywords2, "gmd:MD_Keywords")
     keyword_anchor = ET.SubElement(md_keywords2, "gmd:keyword")
+
+    # Añadir el elemento gmx:Anchor con el enlace y el texto "Ortoimágenes"
     gmx_anchor2 = ET.SubElement(keyword_anchor, "gmx:Anchor", {
         "xlink:href": "http://inspire.ec.europa.eu/theme/oi"
     })
-    gmx_anchor2.text = "Ortoimágenes"
+    gmx_anchor2.text = "Ortoimágenes"  # Texto conservado como pediste
 
     # Añadir type
     gmd_type2 = ET.SubElement(md_keywords2, "gmd:type")
