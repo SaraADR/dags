@@ -636,44 +636,42 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
         "codeListValue": "publication"
     })
 
-        # Create the root element for metadata
-    descriptiveKeywords = ET.Element("gmd:descriptiveKeywords", xmlns="http://www.isotc211.org/2005/gmd")
+    # Añadir la segunda sección de descriptiveKeywords
+    descriptiveKeywords2 = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
+    md_keywords2 = ET.SubElement(descriptiveKeywords2, "gmd:MD_Keywords")
+    keyword_anchor = ET.SubElement(md_keywords2, "gmd:keyword")
+    gmx_anchor2 = ET.SubElement(keyword_anchor, "gmx:Anchor", {
+        "xlink:href": "http://inspire.ec.europa.eu/theme/oi"
+    })
+    gmx_anchor2.text = "Ortoimágenes"
 
-    # Add MD_Keywords
-    md_keywords = ET.SubElement(descriptiveKeywords, "gmd:MD_Keywords")
-
-    # Add keyword element
-    keyword = ET.SubElement(md_keywords, "gmd:keyword")
-    anchor = ET.SubElement(keyword, "gmx:Anchor", {"xlink:href": "http://inspire.ec.europa.eu/theme/oi"})
-    anchor.text = "Ortoimágenes"
-
-    # Add type element
-    type_element = ET.SubElement(md_keywords, "gmd:type")
-    md_keyword_type = ET.SubElement(type_element, "gmd:MD_KeywordTypeCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_KeywordTypeCode",
+    # Añadir type
+    gmd_type2 = ET.SubElement(md_keywords2, "gmd:type")
+    gmd_MD_KeywordTypeCode2 = ET.SubElement(gmd_type2, "gmd:MD_KeywordTypeCode", {
+        "codeList": "https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_KeywordTypeCode",
         "codeListValue": "theme"
     })
 
-    # Add thesaurusName element
-    thesaurus_name = ET.SubElement(md_keywords, "gmd:thesaurusName")
-    ci_citation = ET.SubElement(thesaurus_name, "gmd:CI_Citation")
+    # Añadir thesaurusName
+    thesaurusName2 = ET.SubElement(md_keywords2, "gmd:thesaurusName")
+    ci_citation2 = ET.SubElement(thesaurusName2, "gmd:CI_Citation")
+    gmd_title2 = ET.SubElement(ci_citation2, "gmd:title")
+    gmx_anchor3 = ET.SubElement(gmd_title2, "gmx:Anchor", {
+        "xlink:href": "http://www.eionet.europa.eu/gemet/inspire_themes"
+    })
+    gmx_anchor3.text = "Temas INSPIRE"
 
-    # Add title
-    title = ET.SubElement(ci_citation, "gmd:title")
-    title_anchor = ET.SubElement(title, "gmx:Anchor", {"xlink:href": "http://www.eionet.europa.eu/gemet/inspire_themes"})
-    title_anchor.text = "GEMET - INSPIRE themes, version 1.0"
+    # Añadir date
+    gmd_date2 = ET.SubElement(ci_citation2, "gmd:date")
+    ci_date2 = ET.SubElement(gmd_date2, "gmd:CI_Date")
+    gmd_date_inner2 = ET.SubElement(ci_date2, "gmd:date")
+    gco_Date2 = ET.SubElement(gmd_date_inner2, "gco:Date")
+    gco_Date2.text = "2008-06-01"
 
-    # Add date
-    date_element = ET.SubElement(ci_citation, "gmd:date")
-    ci_date = ET.SubElement(date_element, "gmd:CI_Date")
-    date_value = ET.SubElement(ci_date, "gmd:date")
-    date_text = ET.SubElement(date_value, "gco:Date")
-    date_text.text = "2008-06-01"
-
-    # Add dateType
-    date_type = ET.SubElement(ci_date, "gmd:dateType")
-    ci_date_type = ET.SubElement(date_type, "gmd:CI_DateTypeCode", {
-        "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode",
+    # Añadir dateType
+    date_type2 = ET.SubElement(ci_date2, "gmd:dateType")
+    gmd_CI_DateTypeCode3 = ET.SubElement(date_type2, "gmd:CI_DateTypeCode", {
+        "codeList": "https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode",
         "codeListValue": "publication"
     })
 
