@@ -633,7 +633,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     descriptiveKeywords2 = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
     md_keywords2 = ET.SubElement(descriptiveKeywords2, "gmd:MD_Keywords")
     keyword_anchor = ET.SubElement(md_keywords2, "gmd:keyword")
-    gmx_anchor2 = ET.SubElement(keyword_anchor, "gmx:Anchor", {
+    gmx_anchor2 = ET.SubElement(keyword_anchor, "gmx:Ortoimágenes", {
         "xlink:href": "http://inspire.ec.europa.eu/theme/oi"
     })
     gmx_anchor2.text = "Ortoimágenes"
