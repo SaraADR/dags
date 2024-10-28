@@ -62,7 +62,7 @@
 #     return south2, west2, north2, east2
 
 
-# def up_to_minio(temp_dir, filename, key):
+# def up_to_minio(temp_dir, filename):
 #     try:
 #         # Conexión a MinIO
 #         connection = BaseHook.get_connection('minio_conn')
@@ -82,11 +82,11 @@
 #         # Verificar que es un archivo
 #         if os.path.isfile(local_file_path):
 #             # Subir el archivo a MinIO
-#             s3_client.upload_file(local_file_path, bucket_name, f"{key}.jpg")
+#             s3_client.upload_file(local_file_path, bucket_name, f"{filename}")
 #             print(f"Archivo {filename} subido correctamente a MinIO.")
             
 #             # Generar la URL del archivo subido
-#             file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{key}.jpg"
+#             file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{filename}"
 #             print(f"URL: {file_url}")
 #             return file_url
 
@@ -111,6 +111,7 @@
 #     except Exception as e:
 #         print(f"Error al convertir TIFF a JPG: {e}")
 
+# #Sube miniatura y el tiff #TODO TIFF A MINIO Y LLAMADA A GEOSERVER PARA IMPORTARLO 
 
 # def upload_miniature(**kwargs):
 #     files = kwargs['dag_run'].conf.get('otros', [])
@@ -147,10 +148,11 @@
 #             tiff_to_jpg(temp_file_path, temp_jpg_path)
 
 #             # Subir el archivo JPG a MinIO y obtener la URL
-#             file_url = up_to_minio(temp_dir, file_jpg_name, unique_key)
+#             file_url = up_to_minio(temp_dir, file_jpg_name)
 
 #             # Añadir nombre y URL al array de archivos
 #             array_files.append({'name': file_name, 'url': file_url})
+            
 
 #     return array_files
 
@@ -162,6 +164,8 @@
 #     xml_encoded = []
     
 #     algoritm_result = kwargs['dag_run'].conf.get('json')
+
+#     file_url_array = kwargs['ti'].xcom_pull(task_ids='upload_miniature')
 
 #     logging.info(f"Contenido JSON cargado: {algoritm_result}")
 
@@ -212,6 +216,10 @@
 #         spatial_resolution = next((obj for obj in resource['data'] if obj['name'] == 'pixelSize'), None)["value"]
 #         specificUsage = next((obj for obj in resource['data'] if obj['name'] == 'specificUsage'), None)["value"]
 
+#         file_name = os.path.basename(resource['path'])
+#         miniature_url = next((item['url'] for item in file_url_array if item['name'] == file_name), None)
+
+#         logging.info (file_name)
 
 #         logging.info(f"Procesando recurso con identifier={identifier} y resolución={spatial_resolution}")
 
@@ -250,6 +258,7 @@
 #             protocol=protocol,
 #             wms_link=wms_link,
 #             layer_name=layer_name,
+#             miniature_url=miniature_url,
 #             layer_description=layer_description
 #         )
 
@@ -318,14 +327,13 @@
 
 #         # Obtener el XML base64 desde XCom
 #         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
-#         file_url_array = context['ti'].xcom_pull(task_ids='upload_miniature')
 
 #         for xml_data in xml_data_array:
         
 #             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
-#             # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
-#             xml_file_stream = io.StringIO(xml_decoded)
+#             # # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
+#             # xml_file_stream = io.StringIO(xml_decoded)
 
 #             logging.info(f"XML DATA: {xml_data}")
 #             logging.info(xml_decoded)
@@ -373,7 +381,7 @@
 
 
 # # Función para crear el XML metadata
-# def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
+# def creador_xml_metadata(file_identifier,url_miniature, specificUsage, wmsLayer, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
 #     logging.info("Iniciando la creación del XML.")
 
 #     root = ET.Element("gmd:MD_Metadata", {
@@ -572,6 +580,7 @@
 #     graphicOverview = ET.SubElement(md_data_identification, "gmd:graphicOverview")
 #     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
 #     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
+#     fileName.text = url_miniature
 #     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
 #     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
 #     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
