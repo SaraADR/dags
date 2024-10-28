@@ -115,6 +115,9 @@ def process_heatmap_data(**context):
             print(f"Sftp abierto")
 
 
+
+
+
             print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de voluemnes")
             stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/launch && docker-compose down --volumes')
             
@@ -181,7 +184,7 @@ def process_heatmap_data(**context):
 
             else:
                 output_directory = '/home/admin3//Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/output/' + str(task_type) + '_' + str(message['message']['id'])
-                local_output_directory = '/tmp'
+                local_output_directory = '/tmp' + '/' + str(message['message']['id'])
 
                 # Crear el directorio local si no existe
                 os.makedirs(local_output_directory, exist_ok=True)
