@@ -154,7 +154,7 @@ def process_extracted_files(**kwargs):
                 reference_system = data_item['ReferenceSystem']
     if bbox:
         # Construir el POLYGON usando los valores de BBOX
-        polygon_wkt = f"SRID={reference_system};POLYGON(({bbox['westBoundLongitude']} {bbox['southBoundLatitude']}, {bbox['eastBoundLongitude']} {bbox['southBoundLatitude']}, {bbox['eastBoundLongitude']} {bbox['nortBoundLatitude']}, {bbox['westBoundLongitude']} {bbox['nortBoundLatitude']}, {bbox['westBoundLongitude']} {bbox['southBoundLatitude']}))"
+        polygon_wkt = f"SRID={reference_system};POLYGON(({bbox['westBoundLongitude']} {bbox['southBoundLatitude']}, {bbox['eastBoundLongitude']} {bbox['southBoundLatitude']}, {bbox['eastBoundLongitude']} {bbox['northBoundLatitude']}, {bbox['westBoundLongitude']} {bbox['northBoundLatitude']}, {bbox['westBoundLongitude']} {bbox['southBoundLatitude']}))"
         print(polygon_wkt)
 
         #Guardamos el padre en mss_inspection_vegetation_parent
@@ -199,7 +199,7 @@ def process_extracted_files(**kwargs):
                 west = bbox['westBoundLongitude']
                 east = bbox['eastBoundLongitude']
                 south = bbox['southBoundLatitude']
-                north = bbox['nortBoundLatitude']
+                north = bbox['northBoundLatitude']
 
                 # Crear la geometría POLYGON
                 polygon = f"SRID={reference};POLYGON(({west} {north}, {east} {north}, {east} {south}, {west} {south}, {west} {north}))"
