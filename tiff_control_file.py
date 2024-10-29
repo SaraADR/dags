@@ -117,7 +117,7 @@ print_message_task = PythonOperator(
 run_docker_task = SSHOperator(
     task_id='run_docker',
     ssh_conn_id='ssh_docker',
-    command='docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example1.1.0_missionId.txt -u /images/img-20230924140747117-ter.tiff',
+    command='docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example2.0.0.txt -u /images/img-20231205115059007-vis.tiff',
     dag=dag,
     do_xcom_push=True,
 )

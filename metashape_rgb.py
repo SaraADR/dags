@@ -189,7 +189,7 @@ def generate_xml(**kwargs):
     # DATOS QUE NO VARIAN (SIEMPRE SON LOS MISMOS)
 
     organization_name = 'Avincis'
-    email_address = 'avincis@organizacion.es'
+    email_address = ' admin@einforex.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
     wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
     wms_link = wms_link_conn.host
@@ -505,7 +505,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     ciAddress = ET.SubElement(address, "gmd:CI_Address")
     email = ET.SubElement(ciAddress, "gmd:electronicMailAddress")
     gco_characterString = ET.SubElement(email, "gco:CharacterString")
-    gco_characterString.text = "ignis@organizacion.es"
+    gco_characterString.text = "admin@einforex.es"
 
     # Añadir role
     role = ET.SubElement(responsibleParty, "gmd:role")
@@ -689,7 +689,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     ci_address = ET.SubElement(address, "gmd:CI_Address")
     email = ET.SubElement(ci_address, "gmd:electronicMailAddress")
     gco_characterString = ET.SubElement(email, "gco:CharacterString")
-    gco_characterString.text = "jperez@cuatrodigital.com"
+    gco_characterString.text = " admin@einforex.es"
     role = ET.SubElement(ci_responsible_party, "gmd:role")
     role_code = ET.SubElement(role, "gmd:CI_RoleCode", {
         "codeList": "http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode",
