@@ -107,9 +107,7 @@ def process_zip_file(value, nombre_fichero, **kwargs):
                     if os.path.basename(file_name).lower() == 'algorithm_result.json' or file_name == 'algorithm_result.json':
                         # Procesar el archivo JSON
                         json_content = json.loads(content)
-                        print(json_content)
                         json_content_metadata = json_content.get('metadata', [])
-                        print(json_content_metadata)
                         for metadata in json_content_metadata:
                             print(metadata)
                             if metadata.get('name') == 'AlgorithmID': 
@@ -118,10 +116,6 @@ def process_zip_file(value, nombre_fichero, **kwargs):
                     else:
                         encoded_content = base64.b64encode(content).decode('utf-8')
                         otros.append({'file_name': file_name, 'content': encoded_content})
-
-
-                print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
-                print("otros:", otros)
 
 
                 if algorithm_id:
