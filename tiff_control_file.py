@@ -52,16 +52,14 @@ def ssh_connection():
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
-            print(f"Sftp abierto")
-            stdin, stdout, stderr = ssh_client.exec_command('cd /servicios/exiftool && docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example2.0.0.txt -u /images/img-20231205115059007-vis.tiff')
+            print(f"SSH abierto")
+            stdin, stdout, stderr = ssh_client.exec_command('cd /servicios/exiftool && docker run -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example2.0.0.txt -u /images/img-20231205115059007-vis.tiff')
             output = stdout.read().decode()
             error_output = stderr.read().decode()
             print("Salida de docker volumes:")
             print(output)
     except Exception as e:
         print(f"Error in SSH connection: {str(e)}")
-
-
 
 
 # Define the actions based on the last digit of Gimbal Tilt
