@@ -148,11 +148,12 @@ def process_zip_file(value, nombre_fichero, **kwargs):
                             print(f"Task instance incorrecto: {e}")
 
                 else:
-                    raise AirflowSkipException("El archivo no contiene un algoritmo controlado")
+                    print("El archivo no contiene un algoritmo controlado")
+                    return
              
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido {e}")
-        raise AirflowSkipException("El archivo no es un ZIP válido")
+        return
     
     finally:
         for temp_dir_a in temp_dir:
@@ -171,7 +172,7 @@ def process_json_file(value, **kwargs):
         
         if not value_pulled:
             print("No data to process")
-            raise AirflowSkipException("No data to process")
+            return
 
         # En el caso de que el json sea visto como objeto lo limpiamos
         if isinstance(value_pulled, str) and value_pulled.startswith("b'") and value_pulled.endswith("'"):
