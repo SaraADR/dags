@@ -55,7 +55,7 @@ def ssh_connection():
             print("SSH abierto")
             # Execute the Docker command via SSH
             stdin, stdout, stderr = ssh_client.exec_command(
-                'docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example1.1.0_missionId.txt -u /images/img-20230924140747117-ter.tiff > /servicios/exiftool/results/img-20230924140747117-ter.tiff-logs 2>&1'
+                'docker run --rm -v /home/admin3/exiftool/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example1.1.0_missionId.txt -u /images/img-20230924140747117-ter.tiff > /home/admin3/exiftool/exiftool/results/img-20230924140747117-ter.tiff-logs 2>&1'
             )
 
             # Attempt decoding output with UTF-8, fallback to latin-1 if necessary
