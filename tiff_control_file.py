@@ -55,7 +55,7 @@ def ssh_connection():
             print("SSH abierto")
             # Execute the command
             stdin, stdout, stderr = ssh_client.exec_command(
-                'cd /servicios/exiftool && docker run -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example2.0.0.txt -u /images/img-20231205115059007-vis.tiff'
+                'cd /servicios/exiftool && docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example2.0.0.txt -u /images/img-20231205115059007-vis.tiff'
             )
 
             # Handle potential decoding issues
