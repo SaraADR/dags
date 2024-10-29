@@ -52,12 +52,35 @@ def ssh_connection():
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
-            print(f"SSH abierto")
-            stdin, stdout, stderr = ssh_client.exec_command('cd /servicios/exiftool && docker run -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example2.0.0.txt -u /images/img-20231205115059007-vis.tiff')
-            output = stdout.read().decode()
-            error_output = stderr.read().decode()
+            print("SSH abierto")
+            # Execute the Docker command via SSH
+            stdin, stdout, stderr = ssh_client.exec_command(
+                'cd /home/admin3/exiftool/exiftool && docker run -v /home/admin3/exiftool/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example1.1.0_missionId.txt -u /images/img-20230924140747117-ter.tiff '
+            )
+
+            
+
+            # Attempt decoding output with UTF-8, fallback to latin-1 if necessary
+            try:
+                output = stdout.read().decode('utf-8')
+
+                stdin, stdout, stderr = ssh_client.exec_command(
+                'docker rm exiftool-container-new'
+            )
+            except UnicodeDecodeError:
+                output = stdout.read().decode('latin-1')
+
+            try:
+                error_output = stderr.read().decode('utf-8')
+            except UnicodeDecodeError:
+                error_output = stderr.read().decode('latin-1')
+
             print("Salida de docker volumes:")
             print(output)
+            if error_output:
+                print("Error output:")
+                print(error_output)
+
     except Exception as e:
         print(f"Error in SSH connection: {str(e)}")
 
