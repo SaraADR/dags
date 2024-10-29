@@ -65,7 +65,7 @@ def ssh_connection():
                 output = stdout.read().decode('utf-8')
 
                 stdin, stdout, stderr = ssh_client.exec_command(
-                'docker log exiftool-container-new > /results'
+                'docker rm exiftool-container-new'
             )
             except UnicodeDecodeError:
                 output = stdout.read().decode('latin-1')
