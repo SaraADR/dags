@@ -114,10 +114,6 @@ def process_heatmap_data(**context):
             sftp = ssh_client.open_sftp()
             print(f"Sftp abierto")
 
-
-
-
-
             print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de voluemnes")
             stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/launch && docker-compose down --volumes')
             
@@ -126,8 +122,6 @@ def process_heatmap_data(**context):
 
             print("Salida de docker volumes:")
             print(output)
-
-
 
             remote_directory = '/home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/input'
             remote_file_name =  str(task_type) + '_' + str(message['message']['id']) + '.json'

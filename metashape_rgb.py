@@ -28,6 +28,7 @@ from PIL import Image
 
 
 
+
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 

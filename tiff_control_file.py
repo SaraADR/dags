@@ -8,6 +8,8 @@ from botocore.client import Config
 import base64
 import json
 import os
+from airflow.providers.ssh.hooks.ssh import SSHHook
+
 
 
 # Función para manejar la conexión a MinIO y subir archivos
@@ -41,6 +43,26 @@ def save_to_minio(unique_id):
         Tagging=f"unique_id={unique_id}"
     )
     print(f'{file_name} subido correctamente a MinIO.')
+
+
+
+# SSH Connection function to execute commands on a remote server
+def ssh_connection():
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    try:
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            print(f"Sftp abierto")
+            stdin, stdout, stderr = ssh_client.exec_command('cd /servicios/exiftool && docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example2.0.0.txt -u /images/img-20231205115059007-vis.tiff')
+            output = stdout.read().decode()
+            error_output = stderr.read().decode()
+            print("Salida de docker volumes:")
+            print(output)
+    except Exception as e:
+        print(f"Error in SSH connection: {str(e)}")
+
+
+
 
 # Define the actions based on the last digit of Gimbal Tilt
 def handle_gimbal_tilt(gimbal_tilt):
@@ -114,13 +136,13 @@ print_message_task = PythonOperator(
     dag=dag,
 )
 
-run_docker_task = SSHOperator(
-    task_id='run_docker',
-    ssh_conn_id='ssh_docker',
-    command='docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example2.0.0.txt -u /images/img-20231205115059007-vis.tiff',
-    dag=dag,
-    do_xcom_push=True,
-)
+# run_docker_task = SSHOperator(
+#     task_id='run_docker',
+#     ssh_conn_id='ssh_docker',
+#     command='docker run --rm -v /servicios/exiftool:/images --name exiftool-container-new exiftool-image -config /images/example2.0.0.txt -u /images/img-20231205115059007-vis.tiff',
+#     dag=dag,
+#     do_xcom_push=True,
+# )
 
 process_metadata_task = PythonOperator(
     task_id='process_metadata',
@@ -129,5 +151,13 @@ process_metadata_task = PythonOperator(
     dag=dag,
 )
 
+ssh_connection_task = PythonOperator(
+    task_id='ssh_connection_task',
+    python_callable=ssh_connection,
+    provide_context=True,
+    dag=dag,
+)
+
+
 # Define task dependencies
-print_message_task >> run_docker_task >> process_metadata_task
+print_message_task >> ssh_connection_task >> process_metadata_task
