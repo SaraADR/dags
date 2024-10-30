@@ -41,8 +41,8 @@ def consumer_function(message, prefix, **kwargs):
     )
 
     # Nombre del bucket donde está almacenado el archivo/carpeta
-    bucket_name = 'tmp'
-    folder_prefix = 'temp/sftp/'
+    bucket_name = 'temp'
+    folder_prefix = 'sftp/'
 
     # Descargar el archivo desde MinIO
     local_directory = 'temp'  # Cambia este path al local
