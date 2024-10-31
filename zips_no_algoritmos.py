@@ -5,14 +5,16 @@ import uuid
 import zipfile
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
+import io
+from sqlalchemy import create_engine, text, MetaData, Table
+from sqlalchemy.orm import sessionmaker
 import os
 from botocore.exceptions import ClientError
 
-# Function to process extracted files and retrieve metadata
 def process_extracted_files(**kwargs):
     minio = kwargs['dag_run'].conf.get('minio')
     print(f"Mensaje: {minio}")
@@ -21,7 +23,7 @@ def process_extracted_files(**kwargs):
         print("Ha habido un error con el traspaso de los documentos")
         return
 
-    # Establish connection with MinIO
+    # Establecer conexión con MinIO
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
     s3_client = boto3.client(
@@ -32,83 +34,90 @@ def process_extracted_files(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
+    # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'tmp'
     folder_prefix = 'temp/sftp/'
-    local_directory = 'temp'  # Path for local storage
 
+    # Descargar el archivo desde MinIO
+    local_directory = 'temp'  # Cambia este path al local
     try:
-        # Download ZIP file from MinIO
         local_zip_path = download_from_minio(s3_client, bucket_name, minio, local_directory, folder_prefix)
-        print(f"ZIP file path: {local_zip_path}")
-        # Process the ZIP file for metadata extraction
-        extract_metadata_from_zip(local_zip_path, **kwargs)
+        print(local_zip_path)
+        process_zip_file(local_zip_path, file_path_in_minio, message,  **kwargs)
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
-        raise
-
+        raise 
     return 0
 
-# Helper function to download file from MinIO
+
 def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
+    """
+    Función para descargar archivos o carpetas desde MinIO.
+    """
     if not os.path.exists(local_directory):
         os.makedirs(local_directory)
 
     local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
-    print(f"Downloading file from MinIO: {file_path_in_minio} to {local_file}")
-
+    print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
+    
     try:
+        # # Verificar si el archivo existe antes de intentar descargarlo
         response = s3_client.get_object(Bucket=bucket_name, Key=file_path_in_minio)
         with open(local_file, 'wb') as f:
             f.write(response['Body'].read())
 
-        print(f"File downloaded successfully: {local_file}")
+        print(f"Archivo descargado correctamente: {local_file}")
+
         return local_file
     except ClientError as e:
         if e.response['Error']['Code'] == '404':
-            print(f"Error 404: File not found in MinIO: {file_path_in_minio}")
+            print(f"Error 404: El archivo no fue encontrado en MinIO: {file_path_in_minio}")
         else:
-            print(f"Error in process: {str(e)}")
-        return None
+            print(f"Error en el proceso: {str(e)}")
+        return None  # Devolver None si hay un error
 
-# Function to extract metadata from files in the ZIP
-def extract_metadata_from_zip(local_zip_path, **kwargs):
+
+def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
+
     if local_zip_path is None:
-        print("ZIP file path is None, cannot proceed.")
+        print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
         return
+    
+
+    try:
+        if not os.path.exists(local_zip_path):
+            print(f"Archivo no encontrado: {local_zip_path}")
+            return
+        
+
+        # Abre y procesa el archivo ZIP desde el sistema de archivos
+        with zipfile.ZipFile(local_zip_path, 'r') as zip_file:
+            zip_file.testzip() 
+            print("El archivo ZIP es válido.")
+    except zipfile.BadZipFile:
+        print("El archivo no es un ZIP válido antes del procesamiento.")
+        return
+    
 
     try:
         with zipfile.ZipFile(local_zip_path, 'r') as zip_file:
-            zip_file.testzip()  # Ensure ZIP integrity
-            print("ZIP file is valid.")
-
+            # Procesar el archivo ZIP en un directorio temporal
             with tempfile.TemporaryDirectory() as temp_dir:
-                print(f"Temporary directory created: {temp_dir}")
+                print(f"Directorio temporal creado: {temp_dir}")
 
-                # Extract and process files for metadata
+                # Extraer el contenido del ZIP en el directorio temporal
                 zip_file.extractall(temp_dir)
+
+                # Obtener la lista de archivos dentro del ZIP
                 file_list = zip_file.namelist()
+                print("Archivos en el ZIP:", file_list)
 
-                metadata = []
-                for file_name in file_list:
-                    file_path = os.path.join(temp_dir, file_name)
-                    if os.path.isfile(file_path):
-                        # Gather metadata
-                        file_metadata = {
-                            "file_name": file_name,
-                            "file_size": os.path.getsize(file_path),
-                            "modification_time": datetime.fromtimestamp(os.path.getmtime(file_path))
-                        }
-                        metadata.append(file_metadata)
-                        print(f"Metadata for {file_name}: {file_metadata}")
+    except zipfile.BadZipFile as e:
+        print(f"El archivo no es un ZIP válido: {e}")
+        return
 
-                # Optionally, log metadata or push it to an external system
-                print("Extracted metadata:", json.dumps(metadata, default=str))
-    except zipfile.BadZipFile:
-        print("Invalid ZIP file detected.")
-    except Exception as e:
-        print(f"Error processing ZIP file: {e}")
 
-# Define default arguments for the DAG
+
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
@@ -119,19 +128,21 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-# Initialize DAG
 dag = DAG(
-    'zip_metadata_extractor',
+    'zip_no_algoritmos',
     default_args=default_args,
-    description='DAG that extracts metadata from files within a ZIP in MinIO',
-    schedule_interval=None,
+    description='DAG que lee todo lo que sea un zip pero no un algoritmo',
     catchup=False,
 )
 
-# Define the task
 process_extracted_files_task = PythonOperator(
     task_id='process_extracted_files',
     python_callable=process_extracted_files,
     provide_context=True,
     dag=dag,
 )
+
+
+
+
+process_extracted_files_task
