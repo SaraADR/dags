@@ -35,13 +35,13 @@ def process_extracted_files(**kwargs):
     )
 
     # Nombre del bucket y prefijo de carpeta
-    bucket_name = 'temp'  # Bucket nuevo
-    folder_prefix = 'temp/sftp/'
+    bucket_name = 'imagestiffs'  # Bucket nuevo
+    
 
     # Descargar archivo desde MinIO
     local_directory = 'temp'  
     try:
-        local_zip_path = download_from_minio(s3_client, bucket_name, minio, local_directory, folder_prefix)
+        local_zip_path = download_from_minio(s3_client, bucket_name, minio, local_directory)
         if local_zip_path:
             print(f"Archivo descargado correctamente: {local_zip_path}")
             process_zip_file(local_zip_path, minio, **kwargs)
@@ -52,7 +52,7 @@ def process_extracted_files(**kwargs):
         raise
     return 0
 
-def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
+def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory):
     """
     Función para descargar archivos o carpetas desde MinIO.
     """
