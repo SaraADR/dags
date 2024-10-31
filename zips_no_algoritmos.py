@@ -43,13 +43,12 @@ def process_extracted_files(**kwargs):
 
     # Define bucket name and local download directory
     bucket_name = 'imagestiffs'
-    local_directory = 'temp'
-    logging.info(f"Bucket name: {bucket_name}, Local directory: {local_directory}")
+    logging.info(f"Bucket name: {bucket_name}")
 
     # Download file from MinIO
     try:
         logging.info(f"Attempting to download file from MinIO: {minio}")
-        local_zip_path = download_from_minio(s3_client, bucket_name, minio, local_directory)
+        local_zip_path = download_from_minio(s3_client, bucket_name, minio)
         
         if local_zip_path:
             logging.info(f"File downloaded successfully: {local_zip_path}")
