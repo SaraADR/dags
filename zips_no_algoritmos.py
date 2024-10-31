@@ -37,14 +37,13 @@ def process_extracted_files(**kwargs):
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'tmp'
     folder_prefix = 'temp/sftp/'
-    file_path_in_minio = 'temp/sftp/'
 
     # Descargar el archivo desde MinIO
     local_directory = 'temp'  # Cambia este path al local
     try:
         local_zip_path = download_from_minio(s3_client, bucket_name, minio, local_directory, folder_prefix)
         print(local_zip_path)
-        process_zip_file(local_zip_path, file_path_in_minio  **kwargs)
+        process_zip_file(local_zip_path, file_path_in_minio, message,  **kwargs)
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
         raise 
