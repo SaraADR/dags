@@ -40,9 +40,9 @@ def process_extracted_files(**kwargs):
         return
 
     # Nombre del bucket donde está almacenado el archivo/carpeta
-    bucket_name = 'imagestiffs'
-    folder_prefix = 'imagestiffs'
-    local_directory = 'imagestiffs'
+    bucket_name = 'tmp'
+    folder_prefix = 'temp/sftp/'
+    local_directory = 'temp'
 
     try:
         local_zip_path = download_from_minio(s3_client, bucket_name, minio, local_directory, folder_prefix)
