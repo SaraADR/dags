@@ -14,6 +14,8 @@ from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 import os
 from botocore.exceptions import ClientError
+from airflow.providers.ssh.hooks.ssh import SSHHook
+
 
 def process_extracted_files(**kwargs):
     minio = kwargs['dag_run'].conf.get('minio')
@@ -112,6 +114,51 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                 # Obtener la lista de archivos dentro del ZIP
                 file_list = zip_file.namelist()
                 print("Archivos en el ZIP:", file_list)
+
+                ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+                try:
+                    with ssh_hook.get_conn() as ssh_client:
+                        for file_name in file_list:
+                    
+                            if not file_name.endswith('/'):
+                                # Construct the full path for each file
+                                full_file_path = file_name
+                                print(f"Processing file: {file_name}")
+
+                                # Execute Docker command for each file
+                                docker_command = (
+                                    f'cd /home/admin3/exiftool/exiftool && '
+                                    f'docker run -v /home/admin3/exiftool/exiftool:/images '
+                                    f'--name exiftool-container-{file_name.replace(".", "-")} '
+                                    f'exiftool-image -config /images/example1.1.0_missionId.txt -u {full_file_path}'
+                                )
+
+                                stdin, stdout, stderr = ssh_client.exec_command(docker_command)
+
+                                # Attempt decoding output with UTF-8, fallback to latin-1 if necessary
+                                try:
+                                    output = stdout.read().decode('utf-8')
+                                except UnicodeDecodeError:
+                                    output = stdout.read().decode('latin-1')
+
+                                try:
+                                    error_output = stderr.read().decode('utf-8')
+                                except UnicodeDecodeError:
+                                    error_output = stderr.read().decode('latin-1')
+
+                                print(f"Salida de docker command para {file_name}:")
+                                print(output)
+                                if error_output:
+                                    print(f"Error output para {file_name}:")
+                                    print(error_output)
+
+                                # Clean up Docker container after each run
+                                cleanup_command = f'docker rm exiftool-container-{file_name.replace(".", "-")}'
+                                ssh_client.exec_command(cleanup_command)
+
+                except Exception as e:
+                    print(f"Error in SSH connection: {str(e)}")
+
 
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido: {e}")
