@@ -122,7 +122,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     
                             if not file_name.endswith('/'):
                                 # Construct the full path for each file
-                                full_file_path = file_name
+                                full_file_path = f"/temp/{file_name}"
                                 print(f"Processing file: {file_name}")
 
                                 # Execute Docker command for each file
