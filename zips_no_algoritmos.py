@@ -141,7 +141,12 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                 print(docker_command)
 
                                 stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
+                                output = ""
+                                for line in stdout:
+                                    print(line.strip())  # Print to console or log
+                                    output += line.strip() + "\n"
 
+                                    
                                 try:
                                     output = stdout.read().decode('utf-8')
                                 except UnicodeDecodeError:
