@@ -118,19 +118,25 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                 ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
                 try:
                     with ssh_hook.get_conn() as ssh_client:
+                        sftp = ssh_client.open_sftp()
+
                         for file_name in file_list:
                     
                             if not file_name.endswith('/'):
-                                # Construct the full path for each file
-                                full_file_path = f"{temp_dir}/{file_name}"
-                                print(f"Processing file: {file_name}")
+
+                                local_file_path = os.path.join(temp_dir, file_name)
+                                shared_volume_path = f"/home/admin3/exiftool/exiftool/{file_name}"
+
+                                sftp.put(local_file_path, shared_volume_path)
+                                print(f"Copied {local_file_path} to {shared_volume_path}")
+
 
                                 # Execute Docker command for each file
                                 docker_command = (
                                     f'cd /home/admin3/exiftool/exiftool && '
                                     f'docker run -v /home/admin3/exiftool/exiftool:/images '
                                     f'--name exiftool-container-{file_name.replace(".", "-")} '
-                                    f'exiftool-image -config /images/example1.1.0_missionId.txt -u {full_file_path}'
+                                    f'exiftool-image -config /images/example1.1.0_missionId.txt -u /images/{file_name}'
                                 )
                                 print(docker_command)
 
