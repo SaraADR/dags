@@ -125,7 +125,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                             if not file_name.endswith('/'):
 
                                 local_file_path = os.path.join(temp_dir, file_name)
-                                shared_volume_path = f"/home/admin3/exiftool/exiftool/{file_name}"
+                                shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{file_name}"
 
                                 sftp.put(local_file_path, shared_volume_path)
                                 print(f"Copied {local_file_path} to {shared_volume_path}")
@@ -136,7 +136,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                     f'cd /home/admin3/exiftool/exiftool && '
                                     f'docker run -v /home/admin3/exiftool/exiftool:/images '
                                     f'--name exiftool-container-{file_name.replace(".", "-")} '
-                                    f'exiftool-image -config /images/example1.1.0_missionId.txt -u /images/{file_name}'
+                                    f'exiftool-image -config /images/example2.0.0.txt -u /images/{file_name}'
                                 )
                                 print(docker_command)
 
