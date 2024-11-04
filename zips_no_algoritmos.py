@@ -136,7 +136,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                     f'cd /home/admin3/exiftool/exiftool && '
                                     f'docker run -v /home/admin3/exiftool/exiftool:/images '
                                     f'--name exiftool-container-{file_name.replace(".", "-")} '
-                                    f'exiftool-image -config /images/example2.0.0.txt -u /images/{file_name}'
+                                    f'exiftool-image -config /images/example2.0.0.txt -u /images/images{file_name}'
                                 )
                                 print(docker_command)
 
