@@ -63,7 +63,7 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
 
     try:
         # # Verificar si el archivo existe antes de intentar descargarlo
-        response = s3_client.get_object(Bucket=bucket_name, Key=file_path_in_minio)
+        response = s3_client.get_object(Bucket=bucket_name, Key=relative_path)
         with open(local_file, 'wb') as f:
             f.write(response['Body'].read())
 
