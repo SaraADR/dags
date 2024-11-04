@@ -49,7 +49,7 @@ def consumer_function(message, prefix, **kwargs):
     try:
         local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
         print(local_zip_path)
-        process_zip_file(local_zip_path, file_path_in_minio, message,  **kwargs)
+        process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
         raise 
@@ -93,10 +93,10 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
     local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
     print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
     
-    file_path_in_minio = 'sftp/326279bf-d857-4230-823b-5277802958ac/img-20231205132025628-vis.zip'
+    relative_path = file_path_in_minio.replace('/temp/', '')
     try:
-        # # Verificar si el archivo existe antes de intentar descargarlo
-        response = s3_client.get_object(Bucket=bucket_name, Key=file_path_in_minio)
+        # Verificar si el archivo existe antes de intentar descargarlo
+        response = s3_client.get_object(Bucket=bucket_name, Key=relative_path)
         with open(local_file, 'wb') as f:
             f.write(response['Body'].read())
 
