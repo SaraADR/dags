@@ -129,7 +129,7 @@ default_args = {
 }
 
 dag = DAG(
-    'zip_no_algoritmos',
+    'zips_no_algoritmos',
     default_args=default_args,
     description='DAG que lee todo lo que sea un zip pero no un algoritmo',
     catchup=False,
