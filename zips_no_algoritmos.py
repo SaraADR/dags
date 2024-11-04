@@ -127,7 +127,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                 local_file_path = os.path.join(temp_dir, file_name)
                                 shared_volume_path = f"/home/admin3/exiftool/exiftool/{file_name}"
 
-                                ssh_client.put(local_file_path, shared_volume_path)
+                                sftp.put(local_file_path, shared_volume_path)
                                 print(f"Copied {local_file_path} to {shared_volume_path}")
 
 
