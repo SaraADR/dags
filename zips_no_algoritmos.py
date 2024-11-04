@@ -146,22 +146,8 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                     print(line.strip())  # Print to console or log
                                     output += line.strip() + "\n"
 
-                                    
-                                try:
-                                    output = stdout.read().decode('utf-8')
-                                except UnicodeDecodeError:
-                                    output = stdout.read().decode('latin-1')
-
-                                try:
-                                    error_output = stderr.read().decode('utf-8')
-                                except UnicodeDecodeError:
-                                    error_output = stderr.read().decode('latin-1')
-
                                 print(f"Salida de docker command para {file_name}:")
                                 print(output)
-                                if error_output:
-                                    print(f"Error output para {file_name}:")
-                                    print(error_output)
 
                                 # Clean up Docker container after each run
                                 cleanup_command = f'docker rm exiftool-container-{file_name.replace(".", "-")}'
