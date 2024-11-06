@@ -134,7 +134,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                 # Execute Docker command for each file
                                 docker_command = (
                                     f'cd /home/admin3/exiftool/exiftool && '
-                                    f'docker run -v /home/admin3/exiftool/exiftool:/images '
+                                    f'docker run --rm -v /home/admin3/exiftool/exiftool:/images '
                                     f'--name exiftool-container-{file_name.replace(".", "-")} '
                                     f'exiftool-image -config /images/example2.0.0.txt -u /images/images/{file_name}'
                                 )
@@ -145,8 +145,8 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                 outputlimp = ""
 
                                 for line in stdout:
-                                    print(line.strip())  # Print to console or log
-                                    output += line.strip() + "\n"
+                                    print(line.decode('latin-1', errors='ignore'))  # Print to console or log
+                                    output += line.strip().decode('latin-1', errors='ignore') + "\n"
 
                                 try:
                                     outputlimp = output.decode('utf-8')
