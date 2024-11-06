@@ -142,12 +142,20 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
 
                                 stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
                                 output = ""
+                                outputlimp = ""
+
                                 for line in stdout:
                                     print(line.strip())  # Print to console or log
                                     output += line.strip() + "\n"
 
+                                try:
+                                    outputlimp = output.decode('utf-8')
+                                except UnicodeDecodeError:
+                                    outputlimp = output.decode('latin-1', errors='ignore')  # Intento alternativo si falla UTF-8
+
+
                                 print(f"Salida de docker command para {file_name}:")
-                                print(output)
+                                print(outputlimp)
 
                                 # Clean up Docker container after each run
                                 cleanup_command = f'docker rm exiftool-container-{file_name.replace(".", "-")}'
