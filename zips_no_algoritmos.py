@@ -206,6 +206,7 @@ dag = DAG(
     default_args=default_args,
     description='DAG que lee todo lo que sea un zip pero no un algoritmo',
     catchup=False,
+    schedule_interval=None
 )
 
 process_extracted_files_task = PythonOperator(
