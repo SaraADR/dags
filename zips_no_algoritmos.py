@@ -1,7 +1,5 @@
-import base64
 import json
 import tempfile
-import uuid
 import zipfile
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -9,12 +7,11 @@ from datetime import datetime, timedelta, timezone
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
-import io
-from sqlalchemy import create_engine, text, MetaData, Table
-from sqlalchemy.orm import sessionmaker
 import os
 from botocore.exceptions import ClientError
 from airflow.providers.ssh.hooks.ssh import SSHHook
+import re
+
 
 
 def process_extracted_files(**kwargs):
@@ -145,8 +142,8 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                 outputlimp = ""
 
                                 for line in stdout:
-                                    print(line.decode('latin-1', errors='ignore'))  # Print to console or log
-                                    output += line.strip().decode('latin-1', errors='ignore') + "\n"
+                                    print(line.strip())  # Print to console or log
+                                    output += line.strip() + "\n"
 
                                 try:
                                     outputlimp = output.decode('utf-8')
@@ -164,11 +161,34 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                 except Exception as e:
                     print(f"Error in SSH connection: {str(e)}")
 
+                output_json = parse_output_to_json(outputlimp)
+                save_data(output_json)
 
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido: {e}")
         return
 
+def parse_output_to_json(output):
+    """
+    Toma el output del comando docker como una cadena de texto y lo convierte en un diccionario JSON.
+    """
+    metadata = {}
+    # Expresión regular para capturar pares clave-valor separados por ":"
+    pattern = r"^(.*?):\s*(.*)$"
+    for line in output.splitlines():
+        match = re.match(pattern, line)
+        if match:
+            key = match.group(1).strip()
+            value = match.group(2).strip()
+            metadata[key] = value
+    
+    return json.dumps(metadata, ensure_ascii=False, indent=4)
+
+
+def save_data(json):
+    print(json)
+    print("Save data")
+    return json
 
 
 default_args = {
