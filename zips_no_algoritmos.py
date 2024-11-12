@@ -172,6 +172,7 @@ def parse_output_to_json(output):
         match = re.match(pattern, line)
         if match:
             key = match.group(1).strip()
+            key = key.strip().replace(" ", "_")
             value = match.group(2).strip()
             metadata[key] = value
     
