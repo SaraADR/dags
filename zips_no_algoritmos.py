@@ -142,7 +142,6 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                 outputlimp = ""
 
                                 for line in stdout:
-                                    print(line.strip())  # Print to console or log
                                     output += line.strip() + "\n"
 
                                 print(f"Salida de docker command para {file_name}:")
@@ -155,7 +154,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                 except Exception as e:
                     print(f"Error in SSH connection: {str(e)}")
 
-                output_json = parse_output_to_json(outputlimp)
+                output_json = parse_output_to_json(output)
                 save_data(output_json)
 
     except zipfile.BadZipFile as e:
