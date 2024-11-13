@@ -188,65 +188,47 @@ def save_data(data_json):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        if (data_json.get("photometric_interpretation") == 'RGB'):
+        #Valores a introducir
+        fecha_start = convert_timestamp(data_json.get("date_time_original", None)) if data_json.get("date_time_original") else None
+        fecha_end = convert_timestamp(data_json.get("valid_time_end", None)) if data_json.get("valid_time_end") else None
+        values_dict = {
+            "fid": int(data_json.get("fid", 1)),
+            "valid_time_start": fecha_start,
+            "valid_time_end": fecha_end,
+            "payload_id": data_json.get("payload_sn"),
+            "multisim_id": data_json.get("multisim_sn"),
+            "ground_control_station_id": data_json.get("ground_control_station_sn"),
+            "pc_embarcado_id": data_json.get("pc_embarcado_sn"),
+            "operator_name": data_json.get("operator_name"),
+            "pilot_name": data_json.get("pilot_name"),
+            "sensor": data_json.get("camera_model_name"),
+            "platform": data_json.get("aircraft_number_plate")
+        }
 
-            insert_query = """
-            INSERT INTO observacion_aerea.captura_imagen_visible 
-            (fid, valid_time_start, valid_time_end, 
-            payload_id, multisim_id, ground_control_station_id, 
-            pc_embarcado_id, operator_name, pilot_name, 
-            sensor, platform)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """
+        if (data_json.get("photometric_interpretation") == 'RGB'):
+            metadata = MetaData(bind=engine)
+            missions = Table('captura_imagen_visible', metadata, schema='observacion_aerea', autoload_with=engine)
+
         elif (data_json.get("photometric_interpretation") == 'BlackIsZero'):
             # TODO: CAMBIAR ESTA QUERY POR LA QUE TOQUE
-            insert_query = """
-            INSERT INTO observacion_aerea.captura_imagen_visible 
-            (fid, valid_time_start, valid_time_end, 
-            payload_id, multisim_id, ground_control_station_id, 
-            pc_embarcado_id, operator_name, pilot_name, 
-            sensor, platform)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """
+            metadata = MetaData(bind=engine)
+            missions = Table('captura_imagen_visible', metadata, schema='observacion_aerea', autoload_with=engine)
 
         else:
             # TODO: CAMBIAR ESTA QUERY POR LA QUE TOQUE
-            insert_query = """
-            INSERT INTO observacion_aerea.captura_imagen_visible 
-            (fid, valid_time_start, valid_time_end, 
-            payload_id, multisim_id, ground_control_station_id, 
-            pc_embarcado_id, operator_name, pilot_name, 
-            sensor, platform)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """
+            metadata = MetaData(bind=engine)
+            missions = Table('captura_imagen_visible', metadata, schema='observacion_aerea', autoload_with=engine)
+        
+        
+        filtered_values = {key: value for key, value in values_dict.items() if value is not None}
+        insert_stmt = missions.insert().values(filtered_values)
+        result = session.execute(insert_stmt)
 
 
-        if data_json.get("date_time_original", None) != None:
-            fecha_start = convert_timestamp(data_json.get("date_time_original", None))
-        if data_json.get("valid_time_end", None) != None:
-            fecha_end =   convert_timestamp(data_json.get("valid_time_end", None))
-
-
-        values = (
-            int(data_json.get("fid", 1)),  
-            fecha_start,  
-            fecha_end,  
-            data_json.get("payload_sn", None),
-            data_json.get("multisim_sn", None),
-            data_json.get("ground_control_station_sn", None),
-            data_json.get("pc_embarcado_sn", None),
-            data_json.get("operator_name",None),
-            data_json.get("pilot_name", None),
-            data_json.get("camera_model_name", None),
-            data_json.get("aircraft_number_plate", None)
-        )
-
-        print(values)
+        print(values_dict)
+        print(result)
 
         try:
-            # Ejecuta la consulta de inserción
-            session.execute(insert_query, values)
-            
             # Confirma la transacción
             session.commit()
             print("Datos guardados en la base de datos con éxito.")
@@ -258,7 +240,7 @@ def save_data(data_json):
 
     except Exception as e:
         session.rollback()
-        print(f"Error durante la busqueda del mission_inspection: {str(e)}")
+        print(f"Error : {str(e)}")
 
     return json
 
