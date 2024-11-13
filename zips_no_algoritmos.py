@@ -192,7 +192,7 @@ def save_data(data_json):
         fecha_start = convert_timestamp(data_json.get("date_time_original", None)) if data_json.get("date_time_original") else None
         fecha_end = convert_timestamp(data_json.get("valid_time_end", None)) if data_json.get("valid_time_end") else None
         values_dict = {
-            "fid": int(data_json.get("fid", 1)),
+            "fid": int(data_json.get("fid", 2)),
             "valid_time_start": fecha_start,
             "valid_time_end": fecha_end,
             "payload_id": data_json.get("payload_sn"),
