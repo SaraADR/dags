@@ -11,7 +11,8 @@ import os
 from botocore.exceptions import ClientError
 from airflow.providers.ssh.hooks.ssh import SSHHook
 import re
-
+from sqlalchemy import create_engine, text, MetaData, Table
+from sqlalchemy.orm import sessionmaker
 
 
 def process_extracted_files(**kwargs):
@@ -172,16 +173,87 @@ def parse_output_to_json(output):
         match = re.match(pattern, line)
         if match:
             key = match.group(1).strip()
-            key = key.strip().replace(" ", "_")
+            key = key.strip().replace(" ", "_").lower()
             value = match.group(2).strip()
             metadata[key] = value
     
     return json.dumps(metadata, ensure_ascii=False, indent=4)
 
 
-def save_data(json):
-    print(json)
-    print("Save data")
+def save_data(data_json):
+    print(data_json)
+
+    try:
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        if (data_json.get("photometric_interpretation") == 'RGB'):
+
+            insert_query = """
+            INSERT INTO observacion_aerea.captura_imagen_visible 
+            (fid, valid_time_start, valid_time_end, 
+            payload_id, multisim_id, ground_control_station_id, 
+            pc_embarcado_id, operator_name, pilot_name, 
+            sensor, platform)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            """
+        elif (data_json.get("photometric_interpretation") == 'BlackIsZero'):
+            # TODO: CAMBIAR ESTA QUERY POR LA QUE TOQUE
+            insert_query = """
+            INSERT INTO observacion_aerea.captura_imagen_visible 
+            (fid, valid_time_start, valid_time_end, 
+            payload_id, multisim_id, ground_control_station_id, 
+            pc_embarcado_id, operator_name, pilot_name, 
+            sensor, platform)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            """
+
+        else:
+            # TODO: CAMBIAR ESTA QUERY POR LA QUE TOQUE
+            insert_query = """
+            INSERT INTO observacion_aerea.captura_imagen_visible 
+            (fid, valid_time_start, valid_time_end, 
+            payload_id, multisim_id, ground_control_station_id, 
+            pc_embarcado_id, operator_name, pilot_name, 
+            sensor, platform)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            """
+
+
+        values = (
+            data_json.get("fid", 1),  
+            data_json.get("date_time_original", None),  
+            data_json.get("valid_time_end", None), 
+            data_json.get("payload_sn", None),
+            data_json.get("multisim_sn", None),
+            data_json.get("ground_control_station_sn", None),
+            data_json.get("pc_embarcado_sn", None),
+            data_json.get("operator_name",None),
+            data_json.get("pilot_name", None),
+            data_json.get("camera_model_name", None),
+            data_json.get("aircraft_number_plate", None)
+        )
+
+        try:
+            # Ejecuta la consulta de inserción
+            session.execute(insert_query, values)
+            
+            # Confirma la transacción
+            session.commit()
+            print("Datos guardados en la base de datos con éxito.")
+        except Exception as e:
+            print(f"Error al guardar datos en la base de datos: {e}")
+            session.rollback()  
+        finally:
+            session.close()
+
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante la busqueda del mission_inspection: {str(e)}")
+
     return json
 
 
