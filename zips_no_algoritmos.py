@@ -221,10 +221,16 @@ def save_data(data_json):
             """
 
 
+        if data_json.get("date_time_original", None) != None:
+            fecha_start = convert_timestamp(data_json.get("date_time_original", None))
+        if data_json.get("valid_time_end", None) != None:
+            fecha_end =   convert_timestamp(data_json.get("valid_time_end", None))
+
+
         values = (
             int(data_json.get("fid", 1)),  
-            convert_timestamp(data_json.get("date_time_original", None)),  
-            convert_timestamp(data_json.get("valid_time_end", None)),  
+            fecha_start,  
+            fecha_end,  
             data_json.get("payload_sn", None),
             data_json.get("multisim_sn", None),
             data_json.get("ground_control_station_sn", None),
