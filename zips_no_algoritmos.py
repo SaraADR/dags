@@ -258,10 +258,10 @@ def save_data(data_json):
 
 def convert_timestamp(timestamp_str):
     try:
-        return datetime.strptime(timestamp_str, '%Y:%m:%d %H:%M:%S%z')
+        return datetime.strptime(timestamp_str, '%Y:%m:%d %H:%M:%S%z') if timestamp_str else None
     except Exception as e:
         print(f"Error parsing timestamp: {e}")
-        return None  
+        return None
 
 default_args = {
     'owner': 'sadr',
