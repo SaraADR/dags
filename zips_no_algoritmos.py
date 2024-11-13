@@ -136,7 +136,6 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                     f'--name exiftool-container-{file_name.replace(".", "-")} '
                                     f'exiftool-image -config /images/example2.0.0.txt -u /images/images/{file_name}'
                                 )
-                                print(docker_command)
 
                                 stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
                                 output = ""
@@ -146,7 +145,6 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                                     output += line.strip() + "\n"
 
                                 print(f"Salida de docker command para {file_name}:")
-                                print(output)
 
                                 # Clean up Docker container after each run
                                 cleanup_command = f'docker rm exiftool-container-{file_name.replace(".", "-")}'
@@ -236,6 +234,8 @@ def save_data(data_json):
             data_json.get("camera_model_name", None),
             data_json.get("aircraft_number_plate", None)
         )
+
+        print(values)
 
         try:
             # Ejecuta la consulta de inserción
