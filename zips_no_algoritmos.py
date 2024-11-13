@@ -204,6 +204,7 @@ def save_data(data_json):
             "sensor": data_json.get("camera_model_name"),
             "platform": data_json.get("aircraft_number_plate")
         }
+        print(values_dict)
 
         if (data_json.get("photometric_interpretation") == 'RGB'):
             metadata = MetaData(bind=engine)
@@ -221,7 +222,7 @@ def save_data(data_json):
         
         
         filtered_values = {key: value for key, value in values_dict.items() if value is not None}
-        insert_stmt = missions.insert().values(filtered_values)
+        insert_stmt = missions.insert().values(**filtered_values)
         result = session.execute(insert_stmt)
 
 
