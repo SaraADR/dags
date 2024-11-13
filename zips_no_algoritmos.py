@@ -182,7 +182,7 @@ def parse_output_to_json(output):
 
 def save_data(data_json):
     print(data_json)
-
+    data_json = json.loads(data_json)
     try:
         db_conn = BaseHook.get_connection('biobd')
         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
