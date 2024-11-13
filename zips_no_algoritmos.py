@@ -222,7 +222,7 @@ def save_data(data_json):
 
 
         values = (
-            data_json.get("fid", 1),  
+            int(data_json.get("fid", 1)),  
             data_json.get("date_time_original", None),  
             data_json.get("valid_time_end", None), 
             data_json.get("payload_sn", None),
