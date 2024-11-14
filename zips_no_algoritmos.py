@@ -194,7 +194,7 @@ def save_data(data_json, message):
         fecha_end = convert_timestamp(data_json.get("valid_time_end", None)) if data_json.get("valid_time_end") else None
         shape = 'SRID=' + data_json.get("image_coordinate_system") + ';POLYGON ((' +     '))'
         values_dict = {
-            "fid": None,  #NO SE QUE VA AQUI
+            "fid": None,  #ID BIGSERIAL
             "shape": shape,
             "sampled_feature": None,  #NO SE QUE VA AQUI
             "procedure": None,        #NO SE QUE VA AQUI

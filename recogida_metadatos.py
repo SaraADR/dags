@@ -140,7 +140,6 @@ dag = DAG(
     catchup=False,
     max_active_runs=1,
     concurrency=10,
-    max_active_tis_per_dag=1
 )
 
 consume_from_topic = ConsumeFromTopicOperator(
