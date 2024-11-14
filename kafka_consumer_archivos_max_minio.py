@@ -70,7 +70,6 @@ def list_files_in_minio_folder(s3_client, bucket_name, prefix):
             return []
 
         files = [content['Key'] for content in response['Contents']]
-        print(f"Archivos encontrados: {files}")
         return files
 
     except ClientError as e:
