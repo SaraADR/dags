@@ -154,7 +154,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     print(f"Error in SSH connection: {str(e)}")
 
                 output_json = parse_output_to_json(output)
-                save_data(output_json)
+                save_data(output_json, message)
 
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido: {e}")
@@ -178,7 +178,7 @@ def parse_output_to_json(output):
     return json.dumps(metadata, ensure_ascii=False, indent=4)
 
 
-def save_data(data_json):
+def save_data(data_json, message):
     print(data_json)
     data_json = json.loads(data_json)
     try:
@@ -188,11 +188,67 @@ def save_data(data_json):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        #Valores a introducir
+
+        #DATOS DE OBSERVACION CAPTURA
+        fecha_start = convert_timestamp(data_json.get("date_time_original", None)) if data_json.get("date_time_original") else None
+        fecha_end = convert_timestamp(data_json.get("valid_time_end", None)) if data_json.get("valid_time_end") else None
+        shape = 'SRID=' + data_json.get("image_coordinate_system") + ';POLYGON ((' +     '))'
+        values_dict = {
+            "fid": None,  #NO SE QUE VA AQUI
+            "shape": shape,
+            "sampled_feature": None,  #NO SE QUE VA AQUI
+            "procedure": None,        #NO SE QUE VA AQUI
+            "result_time": fecha_start, #NO SE QUE VA AQUI
+            "phenomenon_time": fecha_end, #NO SE QUE VA AQUI
+            "imagen": {
+                "value": {
+                    "url": message, #URL DE MINIO?
+                    "gain": data_json.get("gain", None),
+                    "focus": data_json.get("focus", None),
+                    "width": data_json.get("image_width", None),
+                    "height": data_json.get("image_height", None),
+                    "aperture": data_json.get("aperture", None),
+                    "vector_to": {"x": data_json.get("image_vector_to_x", 0), "y": data_json.get("image_vector_to_y", 0), "z": data_json.get("image_vector_to_z", 0)},
+                    "vector_up": {"x": data_json.get("image_vector_up_x", 0), "y": data_json.get("image_vector_up_y", 0), "z": data_json.get("image_vector_up_z", 0)},
+                    "gimbal_pan": data_json.get("gimbal_pan", None),
+                    "quaternion": {
+                        "quaternion0": data_json.get("image_quaternion_0", 0),
+                        "quaternion1": data_json.get("image_quaternion_1", 0),
+                        "quaternion2": data_json.get("image_quaternion_2", 0),
+                        "quaternion3": data_json.get("image_quaternion_3", 0)
+                    },
+                    "gimbal_tilt": data_json.get("gimbal_tilt", None),
+                    "focal_length":  data_json.get("focal_length", None),
+                    "exposure_time": data_json.get("exposure_time", None),
+                    "field_of_view": 0, #NO SE QUE VA AQUI
+                    "camera_location": "SRID=4326;POINT(-7.718738 42.831722 789.4180952)",  #NO SE QUE VA AQUI
+                    "classification0": 4, #NO SE QUE VA AQUI
+                    "classification1": 3, #NO SE QUE VA AQUI
+                    "classification2": 2, #NO SE QUE VA AQUI
+                    "white_balance_b": data_json.get("white_balance_b", 0),
+                    "white_balance_g": data_json.get("white_balance_g", 0),
+                    "white_balance_r": data_json.get("white_balance_r", 0),
+                    "camera_orientation": {
+                        "yaw":  data_json.get("image_yaw", 0),
+                        "roll":  data_json.get("image_roll", 0),
+                        "pitch":  data_json.get("image_pitch", 0)
+                    },
+                    "geo_footprint_center": "SRID=4326;POINT(-7.718738 42.831722 12)",  #NO SE QUE VA AQUI
+                    "ground_sample_distance":  data_json.get("ground_sampling_distance", 0)
+                },
+                "version": "2.0.0"
+            }
+        }
+
+        # Imprimir el diccionario para verificar la salida
+        print(values_dict)
+
+
+        #Valores a introducir en captura imagen visible
         fecha_start = convert_timestamp(data_json.get("date_time_original", None)) if data_json.get("date_time_original") else None
         fecha_end = convert_timestamp(data_json.get("valid_time_end", None)) if data_json.get("valid_time_end") else None
         values_dict = {
-            "fid": int(data_json.get("fid", 2)),
+            "fid": int(data_json.get("fid", 3)),
             "valid_time_start": fecha_start,
             "valid_time_end": fecha_end,
             "payload_id": data_json.get("payload_sn"),
