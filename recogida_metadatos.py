@@ -34,7 +34,7 @@ def consumer_function(message, prefix, **kwargs):
 
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'temp'
-    folder_prefix = 'sftp/'
+    folder_prefix = 'metadatos/'
 
     # Descargar el archivo desde MinIO
     local_directory = 'temp'  # Cambia este path al local
@@ -144,7 +144,7 @@ dag = DAG(
 
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
-    task_id="consume_from_topic_minio",
+    task_id="consume_from_topic_metadatos",
     topics=["metadatos"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
