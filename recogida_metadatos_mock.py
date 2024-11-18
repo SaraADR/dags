@@ -271,6 +271,7 @@ def is_visible_or_ter(output, output_json, type):
                             :phenomenon_time, :imagen)
                 """)
 
+        # TODO: CAMBIAR EL SHAPE  POR EL REAL, PREGUNTAR
         shape = "SRID=4326;POLYGON ((-7.720238 42.831222, -7.720238 42.832222, -7.717238 42.832222, -7.717238 42.831222, -7.720238 42.831222))"
         insert_values = {
             "shape": shape,
@@ -278,7 +279,7 @@ def is_visible_or_ter(output, output_json, type):
             "procedure": output_json.get("mission_id"),
             "result_time":  date_time_original,
             "phenomenon_time": date_time_original,
-            "imagen": json.dumps(output, ensure_ascii=False, indent=4),
+            "imagen": parse_output_to_json_clean(output),
         }
 
         session.execute(insert_query, insert_values)
@@ -308,7 +309,22 @@ def parse_output_to_json(output):
     
     return json.dumps(metadata, ensure_ascii=False, indent=4)
 
-
+def parse_output_to_json_clean(output):
+    """
+    Toma el output del comando docker como una cadena de texto y lo convierte en un diccionario JSON.
+    """
+    metadata = {}
+    # Expresión regular para capturar pares clave-valor separados por ":"
+    pattern = r"^(.*?):\s*(.*)$"
+    for line in output.splitlines():
+        match = re.match(pattern, line)
+        if match:
+            key = match.group(1).strip()
+            key = key.strip()
+            value = match.group(2).strip()
+            metadata[key] = value
+    
+    return json.dumps(metadata, ensure_ascii=False, indent=4)
 
 default_args = {
     'owner': 'sadr',
