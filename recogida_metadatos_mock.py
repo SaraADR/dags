@@ -185,7 +185,7 @@ def is_visible_or_ter(output, output_json, type):
 
         date_time_str = output_json.get("date_time_original")
         try:
-            date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+            date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S%z")
         except ValueError as ve:
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
             raise
