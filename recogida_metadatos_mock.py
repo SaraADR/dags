@@ -214,18 +214,29 @@ def is_visible_or_ter(output, output_json, type):
             # TODO: Comprobar que fecha es la que esta limite para modificarla en la tabla
         else:
             print("No se encontró ningún registro que coincida, se procede a incluir la linea")
+            if (type == 0): #Es una visible
+                insert_query = text("""
+                    INSERT INTO observacion_aerea.captura_imagen_visible
+                    ( valid_time_start, valid_time_end, payload_id, multisim_id, 
+                    ground_control_station_id, pc_embarcado_id, operator_name, pilot_name, 
+                    sensor, platform)
+                    VALUES ( :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
+                            :ground_control_station_id, :pc_embarcado_id, :operator_name, :pilot_name, 
+                            :sensor, :platform)
+                """)
 
-            insert_query = text("""
-                INSERT INTO observacion_aerea.captura_imagen_visible
-                (fid, valid_time_start, valid_time_end, payload_id, multisim_id, 
-                ground_control_station_id, pc_embarcado_id, operator_name, pilot_name, 
-                sensor, platform)
-                VALUES (:fid, :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
-                        :ground_control_station_id, :pc_embarcado_id, :operator_name, :pilot_name, 
-                        :sensor, :platform)
-            """)
+            if (type == 1): #Es una infrarroja
+                insert_query = text("""
+                    INSERT INTO observacion_aerea.captura_imagen_infrarroja
+                    ( valid_time_start, valid_time_end, payload_id, multisim_id, 
+                    ground_control_station_id, pc_embarcado_id, operator_name, pilot_name, 
+                    sensor, platform)
+                    VALUES ( :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
+                            :ground_control_station_id, :pc_embarcado_id, :operator_name, :pilot_name, 
+                            :sensor, :platform)
+                """)
+
             insert_values = {
-                'fid': 2,  # Se puede generar dinámicamente si es un valor autoincremental o con una lógica específica
                 'valid_time_start': date_time_original,
                 'valid_time_end': date_time_original + timedelta(minutes=1),
                 'payload_id': output_json.get("payload_sn"),
@@ -240,44 +251,49 @@ def is_visible_or_ter(output, output_json, type):
             session.execute(insert_query, insert_values)
             session.commit()
 
+
+        if (type == 0):
+            metadata = MetaData(bind=engine)
+            missions = Table('observacion_captura_imagen_visible', metadata, schema='observacion_aerea', autoload_with=engine)
+
+        elif (type == 1):
+            metadata = MetaData(bind=engine)
+            missions = Table('observacion_captura_imagen_infrarroja', metadata, schema='observacion_aerea', autoload_with=engine)
+
+
+
+        if (type == 0): #Es una visible
+                insert_query = text("""
+                    INSERT INTO observacion_aerea.observacion_captura_imagen_visible
+                    ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
+                    VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
+                            :phenomenon_time, :imagen)
+                """)
+
+        if (type == 1): #Es una infrarroja
+                insert_query = text("""
+                    INSERT INTO observacion_aerea.observacion_captura_imagen_infrarroja
+                    ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
+                    VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
+                            :phenomenon_time, :imagen)
+                """)
+
+        insert_values = {
+            "shape": 'none',
+            "sampled_feature": row['fid'],
+            "procedure": output_json.get("mission_id"),
+            "result_time":  date_time_original,
+            "phenomenon_time": date_time_original,
+            "imagen": output,
+        }
+
+        session.execute(insert_query, insert_values)
+        session.commit()
+        session.close()
+
     except Exception as e:
-        print(f"Error al ejecutar la query: {e}")
+        print(f"Error al descargar desde MinIO: {e}")
         raise 
-
-
-    # # Guardamos en observacion_captura los datos encontrados
-    # try:
-    #     db_conn = BaseHook.get_connection('biobd')
-    #     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/v2.2"
-    #     engine = create_engine(connection_string)
-    #     Session = sessionmaker(bind=engine)
-    #     session = Session()
-
-    #     if (type == 0):
-    #         metadata = MetaData(bind=engine)
-    #         missions = Table('observacion_captura_imagen_visible', metadata, schema='observacion_aerea', autoload_with=engine)
-
-    #     elif (type == 1):
-    #         metadata = MetaData(bind=engine)
-    #         missions = Table('observacion_captura_imagen_infrarroja', metadata, schema='observacion_aerea', autoload_with=engine)
-
-
-    #     values_dict = {
-    #         "shape": None,
-    #         "sampled_feature": #Relacion con captura,
-    #         "procedure": output_json.get("mission_id"),
-    #         "result_time": ,
-    #         "phenomenon_time": ,
-    #         "imagen": output,
-    #     }
-
-    #     filtered_values = {key: value for key, value in values_dict.items() if value is not None}
-    #     insert_stmt = missions.insert().values(**filtered_values)
-    #     result = session.execute(insert_stmt)
-
-    # except Exception as e:
-    #     print(f"Error al descargar desde MinIO: {e}")
-    #     raise 
 
 
 
