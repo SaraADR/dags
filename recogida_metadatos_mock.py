@@ -117,6 +117,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
                 output += line.strip() + "\n"
 
             print(f"Salida de docker command para {file_name}:")
+            print(output)
 
             # Clean up Docker container after each run
             cleanup_command = f'docker rm exiftool-container-{file_name.replace(".", "-")}'
@@ -125,6 +126,13 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     except Exception as e:
         print(f"Error in SSH connection: {str(e)}")
 
+    save_data(output, message)
+
+
+
+
+def save_data(data_json, message):
+    return
 
 
 default_args = {
