@@ -1,11 +1,14 @@
-from airflow import DAG
+import json
+import os
+import boto3
 from datetime import datetime, timedelta, timezone
+from airflow import DAG
 from airflow.hooks.base_hook import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
-import boto3
 from botocore.client import Config
-import json
 from airflow.operators.python_operator import PythonOperator
+from botocore.exceptions import ClientError
+
 
 def process_extracted_files(**kwargs):
 
@@ -24,6 +27,7 @@ def process_extracted_files(**kwargs):
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'temp'
     folder_prefix = 'metadatos/'
+    local_directory = 'temp'  
 
     try:
         # Listar objetos en la carpeta
@@ -36,10 +40,86 @@ def process_extracted_files(**kwargs):
         for obj in response['Contents']:
             file_key = obj['Key']
             print(f"Procesando archivo: {file_key}")
-            return
-        
+            local_zip_path = download_from_minio(s3_client, bucket_name, file_key, local_directory, folder_prefix)
+            process_zip_file(local_zip_path, file_key, file_key,  **kwargs)
+        return  
     except Exception as e:
         print(f"Error al procesar los archivos: {e}")
+
+
+
+def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
+    """
+    Función para descargar archivos o carpetas desde MinIO.
+    """
+    if not os.path.exists(local_directory):
+        os.makedirs(local_directory)
+
+    local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
+    print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
+    relative_path = file_path_in_minio.replace('/temp/', '')
+
+    try:
+        # # Verificar si el archivo existe antes de intentar descargarlo
+        response = s3_client.get_object(Bucket=bucket_name, Key=relative_path)
+        with open(local_file, 'wb') as f:
+            f.write(response['Body'].read())
+
+        print(f"Archivo descargado correctamente: {local_file}")
+
+        return local_file
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            print(f"Error 404: El archivo no fue encontrado en MinIO: {file_path_in_minio}")
+        else:
+            print(f"Error en el proceso: {str(e)}")
+        return None  # Devolver None si hay un error
+
+
+
+def process_zip_file(local_zip_path, file_name, message, **kwargs):
+
+    if local_zip_path is None:
+        print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
+        return
+
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+
+    try:
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+
+            if not file_name.endswith('/'):
+
+                shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{file_name}"
+
+                sftp.put(file_name, shared_volume_path)
+                print(f"Copied {file_name} to {shared_volume_path}")
+
+
+                # Execute Docker command for each file
+                docker_command = (
+                    f'cd /home/admin3/exiftool/exiftool && '
+                    f'docker run --rm -v /home/admin3/exiftool/exiftool:/images '
+                    f'--name exiftool-container-{file_name.replace(".", "-")} '
+                    f'exiftool-image -config /images/example2.0.0.txt -u /images/images/{file_name}'
+                )
+
+                stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
+                output = ""
+                outputlimp = ""
+
+                for line in stdout:
+                    output += line.strip() + "\n"
+
+                print(f"Salida de docker command para {file_name}:")
+
+                # Clean up Docker container after each run
+                cleanup_command = f'docker rm exiftool-container-{file_name.replace(".", "-")}'
+                ssh_client.exec_command(cleanup_command)
+
+    except Exception as e:
+        print(f"Error in SSH connection: {str(e)}")
 
 
 
