@@ -257,7 +257,7 @@ def is_visible_or_ter(output, output_json, type):
 
         if (type == 0): #Es una visible
                 insert_query = text("""
-                    INSERT INTO observacion_aerea.observacion_captura_imagen_visible
+                    INSERT INTO observacion_aerea.observation_captura_imagen_visible
                     ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
                     VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
                             :phenomenon_time, :imagen)
@@ -265,7 +265,7 @@ def is_visible_or_ter(output, output_json, type):
 
         if (type == 1): #Es una infrarroja
                 insert_query = text("""
-                    INSERT INTO observacion_aerea.observacion_captura_imagen_infrarroja
+                    INSERT INTO observacion_aerea.observation_captura_imagen_infrarroja
                     ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
                     VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
                             :phenomenon_time, :imagen)
