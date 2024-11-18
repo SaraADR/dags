@@ -8,12 +8,6 @@ import json
 from airflow.operators.python_operator import PythonOperator
 
 def process_extracted_files(**kwargs):
-    minio = kwargs['dag_run'].conf.get('minio')
-    print(f"Mensaje: {minio}")
-
-    if not minio:
-        print("Ha habido un error con el traspaso de los documentos")
-        return
 
     # Establecer conexión con MinIO
     connection = BaseHook.get_connection('minio_conn')
