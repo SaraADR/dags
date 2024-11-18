@@ -83,6 +83,7 @@ def process_zip_file(local_zip_path, file_name, message, **kwargs):
         print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
         return
 
+    print(f"Ejecutando proceso de docker con el file {file_name}")
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
     try:
