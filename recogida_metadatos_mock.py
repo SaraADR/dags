@@ -207,7 +207,19 @@ def is_visible_or_ter(output, output_json, type):
             'one_hour_before': one_hour_before,
             'one_hour_after': one_hour_after
         })
-        print(result)
+        print({
+            'payload_id': output_json.get("payload_sn"),
+            'multisim_id': output_json.get("multisim_sn"),
+            'ground_control_station_id': output_json.get("ground_control_station_sn"),
+            'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
+            'operator_name': output_json.get("operator_name"),
+            'pilot_name': output_json.get("pilot_name"),
+            'sensor': output_json.get("camera_model_name"),
+            'platform': output_json.get("aircraft_number_plate"),
+            'fecha_dada': date_time_original,
+            'one_hour_before': one_hour_before,
+            'one_hour_after': one_hour_after
+        })
 
         row = result.fetchone()
         if row:
