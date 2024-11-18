@@ -183,9 +183,9 @@ def is_visible_or_ter(output, output_json, type):
         """)
 
 
-        date_time_str = output_json.get("date_time_original")
+        date_time_str = output_json.get("date/time_original")
         try:
-            date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S%z")
+            date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
         except ValueError as ve:
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
             raise
@@ -214,6 +214,7 @@ def is_visible_or_ter(output, output_json, type):
             fid = row['fid']
             valid_time_start = row['valid_time_start']
             valid_time_end = row['valid_time_end']     
+            
 
             #Comprobamos que fecha es la que esta limite para modificarla en la tabla     
             if date_time_original < valid_time_start:
