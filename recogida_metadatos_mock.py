@@ -217,10 +217,10 @@ def is_visible_or_ter(output, output_json, type):
             if (type == 0): #Es una visible
                 insert_query = text("""
                     INSERT INTO observacion_aerea.captura_imagen_visible
-                    ( valid_time_start, valid_time_end, payload_id, multisim_id, 
+                    ( fid, valid_time_start, valid_time_end, payload_id, multisim_id, 
                     ground_control_station_id, pc_embarcado_id, operator_name, pilot_name, 
                     sensor, platform)
-                    VALUES ( :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
+                    VALUES (:fid, :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
                             :ground_control_station_id, :pc_embarcado_id, :operator_name, :pilot_name, 
                             :sensor, :platform)
                 """)
@@ -236,7 +236,8 @@ def is_visible_or_ter(output, output_json, type):
                             :sensor, :platform)
                 """)
 
-            insert_values = {
+            insert_values = { 
+                'fid': output_json.get("sensor_id"),              
                 'valid_time_start': date_time_original,
                 'valid_time_end': date_time_original + timedelta(minutes=1),
                 'payload_id': output_json.get("payload_sn"),
@@ -252,15 +253,7 @@ def is_visible_or_ter(output, output_json, type):
             session.commit()
 
 
-        if (type == 0):
-            metadata = MetaData(bind=engine)
-            missions = Table('observacion_captura_imagen_visible', metadata, schema='observacion_aerea', autoload_with=engine)
-
-        elif (type == 1):
-            metadata = MetaData(bind=engine)
-            missions = Table('observacion_captura_imagen_infrarroja', metadata, schema='observacion_aerea', autoload_with=engine)
-
-
+        #INSERTAMOS EN OBSERVACION CAPTURA LA IMAGEN
 
         if (type == 0): #Es una visible
                 insert_query = text("""
@@ -284,7 +277,7 @@ def is_visible_or_ter(output, output_json, type):
             "procedure": output_json.get("mission_id"),
             "result_time":  date_time_original,
             "phenomenon_time": date_time_original,
-            "imagen": output,
+            "imagen": json.dumps(output, ensure_ascii=False, indent=4),
         }
 
         session.execute(insert_query, insert_values)
