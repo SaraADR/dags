@@ -93,9 +93,6 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
 
             shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{name_short}"
-            print("SE PROCEDE A HACER EL PUT")
-            print(shared_volume_path)
-            print(file_name)
 
             sftp.put(file_name, shared_volume_path)
             print(f"Copied {file_name} to {shared_volume_path}")
