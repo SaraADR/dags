@@ -5,6 +5,7 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 import boto3
 from botocore.client import Config
 import json
+from airflow.operators.python_operator import PythonOperator
 
 def process_extracted_files(**kwargs):
     minio = kwargs['dag_run'].conf.get('minio')
