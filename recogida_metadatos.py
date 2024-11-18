@@ -18,7 +18,6 @@ def consumer_function(message, prefix, **kwargs):
     except Exception as e:
         print(f"Error al procesar el mensaje: {e}")
 
-    
     file_path_in_minio =  msg_value  
         
     # Establecer conexión con MinIO
@@ -145,7 +144,7 @@ dag = DAG(
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic_metadatos",
-    topics=["metadatos"],
+    topics=["metadato"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
