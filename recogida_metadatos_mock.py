@@ -285,7 +285,7 @@ def is_visible_or_ter(output, output_json, type):
         session.close()
 
     except Exception as e:
-        print(f"Error al descargar desde MinIO: {e}")
+        print(f"Error al introducir la linea en observacion captura: {e}")
         raise 
 
 
