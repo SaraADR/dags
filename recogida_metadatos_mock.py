@@ -271,8 +271,9 @@ def is_visible_or_ter(output, output_json, type):
                             :phenomenon_time, :imagen)
                 """)
 
+        shape = "SRID=4326;POLYGON ((-7.720238 42.831222, -7.720238 42.832222, -7.717238 42.832222, -7.717238 42.831222, -7.720238 42.831222))"
         insert_values = {
-            "shape": 'none',
+            "shape": shape,
             "sampled_feature": row['fid'],
             "procedure": output_json.get("mission_id"),
             "result_time":  date_time_original,
