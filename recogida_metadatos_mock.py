@@ -127,6 +127,8 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     output_json_noload = parse_output_to_json(output)
     output_json = json.loads(output_json_noload)
+    print("OUTPUTJS")
+    print(output_json)
     idRafaga = output_json.get("identificador_rafaga", '0')
 
     if(idRafaga != '0'):
