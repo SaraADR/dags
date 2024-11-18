@@ -77,18 +77,19 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
 
 
 
-def process_zip_file(local_zip_path, file_name, message, **kwargs):
+def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     if local_zip_path is None:
         print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
         return
-
+    file_name = 'temp/' + os.path.basename(file_path)
     print(f"Ejecutando proceso de docker con el file {file_name}")
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
+
 
             if not file_name.endswith('/'):
 
