@@ -182,8 +182,17 @@ def is_visible_or_ter(output, output_json, type):
               )
         """)
 
-        one_hour_before = output_json.get("date_time_original") - timedelta(hours=1)
-        one_hour_after = output_json.get("date_time_original") + timedelta(hours=1)
+
+        date_time_str = output_json.get("date_time_original")
+        try:
+            date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+        except ValueError as ve:
+            print(f"Error al parsear la fecha '{date_time_str}': {ve}")
+            raise
+
+
+        one_hour_before = date_time_original - timedelta(hours=1)
+        one_hour_after = date_time_original + timedelta(hours=1)
 
         result = session.execute(query, {
             'payload_id': output_json.get("payload_sn"),
@@ -194,7 +203,7 @@ def is_visible_or_ter(output, output_json, type):
             'pilot_name': output_json.get("pilot_name"),
             'sensor': output_json.get("camera_model_name"),
             'platform': output_json.get("aircraft_number_plate"),
-            'fecha_dada': output_json.get("date_time_original"),
+            'fecha_dada': date_time_original,
             'one_hour_before': one_hour_before,
             'one_hour_after': one_hour_after
         })
@@ -210,7 +219,7 @@ def is_visible_or_ter(output, output_json, type):
 
 
     except Exception as e:
-        print(f"Error al descargar desde MinIO: {e}")
+        print(f"Error al ejecutar la query: {e}")
         raise 
 
 
