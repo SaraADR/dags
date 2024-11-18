@@ -92,7 +92,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             sftp = ssh_client.open_sftp()
 
 
-            shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{file_name}"
+            shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{os.path.basename(file_path)}"
             print("SE PROCEDE A HACER EL PUT")
             print(shared_volume_path)
             print(file_name)
