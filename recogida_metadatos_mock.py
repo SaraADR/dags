@@ -91,34 +91,32 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             sftp = ssh_client.open_sftp()
 
 
-            if not file_name.endswith('/'):
+            shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{file_name}"
 
-                shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{file_name}"
-
-                sftp.put(file_name, shared_volume_path)
-                print(f"Copied {file_name} to {shared_volume_path}")
+            sftp.put(file_name, shared_volume_path)
+            print(f"Copied {file_name} to {shared_volume_path}")
 
 
-                # Execute Docker command for each file
-                docker_command = (
-                    f'cd /home/admin3/exiftool/exiftool && '
-                    f'docker run --rm -v /home/admin3/exiftool/exiftool:/images '
-                    f'--name exiftool-container-{file_name.replace(".", "-")} '
-                    f'exiftool-image -config /images/example2.0.0.txt -u /images/images/{file_name}'
-                )
+            # Execute Docker command for each file
+            docker_command = (
+                f'cd /home/admin3/exiftool/exiftool && '
+                f'docker run --rm -v /home/admin3/exiftool/exiftool:/images '
+                f'--name exiftool-container-{file_name.replace(".", "-")} '
+                f'exiftool-image -config /images/example2.0.0.txt -u /images/images/{file_name}'
+            )
 
-                stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
-                output = ""
-                outputlimp = ""
+            stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
+            output = ""
+            outputlimp = ""
 
-                for line in stdout:
-                    output += line.strip() + "\n"
+            for line in stdout:
+                output += line.strip() + "\n"
 
-                print(f"Salida de docker command para {file_name}:")
+            print(f"Salida de docker command para {file_name}:")
 
-                # Clean up Docker container after each run
-                cleanup_command = f'docker rm exiftool-container-{file_name.replace(".", "-")}'
-                ssh_client.exec_command(cleanup_command)
+            # Clean up Docker container after each run
+            cleanup_command = f'docker rm exiftool-container-{file_name.replace(".", "-")}'
+            ssh_client.exec_command(cleanup_command)
 
     except Exception as e:
         print(f"Error in SSH connection: {str(e)}")
