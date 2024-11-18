@@ -111,13 +111,12 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
             stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
             output = ""
-            outputlimp = ""
 
             for line in stdout:
                 output += line.strip() + "\n"
 
             print(f"Salida de docker command para {file_name}:")
-            print(output)
+
 
             # Clean up Docker container after each run
             cleanup_command = f'docker rm exiftool-container-{name_short.replace(".", "-")}'
@@ -126,8 +125,10 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     except Exception as e:
         print(f"Error in SSH connection: {str(e)}")
 
-    output_json = parse_output_to_json(output)
+    output_json_noload = parse_output_to_json(output)
+    output_json = json.loads(output_json_noload)
     idRafaga = output_json.get("identificador_rafaga", 0)
+
     if(idRafaga != 0):
         #Es una rafaga
         is_rafaga(output, output_json)
