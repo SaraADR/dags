@@ -165,7 +165,7 @@ def is_visible_or_ter(output, output_json, type):
         session = Session()
 
         query = text("""
-            SELECT fid
+            SELECT fid , valid_time_start, valid_time_end
             FROM observacion_aerea.captura_imagen_visible
             WHERE (payload_id = :payload_id OR (payload_id IS NULL AND :payload_id IS NULL))
               AND (multisim_id = :multisim_id OR (multisim_id IS NULL AND :multisim_id IS NULL))
@@ -210,8 +210,21 @@ def is_visible_or_ter(output, output_json, type):
 
         row = result.fetchone()
         if row:
-            print(f"row: {row}")          
-            # TODO: Comprobar que fecha es la que esta limite para modificarla en la tabla
+            print(f"row: {row['fid']}")
+            fid = row['fid']
+            valid_time_start = row['valid_time_start']
+            valid_time_end = row['valid_time_end']     
+
+            #Comprobamos que fecha es la que esta limite para modificarla en la tabla     
+            if date_time_original < valid_time_start:
+                diferencia = valid_time_start - date_time_original
+                print(f"Fecha dada {date_time_original} está antes del inicio ({valid_time_start}) en {diferencia} (h:m:s), se actualiza el start.")
+            elif date_time_original > valid_time_end:
+                diferencia = date_time_original - valid_time_end
+                print(f"Fecha dada {date_time_original} está **después** del final ({valid_time_end}) en {diferencia} (h:m:s), se actualiza el end.")
+            else:
+                print(f"Fecha dada {date_time_original} está entre {valid_time_start} y {valid_time_end}, por lo que no se realiza actualización")
+           
         else:
             print("No se encontró ningún registro que coincida, se procede a incluir la linea")
             if (type == 0): #Es una visible
