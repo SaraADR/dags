@@ -82,8 +82,8 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     if local_zip_path is None:
         print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
         return
-    
-    file_name = 'temp/' + os.path.basename(file_path)
+    name_short = os.path.basename(file_path)
+    file_name = 'temp/' + name_short
     print(f"Ejecutando proceso de docker con el file {file_name}")
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
@@ -92,7 +92,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             sftp = ssh_client.open_sftp()
 
 
-            shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{os.path.basename(file_path)}"
+            shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{name_short}"
             print("SE PROCEDE A HACER EL PUT")
             print(shared_volume_path)
             print(file_name)
@@ -105,7 +105,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             docker_command = (
                 f'cd /home/admin3/exiftool/exiftool && '
                 f'docker run --rm -v /home/admin3/exiftool/exiftool:/images '
-                f'--name exiftool-container-{file_name.replace(".", "-")} '
+                f'--name exiftool-container-{name_short.replace(".", "-")} '
                 f'exiftool-image -config /images/example2.0.0.txt -u /images/images/{file_name}'
             )
 
@@ -120,7 +120,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             print(output)
 
             # Clean up Docker container after each run
-            cleanup_command = f'docker rm exiftool-container-{file_name.replace(".", "-")}'
+            cleanup_command = f'docker rm exiftool-container-{name_short.replace(".", "-")}'
             ssh_client.exec_command(cleanup_command)
 
     except Exception as e:
