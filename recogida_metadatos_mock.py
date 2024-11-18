@@ -207,28 +207,38 @@ def is_visible_or_ter(output, output_json, type):
             'one_hour_before': one_hour_before,
             'one_hour_after': one_hour_after
         })
-        print({
-            'payload_id': output_json.get("payload_sn"),
-            'multisim_id': output_json.get("multisim_sn"),
-            'ground_control_station_id': output_json.get("ground_control_station_sn"),
-            'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-            'operator_name': output_json.get("operator_name"),
-            'pilot_name': output_json.get("pilot_name"),
-            'sensor': output_json.get("camera_model_name"),
-            'platform': output_json.get("aircraft_number_plate"),
-            'fecha_dada': date_time_original,
-            'one_hour_before': one_hour_before,
-            'one_hour_after': one_hour_after
-        })
 
         row = result.fetchone()
         if row:
-            print(row)
-            return row['fid']
+            print(f"row: {row}")          
+            # TODO: Comprobar que fecha es la que esta limite para modificarla en la tabla
         else:
-            print("No se encontró ningún registro que coincida.")
-            return None
+            print("No se encontró ningún registro que coincida, se procede a incluir la linea")
 
+            insert_query = text("""
+                INSERT INTO observacion_aerea.captura_imagen_visible
+                (fid, valid_time_start, valid_time_end, payload_id, multisim_id, 
+                ground_control_station_id, pc_embarcado_id, operator_name, pilot_name, 
+                sensor, platform)
+                VALUES (:fid, :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
+                        :ground_control_station_id, :pc_embarcado_id, :operator_name, :pilot_name, 
+                        :sensor, :platform)
+            """)
+            insert_values = {
+                'fid': 2,  # Se puede generar dinámicamente si es un valor autoincremental o con una lógica específica
+                'valid_time_start': date_time_original,
+                'valid_time_end': date_time_original + timedelta(minutes=1),
+                'payload_id': output_json.get("payload_sn"),
+                'multisim_id': output_json.get("multisim_sn"),
+                'ground_control_station_id': output_json.get("ground_control_station_sn"),
+                'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
+                'operator_name': output_json.get("operator_name"),
+                'pilot_name': output_json.get("pilot_name"),
+                'sensor': output_json.get("camera_model_name"),
+                'platform': output_json.get("aircraft_number_plate")
+            }
+            session.execute(insert_query, insert_values)
+            session.commit()
 
     except Exception as e:
         print(f"Error al ejecutar la query: {e}")
