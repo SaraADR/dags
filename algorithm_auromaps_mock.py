@@ -115,6 +115,7 @@ def change_state_job(**context):
         update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
         session.execute(update_stmt)
         session.commit()
+        session.close()
         print(f"Job ID {job_id} status updated to FINISHED")
 
     except Exception as e:

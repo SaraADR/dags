@@ -1,6 +1,7 @@
 import json
 import os
 import boto3
+import re
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.hooks.base_hook import BaseHook
@@ -8,6 +9,8 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from botocore.client import Config
 from airflow.operators.python_operator import PythonOperator
 from botocore.exceptions import ClientError
+from sqlalchemy import create_engine, text, MetaData, Table
+from sqlalchemy.orm import sessionmaker
 
 
 def process_extracted_files(**kwargs):
@@ -123,13 +126,146 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     except Exception as e:
         print(f"Error in SSH connection: {str(e)}")
 
-    save_data(output, message)
+    output_json = parse_output_to_json(output)
+    idRafaga = output_json.get("identificador_rafaga", 0)
+    if(idRafaga != 0):
+        #Es una rafaga
+        is_rafaga(output, output_json)
+    elif ( output_json.get("photometric_interpretation") == 'RGB'):
+        #Es imagen visible
+        is_visible_or_ter(output,output_json, 0)
+    elif (output_json.get("photometric_interpretation") == 'BlackIsZero'):
+        # Es termodinamica
+        is_visible_or_ter(output,output_json, 1)
+    else:
+        print("No se reconoce el tipo de imagen o video aportado")
+        return 
 
 
 
 
-def save_data(data_json, message):
+
+def is_rafaga(output, message):
+    print("No se ha implementado el sistema de rafagas todavia")
     return
+
+def is_visible_or_ter(output, output_json, type):
+    if(type == 0):
+        print("Vamos a ejecutar el sistema de guardados de imagenes visibles")
+    if(type == 1):
+        print("Vamos a ejecutar el sistema de guardados de imagenes infrarrojas")
+
+    # Buscar los metadatos en captura
+    try:
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/v2.2"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        query = text("""
+            SELECT fid
+            FROM observacion_aerea.captura_imagen_visible
+            WHERE (payload_id = :payload_id OR (payload_id IS NULL AND :payload_id IS NULL))
+              AND (multisim_id = :multisim_id OR (multisim_id IS NULL AND :multisim_id IS NULL))
+              AND (ground_control_station_id = :ground_control_station_id OR (ground_control_station_id IS NULL AND :ground_control_station_id IS NULL))
+              AND (pc_embarcado_id = :pc_embarcado_id OR (pc_embarcado_id IS NULL AND :pc_embarcado_id IS NULL))
+              AND (operator_name = :operator_name OR (operator_name IS NULL AND :operator_name IS NULL))
+              AND (pilot_name = :pilot_name OR (pilot_name IS NULL AND :pilot_name IS NULL))
+              AND (sensor = :sensor OR (sensor IS NULL AND :sensor IS NULL))
+              AND (platform = :platform OR (platform IS NULL AND :platform IS NULL))
+              AND (
+                (:fecha_dada BETWEEN valid_time_start AND valid_time_end)
+                OR (valid_time_start BETWEEN :one_hour_before AND :fecha_dada)
+                OR (valid_time_end BETWEEN :fecha_dada AND :one_hour_after)
+              )
+        """)
+
+        one_hour_before = output_json.get("date_time_original") - timedelta(hours=1)
+        one_hour_after = output_json.get("date_time_original") + timedelta(hours=1)
+
+        result = session.execute(query, {
+            'payload_id': output_json.get("payload_sn"),
+            'multisim_id': output_json.get("multisim_sn"),
+            'ground_control_station_id': output_json.get("ground_control_station_sn"),
+            'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
+            'operator_name': output_json.get("operator_name"),
+            'pilot_name': output_json.get("pilot_name"),
+            'sensor': output_json.get("camera_model_name"),
+            'platform': output_json.get("aircraft_number_plate"),
+            'fecha_dada': output_json.get("date_time_original"),
+            'one_hour_before': one_hour_before,
+            'one_hour_after': one_hour_after
+        })
+        print(result)
+
+        row = result.fetchone()
+        if row:
+            print(row)
+            return row['fid']
+        else:
+            print("No se encontró ningún registro que coincida.")
+            return None
+
+
+    except Exception as e:
+        print(f"Error al descargar desde MinIO: {e}")
+        raise 
+
+
+    # # Guardamos en observacion_captura los datos encontrados
+    # try:
+    #     db_conn = BaseHook.get_connection('biobd')
+    #     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/v2.2"
+    #     engine = create_engine(connection_string)
+    #     Session = sessionmaker(bind=engine)
+    #     session = Session()
+
+    #     if (type == 0):
+    #         metadata = MetaData(bind=engine)
+    #         missions = Table('observacion_captura_imagen_visible', metadata, schema='observacion_aerea', autoload_with=engine)
+
+    #     elif (type == 1):
+    #         metadata = MetaData(bind=engine)
+    #         missions = Table('observacion_captura_imagen_infrarroja', metadata, schema='observacion_aerea', autoload_with=engine)
+
+
+    #     values_dict = {
+    #         "shape": None,
+    #         "sampled_feature": #Relacion con captura,
+    #         "procedure": output_json.get("mission_id"),
+    #         "result_time": ,
+    #         "phenomenon_time": ,
+    #         "imagen": output,
+    #     }
+
+    #     filtered_values = {key: value for key, value in values_dict.items() if value is not None}
+    #     insert_stmt = missions.insert().values(**filtered_values)
+    #     result = session.execute(insert_stmt)
+
+    # except Exception as e:
+    #     print(f"Error al descargar desde MinIO: {e}")
+    #     raise 
+
+
+
+def parse_output_to_json(output):
+    """
+    Toma el output del comando docker como una cadena de texto y lo convierte en un diccionario JSON.
+    """
+    metadata = {}
+    # Expresión regular para capturar pares clave-valor separados por ":"
+    pattern = r"^(.*?):\s*(.*)$"
+    for line in output.splitlines():
+        match = re.match(pattern, line)
+        if match:
+            key = match.group(1).strip()
+            key = key.strip().replace(" ", "_").lower()
+            value = match.group(2).strip()
+            metadata[key] = value
+    
+    return json.dumps(metadata, ensure_ascii=False, indent=4)
+
 
 
 default_args = {
