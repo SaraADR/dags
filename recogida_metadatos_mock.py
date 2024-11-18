@@ -82,6 +82,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     if local_zip_path is None:
         print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
         return
+    
     file_name = 'temp/' + os.path.basename(file_path)
     print(f"Ejecutando proceso de docker con el file {file_name}")
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
@@ -92,6 +93,9 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
 
             shared_volume_path = f"/home/admin3/exiftool/exiftool/images/{file_name}"
+            print("SE PROCEDE A HACER EL PUT")
+            print(shared_volume_path)
+            print(file_name)
 
             sftp.put(file_name, shared_volume_path)
             print(f"Copied {file_name} to {shared_volume_path}")
