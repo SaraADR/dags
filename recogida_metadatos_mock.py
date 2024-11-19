@@ -135,13 +135,26 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     idRafaga = output_json.get("identificador_rafaga", '0')
 
+    # if(idRafaga != '0'):
+    #     #Es una rafaga
+    #     is_rafaga(output, output_json)
+    # elif ( output_json.get("photometric_interpretation") == 'RGB'):
+    #     #Es imagen visible
+    #     is_visible_or_ter(output,output_json, 0)
+    # elif (output_json.get("photometric_interpretation") == 'BlackIsZero'):
+    #     # Es termodinamica
+    #     is_visible_or_ter(output,output_json, 1)
+    # else:
+    #     print("No se reconoce el tipo de imagen o video aportado")
+    #     return 
+
     if(idRafaga != '0'):
         #Es una rafaga
         is_rafaga(output, output_json)
-    elif ( output_json.get("photometric_interpretation") == 'RGB'):
+    elif "-vis" in message:
         #Es imagen visible
         is_visible_or_ter(output,output_json, 0)
-    elif (output_json.get("photometric_interpretation") == 'BlackIsZero'):
+    elif "-ter" in message:
         # Es termodinamica
         is_visible_or_ter(output,output_json, 1)
     else:
