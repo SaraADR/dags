@@ -268,7 +268,7 @@ def is_visible_or_ter(output, output_json, type):
             """)
 
             insert_values = { 
-                'fid': output_json.get("sensor_id"),              
+                'fid': int(output_json.get("sensor_id")),              
                 'valid_time_start': date_time_original,
                 'valid_time_end': date_time_original + timedelta(minutes=1),
                 'payload_id': output_json.get("payload_sn"),
@@ -280,6 +280,7 @@ def is_visible_or_ter(output, output_json, type):
                 'sensor': output_json.get("camera_model_name"),
                 'platform': output_json.get("aircraft_number_plate")
             }
+            print(insert_values)
             session.execute(insert_query, insert_values)
             session.commit()
 
