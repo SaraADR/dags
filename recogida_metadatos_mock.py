@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import boto3
 import re
 from datetime import datetime, timedelta, timezone
@@ -49,35 +50,6 @@ def process_extracted_files(**kwargs):
         return  
     except Exception as e:
         print(f"Error al procesar los archivos: {e}")
-
-
-#DESCARGA CADA UNO DE LOS FICHEROS DE MANERA INDIVIDUAL
-def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
-    """
-    Función para descargar archivos o carpetas desde MinIO.
-    """
-    if not os.path.exists(local_directory):
-        os.makedirs(local_directory)
-
-    local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
-    print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
-    relative_path = file_path_in_minio.replace('/temp/', '')
-
-    try:
-        # # Verificar si el archivo existe antes de intentar descargarlo
-        response = s3_client.get_object(Bucket=bucket_name, Key=relative_path)
-        with open(local_file, 'wb') as f:
-            f.write(response['Body'].read())
-
-        print(f"Archivo descargado correctamente: {local_file}")
-
-        return local_file
-    except ClientError as e:
-        if e.response['Error']['Code'] == '404':
-            print(f"Error 404: El archivo no fue encontrado en MinIO: {file_path_in_minio}")
-        else:
-            print(f"Error en el proceso: {str(e)}")
-        return None  # Devolver None si hay un error
 
 
 
@@ -323,6 +295,10 @@ def is_visible_or_ter(output, output_json, type):
 
 
 
+
+
+# METODOS AUXILIARES
+
 def parse_output_to_json(output):
     """
     Toma el output del comando docker como una cadena de texto y lo convierte en un diccionario JSON.
@@ -357,6 +333,46 @@ def parse_output_to_json_clean(output):
     
     return json.dumps(metadata, ensure_ascii=False, indent=4)
 
+
+#DESCARGA CADA UNO DE LOS FICHEROS DE MANERA INDIVIDUAL
+def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
+    """
+    Función para descargar archivos o carpetas desde MinIO.
+    """
+    if not os.path.exists(local_directory):
+        os.makedirs(local_directory)
+
+    local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
+    print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
+    relative_path = file_path_in_minio.replace('/temp/', '')
+
+    try:
+        # # Verificar si el archivo existe antes de intentar descargarlo
+        response = s3_client.get_object(Bucket=bucket_name, Key=relative_path)
+        with open(local_file, 'wb') as f:
+            f.write(response['Body'].read())
+
+        print(f"Archivo descargado correctamente: {local_file}")
+
+        return local_file
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            print(f"Error 404: El archivo no fue encontrado en MinIO: {file_path_in_minio}")
+        else:
+            print(f"Error en el proceso: {str(e)}")
+        return None  # Devolver None si hay un error
+
+
+
+def clean_temp_directory():
+    temp_dir = "temp"
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+        print(f"Directorio {temp_dir} limpiado exitosamente.")
+    else:
+        print(f"El directorio {temp_dir} no existe, no se requiere limpieza.")
+        
+
 default_args = {
     'owner': 'sadr',
     'depends_onpast': False,
@@ -384,4 +400,11 @@ process_extracted_files_task = PythonOperator(
     dag=dag,
 )
 
-process_extracted_files_task
+    # Tarea de limpieza
+cleanup_task = PythonOperator(
+        task_id='cleanup_temp',
+        python_callable=clean_temp_directory,
+)
+
+
+process_extracted_files_task >> cleanup_task
