@@ -259,10 +259,10 @@ def is_visible_or_ter(output, output_json, type):
 
             insert_query = text(f"""
                     INSERT INTO {table_name}
-                    ( valid_time_start, valid_time_end, payload_id, multisim_id, 
+                    ( fid, valid_time_start, valid_time_end, payload_id, multisim_id, 
                     ground_control_station_id, pc_embarcado_id, operator_name, pilot_name, 
                     sensor, platform)
-                    VALUES ( :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
+                    VALUES (:fid, :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
                             :ground_control_station_id, :pc_embarcado_id, :operator_name, :pilot_name, 
                             :sensor, :platform)
             """)
