@@ -13,6 +13,7 @@ from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 
 
+#TRAE TODOS LOS FICHEROS DE LA CARPETA DE MINIO
 def process_extracted_files(**kwargs):
 
     # Establecer conexión con MinIO
@@ -50,7 +51,7 @@ def process_extracted_files(**kwargs):
         print(f"Error al procesar los archivos: {e}")
 
 
-
+#DESCARGA CADA UNO DE LOS FICHEROS DE MANERA INDIVIDUAL
 def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
     """
     Función para descargar archivos o carpetas desde MinIO.
@@ -80,11 +81,14 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
 
 
 
+#HACE LECTURA DE METADATOS Y CONTROLA EL TIPO ENCONTRADO
 def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     if local_zip_path is None:
         print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
         return
+    
+
     name_short = os.path.basename(file_path)
     file_name = 'temp/' + name_short
     print(f"Ejecutando proceso de docker con el file {file_name}")
@@ -125,10 +129,10 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     except Exception as e:
         print(f"Error in SSH connection: {str(e)}")
 
+    #CONTROL DEL TIPO ENCONTRADO
     output_json_noload = parse_output_to_json(output)
     output_json = json.loads(output_json_noload)
-    print("OUTPUTJS")
-    print(output_json)
+
     idRafaga = output_json.get("identificador_rafaga", '0')
 
     if(idRafaga != '0'):
@@ -145,18 +149,24 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         return 
 
 
-
-
-
+#PROCEDIMIENTO A LLEVAR CON LAS RAFAGAS
 def is_rafaga(output, message):
     print("No se ha implementado el sistema de rafagas todavia")
     return
 
+
+#PROCEDIMIENTO A LLEVAR CON INDIVIDUALES
 def is_visible_or_ter(output, output_json, type):
+
     if(type == 0):
         print("Vamos a ejecutar el sistema de guardados de imagenes visibles")
+        table_name = "observacion_aerea.captura_imagen_visible"
     if(type == 1):
         print("Vamos a ejecutar el sistema de guardados de imagenes infrarrojas")
+        table_name = "observacion_aerea.captura_imagen_infrarroja"
+    if(type == 2):
+        print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
+        table_name = "observacion_aerea.captura_imagen_multiespectral"
 
     # Buscar los metadatos en captura
     try:
@@ -166,9 +176,10 @@ def is_visible_or_ter(output, output_json, type):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        query = text("""
+
+        query = text(f"""
             SELECT fid , valid_time_start, valid_time_end
-            FROM observacion_aerea.captura_imagen_visible
+            FROM {table_name}
             WHERE (payload_id = :payload_id OR (payload_id IS NULL AND :payload_id IS NULL))
               AND (multisim_id = :multisim_id OR (multisim_id IS NULL AND :multisim_id IS NULL))
               AND (ground_control_station_id = :ground_control_station_id OR (ground_control_station_id IS NULL AND :ground_control_station_id IS NULL))
@@ -211,6 +222,8 @@ def is_visible_or_ter(output, output_json, type):
         })
 
         row = result.fetchone()
+        
+        #SE COMRPUEBA SI SE ACTUALIZA O CREA NUEVA
         if row:
             print(f"row: {row['fid']}")
             fid = row['fid']
@@ -230,27 +243,16 @@ def is_visible_or_ter(output, output_json, type):
            
         else:
             print("No se encontró ningún registro que coincida, se procede a incluir la linea")
-            if (type == 0): #Es una visible
-                insert_query = text("""
-                    INSERT INTO observacion_aerea.captura_imagen_visible
-                    ( fid, valid_time_start, valid_time_end, payload_id, multisim_id, 
-                    ground_control_station_id, pc_embarcado_id, operator_name, pilot_name, 
-                    sensor, platform)
-                    VALUES (:fid, :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
-                            :ground_control_station_id, :pc_embarcado_id, :operator_name, :pilot_name, 
-                            :sensor, :platform)
-                """)
 
-            if (type == 1): #Es una infrarroja
-                insert_query = text("""
-                    INSERT INTO observacion_aerea.captura_imagen_infrarroja
+            insert_query = text(f"""
+                    INSERT INTO {table_name}
                     ( valid_time_start, valid_time_end, payload_id, multisim_id, 
                     ground_control_station_id, pc_embarcado_id, operator_name, pilot_name, 
                     sensor, platform)
                     VALUES ( :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
                             :ground_control_station_id, :pc_embarcado_id, :operator_name, :pilot_name, 
                             :sensor, :platform)
-                """)
+            """)
 
             insert_values = { 
                 'fid': output_json.get("sensor_id"),              
@@ -272,20 +274,19 @@ def is_visible_or_ter(output, output_json, type):
         #INSERTAMOS EN OBSERVACION CAPTURA LA IMAGEN
 
         if (type == 0): #Es una visible
-                insert_query = text("""
-                    INSERT INTO observacion_aerea.observation_captura_imagen_visible
-                    ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
-                    VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
-                            :phenomenon_time, :imagen)
-                """)
-
+            table_name_observacion = "observacion_aerea.observation_captura_imagen_visible"
         if (type == 1): #Es una infrarroja
-                insert_query = text("""
-                    INSERT INTO observacion_aerea.observation_captura_imagen_infrarroja
-                    ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
-                    VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
-                            :phenomenon_time, :imagen)
-                """)
+            table_name_observacion = "observacion_aerea.observation_captura_imagen_infrarroja"
+        if (type == 2): #Es una multiespectral
+            table_name_observacion = "observacion_aerea.observation_captura_imagen_multiespectral"
+
+        insert_query = text(f"""
+            INSERT INTO {table_name_observacion}
+            ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
+            VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
+                :phenomenon_time, :imagen)
+        """)
+     
 
         # TODO: CAMBIAR EL SHAPE  POR EL REAL, PREGUNTAR
         shape = "SRID=4326;POLYGON ((-7.720238 42.831222, -7.720238 42.832222, -7.717238 42.832222, -7.717238 42.831222, -7.720238 42.831222))"
