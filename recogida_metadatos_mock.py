@@ -107,18 +107,6 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     idRafaga = output_json.get("identificador_rafaga", '0')
 
-    # if(idRafaga != '0'):
-    #     #Es una rafaga
-    #     is_rafaga(output, output_json)
-    # elif ( output_json.get("photometric_interpretation") == 'RGB'):
-    #     #Es imagen visible
-    #     is_visible_or_ter(output,output_json, 0)
-    # elif (output_json.get("photometric_interpretation") == 'BlackIsZero'):
-    #     # Es termodinamica
-    #     is_visible_or_ter(output,output_json, 1)
-    # else:
-    #     print("No se reconoce el tipo de imagen o video aportado")
-    #     return 
 
     if(idRafaga != '0'):
         #Es una rafaga
@@ -129,6 +117,9 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     elif "-ter" in message:
         # Es termodinamica
         is_visible_or_ter(output,output_json, 1)
+    elif "-mult" in message:
+        # Es termodinamica
+        is_visible_or_ter(output,output_json, 2)
     else:
         print("No se reconoce el tipo de imagen o video aportado")
         return 
@@ -163,22 +154,20 @@ def is_visible_or_ter(output, output_json, type):
 
 
         query = text(f"""
-            SELECT fid , valid_time_start, valid_time_end
+            SELECT fid, valid_time_start, valid_time_end
             FROM {table_name}
             WHERE (payload_id = :payload_id OR (payload_id IS NULL AND :payload_id IS NULL))
-              AND (fid = :fid)
-              AND (multisim_id = :multisim_id OR (multisim_id IS NULL AND :multisim_id IS NULL))
-              AND (ground_control_station_id = :ground_control_station_id OR (ground_control_station_id IS NULL AND :ground_control_station_id IS NULL))
-              AND (pc_embarcado_id = :pc_embarcado_id OR (pc_embarcado_id IS NULL AND :pc_embarcado_id IS NULL))
-              AND (operator_name = :operator_name OR (operator_name IS NULL AND :operator_name IS NULL))
-              AND (pilot_name = :pilot_name OR (pilot_name IS NULL AND :pilot_name IS NULL))
-              AND (sensor = :sensor OR (sensor IS NULL AND :sensor IS NULL))
-              AND (platform = :platform OR (platform IS NULL AND :platform IS NULL))
-              AND (
-                (:fecha_dada BETWEEN valid_time_start AND valid_time_end)
-                OR (valid_time_start BETWEEN :one_hour_before AND :fecha_dada)
-                OR (valid_time_end BETWEEN :fecha_dada AND :one_hour_after)
-              )
+            AND (fid = :fid)
+            AND (multisim_id = :multisim_id OR (multisim_id IS NULL AND :multisim_id IS NULL))
+            AND (ground_control_station_id = :ground_control_station_id OR (ground_control_station_id IS NULL AND :ground_control_station_id IS NULL))
+            AND (pc_embarcado_id = :pc_embarcado_id OR (pc_embarcado_id IS NULL AND :pc_embarcado_id IS NULL))
+            AND (operator_name = :operator_name OR (operator_name IS NULL AND :operator_name IS NULL))
+            AND (pilot_name = :pilot_name OR (pilot_name IS NULL AND :pilot_name IS NULL))
+            AND (sensor = :sensor OR (sensor IS NULL AND :sensor IS NULL))
+            AND (platform = :platform OR (platform IS NULL AND :platform IS NULL))
+            AND (
+                (:fecha_dada BETWEEN valid_time_start - INTERVAL '2 HOURS' AND valid_time_end + INTERVAL '2 HOURS')
+            )
         """)
 
 
@@ -188,10 +177,6 @@ def is_visible_or_ter(output, output_json, type):
         except ValueError as ve:
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
             raise
-
-
-        one_hour_before = date_time_original - timedelta(hours=1)
-        one_hour_after = date_time_original + timedelta(hours=1)
 
         result = session.execute(query, {
             'fid' :  output_json.get("sensor_id"),   
@@ -203,9 +188,7 @@ def is_visible_or_ter(output, output_json, type):
             'pilot_name': output_json.get("pilot_name"),
             'sensor': output_json.get("camera_model_name"),
             'platform': output_json.get("aircraft_number_plate"),
-            'fecha_dada': date_time_original,
-            'one_hour_before': one_hour_before,
-            'one_hour_after': one_hour_after
+            'fecha_dada': date_time_original
         })
 
         row = result.fetchone()
@@ -315,8 +298,8 @@ def is_visible_or_ter(output, output_json, type):
         print(shape)
         insert_values = {
             "shape": shape,
-            "sampled_feature": int(output_json.get("sensor_id")),
-            "procedure": output_json.get("mission_id"),
+            "sampled_feature": output_json.get("mission_id"),
+            "procedure": int(output_json.get("sensor_id")),
             "result_time":  date_time_original,
             "phenomenon_time": date_time_original,
             "imagen": parse_output_to_json_clean(output),
