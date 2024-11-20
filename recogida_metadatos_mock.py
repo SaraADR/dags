@@ -333,6 +333,9 @@ def generar_shape_con_offsets(data):
         vertex_lat = lat_central + offset_lat
         vertices.append((vertex_long, vertex_lat))
 
+    if vertices[-1] != vertices[0]:
+        vertices.append(vertices[0])
+
     vertices_str = ", ".join(f"{lon} {lat}" for lon, lat in vertices)
     shape = f"SRID=4326;POLYGON (({vertices_str}))"
     return shape
