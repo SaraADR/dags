@@ -36,7 +36,7 @@ def create_mission(**context):
         # Iniciando una transacción
         with session.begin():
             # Obtener el estado inicial desde la tabla tipo_misión - status_inicial
-            initial_status_query = text("SELECT status_inicial FROM tipo_mision_status WHERE tipo_mision = :type_id")
+            initial_status_query = text("SELECT mss_mission_initial_status WHERE mission_type_id = :type_id")
             result = session.execute(initial_status_query, {'type_id': input_data['type_id']}).fetchone()
             initial_status = result[0] if result else None
 
