@@ -222,9 +222,44 @@ def is_visible_or_ter(output, output_json, type):
             if date_time_original < valid_time_start:
                 diferencia = valid_time_start - date_time_original
                 print(f"Fecha dada {date_time_original} está antes del inicio ({valid_time_start}) en {diferencia} (h:m:s), se actualiza el start.")
+
+                # Actualizar el campo valid_time_start
+                update_query = text(f"""
+                    UPDATE {table_name}
+                    SET valid_time_start = :new_valid_time_start
+                    WHERE payload_id = :payload_id
+                    AND multisim_id = :multisim_id
+                    AND ground_control_station_id = :ground_control_station_id
+                    AND pc_embarcado_id = :pc_embarcado_id
+                    AND operator_name = :operator_name
+                    AND pilot_name = :pilot_name
+                    AND sensor = :sensor
+                    AND platform = :platform 
+                    AND fid = :fid
+                """)
+                session.execute(update_query, {"new_valid_time_start": date_time_original, "fid": fid, 'payload_id': output_json.get("payload_sn"),
+                                'multisim_id': output_json.get("multisim_sn"), 'ground_control_station_id': output_json.get("ground_control_station_sn"),
+                                'pc_embarcado_id': output_json.get("pc_embarcado_sn"), 'operator_name': output_json.get("operator_name"), 
+                                'pilot_name': output_json.get("pilot_name"),'sensor': output_json.get("camera_model_name"), 
+                                'platform': output_json.get("aircraft_number_plate"),})
+                
+                
             elif date_time_original > valid_time_end:
                 diferencia = date_time_original - valid_time_end
                 print(f"Fecha dada {date_time_original} está **después** del final ({valid_time_end}) en {diferencia} (h:m:s), se actualiza el end.")
+
+                # Actualizar el campo valid_time_end
+                update_query = text(f"""
+                    UPDATE {table_name}
+                    SET valid_time_end = :new_valid_time_end
+                    WHERE fid = :fid
+                """)
+                session.execute(update_query, {"new_valid_time_end": date_time_original, "fid": fid, 'payload_id': output_json.get("payload_sn"),
+                                'multisim_id': output_json.get("multisim_sn"), 'ground_control_station_id': output_json.get("ground_control_station_sn"),
+                                'pc_embarcado_id': output_json.get("pc_embarcado_sn"), 'operator_name': output_json.get("operator_name"), 
+                                'pilot_name': output_json.get("pilot_name"),'sensor': output_json.get("camera_model_name"), 
+                                'platform': output_json.get("aircraft_number_plate"),})
+
             else:
                 print(f"Fecha dada {date_time_original} está entre {valid_time_start} y {valid_time_end}, por lo que no se realiza actualización")
            
@@ -275,8 +310,6 @@ def is_visible_or_ter(output, output_json, type):
                 :phenomenon_time, :imagen)
         """)
      
-
-        # TODO: CAMBIAR EL SHAPE  POR EL REAL, PREGUNTAR
 
         shape = generar_shape_con_offsets(output_json)
         print(shape)
