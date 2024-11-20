@@ -121,7 +121,13 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         # Es termodinamica
         is_visible_or_ter(output,output_json, 2)
     else:
-        print("No se reconoce el tipo de imagen o video aportado")
+        if output_json.get("sensor_id") == 1:
+             is_visible_or_ter(output,output_json, 0)
+        elif output_json.get("sensor_id") == 2:
+             is_visible_or_ter(output,output_json, 1)
+        else:
+            is_visible_or_ter(output,output_json, 0)
+            print("No se reconoce el tipo de imagen o video aportado")
         return 
 
 
