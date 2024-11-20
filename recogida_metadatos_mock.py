@@ -277,7 +277,9 @@ def is_visible_or_ter(output, output_json, type):
      
 
         # TODO: CAMBIAR EL SHAPE  POR EL REAL, PREGUNTAR
-        shape = "SRID=4326;POLYGON ((-7.720238 42.831222, -7.720238 42.832222, -7.717238 42.832222, -7.717238 42.831222, -7.720238 42.831222))"
+
+        shape = generar_shape_con_offsets(output_json)
+        print(shape)
         insert_values = {
             "shape": shape,
             "sampled_feature": int(output_json.get("sensor_id")),
@@ -300,6 +302,41 @@ def is_visible_or_ter(output, output_json, type):
 
 
 # METODOS AUXILIARES
+
+def generar_shape_con_offsets(data):
+
+    gps_lat = data.get("gps_latitude")
+    gps_long = data.get("gps_longitude")
+    
+    # Convertir coordenadas de strings a valores numéricos
+    lat_central = float(gps_lat.split()[0]) * (1 if gps_lat.split()[1] == "N" else -1)
+    long_central = float(gps_long.split()[0]) * (1 if gps_long.split()[1] == "E" else -1)
+
+    offsets = [
+        data.get("offset_corner_longitude_point_1", 0),
+        data.get("offset_corner_latitude_point_2", 0),
+        data.get("offset_corner_longitude_point_2", 0),
+        data.get("offset_corner_latitude_point_3", 0),
+        data.get("offset_corner_longitude_point_3", 0),
+        data.get("offset_corner_latitude_point_4", 0),
+        data.get("offset_corner_longitude_point_4", 0),
+        data.get("offset_corner_latitude_point_2", 0)  
+    ]
+    offsets = [float(offset) if offset else 0 for offset in offsets]
+
+
+    vertices = []
+    for i in range(0, len(offsets), 2):
+        offset_long = offsets[i]
+        offset_lat = offsets[i + 1]
+        vertex_long = long_central + offset_long
+        vertex_lat = lat_central + offset_lat
+        vertices.append((vertex_long, vertex_lat))
+
+    vertices_str = ", ".join(f"{lon} {lat}" for lon, lat in vertices)
+    shape = f"SRID=4326;POLYGON (({vertices_str}))"
+    return shape
+
 
 def parse_output_to_json(output):
     """
