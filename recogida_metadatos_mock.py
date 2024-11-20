@@ -166,6 +166,7 @@ def is_visible_or_ter(output, output_json, type):
             SELECT fid , valid_time_start, valid_time_end
             FROM {table_name}
             WHERE (payload_id = :payload_id OR (payload_id IS NULL AND :payload_id IS NULL))
+              AND (fid = :fid)
               AND (multisim_id = :multisim_id OR (multisim_id IS NULL AND :multisim_id IS NULL))
               AND (ground_control_station_id = :ground_control_station_id OR (ground_control_station_id IS NULL AND :ground_control_station_id IS NULL))
               AND (pc_embarcado_id = :pc_embarcado_id OR (pc_embarcado_id IS NULL AND :pc_embarcado_id IS NULL))
@@ -193,6 +194,7 @@ def is_visible_or_ter(output, output_json, type):
         one_hour_after = date_time_original + timedelta(hours=1)
 
         result = session.execute(query, {
+            'fid' :  output_json.get("sensor_id"),   
             'payload_id': output_json.get("payload_sn"),
             'multisim_id': output_json.get("multisim_sn"),
             'ground_control_station_id': output_json.get("ground_control_station_sn"),
@@ -278,7 +280,7 @@ def is_visible_or_ter(output, output_json, type):
         shape = "SRID=4326;POLYGON ((-7.720238 42.831222, -7.720238 42.832222, -7.717238 42.832222, -7.717238 42.831222, -7.720238 42.831222))"
         insert_values = {
             "shape": shape,
-            "sampled_feature": row['fid'],
+            "sampled_feature": int(output_json.get("sensor_id")),
             "procedure": output_json.get("mission_id"),
             "result_time":  date_time_original,
             "phenomenon_time": date_time_original,
