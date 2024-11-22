@@ -8,6 +8,7 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
+from kafka import KafkaConsumer
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
@@ -98,7 +99,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
     dag=dag,
-    auto_offset_reset='earliest'
+
 )
 
 consume_from_topic 
