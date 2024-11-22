@@ -1,9 +1,0 @@
-{
-    "to": "Francisco José Blanco Garza",
-    "actions": [
-        {
-            "type": "notify",
-            "message": "Ya se ha creado la relación del misión ID 3"
-        }
-    ]
-}
