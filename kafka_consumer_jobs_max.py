@@ -97,7 +97,8 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
-    dag=dag
+    dag=dag,
+    auto_offset_reset='earliest'
 )
 
 consume_from_topic 
