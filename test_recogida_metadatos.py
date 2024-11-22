@@ -448,7 +448,7 @@ default_args = {
 }
 
 dag = DAG(
-    'metadatos_mock',
+    'test_metadatos_mock',
     default_args=default_args,
     description='DAG procesa metadatos',
     schedule_interval=None,

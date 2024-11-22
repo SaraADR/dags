@@ -30,7 +30,7 @@
                         "westBoundLongitude": "611271.6716",
                         "eastBoundLongitude": "611725.0085",
                         "southBoundLatitude": "4739776.3222",
-                        "nortBoundLatitude": "4740004.5330"
+                        "northBoundLatitude": "4740004.5330"
                     },
                     "ReferenceSystem": "32629"
                 }
