@@ -35,15 +35,25 @@ def create_mission(**context):
 
         # Iniciando una transacción
         with session.begin():
+            # Obtener el estado inicial desde la tabla tipo_misión - status_inicial
+            initial_status_query = text("SELECT mss_mission_initial_status WHERE mission_type_id = :type_id")
+            result = session.execute(initial_status_query, {'type_id': input_data['type_id']}).fetchone()
+            initial_status = result[0] if result else None
+
+            if not initial_status:
+                raise ValueError(f"No se encontró un estado inicial para el tipo de misión {input_data['type_id']}")
+
+            # Valores para insertar en la tabla mss_mission
             values_to_insert = {
-            'name': input_data['fire']['name'],
-            'start_date': input_data['fire']['start'],
-            'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
-            'type_id': input_data['type_id'],
-            'status_id': 1, #TODO REVISIÓN DE STATUS
-            'customer_id': input_data['customer_id'],
-            'alias': input_data['alias']
-        }
+                'name': input_data['fire']['name'],
+                'start_date': input_data['fire']['start'],
+                'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '
+                            + input_data['fire']['position']['x'] + ', ' + input_data['fire']['position']['y'] + ' ] }',
+                'type_id': input_data['type_id'],
+                'status_id': initial_status,  # Asignación dinámica del estado inicial
+                'customer_id': input_data['customer_id'],
+                'alias': input_data['alias']
+            }
 
         # Metadatos y tabla de misión en la base de datos
         metadata = MetaData(bind=engine)
