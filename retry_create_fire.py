@@ -33,6 +33,12 @@ def create_mission(**context):
         Session = sessionmaker(bind=engine)
         session = Session()
 
+        result = session.execute(f"SELECT status_id FROM missions.mss_mission_initial_status WHERE mission_type_id = {input_data['type_id']}")
+        if result.length() > 0:
+            initial_status = result[0].status_id
+        else:
+            initial_status = 1
+
         # Transformación de la posición GeoJSON a WKT
         geojson_data = input_data['fire']['position']
         # geometry = geojson_to_wkt(geojson_data)
@@ -41,7 +47,7 @@ def create_mission(**context):
             'start_date': input_data['fire']['start'],
             'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '+input_data['fire']['position']['x']+', '+input_data['fire']['position']['y']+' ] }',
             'type_id': input_data['type_id'],
-            'status_id': 1, #TODO REVISIÓN DE STATUS
+            'status_id': initial_status, #Tomamos status inicial
             'customer_id': input_data['customer_id'],
         }
 
@@ -60,7 +66,7 @@ def create_mission(**context):
         mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
         status_history_values = {
             'mission_id': mission_id,
-            'status_id': 1,  # Asumiendo que el status inicial es 1, ajusta si es necesario
+            'status_id': initial_status,  # Tomamos el status_inicial
         }
         insert_status_stmt = mission_status_history.insert().values(status_history_values)
         session.execute(insert_status_stmt)

@@ -180,6 +180,11 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
             Session = sessionmaker(bind=engine)
             session = Session()
 
+            result = session.execute(f"SELECT status_id FROM missions.mss_mission_initial_status WHERE mission_type_id = 3")
+            if result.length() > 0:
+                initial_status = result[0].status_id
+            else:
+                initial_status = 1
      
             #Pasamos las fechas de timestamp a datetime
             if(msg_json.get('start') is not None):
@@ -195,7 +200,7 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
                 'type_id': 3,
                 'customer_id': customer_id,
                 'creationtimestamp': creation_date,
-                'status_id': 1
+                'status_id': initial_status
             }
             
 
@@ -256,7 +261,7 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
 
                 mss_mission_history_state_insert = {
                     'mission_id': mission_id,
-                    'status_id': 1,
+                    'status_id': initial_status,
                     'updatetimestamp': datetime.now(),
                     'source': 'ALGORITHM',
                     'username': 'ALGORITHM'

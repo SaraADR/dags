@@ -36,12 +36,14 @@ def create_mission(**context):
         # Iniciando una transacción
         with session.begin():
             # Obtener el estado inicial desde la tabla tipo_misión - status_inicial
-            initial_status_query = text("SELECT mss_mission_initial_status WHERE mission_type_id = :type_id")
-            result = session.execute(initial_status_query, {'type_id': input_data['type_id']}).fetchone()
-            initial_status = result[0] if result else None
+            result = session.execute(f"SELECT status_id FROM missions.mss_mission_initial_status WHERE mission_type_id = {input_data['type_id']}")
+            if result.length() > 0:
+                initial_status = result[0].status_id
+            else:
+                initial_status = 1
 
-            if not initial_status:
-                raise ValueError(f"No se encontró un estado inicial para el tipo de misión {input_data['type_id']}")
+            # if not initial_status:
+            #     raise ValueError(f"No se encontró un estado inicial para el tipo de misión {input_data['type_id']}")
 
             # Valores para insertar en la tabla mss_mission
             values_to_insert = {
@@ -79,7 +81,7 @@ def create_mission(**context):
         mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
         status_history_values = {
             'mission_id': mission_id,
-            'status_id': 1,  # Asumiendo que el status inicial es 1, ajusta si es necesario
+            'status_id': initial_status,  # Ahora toma el status inicial que corresponda
         }
         insert_status_stmt = mission_status_history.insert().values(status_history_values)
         session.execute(insert_status_stmt)
