@@ -251,7 +251,7 @@ default_args = {
 }
 
 dag = DAG(
-    'video_detection',
+    'mission_inspection_video_review_postprocess_and_notification',
     default_args=default_args,
     description='Algoritmo video_detection',
     schedule_interval=None,

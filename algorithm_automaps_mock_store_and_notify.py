@@ -153,7 +153,7 @@ default_args = {
 }
 
 dag = DAG(
-    'algorithm_automaps_store_and_notify',
+    'algorithm_automaps_mock_store_and_notify',
     default_args=default_args,
     description='Algoritmo automaps',
     schedule_interval=None,

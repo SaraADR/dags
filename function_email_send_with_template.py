@@ -138,7 +138,7 @@ def change_state_noti(**context):
 
 
 dag = DAG(
-    'send_email_plantilla',
+    'function_email_send_with_template',
     default_args=default_args,
     description='DAG que envia emails',
     schedule_interval=None,

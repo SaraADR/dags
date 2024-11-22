@@ -34,17 +34,17 @@ def process_message(msg_value, **kwargs):
             conf = {'message': msg_json}
             
             if job == 'automaps':
-                dag_to_trigger = 'algorithm_automaps_docker'
+                dag_to_trigger = 'algorithm_automaps_docker_store_and_notify'
             elif job == 'heatmap-incendios' or job == 'heatmap-aeronaves':
-                dag_to_trigger = 'process_heatmap' 
+                dag_to_trigger = 'algorithm_heatmap_post_process' 
             elif job == 'create_fire':
-                dag_to_trigger = 'create_fire'
+                dag_to_trigger = 'mission_fire_creation_and_notify'
             elif job == 'vegetation-review-incidence':
-                dag_to_trigger = 'vegetation_review_incidence'
+                dag_to_trigger = 'mission_inspection_cloud_revision_and_notification'
             elif job == 'create-video-detection':
-                dag_to_trigger = 'video_detection'
+                dag_to_trigger = 'mission_inspection_video_review_postprocess_and_notification'
             elif job == 'listen-detections-finished':
-                dag_to_trigger = 'detections_finished'
+                dag_to_trigger = 'mission_inspection_video_revision_monitor_and_job_update'
             else:
                 print(f"Unrecognized job type: {job}")
                 raise AirflowSkipException(f"Unrecognized job type: {job}")
@@ -80,7 +80,7 @@ default_args = {
 }
 
 dag = DAG(
-    'kafka_consumer_jobs_max_dag',
+    'kafka_consumer_trigger_jobs',
     default_args=default_args,
     description='DAG que consume mensajes de la tabla de jobs',
     schedule_interval='*/1 * * * *',

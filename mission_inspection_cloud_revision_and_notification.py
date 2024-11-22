@@ -81,7 +81,7 @@ def process_element(**context):
                         )
 
                         bucket_name = 'missions'  
-                        pdf_key = str(uuid_key) + '/' + 'vegetation_review_incidence' + str(index) + '.png'
+                        pdf_key = str(uuid_key) + '/' + 'mission_inspection_cloud_revision_and_notification' + str(index) + '.png'
                         index = index + 1
                         print(data[-10:])
                         decoded_bytes = base64.b64decode(data.split(",")[1])
@@ -283,7 +283,7 @@ default_args = {
 }
 
 dag = DAG(
-    'vegetation_review_incidence',
+    'mission_inspection_cloud_revision_and_notification',
     default_args=default_args,
     description='Algoritmo vuelta del potree',
     schedule_interval=None,

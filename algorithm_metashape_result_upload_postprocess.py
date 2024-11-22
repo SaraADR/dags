@@ -860,7 +860,7 @@ default_args = {
 }
 
 dag = DAG(
-    'metashape_rgb',
+    'algorithm_metashape_result_upload_postprocess',
     default_args=default_args,
     description='DAG para generar metadatos XML y subirlos a GeoNetwork',
     schedule_interval=None,  # Se puede ajustar según necesidades

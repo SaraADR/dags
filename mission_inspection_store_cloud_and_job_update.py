@@ -384,7 +384,7 @@ default_args = {
 }
 
 dag = DAG(
-    'vegetacion',
+    'mission_inspection_store_cloud_and_job_update',
     default_args=default_args,
     description='Flujo de datos de entrada de elementos de vegetacion',
     schedule_interval=None,

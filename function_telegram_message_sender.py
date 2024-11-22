@@ -30,7 +30,7 @@ default_args = {
 }
 
 with DAG(
-    'test_send_telegram_message',
+    'function_telegram_message_sender',
     default_args=default_args,
     description='A simple DAG to send a Telegram message',
     schedule_interval=None,
