@@ -8,7 +8,6 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
-from kafka import KafkaConsumer
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
