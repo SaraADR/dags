@@ -117,7 +117,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     elif "-ter" in message:
         # Es termodinamica
         is_visible_or_ter(output,output_json, 1)
-    elif "-mult" in message:
+    elif "-mul" in message:
         # Es termodinamica
         is_visible_or_ter(output,output_json, 2)
     else:
