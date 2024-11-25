@@ -105,12 +105,20 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     output_json_noload = parse_output_to_json(output)
     output_json = json.loads(output_json_noload)
 
+
     idRafaga = output_json.get("identificador_rafaga", '0')
 
 
     if(idRafaga != '0'):
         #Es una rafaga
         is_rafaga(output, output_json)
+
+    #SON VIDEOS
+    elif ".mp4" in message :
+        output_json_comment = json.loads(output_json.get("comments"))
+        print(output_json_comment)
+        is_visible_or_ter(output,output_json_comment, -1)
+    #SON IMAGENES
     elif "-vis" in message:
         #Es imagen visible
         is_visible_or_ter(output,output_json, 0)
@@ -137,6 +145,7 @@ def is_rafaga(output, message):
     return
 
 
+
 #PROCEDIMIENTO A LLEVAR CON INDIVIDUALES
 def is_visible_or_ter(output, output_json, type):
 
@@ -149,6 +158,9 @@ def is_visible_or_ter(output, output_json, type):
     if(type == 2):
         print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
         table_name = "observacion_aerea.captura_imagen_multiespectral"
+    if(type == -1):
+        print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
+        table_name = "observacion_aerea.captura_video"     
 
     # Buscar los metadatos en captura
     try:
@@ -158,25 +170,7 @@ def is_visible_or_ter(output, output_json, type):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-
-        # query = text(f"""
-        #     SELECT fid, valid_time
-        #     FROM {table_name}
-        #     WHERE (payload_id = :payload_id OR (payload_id IS NULL AND :payload_id IS NULL))
-        #     AND (fid = :fid)
-        #     AND (multisim_id = :multisim_id OR (multisim_id IS NULL AND :multisim_id IS NULL))
-        #     AND (ground_control_station_id = :ground_control_station_id OR (ground_control_station_id IS NULL AND :ground_control_station_id IS NULL))
-        #     AND (pc_embarcado_id = :pc_embarcado_id OR (pc_embarcado_id IS NULL AND :pc_embarcado_id IS NULL))
-        #     AND (operator_name = :operator_name OR (operator_name IS NULL AND :operator_name IS NULL))
-        #     AND (pilot_name = :pilot_name OR (pilot_name IS NULL AND :pilot_name IS NULL))
-        #     AND (sensor = :sensor OR (sensor IS NULL AND :sensor IS NULL))
-        #     AND (platform = :platform OR (platform IS NULL AND :platform IS NULL))
-        #     AND (
-        #         (:fecha_dada BETWEEN valid_time_start - INTERVAL '2 HOURS' AND valid_time_end + INTERVAL '2 HOURS')
-        #     )
-        # """)
-
-        #QUERY PARA TSRANGE
+        #QUERY PARA BUSQUEDAS
         query = text(f"""
             SELECT fid, valid_time
             FROM {table_name}
@@ -194,7 +188,6 @@ def is_visible_or_ter(output, output_json, type):
             )
         """)
 
-
         date_time_str = output_json.get("date/time_original")
         try:
             date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
@@ -202,18 +195,34 @@ def is_visible_or_ter(output, output_json, type):
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
             raise
 
-        result = session.execute(query, {
-            'fid' :  output_json.get("sensor_id"),   
-            'payload_id': output_json.get("payload_sn"),
-            'multisim_id': output_json.get("multisim_sn"),
-            'ground_control_station_id': output_json.get("ground_control_station_sn"),
-            'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-            'operator_name': output_json.get("operator_name"),
-            'pilot_name': output_json.get("pilot_name"),
-            'sensor': output_json.get("camera_model_name"),
-            'platform': output_json.get("aircraft_number_plate"),
-            'fecha_dada': date_time_original
-        })
+        if(type == -1):
+            # result = session.execute(query, {
+            #     'fid' :  output_json.get("sensor_id"),   
+            #     'payload_id': output_json.get("payload_sn"),
+            #     'multisim_id': output_json.get("multisim_sn"),
+            #     'ground_control_station_id': output_json.get("ground_control_station_sn"),
+            #     'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
+            #     'operator_name': output_json.get("operator_name"),
+            #     'pilot_name': output_json.get("pilot_name"),
+            #     'sensor': output_json.get("camera_model_name"),
+            #     'platform': output_json.get("aircraft_number_plate"),
+            #     'fecha_dada': date_time_original
+            # })
+            print (output_json)
+        else:
+
+            result = session.execute(query, {
+                'fid' :  output_json.get("sensor_id"),   
+                'payload_id': output_json.get("payload_sn"),
+                'multisim_id': output_json.get("multisim_sn"),
+                'ground_control_station_id': output_json.get("ground_control_station_sn"),
+                'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
+                'operator_name': output_json.get("operator_name"),
+                'pilot_name': output_json.get("pilot_name"),
+                'sensor': output_json.get("camera_model_name"),
+                'platform': output_json.get("aircraft_number_plate"),
+                'fecha_dada': date_time_original
+            })
 
         row = result.fetchone()
         
@@ -223,53 +232,6 @@ def is_visible_or_ter(output, output_json, type):
             fid = row['fid']
             valid_time = row['valid_time']  
             
-
-            # #Comprobamos que fecha es la que esta limite para modificarla en la tabla     
-            # if date_time_original < valid_time_start:
-            #     diferencia = valid_time_start - date_time_original
-            #     print(f"Fecha dada {date_time_original} está antes del inicio ({valid_time_start}) en {diferencia} (h:m:s), se actualiza el start.")
-
-            #     # Actualizar el campo valid_time_start
-            #     update_query = text(f"""
-            #         UPDATE {table_name}
-            #         SET valid_time_start = :new_valid_time_start
-            #         WHERE payload_id = :payload_id
-            #         AND multisim_id = :multisim_id
-            #         AND ground_control_station_id = :ground_control_station_id
-            #         AND pc_embarcado_id = :pc_embarcado_id
-            #         AND operator_name = :operator_name
-            #         AND pilot_name = :pilot_name
-            #         AND sensor = :sensor
-            #         AND platform = :platform 
-            #         AND fid = :fid
-            #     """)
-            #     session.execute(update_query, {"new_valid_time_start": date_time_original, "fid": fid, 'payload_id': output_json.get("payload_sn"),
-            #                     'multisim_id': output_json.get("multisim_sn"), 'ground_control_station_id': output_json.get("ground_control_station_sn"),
-            #                     'pc_embarcado_id': output_json.get("pc_embarcado_sn"), 'operator_name': output_json.get("operator_name"), 
-            #                     'pilot_name': output_json.get("pilot_name"),'sensor': output_json.get("camera_model_name"), 
-            #                     'platform': output_json.get("aircraft_number_plate"),})
-                
-                
-            # elif date_time_original > valid_time_end:
-            #     diferencia = date_time_original - valid_time_end
-            #     print(f"Fecha dada {date_time_original} está **después** del final ({valid_time_end}) en {diferencia} (h:m:s), se actualiza el end.")
-
-            #     # Actualizar el campo valid_time_end
-            #     update_query = text(f"""
-            #         UPDATE {table_name}
-            #         SET valid_time_end = :new_valid_time_end
-            #         WHERE fid = :fid
-            #     """)
-            #     session.execute(update_query, {"new_valid_time_end": date_time_original, "fid": fid, 'payload_id': output_json.get("payload_sn"),
-            #                     'multisim_id': output_json.get("multisim_sn"), 'ground_control_station_id': output_json.get("ground_control_station_sn"),
-            #                     'pc_embarcado_id': output_json.get("pc_embarcado_sn"), 'operator_name': output_json.get("operator_name"), 
-            #                     'pilot_name': output_json.get("pilot_name"),'sensor': output_json.get("camera_model_name"), 
-            #                     'platform': output_json.get("aircraft_number_plate"),})
-
-            # else:
-            #     print(f"Fecha dada {date_time_original} está entre {valid_time_start} y {valid_time_end}, por lo que no se realiza actualización")
-           
-
             if not (date_time_original in valid_time):  # Verifica si la fecha no está en el rango actual
                 if date_time_original < valid_time.lower:  # Fecha antes del inicio del rango
                     diferencia = valid_time.lower - date_time_original
@@ -338,30 +300,6 @@ def is_visible_or_ter(output, output_json, type):
 
         else:
             print("No se encontró ningún registro que coincida, se procede a incluir la linea")
-
-            # insert_query = text(f"""
-            #         INSERT INTO {table_name}
-            #         ( fid, valid_time_start, valid_time_end, payload_id, multisim_id, 
-            #         ground_control_station_id, pc_embarcado_id, operator_name, pilot_name, 
-            #         sensor, platform)
-            #         VALUES (:fid, :valid_time_start, :valid_time_end, :payload_id, :multisim_id, 
-            #                 :ground_control_station_id, :pc_embarcado_id, :operator_name, :pilot_name, 
-            #                 :sensor, :platform)
-            # """)
-
-            # insert_values = { 
-            #     'fid': int(output_json.get("sensor_id")),              
-            #     'valid_time_start': date_time_original,
-            #     'valid_time_end': date_time_original + timedelta(minutes=1),
-            #     'payload_id': output_json.get("payload_sn"),
-            #     'multisim_id': output_json.get("multisim_sn"),
-            #     'ground_control_station_id': output_json.get("ground_control_station_sn"),
-            #     'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-            #     'operator_name': output_json.get("operator_name"),
-            #     'pilot_name': output_json.get("pilot_name"),
-            #     'sensor': output_json.get("camera_model_name"),
-            #     'platform': output_json.get("aircraft_number_plate")
-            # }
 
             insert_query = text(f"""
                 INSERT INTO {table_name}
