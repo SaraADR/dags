@@ -53,7 +53,7 @@ default_args = {
 }
 
 dag = DAG(
-    'delete_old_files_from_minio',
+    'function_minio_delete_old_temp_files',
     default_args=default_args,
     description='DAG para eliminar archivos antiguos en MinIO',
     schedule_interval=None,  # No se ejecuta periódicamente, solo una vez

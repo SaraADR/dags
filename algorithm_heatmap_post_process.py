@@ -503,7 +503,7 @@ default_args = {
 
 # Definición del DAG incendios
 dag = DAG(
-    'process_heatmap',
+    'algorithm_heatmap_post_process',
     default_args=default_args,
     description='DAG para procesar datos de heatmap-incendio, subir TIFF a MinIO, y enviar notificaciones',
     schedule_interval=None,

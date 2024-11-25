@@ -183,7 +183,7 @@ default_args = {
 }
 
 dag = DAG(
-    'detections_finished',
+    'mission_inspection_video_revision_monitor_and_job_update',
     default_args=default_args,
     description='Proceso listen-detections-finished',
     schedule_interval=None,

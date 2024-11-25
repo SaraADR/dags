@@ -177,7 +177,7 @@ default_args = {
 
 # Definición del DAG de reintento
 retry_dag = DAG(
-    'create_fire_retry',
+    'mission_retry_fire_creation_and_notify',
     default_args=default_args,
     description='DAG de reintento para la creación de misiones e incendios',
     schedule_interval=None,

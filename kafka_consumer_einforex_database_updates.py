@@ -320,7 +320,7 @@ default_args = {
 }
 
 dag = DAG(
-    'kafka_consumer_einforex_dag',
+    'kafka_consumer_einforex_database_updates',
     default_args=default_args,
     description='DAG que consume mensajes de la base de datos de einforex',
     schedule_interval='*/1 * * * *',

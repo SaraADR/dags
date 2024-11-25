@@ -36,7 +36,7 @@ def sendEmail(message, **kwargs):
         conf = {'message': msg_json}
         trigger_dag_run = TriggerDagRunOperator(
             task_id=str(unique_id),
-            trigger_dag_id='send_email_plantilla',
+            trigger_dag_id='function_email_send_with_template',
             conf=conf,
             execution_date=datetime.now().replace(tzinfo=timezone.utc),
             dag=dag
@@ -59,7 +59,7 @@ default_args = {
 }
 
 dag = DAG(
-    'kafka_consumer_notificaciones_dag',
+    'kafka_consumer_trigger_email_sgm_notifications',
     default_args=default_args,
     description='DAG que consume mensajes de Kafka y dispara otro DAG si destination=email',
     schedule_interval='*/1 * * * *',

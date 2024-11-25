@@ -50,7 +50,7 @@ default_args = {
 }
 
 dag = DAG(
-    'create_bucket_in_minio',
+    'function_minio_create_bucket ',
     default_args=default_args,
     description='Un DAG para crear un bucket en Minio',
     schedule_interval=None,

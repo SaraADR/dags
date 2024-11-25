@@ -121,15 +121,15 @@ def process_zip_file(value, nombre_fichero, **kwargs):
                 if algorithm_id:
                     # Aquí tomas decisiones basadas en el valor de algorithmId
                     if algorithm_id == 'PowerLineVideoAnalisysRGB':
-                        trigger_dag_name = 'video'
+                        trigger_dag_name = 'mission_inspection_store_video_and_notification'
                         print("Ejecutando lógica para Video")
 
                     elif algorithm_id == 'PowerLineCloudAnalisys':   
-                        trigger_dag_name = 'vegetacion'
+                        trigger_dag_name = 'mission_inspection_store_cloud_and_job_update'
                         print("Ejecutando lógica para vegetacion")
 
                     elif algorithm_id == 'MetashapeRGB':   
-                        trigger_dag_name = 'metashape_rgb'
+                        trigger_dag_name = 'algorithm_metashape_result_upload_postprocess'
                         print("Ejecutando lógica para MetashapeRGB")
 
 

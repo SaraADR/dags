@@ -263,7 +263,7 @@ default_args = {
 
 # Definición del DAG
 dag = DAG(
-    'create_fire',
+    'mission_fire_creation_and_notify',
     default_args=default_args,
     description='DAG que maneja la creación de misiones e incendios',
     schedule_interval=None,

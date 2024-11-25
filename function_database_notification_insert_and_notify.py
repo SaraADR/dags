@@ -30,7 +30,8 @@ def prepare_notification(**kwargs):
     return json.dumps(notification)
 
 with DAG(
-    'notifications',
+    
+    'function_database_notification_insert_and_notify',
     default_args=default_args,
     description='A DAG for sending notifications to the database',
     schedule_interval=None,

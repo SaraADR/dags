@@ -206,7 +206,7 @@ default_args = {
 }
 
 dag = DAG(
-    'video',
+    'mission_inspection_store_video_and_notification',
     default_args=default_args,
     description='DAG que procesa archivos extraídos del ZIP, imprime JSON, guarda videos en MinIO y retorna IDs',
     schedule_interval=None,
