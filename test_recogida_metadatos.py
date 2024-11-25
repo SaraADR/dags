@@ -115,7 +115,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     #SON VIDEOS
     elif ".mp4" in message :
-        output_json_comment = json.loads(output_json.get("comments"))
+        output_json_comment = json.loads(output_json.get("comment"))
         print(output_json_comment)
         is_visible_or_ter(output,output_json_comment, -1)
     #SON IMAGENES
@@ -209,6 +209,7 @@ def is_visible_or_ter(output, output_json, type):
             #     'fecha_dada': date_time_original
             # })
             print (output_json)
+            return
         else:
 
             result = session.execute(query, {
