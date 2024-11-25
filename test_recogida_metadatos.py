@@ -190,7 +190,7 @@ def is_visible_or_ter(output, output_json, type):
             AND (sensor = :sensor OR (sensor IS NULL AND :sensor IS NULL))
             AND (platform = :platform OR (platform IS NULL AND :platform IS NULL))
             AND (
-                valid_time @> (:fecha_dada + INTERVAL '2 HOURS')
+                tsrange(lower(valid_time) - INTERVAL '2 HOURS', upper(valid_time) + INTERVAL '2 HOURS', '[)') @> :fecha_dada
             )
         """)
 
