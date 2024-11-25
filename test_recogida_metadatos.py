@@ -108,10 +108,11 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     idRafaga = output_json.get("identificador_rafaga", '0')
 
-
+    print(message)
     if(idRafaga != '0'):
         #Es una rafaga
         is_rafaga(output, output_json)
+
 
     #SON VIDEOS
     elif ".mp4" in message :
