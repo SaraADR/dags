@@ -20,6 +20,7 @@ def consumer_function(message, prefix, **kwargs):
         print("Empty message received")    
         return None  
 
+
 def sendEmail(message, **kwargs):
     try:
         print(message)
