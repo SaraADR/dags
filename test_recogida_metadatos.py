@@ -13,7 +13,6 @@ from botocore.exceptions import ClientError
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 from dag_utils import upload_to_minio
-import uuid
 
 #TRAE TODOS LOS FICHEROS DE LA CARPETA DE MINIO
 def process_extracted_files(**kwargs):
@@ -115,8 +114,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     if  sensorId is -1: 
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
         try:
-            unique_key = str(uuid.uuid4())
-            upload_to_minio('minio_conn', 'cuarentenametadatos', unique_key + '/' + message, local_zip_path)
+            upload_to_minio('minio_conn', 'cuarentenametadatos', message, local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
