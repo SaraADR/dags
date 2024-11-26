@@ -10,6 +10,8 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 import pytz
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
+from utils import send_email, execute_query, update_job_status, upload_to_minio
+
 
 # Función para imprimir un mensaje desde la configuración del DAG
 def print_message(**context):
@@ -193,7 +195,6 @@ def geojson_to_wkt(geojson):
     return f"POINT ({x} {y} {z})"
 
 
-
 def insert_notification(id_mission, user):
 
     if id_mission is not None:
@@ -243,13 +244,6 @@ def insert_notification(id_mission, user):
             session.close()
 
 
-
-
-
-
-
-
-
 # Configuración por defecto para el DAG
 default_args = {
     'owner': 'sadr',
@@ -284,7 +278,6 @@ create_mission_task = PythonOperator(
     provide_context=True,
     dag=dag,
 )
-
 
 
 # Modifica la secuencia de tareas

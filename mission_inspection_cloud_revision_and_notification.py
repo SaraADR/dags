@@ -268,10 +268,6 @@ def generate_notify_job(**context):
                     session.close()
 
 
-
-
-
-
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
