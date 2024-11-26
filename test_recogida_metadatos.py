@@ -126,24 +126,24 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     #SON VIDEOS
     elif message.endswith(".mp4"):
         output_json_comment = json.loads(output_json.get("comment"))
-        is_visible_or_ter(output,output_json_comment, -1)
+        is_visible_or_ter(message, local_zip_path, output,output_json_comment, -1)
     #SON IMAGENES
     elif "-vis" in message:
         #Es imagen visible
-        is_visible_or_ter(output,output_json, 0)
+        is_visible_or_ter(message,local_zip_path, output,output_json, 0)
     elif "-ter" in message:
         # Es termodinamica
-        is_visible_or_ter(output,output_json, 1)
+        is_visible_or_ter(message,local_zip_path,output,output_json, 1)
     elif "-mul" in message:
         # Es termodinamica
-        is_visible_or_ter(output,output_json, 2)
+        is_visible_or_ter(message,local_zip_path,output,output_json, 2)
     else:
         if output_json.get("sensor_id") == 1:
-             is_visible_or_ter(output,output_json, 0)
+             is_visible_or_ter(message,local_zip_path,output,output_json, 0)
         elif output_json.get("sensor_id") == 2:
-             is_visible_or_ter(output,output_json, 1)
+             is_visible_or_ter(message,local_zip_path,output,output_json, 1)
         else:
-            is_visible_or_ter(output,output_json, 0)
+            is_visible_or_ter(message,local_zip_path, output,output_json, 0)
             print("No se reconoce el tipo de imagen o video aportado")
         return 
     return
@@ -157,7 +157,7 @@ def is_rafaga(output, message):
 
 
 #PROCEDIMIENTO A LLEVAR CON INDIVIDUALES
-def is_visible_or_ter(message, output, output_json, type):
+def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
     if(type == 0):
         print("Vamos a ejecutar el sistema de guardados de imagenes visibles")
@@ -378,35 +378,22 @@ def is_visible_or_ter(message, output, output_json, type):
         print(f"Error al introducir la linea en observacion captura: {e}")
         raise 
 
+    file_name = os.path.basename(message)
+    mission_id = output_json.get("mission_id", -1)
+    if mission_id != -1 :
+        try:
+            upload_to_minio('minio_conn', 'missions', mission_id + '/' + file_name, local_zip_path)
+        except Exception as e:
+            print(f"Error al subir el archivo a MinIO: {str(e)}")
+        return
+    else : 
+        try:
+            upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + file_name, local_zip_path)
+        except Exception as e:
+            print(f"Error al subir el archivo a MinIO: {str(e)}")
+        return
 
 
-
-
-# METODOS AUXILIARES
-# def upload_to_minio(conn_id, bucket_name, file_key, file_content):
-#     """
-#     Sube un archivo a MinIO.
-#     """
-#     try:
-#         connection = BaseHook.get_connection(conn_id)
-#         extra = json.loads(connection.extra)
-#         s3_client = boto3.client(
-#             's3',
-#             endpoint_url=extra['endpoint_url'],
-#             aws_access_key_id=extra['aws_access_key_id'],
-#             aws_secret_access_key=extra['aws_secret_access_key'],
-#             config=Config(signature_version='s3v4')
-#         )
-
-#         s3_client.put_object(
-#             Bucket=bucket_name,
-#             Key=file_key,
-#             Body=file_content
-#         )
-#         print(f"Archivo {file_key} subido correctamente a MinIO.")
-#     except Exception as e:
-#         print(f"Error al subir el archivo a MinIO: {str(e)}")
-#         raise
 
 def generar_shape_con_offsets(data):
 
