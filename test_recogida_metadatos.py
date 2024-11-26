@@ -109,16 +109,18 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     idRafaga = output_json.get("identificador_rafaga", '0')
 
     print(message)
-    # if(idRafaga != '0'):
-    #     #Es una rafaga
-    #     is_rafaga(output, output_json)
+    if(idRafaga != '0'):
+        #Es una rafaga
+        is_rafaga(output, output_json)
 
 
-    # #SON VIDEOS
-    # elif ".mp4" in message :
-    #     output_json_comment = json.loads(output_json.get("comment"))
-    #     print(output_json_comment)
-    #     is_visible_or_ter(output,output_json_comment, -1)
+    #SON VIDEOS
+    elif message.endswith(".mp4"):
+        print("DATO MP$")
+        output_json_comment = json.loads(output_json.get("comment"))
+        print(output_json_comment)
+        return
+        # is_visible_or_ter(output,output_json_comment, -1)
     # #SON IMAGENES
     # elif "-vis" in message:
     #     #Es imagen visible
@@ -137,7 +139,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     #     else:
     #         is_visible_or_ter(output,output_json, 0)
     #         print("No se reconoce el tipo de imagen o video aportado")
-    #     return 
+        return 
     return
 
 
