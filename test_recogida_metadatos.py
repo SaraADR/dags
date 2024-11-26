@@ -12,6 +12,7 @@ from airflow.operators.python_operator import PythonOperator
 from botocore.exceptions import ClientError
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
+from dag_utils import upload_to_minio
 
 
 #TRAE TODOS LOS FICHEROS DE LA CARPETA DE MINIO
@@ -108,12 +109,17 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     idRafaga = output_json.get("identificador_rafaga", '0')
 
-    print(message)
+    #SI NO TIENE SENSOR ID A LA CAJA
+    sensorId = output_json.get("sensor_id", -1)
+    if  sensorId is -1: 
+        print("El recurso proporcionado no tiene id de sensor por lo que no se ejecuta el guardado de metadatos.")
+        upload_to_minio('minio_conn', 'cuarentenametadatos', message, local_zip_path)
+        return 
+
+
     if(idRafaga != '0'):
         #Es una rafaga
         is_rafaga(output, output_json)
-
-
     #SON VIDEOS
     elif message.endswith(".mp4"):
         output_json_comment = json.loads(output_json.get("comment"))
@@ -148,7 +154,7 @@ def is_rafaga(output, message):
 
 
 #PROCEDIMIENTO A LLEVAR CON INDIVIDUALES
-def is_visible_or_ter(output, output_json, type):
+def is_visible_or_ter(message, output, output_json, type):
 
     if(type == 0):
         print("Vamos a ejecutar el sistema de guardados de imagenes visibles")
@@ -163,12 +169,6 @@ def is_visible_or_ter(output, output_json, type):
         print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
         table_name = "observacion_aerea.captura_video"     
 
-
-
-    #SI NO TIENE SENSOR ID A LA CAJA
-    sensorId = output_json.get("sensor_id", -1)
-    if  sensorId is -1: 
-        print("El recurso proporcionado no tiene id de sensor por lo que no se ejecuta el guardado de metadatos.")
 
     # Buscar los metadatos en captura
     try:
@@ -380,6 +380,30 @@ def is_visible_or_ter(output, output_json, type):
 
 
 # METODOS AUXILIARES
+# def upload_to_minio(conn_id, bucket_name, file_key, file_content):
+#     """
+#     Sube un archivo a MinIO.
+#     """
+#     try:
+#         connection = BaseHook.get_connection(conn_id)
+#         extra = json.loads(connection.extra)
+#         s3_client = boto3.client(
+#             's3',
+#             endpoint_url=extra['endpoint_url'],
+#             aws_access_key_id=extra['aws_access_key_id'],
+#             aws_secret_access_key=extra['aws_secret_access_key'],
+#             config=Config(signature_version='s3v4')
+#         )
+
+#         s3_client.put_object(
+#             Bucket=bucket_name,
+#             Key=file_key,
+#             Body=file_content
+#         )
+#         print(f"Archivo {file_key} subido correctamente a MinIO.")
+#     except Exception as e:
+#         print(f"Error al subir el archivo a MinIO: {str(e)}")
+#         raise
 
 def generar_shape_con_offsets(data):
 
