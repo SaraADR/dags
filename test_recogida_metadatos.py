@@ -116,29 +116,26 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     #SON VIDEOS
     elif message.endswith(".mp4"):
-        print("DATO MP$")
         output_json_comment = json.loads(output_json.get("comment"))
-        print(output_json_comment)
-        return
-        # is_visible_or_ter(output,output_json_comment, -1)
-    # #SON IMAGENES
-    # elif "-vis" in message:
-    #     #Es imagen visible
-    #     is_visible_or_ter(output,output_json, 0)
-    # elif "-ter" in message:
-    #     # Es termodinamica
-    #     is_visible_or_ter(output,output_json, 1)
-    # elif "-mul" in message:
-    #     # Es termodinamica
-    #     is_visible_or_ter(output,output_json, 2)
-    # else:
-    #     if output_json.get("sensor_id") == 1:
-    #          is_visible_or_ter(output,output_json, 0)
-    #     elif output_json.get("sensor_id") == 2:
-    #          is_visible_or_ter(output,output_json, 1)
-    #     else:
-    #         is_visible_or_ter(output,output_json, 0)
-    #         print("No se reconoce el tipo de imagen o video aportado")
+        is_visible_or_ter(output,output_json_comment, -1)
+    #SON IMAGENES
+    elif "-vis" in message:
+        #Es imagen visible
+        is_visible_or_ter(output,output_json, 0)
+    elif "-ter" in message:
+        # Es termodinamica
+        is_visible_or_ter(output,output_json, 1)
+    elif "-mul" in message:
+        # Es termodinamica
+        is_visible_or_ter(output,output_json, 2)
+    else:
+        if output_json.get("sensor_id") == 1:
+             is_visible_or_ter(output,output_json, 0)
+        elif output_json.get("sensor_id") == 2:
+             is_visible_or_ter(output,output_json, 1)
+        else:
+            is_visible_or_ter(output,output_json, 0)
+            print("No se reconoce el tipo de imagen o video aportado")
         return 
     return
 
@@ -165,6 +162,13 @@ def is_visible_or_ter(output, output_json, type):
     if(type == -1):
         print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
         table_name = "observacion_aerea.captura_video"     
+
+
+
+    #SI NO TIENE SENSOR ID A LA CAJA
+    sensorId = output_json.get("sensor_id", -1)
+    if  sensorId is -1: 
+        print("El recurso proporcionado no tiene id de sensor por lo que no se ejecuta el guardado de metadatos.")
 
     # Buscar los metadatos en captura
     try:
@@ -200,18 +204,18 @@ def is_visible_or_ter(output, output_json, type):
             raise
 
         if(type == -1):
-            # result = session.execute(query, {
-            #     'fid' :  output_json.get("sensor_id"),   
-            #     'payload_id': output_json.get("payload_sn"),
-            #     'multisim_id': output_json.get("multisim_sn"),
-            #     'ground_control_station_id': output_json.get("ground_control_station_sn"),
-            #     'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-            #     'operator_name': output_json.get("operator_name"),
-            #     'pilot_name': output_json.get("pilot_name"),
-            #     'sensor': output_json.get("camera_model_name"),
-            #     'platform': output_json.get("aircraft_number_plate"),
-            #     'fecha_dada': date_time_original
-            # })
+            result = session.execute(query, {
+                'fid' :  output_json.get("sensor_id"),   
+                'payload_id': output_json.get("payload_sn"),
+                'multisim_id': output_json.get("multisim_sn"),
+                'ground_control_station_id': output_json.get("ground_control_station_sn"),
+                'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
+                'operator_name': output_json.get("general", {}).get("ON", None),
+                'pilot_name': output_json.get("general", {}).get("PN", None),
+                'sensor': output_json.get("camera_model_name"),
+                'platform': output_json.get("general", {}).get("AP", None),
+                'fecha_dada': date_time_original
+            })
             print (output_json)
             return
         else:
