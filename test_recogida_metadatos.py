@@ -115,29 +115,32 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
 
     #SON VIDEOS
-    elif ".mp4" in message :
+    elif message.endswith(".mp4"):
+        print("DATO MP$")
         output_json_comment = json.loads(output_json.get("comment"))
         print(output_json_comment)
-        is_visible_or_ter(output,output_json_comment, -1)
-    #SON IMAGENES
-    elif "-vis" in message:
-        #Es imagen visible
-        is_visible_or_ter(output,output_json, 0)
-    elif "-ter" in message:
-        # Es termodinamica
-        is_visible_or_ter(output,output_json, 1)
-    elif "-mul" in message:
-        # Es termodinamica
-        is_visible_or_ter(output,output_json, 2)
-    else:
-        if output_json.get("sensor_id") == 1:
-             is_visible_or_ter(output,output_json, 0)
-        elif output_json.get("sensor_id") == 2:
-             is_visible_or_ter(output,output_json, 1)
-        else:
-            is_visible_or_ter(output,output_json, 0)
-            print("No se reconoce el tipo de imagen o video aportado")
+        return
+        # is_visible_or_ter(output,output_json_comment, -1)
+    # #SON IMAGENES
+    # elif "-vis" in message:
+    #     #Es imagen visible
+    #     is_visible_or_ter(output,output_json, 0)
+    # elif "-ter" in message:
+    #     # Es termodinamica
+    #     is_visible_or_ter(output,output_json, 1)
+    # elif "-mul" in message:
+    #     # Es termodinamica
+    #     is_visible_or_ter(output,output_json, 2)
+    # else:
+    #     if output_json.get("sensor_id") == 1:
+    #          is_visible_or_ter(output,output_json, 0)
+    #     elif output_json.get("sensor_id") == 2:
+    #          is_visible_or_ter(output,output_json, 1)
+    #     else:
+    #         is_visible_or_ter(output,output_json, 0)
+    #         print("No se reconoce el tipo de imagen o video aportado")
         return 
+    return
 
 
 #PROCEDIMIENTO A LLEVAR CON LAS RAFAGAS
