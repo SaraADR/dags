@@ -100,7 +100,8 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             ssh_client.exec_command(cleanup_command)
 
     except Exception as e:
-        print(f"Error in SSH connection: {str(e)}")
+        print(f"Error en la conexión SSH o en el procesamiento Docker: {str(e)}")
+        return
 
     #CONTROL DEL TIPO ENCONTRADO
     output_json_noload = parse_output_to_json(output)
@@ -114,7 +115,8 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     if  sensorId is -1: 
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
         try:
-            upload_to_minio('minio_conn', 'cuarentenametadatos', message, local_zip_path)
+            unique_key = str(uuid.uuid4())
+            upload_to_minio('minio_conn', 'cuarentenametadatos', unique_key + '/' + message, local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
