@@ -320,7 +320,7 @@ default_args = {
 }
 
 dag = DAG(
-    'function_minio_create_bucket',
+    'function_minio_create_bucket ',
     default_args=default_args,
     description='DAG que consume mensajes de la base de datos de einforex',
     schedule_interval='*/1 * * * *',
