@@ -114,7 +114,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     if  sensorId is -1: 
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
         try:
-            upload_to_minio('minio_conn', 'cuarentenametadatos', message, local_zip_path)
+            upload_to_minio('minio_conn', 'cuarentena', message, local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
