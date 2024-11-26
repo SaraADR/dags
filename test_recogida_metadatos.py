@@ -112,9 +112,12 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     #SI NO TIENE SENSOR ID A LA CAJA
     sensorId = output_json.get("sensor_id", -1)
     if  sensorId is -1: 
-        print("El recurso proporcionado no tiene id de sensor por lo que no se ejecuta el guardado de metadatos.")
-        upload_to_minio('minio_conn', 'cuarentenametadatos', message, local_zip_path)
-        return 
+        print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
+        try:
+            upload_to_minio('minio_conn', 'cuarentenametadatos', message, local_zip_path)
+        except Exception as e:
+            print(f"Error al subir el archivo a MinIO: {str(e)}")
+        return
 
 
     if(idRafaga != '0'):
