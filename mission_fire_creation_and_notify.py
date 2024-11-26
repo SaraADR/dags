@@ -10,7 +10,6 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 import pytz
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
-from utils import send_email, execute_query, update_job_status, upload_to_minio
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
