@@ -372,7 +372,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             table_name_observacion = "observacion_aerea.observation_captura_imagen_infrarroja"
         if (type == 2): #Es una multiespectral
             table_name_observacion = "observacion_aerea.observation_captura_imagen_multiespectral"
-        if (type == -1): #Es una multiespectral
+        if (type == -1): #Es un video
             table_name_observacion = "observacion_aerea.observation_captura_video"
 
         if(type != -1):
@@ -383,7 +383,6 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     :phenomenon_time, :imagen)
             """)
         shape = generar_shape_con_offsets(output_json)
-        print(shape)
         insert_values = {
             "shape": shape,
             "sampled_feature": output_json.get("mission_id"),
@@ -410,7 +409,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "result_time":  date_time_original,
                 "valid_time_start": date_time_original,
                 "valid_time_end":  valid_time_end,
-                "imagen": parse_output_to_json_clean(output),
+                "imagen": output_json,
             }
 
         print(insert_values)
