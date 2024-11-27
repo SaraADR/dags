@@ -16,9 +16,9 @@ from airflow.hooks.base_hook import BaseHook
 from datetime import datetime, timedelta
 
 
-# =============================
+
 # Función para enviar notificaciones a la BD
-# =============================
+
 def prepare_and_send_notification(conn_id, message, destination='ignis'):
     """
     Prepara y envía una notificación a la base de datos.
@@ -42,9 +42,9 @@ def prepare_and_send_notification(conn_id, message, destination='ignis'):
         raise
 
 
-# =============================
+
 # Función para enviar emails
-# =============================
+
 def send_email_with_template(to, cc=None, bcc=None, subject=None, template_path=None, template_data=None, conn_id='test_mailing', attachments=None):
     """
     Envía un email utilizando una plantilla.
@@ -75,9 +75,9 @@ def send_email_with_template(to, cc=None, bcc=None, subject=None, template_path=
         raise
 
 
-# =============================
+
 # Función para eliminar archivos antiguos de MinIO
-# =============================
+
 def delete_old_files_from_minio(conn_id, bucket_name='temp', expiration_hours=24):
     """
     Elimina archivos antiguos de un bucket de MinIO.
@@ -110,9 +110,9 @@ def delete_old_files_from_minio(conn_id, bucket_name='temp', expiration_hours=24
         raise
 
 
-# =============================
+
 # Función genérica para ejecutar SQL
-# =============================
+
 def execute_query(conn_id, query, params=None):
     """
     Ejecuta una consulta SQL en la base de datos especificada.
@@ -165,9 +165,9 @@ def send_email(to, cc=None, bcc=None, subject=None, template_path=None, template
         raise
 
 
-# ================================
+===
 # Función para ejecutar consultas SQL
-# ================================
+===
 def execute_query(conn_id, query, params=None):
     """
     Ejecuta una consulta SQL en la base de datos especificada.
@@ -186,9 +186,9 @@ def execute_query(conn_id, query, params=None):
         raise
 
 
-# =============================
+
 # Función para actualizar estados
-# =============================
+
 def update_job_status(conn_id, job_id, status):
     """
     Actualiza el estado de un trabajo en la base de datos.
@@ -232,9 +232,9 @@ def upload_to_minio(conn_id, bucket_name, file_key, file_content):
         raise
 
 
-# ==============================
+=
 # Función para listar archivos en MinIO
-# ==============================
+=
 def list_files_in_minio(conn_id, bucket_name, prefix):
     """
     Lista archivos en un bucket/prefijo específico en MinIO.
@@ -263,9 +263,9 @@ def list_files_in_minio(conn_id, bucket_name, prefix):
         raise
 
 
-# =====================================
+========
 # Función para convertir coordenadas GeoJSON a WKT
-# =====================================
+========
 def geojson_to_wkt(geojson):
     """
     Convierte un objeto GeoJSON a WKT.
