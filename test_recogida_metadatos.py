@@ -228,8 +228,6 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 'platform': output_json.get("AircraftNumberPlate"),
                 'fecha_dada': date_time_original
             })
-            print (output_json)
-            return
         else:
 
             result = session.execute(query, {
@@ -247,7 +245,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
         row = result.fetchone()
         
-        #SE COMRPUEBA SI SE ACTUALIZA O CREA NUEVA
+        #SE COMPRUEBA SI SE ACTUALIZA O CREA NUEVA
         if row:
             print(f"row: {row['fid']}")
             fid = row['fid']
