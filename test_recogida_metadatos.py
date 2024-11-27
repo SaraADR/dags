@@ -162,6 +162,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         print("Vamos a ejecutar el sistema de guardados de videos")
         table_name = "observacion_aerea.captura_video"     
 
+    print(output_json)
     #SI NO TIENE SENSOR ID A LA CAJA
     if(type != -1):
         sensorId = output_json.get("sensor_id", -1)
@@ -175,6 +176,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
+    print(sensorId)
 
 
     # Buscar los metadatos en captura
@@ -212,7 +214,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
         if(type == -1):
             result = session.execute(query, {
-                'fid' :  output_json.get("sensor_id"),   
+                'fid' :  output_json.get("SensorID"),   
                 'payload_id': output_json.get("payload_sn"),
                 'multisim_id': output_json.get("multisim_sn"),
                 'ground_control_station_id': output_json.get("ground_control_station_sn"),
@@ -220,7 +222,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 'operator_name': output_json.get("general", {}).get("ON", None),
                 'pilot_name': output_json.get("general", {}).get("PN", None),
                 'sensor': output_json.get("camera_model_name"),
-                'platform': output_json.get("general", {}).get("AP", None),
+                'platform': output_json.get("AircraftNumberPlate"),
                 'fecha_dada': date_time_original
             })
             print (output_json)
