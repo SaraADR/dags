@@ -104,6 +104,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     #CONTROL DEL TIPO ENCONTRADO
     output_json_noload = parse_output_to_json(output)
+    print(output_json_noload)
     output_json = json.loads(output_json_noload)
 
 
