@@ -372,6 +372,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             table_name_observacion = "observacion_aerea.observation_captura_imagen_infrarroja"
         if (type == 2): #Es una multiespectral
             table_name_observacion = "observacion_aerea.observation_captura_imagen_multiespectral"
+        if (type == -1): #Es una multiespectral
+            table_name_observacion = "observacion_aerea.observation_captura_video"
 
         insert_query = text(f"""
             INSERT INTO {table_name_observacion}
