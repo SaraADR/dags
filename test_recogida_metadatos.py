@@ -385,14 +385,26 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
         shape = generar_shape_con_offsets(output_json)
         print(shape)
-        insert_values = {
-            "shape": shape,
-            "sampled_feature": output_json.get("mission_id"),
-            "procedure": int(output_json.get("sensor_id")),
-            "result_time":  date_time_original,
-            "phenomenon_time": date_time_original,
-            "imagen": parse_output_to_json_clean(output),
-        }
+        if(type != -1):
+            insert_values = {
+                "shape": shape,
+                "sampled_feature": output_json.get("mission_id"),
+                "procedure": int(output_json.get("sensor_id")),
+                "result_time":  date_time_original,
+                "phenomenon_time": date_time_original,
+                "imagen": parse_output_to_json_clean(output),
+            }
+        if(type == -1):
+            insert_values = {
+                "shape": shape,
+                "sampled_feature": output_json.get("mission_id", None),
+                "procedure": int(output_json.get("sensorID")),
+                "result_time":  date_time_original,
+                "phenomenon_time": date_time_original,
+                "imagen": parse_output_to_json_clean(output),
+            }
+
+        
 
         session.execute(insert_query, insert_values)
         session.commit()
@@ -423,6 +435,9 @@ def generar_shape_con_offsets(data):
 
     gps_lat = data.get("gps_latitude")
     gps_long = data.get("gps_longitude")
+
+    if(gps_lat is None or gps_long is None):
+        return None
     
     # Convertir coordenadas de strings a valores numéricos
     lat_central = float(gps_lat.split()[0]) * (1 if gps_lat.split()[1] == "N" else -1)
