@@ -109,18 +109,6 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     idRafaga = output_json.get("identificador_rafaga", '0')
 
-    #SI NO TIENE SENSOR ID A LA CAJA
-    sensorId = output_json.get("sensor_id", -1)
-    sensorIdVideo = output_json.get("comment", {}).get("SensorID", -1)
-    print(output_json.get("comment", {}))
-    if  sensorId is -1 and sensorIdVideo is -1: 
-        print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
-        try:
-            upload_to_minio('minio_conn', 'cuarentena', message, local_zip_path)
-        except Exception as e:
-            print(f"Error al subir el archivo a MinIO: {str(e)}")
-        return
-
 
     if(idRafaga != '0'):
         #Es una rafaga
@@ -171,8 +159,22 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
         table_name = "observacion_aerea.captura_imagen_multiespectral"
     if(type == -1):
-        print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
+        print("Vamos a ejecutar el sistema de guardados de videos")
         table_name = "observacion_aerea.captura_video"     
+
+    #SI NO TIENE SENSOR ID A LA CAJA
+    if(type != -1):
+        sensorId = output_json.get("sensor_id", -1)
+    if(type == -1):
+        sensorId = output_json.get("SensorID", -1)
+
+    if sensorId is -1 : 
+        print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
+        try:
+            upload_to_minio('minio_conn', 'cuarentena', message, local_zip_path)
+        except Exception as e:
+            print(f"Error al subir el archivo a MinIO: {str(e)}")
+        return
 
 
     # Buscar los metadatos en captura
