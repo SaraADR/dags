@@ -103,8 +103,9 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         return
 
     #CONTROL DEL TIPO ENCONTRADO
-    output_json_noload = parse_output_to_json(output)
+    output_json_noload, comment_json = parse_output_to_json(output)
     print(output_json_noload)
+    print(comment_json)
     output_json = json.loads(output_json_noload)
 
 
@@ -445,6 +446,8 @@ def parse_output_to_json(output):
     Toma el output del comando docker como una cadena de texto y lo convierte en un diccionario JSON.
     """
     metadata = {}
+    comment_json = None
+
     # Expresión regular para capturar pares clave-valor separados por ":"
     pattern = r"^(.*?):\s*(.*)$"
     for line in output.splitlines():
@@ -453,9 +456,21 @@ def parse_output_to_json(output):
             key = match.group(1).strip()
             key = key.strip().replace(" ", "_").lower()
             value = match.group(2).strip()
-            metadata[key] = value
+            if key == "comment":
+                try:
+                    # Intentar cargar el valor como JSON
+                    comment_json = json.loads(value.strip("'"))
+                except json.JSONDecodeError:
+                    print(f"Error al procesar el JSON dentro de 'comment': {value}")
+                    comment_json = None
+            else:
+                metadata[key] = value
+
+    metadata_json = json.dumps(metadata, ensure_ascii=False, indent=4)
+    comment_json_formatted = json.dumps(comment_json, ensure_ascii=False, indent=4) if comment_json else None
+
     
-    return json.dumps(metadata, ensure_ascii=False, indent=4)
+    return metadata_json, comment_json_formatted
 
 def parse_output_to_json_clean(output):
     """
