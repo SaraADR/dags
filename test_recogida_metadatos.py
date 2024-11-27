@@ -405,7 +405,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("mission_id", None),
-                "procedure": int(output_json.get("sensorID")),
+                "procedure": int(output_json.get("SensorID")),
                 "result_time":  date_time_original,
                 "valid_time_start": date_time_original,
                 "valid_time_end":  valid_time_end,
