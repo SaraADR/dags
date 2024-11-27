@@ -12,7 +12,7 @@ from airflow.operators.python_operator import PythonOperator
 from botocore.exceptions import ClientError
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
-
+from dag_utils import upload_to_minio
 
 #TRAE TODOS LOS FICHEROS DE LA CARPETA DE MINIO
 def process_extracted_files(**kwargs):
@@ -99,7 +99,8 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             ssh_client.exec_command(cleanup_command)
 
     except Exception as e:
-        print(f"Error in SSH connection: {str(e)}")
+        print(f"Error en la conexión SSH o en el procesamiento Docker: {str(e)}")
+        return
 
     #CONTROL DEL TIPO ENCONTRADO
     output_json_noload = parse_output_to_json(output)
@@ -108,37 +109,42 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     idRafaga = output_json.get("identificador_rafaga", '0')
 
-    print(message)
+    #SI NO TIENE SENSOR ID A LA CAJA
+    sensorId = output_json.get("sensor_id", -1)
+    if  sensorId is -1: 
+        print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
+        try:
+            upload_to_minio('minio_conn', 'cuarentena', message, local_zip_path)
+        except Exception as e:
+            print(f"Error al subir el archivo a MinIO: {str(e)}")
+        return
+
+
     if(idRafaga != '0'):
         #Es una rafaga
         is_rafaga(output, output_json)
-
-
     #SON VIDEOS
     elif message.endswith(".mp4"):
-        print("DATO MP$")
         output_json_comment = json.loads(output_json.get("comment"))
-        print(output_json_comment)
-        return
-        # is_visible_or_ter(output,output_json_comment, -1)
-    # #SON IMAGENES
-    # elif "-vis" in message:
-    #     #Es imagen visible
-    #     is_visible_or_ter(output,output_json, 0)
-    # elif "-ter" in message:
-    #     # Es termodinamica
-    #     is_visible_or_ter(output,output_json, 1)
-    # elif "-mul" in message:
-    #     # Es termodinamica
-    #     is_visible_or_ter(output,output_json, 2)
-    # else:
-    #     if output_json.get("sensor_id") == 1:
-    #          is_visible_or_ter(output,output_json, 0)
-    #     elif output_json.get("sensor_id") == 2:
-    #          is_visible_or_ter(output,output_json, 1)
-    #     else:
-    #         is_visible_or_ter(output,output_json, 0)
-    #         print("No se reconoce el tipo de imagen o video aportado")
+        is_visible_or_ter(message, local_zip_path, output,output_json_comment, -1)
+    #SON IMAGENES
+    elif "-vis" in message:
+        #Es imagen visible
+        is_visible_or_ter(message,local_zip_path, output,output_json, 0)
+    elif "-ter" in message:
+        # Es termodinamica
+        is_visible_or_ter(message,local_zip_path,output,output_json, 1)
+    elif "-mul" in message:
+        # Es termodinamica
+        is_visible_or_ter(message,local_zip_path,output,output_json, 2)
+    else:
+        if output_json.get("sensor_id") == 1:
+             is_visible_or_ter(message,local_zip_path,output,output_json, 0)
+        elif output_json.get("sensor_id") == 2:
+             is_visible_or_ter(message,local_zip_path,output,output_json, 1)
+        else:
+            is_visible_or_ter(message,local_zip_path, output,output_json, 0)
+            print("No se reconoce el tipo de imagen o video aportado")
         return 
     return
 
@@ -151,7 +157,7 @@ def is_rafaga(output, message):
 
 
 #PROCEDIMIENTO A LLEVAR CON INDIVIDUALES
-def is_visible_or_ter(output, output_json, type):
+def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
     if(type == 0):
         print("Vamos a ejecutar el sistema de guardados de imagenes visibles")
@@ -165,6 +171,7 @@ def is_visible_or_ter(output, output_json, type):
     if(type == -1):
         print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
         table_name = "observacion_aerea.captura_video"     
+
 
     # Buscar los metadatos en captura
     try:
@@ -200,18 +207,18 @@ def is_visible_or_ter(output, output_json, type):
             raise
 
         if(type == -1):
-            # result = session.execute(query, {
-            #     'fid' :  output_json.get("sensor_id"),   
-            #     'payload_id': output_json.get("payload_sn"),
-            #     'multisim_id': output_json.get("multisim_sn"),
-            #     'ground_control_station_id': output_json.get("ground_control_station_sn"),
-            #     'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-            #     'operator_name': output_json.get("operator_name"),
-            #     'pilot_name': output_json.get("pilot_name"),
-            #     'sensor': output_json.get("camera_model_name"),
-            #     'platform': output_json.get("aircraft_number_plate"),
-            #     'fecha_dada': date_time_original
-            # })
+            result = session.execute(query, {
+                'fid' :  output_json.get("sensor_id"),   
+                'payload_id': output_json.get("payload_sn"),
+                'multisim_id': output_json.get("multisim_sn"),
+                'ground_control_station_id': output_json.get("ground_control_station_sn"),
+                'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
+                'operator_name': output_json.get("general", {}).get("ON", None),
+                'pilot_name': output_json.get("general", {}).get("PN", None),
+                'sensor': output_json.get("camera_model_name"),
+                'platform': output_json.get("general", {}).get("AP", None),
+                'fecha_dada': date_time_original
+            })
             print (output_json)
             return
         else:
@@ -371,11 +378,22 @@ def is_visible_or_ter(output, output_json, type):
         print(f"Error al introducir la linea en observacion captura: {e}")
         raise 
 
+    file_name = os.path.basename(message)
+    mission_id = output_json.get("mission_id", -1)
+    if mission_id != -1 :
+        try:
+            upload_to_minio('minio_conn', 'missions', mission_id + '/' + file_name, local_zip_path)
+        except Exception as e:
+            print(f"Error al subir el archivo a MinIO: {str(e)}")
+        return
+    else : 
+        try:
+            upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + file_name, local_zip_path)
+        except Exception as e:
+            print(f"Error al subir el archivo a MinIO: {str(e)}")
+        return
 
 
-
-
-# METODOS AUXILIARES
 
 def generar_shape_con_offsets(data):
 
