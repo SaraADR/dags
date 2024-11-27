@@ -330,7 +330,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         :sensor, :platform)
             """)
 
-            if(type != -1):
+            if(type == -1):
                 # Generar los valores de inserción
                 insert_values = {
                     'fid': int(output_json.get("SensorID")),
@@ -345,7 +345,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     'sensor': output_json.get("Camera Model Name"),
                     'platform': output_json.get("AircraftNumberPlate")
                 }
-            if(type == -1):
+            if(type != -1):
                    insert_values = {
                     'fid': int(output_json.get("sensor_id")),
                     'valid_time_start': date_time_original,
