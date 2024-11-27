@@ -130,9 +130,8 @@ def execute_query(conn_id, query, params=None):
         print(f"Error al ejecutar la consulta: {str(e)}")
         raise
 
-# ==========================
 # Función para enviar emails
-# ==========================
+
 def send_email(to, cc=None, bcc=None, subject=None, template_path=None, template_data=None, conn_id='test_mailing', attachments=None):
     """
     Envía un email utilizando Airflow.
@@ -165,9 +164,8 @@ def send_email(to, cc=None, bcc=None, subject=None, template_path=None, template
         raise
 
 
-===
 # Función para ejecutar consultas SQL
-===
+
 def execute_query(conn_id, query, params=None):
     """
     Ejecuta una consulta SQL en la base de datos especificada.
@@ -232,9 +230,9 @@ def upload_to_minio(conn_id, bucket_name, file_key, file_content):
         raise
 
 
-=
+
 # Función para listar archivos en MinIO
-=
+
 def list_files_in_minio(conn_id, bucket_name, prefix):
     """
     Lista archivos en un bucket/prefijo específico en MinIO.
@@ -263,9 +261,7 @@ def list_files_in_minio(conn_id, bucket_name, prefix):
         raise
 
 
-========
 # Función para convertir coordenadas GeoJSON a WKT
-========
 def geojson_to_wkt(geojson):
     """
     Convierte un objeto GeoJSON a WKT.
