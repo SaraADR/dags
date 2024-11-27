@@ -359,7 +359,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     'sensor': output_json.get("camera_model_name"),
                     'platform': output_json.get("aircraft_number_plate")
                 }
-            print(insert_values)
+
             session.execute(insert_query, insert_values)
             session.commit()
 
@@ -375,6 +375,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         if (type == -1): #Es un video
             table_name_observacion = "observacion_aerea.observation_captura_video"
 
+        print("Insertamos en observación")
+
         if(type != -1):
             insert_query = text(f"""
                 INSERT INTO {table_name_observacion}
@@ -382,24 +384,26 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
                     :phenomenon_time, :imagen)
             """)
-        shape = generar_shape_con_offsets(output_json)
-        insert_values = {
-            "shape": shape,
-            "sampled_feature": output_json.get("mission_id"),
-            "procedure": int(output_json.get("sensor_id")),
-            "result_time":  date_time_original,
-            "phenomenon_time": date_time_original,
-            "imagen": parse_output_to_json_clean(output),
-        }
+            shape = generar_shape_con_offsets(output_json)
+            insert_values = {
+                "shape": shape,
+                "sampled_feature": output_json.get("mission_id"),
+                "procedure": int(output_json.get("sensor_id")),
+                "result_time":  date_time_original,
+                "phenomenon_time": date_time_original,
+                "imagen": parse_output_to_json_clean(output),
+            }
 
         if(type == -1):
+
             insert_query = text(f"""
                 INSERT INTO {table_name_observacion}
-                ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
-                VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
+                ( procedure, sampled_feature, shape, result_time, phenomenon_time, video)
+                VALUES ( :procedure, :sampled_feature, :shape, :result_time, 
                     tsrange(:valid_time_start, :valid_time_end, '[)'), :imagen)
             """)
 
+            shape = generar_shape_con_offsets(output_json)
             duration_in_seconds = duration_to_seconds(output.get("duration"))
             valid_time_end = date_time_original + timedelta(seconds=duration_in_seconds)
             print(output_json)
@@ -446,6 +450,7 @@ def generar_shape_con_offsets(data):
     gps_long = data.get("gps_longitude")
 
     if(gps_lat is None or gps_long is None):
+        print("No tenemos los campos de gps")
         return None
     
     # Convertir coordenadas de strings a valores numéricos
