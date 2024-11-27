@@ -375,32 +375,41 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         if (type == -1): #Es una multiespectral
             table_name_observacion = "observacion_aerea.observation_captura_video"
 
-        insert_query = text(f"""
-            INSERT INTO {table_name_observacion}
-            ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
-            VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
-                :phenomenon_time, :imagen)
-        """)
-     
-
+        if(type != -1):
+            insert_query = text(f"""
+                INSERT INTO {table_name_observacion}
+                ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
+                VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
+                    :phenomenon_time, :imagen)
+            """)
         shape = generar_shape_con_offsets(output_json)
         print(shape)
-        if(type != -1):
-            insert_values = {
-                "shape": shape,
-                "sampled_feature": output_json.get("mission_id"),
-                "procedure": int(output_json.get("sensor_id")),
-                "result_time":  date_time_original,
-                "phenomenon_time": date_time_original,
-                "imagen": parse_output_to_json_clean(output),
-            }
+        insert_values = {
+            "shape": shape,
+            "sampled_feature": output_json.get("mission_id"),
+            "procedure": int(output_json.get("sensor_id")),
+            "result_time":  date_time_original,
+            "phenomenon_time": date_time_original,
+            "imagen": parse_output_to_json_clean(output),
+        }
+
         if(type == -1):
+            insert_query = text(f"""
+                INSERT INTO {table_name_observacion}
+                ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
+                VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
+                    tsrange(:valid_time_start, :valid_time_end, '[)'), :imagen)
+            """)
+
+            duration_in_seconds = duration_to_seconds(output.get("duration"))
+            valid_time_end = date_time_original + timedelta(seconds=duration_in_seconds)
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("mission_id", None),
                 "procedure": int(output_json.get("sensorID")),
                 "result_time":  date_time_original,
-                "phenomenon_time": date_time_original,
+                "valid_time_start": date_time_original,
+                "valid_time_end":  valid_time_end,
                 "imagen": parse_output_to_json_clean(output),
             }
 
@@ -520,6 +529,9 @@ def parse_output_to_json_clean(output):
     
     return json.dumps(metadata, ensure_ascii=False, indent=4)
 
+def duration_to_seconds(duration_str):
+    h, m, s = map(int, duration_str.split(":"))
+    return timedelta(hours=h, minutes=m, seconds=s).total_seconds()
 
 #DESCARGA CADA UNO DE LOS FICHEROS DE MANERA INDIVIDUAL
 def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
