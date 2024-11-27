@@ -218,7 +218,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         if(type == -1):
             result = session.execute(query, {
                 'fid' :  output_json.get("SensorID"),   
-                'payload_id': output_json.get("payload_sn"),
+                'payload_id': output_json.get("payload_sn", None),
                 'multisim_id': output_json.get("multisim_sn", None),
                 'ground_control_station_id': output_json.get("ground_control_station_sn", None),
                 'pc_embarcado_id': output_json.get("pc_embarcado_sn", None),
@@ -330,20 +330,35 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         :sensor, :platform)
             """)
 
-            # Generar los valores de inserción
-            insert_values = {
-                'fid': int(output_json.get("sensor_id")),
-                'valid_time_start': date_time_original,
-                'valid_time_end': date_time_original + timedelta(minutes=1),  # Ajusta el rango inicial
-                'payload_id': output_json.get("payload_sn"),
-                'multisim_id': output_json.get("multisim_sn"),
-                'ground_control_station_id': output_json.get("ground_control_station_sn"),
-                'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-                'operator_name': output_json.get("operator_name"),
-                'pilot_name': output_json.get("pilot_name"),
-                'sensor': output_json.get("camera_model_name"),
-                'platform': output_json.get("aircraft_number_plate")
-            }
+            if(type != -1):
+                # Generar los valores de inserción
+                insert_values = {
+                    'fid': int(output_json.get("SensorID")),
+                    'valid_time_start': date_time_original,
+                    'valid_time_end': date_time_original + timedelta(minutes=1),  # Ajusta el rango inicial
+                    'payload_id': output_json.get("payload_sn"),
+                    'multisim_id': output_json.get("multisim_sn"),
+                    'ground_control_station_id': output_json.get("ground_control_station_sn"),
+                    'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
+                    'operator_name': output_json.get("ON"),
+                    'pilot_name': output_json.get("PN"),
+                    'sensor': output_json.get("Camera Model Name"),
+                    'platform': output_json.get("AircraftNumberPlate")
+                }
+            if(type == -1):
+                   insert_values = {
+                    'fid': int(output_json.get("sensor_id")),
+                    'valid_time_start': date_time_original,
+                    'valid_time_end': date_time_original + timedelta(minutes=1),  # Ajusta el rango inicial
+                    'payload_id': output_json.get("payload_sn"),
+                    'multisim_id': output_json.get("multisim_sn"),
+                    'ground_control_station_id': output_json.get("ground_control_station_sn"),
+                    'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
+                    'operator_name': output_json.get("operator_name"),
+                    'pilot_name': output_json.get("pilot_name"),
+                    'sensor': output_json.get("camera_model_name"),
+                    'platform': output_json.get("aircraft_number_plate")
+                }
             print(insert_values)
             session.execute(insert_query, insert_values)
             session.commit()
