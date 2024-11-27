@@ -376,7 +376,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             table_name_observacion = "observacion_aerea.observation_captura_video"
 
         print("Insertamos en observación")
-
+        
         if(type != -1):
             insert_query = text(f"""
                 INSERT INTO {table_name_observacion}
@@ -394,6 +394,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "imagen": parse_output_to_json_clean(output),
             }
 
+        #ES UN VIDEO
         if(type == -1):
 
             insert_query = text(f"""
@@ -403,7 +404,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     tsrange(:valid_time_start, :valid_time_end, '[)'), :imagen)
             """)
 
-            shape = generar_shape_con_offsets(output_json)
+            shape = generar_shape(output_json)
             duration_in_seconds = duration_to_seconds(output.get("duration"))
             valid_time_end = date_time_original + timedelta(seconds=duration_in_seconds)
             print(output_json)
@@ -485,6 +486,58 @@ def generar_shape_con_offsets(data):
     shape = f"SRID=4326;POLYGON (({vertices_str}))"
     return shape
 
+def dms_to_decimal(dms_value, ref):
+    """
+    Convierte una coordenada DMS (grados, minutos, segundos) a formato decimal.
+    La referencia (N/S para latitud, E/W para longitud) indica el signo.
+    """
+    # Separar la parte de grados, minutos y segundos
+    degrees, minutes, seconds = dms_value.split('°')
+    minutes, seconds = minutes.split("'")
+    seconds = seconds.replace("''", "")
+
+    # Convertir a decimal
+    decimal = float(degrees) + float(minutes) / 60 + float(seconds) / 3600
+
+    # Ajustar el signo según la referencia (N/S/E/W)
+    if ref in ["S", "W"]:
+        decimal = -decimal
+
+    return decimal
+
+def generar_shape(data):
+    gps_lat_ref = data.get("GPS Latitude Ref")
+    gps_lat = data.get("GPS Latitude")
+    gps_long_ref = data.get("GPS Longitude Ref")
+    gps_long = data.get("GPS Longitude")
+
+    if gps_lat is None or gps_long is None:
+        print("No tenemos los campos de GPS")
+        return None
+
+    # Convertir coordenadas de DMS a formato decimal
+    lat_central = dms_to_decimal(gps_lat, gps_lat_ref)
+    long_central = dms_to_decimal(gps_long, gps_long_ref)
+
+    # Definir un pequeño desplazamiento (en grados decimales) para generar un área alrededor del punto
+    offset = 0.0001  # Desplazamiento arbitrario para crear un área pequeña
+
+    # Generar los vértices del polígono de un cuadrado alrededor del punto central
+    vertices = [
+        (long_central - offset, lat_central - offset),  # Suelo izquierdo
+        (long_central - offset, lat_central + offset),  # Suelo derecho
+        (long_central + offset, lat_central + offset),  # Arriba derecho
+        (long_central + offset, lat_central - offset),  # Arriba izquierdo
+    ]
+
+    # Asegurar que el polígono esté cerrado (el primer punto al final)
+    vertices.append(vertices[0])
+
+    # Convertir a string en formato POLYGON
+    vertices_str = ", ".join(f"{lon} {lat}" for lon, lat in vertices)
+    shape = f"SRID=4326;POLYGON (({vertices_str}))"
+    
+    return shape
 
 def parse_output_to_json(output):
     """
