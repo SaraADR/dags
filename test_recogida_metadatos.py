@@ -207,7 +207,10 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
         date_time_str = output_json.get("xmp:dateTimeOriginal")
         try:
-            date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+            if(type != -1):
+                date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+            if(type == -1):
+                date_time_original = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
         except ValueError as ve:
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
             raise
