@@ -107,6 +107,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     print(output_json_noload)
     print(comment_json)
     output_json = json.loads(output_json_noload)
+    
 
 
     idRafaga = output_json.get("identificador_rafaga", '0')
@@ -117,8 +118,8 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         is_rafaga(output, output_json)
     #SON VIDEOS
     elif message.endswith(".mp4"):
-        output_json_comment = json.loads(output_json.get("comment"))
-        is_visible_or_ter(message, local_zip_path, output,output_json_comment, -1)
+        comments = json.loads(comment_json)
+        is_visible_or_ter(message, local_zip_path, output, comments, -1)
     #SON IMAGENES
     elif "-vis" in message:
         #Es imagen visible
