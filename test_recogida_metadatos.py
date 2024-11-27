@@ -413,7 +413,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "imagen": parse_output_to_json_clean(output),
             }
 
-        
+        print(insert_values)
 
         session.execute(insert_query, insert_values)
         session.commit()
