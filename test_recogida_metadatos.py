@@ -205,11 +205,13 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             )
         """)
 
-        date_time_str = output_json.get("xmp:dateTimeOriginal")
+        
         try:
             if(type != -1):
+                date_time_str = output_json.get("date/time_original")
                 date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
             if(type == -1):
+                date_time_str = output_json.get("xmp:dateTimeOriginal")
                 date_time_original = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
         except ValueError as ve:
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
@@ -485,6 +487,8 @@ def generar_shape_con_offsets(data):
     vertices_str = ", ".join(f"{lon} {lat}" for lon, lat in vertices)
     shape = f"SRID=4326;POLYGON (({vertices_str}))"
     return shape
+
+
 
 def dms_to_decimal(dms_value, ref):
     """
