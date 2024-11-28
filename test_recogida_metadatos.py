@@ -423,7 +423,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "result_time":  date_time_original,
                 "valid_time_start": date_time_original,
                 "valid_time_end":  valid_time_end,
-                "video": output_json,
+                "video": json.dumps(output_json),
             }
 
         session.execute(insert_query, insert_values)
