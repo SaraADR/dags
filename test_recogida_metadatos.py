@@ -12,7 +12,7 @@ from airflow.operators.python_operator import PythonOperator
 from botocore.exceptions import ClientError
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
-from dag_utils import upload_to_minio
+from dag_utils import upload_to_minio, upload_to_minio_path
 
 #TRAE TODOS LOS FICHEROS DE LA CARPETA DE MINIO
 def process_extracted_files(**kwargs):
@@ -170,7 +170,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
     if sensorId is -1 : 
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
         try:
-            upload_to_minio('minio_conn', 'cuarentena', message, local_zip_path)
+            upload_to_minio_path('minio_conn', 'cuarentena', message, local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
@@ -431,7 +431,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
     mission_id = output_json.get("MissionID", -1)
     if mission_id != -1 :
         try:
-            upload_to_minio('minio_conn', 'missions', mission_id + '/' + file_name, local_zip_path)
+            # upload_to_minio('minio_conn', 'missions', mission_id + '/' + file_name, local_zip_path)
+            upload_to_minio_path('minio_conn', 'cuarentena', message, local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return

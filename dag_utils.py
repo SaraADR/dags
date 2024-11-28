@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, text
 from airflow.hooks.base_hook import BaseHook
 import json
 import boto3
+import os
 from botocore.client import Config
 from jinja2 import Template
 from airflow.operators.email import EmailOperator
@@ -229,7 +230,31 @@ def upload_to_minio(conn_id, bucket_name, file_key, file_content):
         print(f"Error al subir el archivo a MinIO: {str(e)}")
         raise
 
-
+def upload_to_minio_path(conn_id, bucket_name, destination_prefix, local_file):
+    """
+    Función para subir un archivo desde la máquina local a MinIO.
+    """
+    try:
+        connection = BaseHook.get_connection(conn_id)
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
+    
+        destination_file_path = os.path.join(destination_prefix, os.path.basename(local_file))
+    
+        # Subir el archivo al bucket de destino
+        print(f"Subiendo archivo a MinIO: {destination_file_path}")
+        s3_client.upload_file(local_file, bucket_name, destination_file_path)
+        print(f"Archivo subido correctamente a: {destination_file_path}")
+        
+    except Exception as e:
+        print(f"Error al subir el archivo a MinIO: {str(e)}")
+        raise
 
 # Función para listar archivos en MinIO
 
