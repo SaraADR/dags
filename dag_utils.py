@@ -342,19 +342,12 @@ def dms_to_decimal(dms_value, ref):
 
         degrees = dms_parts[0].strip()
         minutes_seconds = dms_parts[1].split("'")
-
-        print(f"Grados: {degrees}")
-        print(f"Minutos y segundos: {minutes_seconds}")
-
         # Separar minutos y segundos
         if len(minutes_seconds) != 2:
             raise ValueError(f"Formato minutos/segundos inválido: {dms_value}")
 
         minutes = minutes_seconds[0].strip()
         seconds = minutes_seconds[1].strip()
-
-        print(f"Minutos: {minutes}, Segundos: {seconds}")
-
         # Convertir a decimal
         decimal = float(degrees) + float(minutes) / 60 + float(seconds) / 3600
 
