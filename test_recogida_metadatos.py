@@ -450,7 +450,7 @@ def resultByType(type, message, output, output_json, query, SensorId, timestamp_
                     'pc_embarcado_id': output_json.get("PCEmbarcadoSN", None),
                     'operator_name': output_json.get("OperatorName", None),
                     'pilot_name': output_json.get("PilotName", None),
-                    'sensor': output_json.get("Camera Model Name"),
+                    'sensor': output_json.get("CameraModelName"),
                     'platform': output_json.get("AircraftNumberPlate"),
                     'fecha_dada': timestamp_naive
                 })
@@ -464,7 +464,7 @@ def resultByType(type, message, output, output_json, query, SensorId, timestamp_
                     'pc_embarcado_id': output_json.get("PCEmbarcadoSN", None),
                     'operator_name': output_json.get("ON", None),
                     'pilot_name': output_json.get("PN", None),
-                    'sensor': output_json.get("Camera Model Name"),
+                    'sensor': output_json.get("CameraModelName"),
                     'platform': output_json.get("AP"),
                     'fecha_dada': timestamp_naive
                 })
