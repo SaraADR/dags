@@ -500,6 +500,8 @@ def dms_to_decimal(dms_value, ref):
     La referencia (N/S para latitud, E/W para longitud) indica el signo.
     """
     try:
+        dms_value.replace("''", "_")
+
         # Separar grados
         dms_parts = dms_value.split('°')
         if len(dms_parts) != 2:
@@ -507,13 +509,15 @@ def dms_to_decimal(dms_value, ref):
         
         degrees = dms_parts[0].strip()
         minutes_seconds = dms_parts[1].split("'")
+
+
         
         # Separar minutos y segundos
         if len(minutes_seconds) != 2:
             raise ValueError(f"Formato minutos/segundos inválido: {dms_value}")
         
         minutes = minutes_seconds[0].strip()
-        seconds = minutes_seconds[1].replace("''", "").strip()  # Elimina comillas dobles
+        seconds = minutes_seconds[1].replace("_", "").strip()  # Elimina comillas dobles
         
         # Convertir a decimal
         decimal = float(degrees) + float(minutes) / 60 + float(seconds) / 3600
