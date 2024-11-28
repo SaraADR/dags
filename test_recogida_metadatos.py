@@ -224,6 +224,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
         result = resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session)
         row = result.fetchone()
+
+        print("Select realizado")
         
         #SE COMPRUEBA SI SE ACTUALIZA O CREA NUEVA
         if row:
@@ -394,7 +396,6 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             output = json.loads(output)
             combined_json = {**output, **output_json}
    
-            print(combined_json)
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("MissionID", None),
