@@ -167,7 +167,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         SensorId = output_json.get("SensorID")      
 
 
-    if SensorId is not None : 
+    if SensorId is None : 
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
         try:
             upload_to_minio_path('minio_conn', 'cuarentena', 'sin_sensor' + '/', local_zip_path)
