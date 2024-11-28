@@ -207,7 +207,6 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 date_time_str = output_json.get("DateTimeOriginal")
                 date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S%z")
                 timestamp_naive = date_time_original.replace(tzinfo=None)
-                print(timestamp_naive)
             if(type == -1):
                 date_time_str = output_json.get("xmp:dateTimeOriginal")
                 date_time_original = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
@@ -239,7 +238,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 'pilot_name': output_json.get("PilotName"),
                 'sensor': output_json.get("Model"),
                 'platform': output_json.get("aircraft_number_plate"),
-                'fecha_dada': date_time_original
+                'fecha_dada': timestamp_naive
             })
 
         row = result.fetchone()
