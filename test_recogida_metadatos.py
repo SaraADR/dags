@@ -396,7 +396,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             output_json = json.loads(output_json)
             combined_json = {**output, **output_json}
    
-
+            print(combined_json)
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("MissionID", None),
