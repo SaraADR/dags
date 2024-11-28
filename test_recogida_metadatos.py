@@ -139,14 +139,14 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     return
 
 
-#PROCEDIMIENTO A LLEVAR CON LAS RAFAGAS
+##--------------------------- PROCEDIMIENTO DE RAFAGAS ------------------------------------------------
 def is_rafaga(output, message):
     print("No se ha implementado el sistema de rafagas todavia")
     return
 
 
 
-#PROCEDIMIENTO A LLEVAR CON INDIVIDUALES
+##--------------------------- PROCEDIMIENTO DE IMAGENES Y VIDEOS ---------------------------------------
 def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
     if(type == 0):
@@ -202,6 +202,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         """)
 
         
+
         try:
             if(type == 2): #Multiespectral
                 date_time_str = output_json.get("DateTimeOriginal")
@@ -217,6 +218,9 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         except ValueError as ve:
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
             raise
+
+
+
 
         result = resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session)
         row = result.fetchone()
@@ -391,6 +395,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             output = json.loads(output)
             output_json = json.loads(output_json)
             combined_json = {**output, **output_json}
+   
 
             insert_values = {
                 "shape": shape,
@@ -399,7 +404,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "result_time":  timestamp_naive,
                 "valid_time_start": timestamp_naive,
                 "valid_time_end":  valid_time_end,
-                "video": combined_json,
+                "video": json.dumps(combined_json),
             }
 
         session.execute(insert_query, insert_values)
@@ -480,6 +485,10 @@ def resultByType(type, message, output, output_json, query, SensorId, timestamp_
     return result
 
 
+
+
+
+#--------------------------- METODOS AUXILIARES ------------------------------------------------
 def generar_shape_con_offsets(data):
 
     gps_lat = data.get("GPSLatitude")
