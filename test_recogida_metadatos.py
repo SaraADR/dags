@@ -519,11 +519,12 @@ def generar_shape(data):
     gps_long_ref = data.get("GPS Longitude Ref")
     gps_long = data.get("GPS Longitude")
 
-    print("AQUI")
 
     if gps_lat is None or gps_long is None:
         print("No tenemos los campos de GPS")
         return None
+
+    print(gps_lat + '_' + gps_lat_ref + '_' + gps_long + '_' + gps_long_ref)
 
     # Convertir coordenadas de DMS a formato decimal
     lat_central = dms_to_decimal(gps_lat, gps_lat_ref)
