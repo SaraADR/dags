@@ -108,9 +108,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     print(comment_json)
     output_json = json.loads(output_json_noload)
     
-
-
-    idRafaga = output_json.get("identificador_rafaga", '0')
+    idRafaga = output_json.get("IdentificadorRafaga", '0')
 
 
     if(idRafaga != '0'):
@@ -166,10 +164,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         table_name = "observacion_aerea.captura_video"     
 
     #SI NO TIENE SENSOR ID A LA CAJA
-    if(type != -1):
-        sensorId = output_json.get("sensor_id", -1)
-    if(type == -1):
-        sensorId = output_json.get("SensorID", -1)
+
+    sensorId = output_json.get("SensorID", -1)
 
     if sensorId is -1 : 
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
@@ -208,7 +204,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         
         try:
             if(type != -1):
-                date_time_str = output_json.get("date/time_original")
+                date_time_str = output_json.get("DateTimeOriginal")
                 date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
             if(type == -1):
                 date_time_str = output_json.get("xmp:dateTimeOriginal")
@@ -220,27 +216,26 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         if(type == -1):
             result = session.execute(query, {
                 'fid' :  output_json.get("SensorID"),   
-                'payload_id': output_json.get("payload_sn", None),
-                'multisim_id': output_json.get("multisim_sn", None),
-                'ground_control_station_id': output_json.get("ground_control_station_sn", None),
-                'pc_embarcado_id': output_json.get("pc_embarcado_sn", None),
+                'payload_id': output_json.get("PayloadSN", None),
+                'multisim_id': output_json.get("MultisimSN", None),
+                'ground_control_station_id': output_json.get("GroundControlStationSN", None),
+                'pc_embarcado_id': output_json.get("PCEmbarcadoSN", None),
                 'operator_name': output_json.get("ON", None),
                 'pilot_name': output_json.get("PN", None),
-                'sensor': output_json.get("Camera Model Name"),
+                'sensor': output_json.get("Model"),
                 'platform': output_json.get("AircraftNumberPlate"),
                 'fecha_dada': date_time_original
             })
         else:
-
             result = session.execute(query, {
-                'fid' :  output_json.get("sensor_id"),   
-                'payload_id': output_json.get("payload_sn"),
-                'multisim_id': output_json.get("multisim_sn"),
-                'ground_control_station_id': output_json.get("ground_control_station_sn"),
-                'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-                'operator_name': output_json.get("operator_name"),
-                'pilot_name': output_json.get("pilot_name"),
-                'sensor': output_json.get("camera_model_name"),
+                'fid' :  output_json.get("SensorID"),   
+                'payload_id': output_json.get("PayloadSN"),
+                'multisim_id': output_json.get("MultisimSN"),
+                'ground_control_station_id': output_json.get("GroundControlStationSN"),
+                'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
+                'operator_name': output_json.get("OperatorName"),
+                'pilot_name': output_json.get("PilotName"),
+                'sensor': output_json.get("Model"),
                 'platform': output_json.get("aircraft_number_plate"),
                 'fecha_dada': date_time_original
             })
@@ -274,15 +269,15 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     """)
                     session.execute(update_query, {
                         "new_start": date_time_original,
-                        "fid": fid,
-                        'payload_id': output_json.get("payload_sn"),
-                        'multisim_id': output_json.get("multisim_sn"),
-                        'ground_control_station_id': output_json.get("ground_control_station_sn"),
-                        'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-                        'operator_name': output_json.get("operator_name"),
-                        'pilot_name': output_json.get("pilot_name"),
-                        'sensor': output_json.get("camera_model_name"),
-                        'platform': output_json.get("aircraft_number_plate"),
+                        'fid' :  output_json.get("SensorID"),   
+                        'payload_id': output_json.get("PayloadSN"),
+                        'multisim_id': output_json.get("MultisimSN"),
+                        'ground_control_station_id': output_json.get("GroundControlStationSN"),
+                        'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
+                        'operator_name': output_json.get("OperatorName"),
+                        'pilot_name': output_json.get("PilotName"),
+                        'sensor': output_json.get("Model"),
+                        'platform': output_json.get("aircraft_number_plate")
                     })
 
                 elif date_time_original > valid_time.upper:  # Fecha después del final del rango
@@ -305,15 +300,15 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     """)
                     session.execute(update_query, {
                         "new_end": date_time_original,
-                        "fid": fid,
-                        'payload_id': output_json.get("payload_sn"),
-                        'multisim_id': output_json.get("multisim_sn"),
-                        'ground_control_station_id': output_json.get("ground_control_station_sn"),
-                        'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-                        'operator_name': output_json.get("operator_name"),
-                        'pilot_name': output_json.get("pilot_name"),
-                        'sensor': output_json.get("camera_model_name"),
-                        'platform': output_json.get("aircraft_number_plate"),
+                        'fid' :  output_json.get("SensorID"),   
+                        'payload_id': output_json.get("PayloadSN"),
+                        'multisim_id': output_json.get("MultisimSN"),
+                        'ground_control_station_id': output_json.get("GroundControlStationSN"),
+                        'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
+                        'operator_name': output_json.get("OperatorName"),
+                        'pilot_name': output_json.get("PilotName"),
+                        'sensor': output_json.get("Model"),
+                        'platform': output_json.get("aircraft_number_plate")
                     })
             else:
                 print(f"Fecha dada {date_time_original} está dentro del rango {valid_time}, no se realiza actualización.")
@@ -338,27 +333,27 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     'fid': int(output_json.get("SensorID")),
                     'valid_time_start': date_time_original,
                     'valid_time_end': date_time_original + timedelta(minutes=1),  # Ajusta el rango inicial
-                    'payload_id': output_json.get("payload_sn"),
-                    'multisim_id': output_json.get("multisim_sn"),
-                    'ground_control_station_id': output_json.get("ground_control_station_sn"),
-                    'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-                    'operator_name': output_json.get("ON"),
-                    'pilot_name': output_json.get("PN"),
-                    'sensor': output_json.get("Camera Model Name"),
-                    'platform': output_json.get("AircraftNumberPlate")
+                    'payload_id': output_json.get("PayloadSN"),
+                    'multisim_id': output_json.get("MultisimSN"),
+                    'ground_control_station_id': output_json.get("GroundControlStationSN"),
+                    'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
+                    'operator_name': output_json.get("OperatorName"),
+                    'pilot_name': output_json.get("PilotName"),
+                    'sensor': output_json.get("Model"),
+                    'platform': output_json.get("aircraft_number_plate")
                 }
             if(type != -1):
                    insert_values = {
-                    'fid': int(output_json.get("sensor_id")),
+                    'fid': int(output_json.get("SensorID")),
                     'valid_time_start': date_time_original,
                     'valid_time_end': date_time_original + timedelta(minutes=1),  # Ajusta el rango inicial
-                    'payload_id': output_json.get("payload_sn"),
-                    'multisim_id': output_json.get("multisim_sn"),
-                    'ground_control_station_id': output_json.get("ground_control_station_sn"),
-                    'pc_embarcado_id': output_json.get("pc_embarcado_sn"),
-                    'operator_name': output_json.get("operator_name"),
-                    'pilot_name': output_json.get("pilot_name"),
-                    'sensor': output_json.get("camera_model_name"),
+                    'payload_id': output_json.get("PayloadSN"),
+                    'multisim_id': output_json.get("MultisimSN"),
+                    'ground_control_station_id': output_json.get("GroundControlStationSN"),
+                    'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
+                    'operator_name': output_json.get("OperatorName"),
+                    'pilot_name': output_json.get("PilotName"),
+                    'sensor': output_json.get("Model"),
                     'platform': output_json.get("aircraft_number_plate")
                 }
 
@@ -379,6 +374,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
         print("Insertamos en observación")
         
+        outputt , outputcomment = parse_output_to_json(output)
         if(type != -1):
             insert_query = text(f"""
                 INSERT INTO {table_name_observacion}
@@ -390,11 +386,11 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             shape = generar_shape_con_offsets(output_json)
             insert_values = {
                 "shape": shape,
-                "sampled_feature": output_json.get("mission_id"),
-                "procedure": int(output_json.get("sensor_id")),
+                "sampled_feature": output_json.get("MissionID"),
+                "procedure": int(output_json.get("SensorID")),
                 "result_time":  date_time_original,
                 "phenomenon_time": date_time_original,
-                "imagen": parse_output_to_json_clean(output),
+                "imagen": outputt,
             }
 
         #ES UN VIDEO
@@ -411,14 +407,10 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             duration_in_seconds = 30
             valid_time_end = date_time_original + timedelta(seconds=duration_in_seconds)
 
-            print(duration_in_seconds)
-            print(valid_time_end)
-            print(output_json)
-
 
             insert_values = {
                 "shape": shape,
-                "sampled_feature": output_json.get("mission_id", None),
+                "sampled_feature": output_json.get("MissionID", None),
                 "procedure": int(output_json.get("SensorID")),
                 "result_time":  date_time_original,
                 "valid_time_start": date_time_original,
@@ -453,8 +445,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
 def generar_shape_con_offsets(data):
 
-    gps_lat = data.get("gps_latitude")
-    gps_long = data.get("gps_longitude")
+    gps_lat = data.get("GPSLatitude")
+    gps_long = data.get("GPSLongitude")
 
     if(gps_lat is None or gps_long is None):
         print("No tenemos los campos de gps")
@@ -465,14 +457,14 @@ def generar_shape_con_offsets(data):
     long_central = float(gps_long.split()[0]) * (1 if gps_long.split()[1] == "E" else -1)
 
     offsets = [
-        data.get("offset_corner_longitude_point_1", 0),
-        data.get("offset_corner_latitude_point_2", 0),
-        data.get("offset_corner_longitude_point_2", 0),
-        data.get("offset_corner_latitude_point_3", 0),
-        data.get("offset_corner_longitude_point_3", 0),
-        data.get("offset_corner_latitude_point_4", 0),
-        data.get("offset_corner_longitude_point_4", 0),
-        data.get("offset_corner_latitude_point_2", 0)  
+        data.get("OffsetCornerLongitudePoint1", 0),
+        data.get("OffsetCornerLatitudePoint2", 0),
+        data.get("OffsetCornerLongitudePoint2", 0),
+        data.get("OffsetCornerLatitudePoint3", 0),
+        data.get("OffsetCornerLongitudePoint3", 0),
+        data.get("OffsetCornerLatitudePoint4", 0),
+        data.get("OffsetCornerLongitudePoint4", 0),
+        data.get("OffsetCornerLatitudePoint2", 0)  
     ]
     offsets = [float(offset) if offset else 0 for offset in offsets]
 
@@ -599,7 +591,7 @@ def parse_output_to_json(output):
         match = re.match(pattern, line)
         if match:
             key = match.group(1).strip()
-            key = key.strip().replace(" ", "_").lower()
+            key = key.strip()
             value = match.group(2).strip()
             if key == "comment":
                 try:
@@ -617,26 +609,12 @@ def parse_output_to_json(output):
     
     return metadata_json, comment_json_formatted
 
-def parse_output_to_json_clean(output):
-    """
-    Toma el output del comando docker como una cadena de texto y lo convierte en un diccionario JSON.
-    """
-    metadata = {}
-    # Expresión regular para capturar pares clave-valor separados por ":"
-    pattern = r"^(.*?):\s*(.*)$"
-    for line in output.splitlines():
-        match = re.match(pattern, line)
-        if match:
-            key = match.group(1).strip()
-            key = key.strip()
-            value = match.group(2).strip()
-            metadata[key] = value
-    
-    return json.dumps(metadata, ensure_ascii=False, indent=4)
+
 
 def duration_to_seconds(duration_str):
     h, m, s = map(int, duration_str.split(":"))
     return timedelta(hours=h, minutes=m, seconds=s).total_seconds()
+
 
 #DESCARGA CADA UNO DE LOS FICHEROS DE MANERA INDIVIDUAL
 def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
