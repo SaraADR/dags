@@ -410,10 +410,11 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             shape = generar_shape(output_json)
             duration_in_seconds = duration_to_seconds(output.get("duration"))
             valid_time_end = date_time_original + timedelta(seconds=duration_in_seconds)
-            
-            print(output_json)
+
             print(duration_in_seconds)
             print(valid_time_end)
+            print(output_json)
+
 
             insert_values = {
                 "shape": shape,
@@ -518,6 +519,8 @@ def generar_shape(data):
     gps_long_ref = data.get("GPS Longitude Ref")
     gps_long = data.get("GPS Longitude")
 
+    print("AQUI")
+
     if gps_lat is None or gps_long is None:
         print("No tenemos los campos de GPS")
         return None
@@ -528,6 +531,8 @@ def generar_shape(data):
 
     # Definir un pequeño desplazamiento (en grados decimales) para generar un área alrededor del punto
     offset = 0.0001  # Desplazamiento arbitrario para crear un área pequeña
+
+    print("AQUI TMBN")
 
     # Generar los vértices del polígono de un cuadrado alrededor del punto central
     vertices = [
@@ -543,7 +548,8 @@ def generar_shape(data):
     # Convertir a string en formato POLYGON
     vertices_str = ", ".join(f"{lon} {lat}" for lon, lat in vertices)
     shape = f"SRID=4326;POLYGON (({vertices_str}))"
-    
+
+    print("AQUI TMBN " + shape)
     return shape
 
 def parse_output_to_json(output):
