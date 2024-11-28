@@ -499,19 +499,34 @@ def dms_to_decimal(dms_value, ref):
     Convierte una coordenada DMS (grados, minutos, segundos) a formato decimal.
     La referencia (N/S para latitud, E/W para longitud) indica el signo.
     """
-    # Separar la parte de grados, minutos y segundos
-    degrees, minutes, seconds = dms_value.split('°')
-    minutes, seconds = minutes.split("'")
-    seconds = seconds.replace("''", "")
+    try:
+        # Separar grados
+        dms_parts = dms_value.split('°')
+        if len(dms_parts) != 2:
+            raise ValueError(f"Formato DMS inválido: {dms_value}")
+        
+        degrees = dms_parts[0]
+        minutes_seconds = dms_parts[1].split("'")
+        
+        # Separar minutos y segundos
+        if len(minutes_seconds) != 2:
+            raise ValueError(f"Formato minutos/segundos inválido: {dms_value}")
+        
+        minutes = minutes_seconds[0]
+        seconds = minutes_seconds[1].replace("''", "")
+        
+        # Convertir a decimal
+        decimal = float(degrees) + float(minutes) / 60 + float(seconds) / 3600
 
-    # Convertir a decimal
-    decimal = float(degrees) + float(minutes) / 60 + float(seconds) / 3600
+        # Ajustar el signo según la referencia (N/S/E/W)
+        if ref in ["S", "W"]:
+            decimal = -decimal
 
-    # Ajustar el signo según la referencia (N/S/E/W)
-    if ref in ["S", "W"]:
-        decimal = -decimal
+        return decimal
 
-    return decimal
+    except Exception as e:
+        print(f"Error al convertir DMS a decimal: {e}")
+        return None
 
 def generar_shape(data):
     gps_lat_ref = data.get("GPS Latitude Ref")
