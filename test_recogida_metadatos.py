@@ -205,7 +205,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         try:
             if(type != -1):
                 date_time_str = output_json.get("DateTimeOriginal")
-                date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+                date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S%z")
             if(type == -1):
                 date_time_str = output_json.get("xmp:dateTimeOriginal")
                 date_time_original = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
