@@ -391,10 +391,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             out= json.loads(output)
             duration_in_seconds = duration_to_seconds(out.get("MediaDuration", 0))
             valid_time_end = timestamp_naive + timedelta(seconds=duration_in_seconds)
-            print(valid_time_end)
             output = json.loads(output)
-            print(output)
-            output_json = json.loads(output_json)
             combined_json = {**output, **output_json}
    
             print(combined_json)
