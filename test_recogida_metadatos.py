@@ -502,6 +502,8 @@ def dms_to_decimal(dms_value, ref):
     try:
         dms_value.replace("''", "_")
 
+        print(dms_value)
+
         # Separar grados
         dms_parts = dms_value.split('°')
         if len(dms_parts) != 2:
@@ -509,6 +511,8 @@ def dms_to_decimal(dms_value, ref):
         
         degrees = dms_parts[0].strip()
         minutes_seconds = dms_parts[1].split("'")
+
+        print(degrees)
 
 
         
