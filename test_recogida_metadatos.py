@@ -120,20 +120,20 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     #SON IMAGENES
     elif "-vis" in message:
         #Es imagen visible
-        is_visible_or_ter(message,local_zip_path, output, output_json, 0)
+        is_visible_or_ter(message,local_zip_path, output_json_noload, output_json, 0)
     elif "-ter" in message:
         # Es termodinamica
-        is_visible_or_ter(message,local_zip_path,output,output_json, 1)
+        is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
     elif "-mul" in message:
         # Es termodinamica
-        is_visible_or_ter(message,local_zip_path,output,output_json, 2)
+        is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 2)
     else:
         if output_json.get("sensor_id") == 1:
-             is_visible_or_ter(message,local_zip_path,output,output_json, 0)
+             is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 0)
         elif output_json.get("sensor_id") == 2:
-             is_visible_or_ter(message,local_zip_path,output,output_json, 1)
+             is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
         else:
-            is_visible_or_ter(message,local_zip_path, output,output_json, 0)
+            is_visible_or_ter(message,local_zip_path, output_json_noload,output_json, 0)
             print("No se reconoce el tipo de imagen o video aportado")
         return 
     return
@@ -384,7 +384,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             """)
 
             shape = generar_shape(output_json)
-            duration_in_seconds = output.get("MediaDuration", None)
+            out= json.dumps(output)
+            duration_in_seconds = out.get("MediaDuration", None)
             valid_time_end = timestamp_naive + timedelta(seconds=duration_in_seconds)
 
             print(shape)
