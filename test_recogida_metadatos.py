@@ -166,11 +166,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         table_name = "observacion_aerea.captura_video"   
         SensorId = output_json.get("SensorID")      
 
-    #SI NO TIENE SENSOR ID A LA CAJA
 
-    sensorId = output_json.get("SensorID", -1)
-
-    if sensorId is -1 : 
+    if SensorId is not None : 
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
         try:
             upload_to_minio_path('minio_conn', 'cuarentena', local_zip_path, local_zip_path)
