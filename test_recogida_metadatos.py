@@ -500,30 +500,31 @@ def dms_to_decimal(dms_value, ref):
     La referencia (N/S para latitud, E/W para longitud) indica el signo.
     """
     try:
-        dms_value.replace("''", "_")
+        # Reemplazar comillas dobles y limpiar espacios
+        dms_value = dms_value.replace("''", "").strip()
 
-        print(dms_value)
+        print(f"Procesando DMS: {dms_value}")
 
         # Separar grados
         dms_parts = dms_value.split('°')
         if len(dms_parts) != 2:
             raise ValueError(f"Formato DMS inválido: {dms_value}")
-        
+
         degrees = dms_parts[0].strip()
         minutes_seconds = dms_parts[1].split("'")
 
-        print(degrees)
-        print(minutes_seconds)
+        print(f"Grados: {degrees}")
+        print(f"Minutos y segundos: {minutes_seconds}")
 
-
-        
         # Separar minutos y segundos
         if len(minutes_seconds) != 2:
             raise ValueError(f"Formato minutos/segundos inválido: {dms_value}")
-        
+
         minutes = minutes_seconds[0].strip()
-        seconds = minutes_seconds[1].replace("_", "").strip()  # Elimina comillas dobles
-        
+        seconds = minutes_seconds[1].strip()
+
+        print(f"Minutos: {minutes}, Segundos: {seconds}")
+
         # Convertir a decimal
         decimal = float(degrees) + float(minutes) / 60 + float(seconds) / 3600
 
@@ -533,12 +534,11 @@ def dms_to_decimal(dms_value, ref):
 
         return decimal
 
-    except Exception as e:
+    except ValueError as e:
         print(f"Error al convertir DMS a decimal: {e}")
         return None
-
     except Exception as e:
-        print(f"Error al convertir DMS a decimal: {e}")
+        print(f"Error inesperado: {e}")
         return None
 
 def generar_shape(data):
