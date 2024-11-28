@@ -2,7 +2,6 @@ import json
 import os
 import shutil
 import boto3
-
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.hooks.base_hook import BaseHook
@@ -108,9 +107,9 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     print(comment_json)
     output_json = json.loads(output_json_noload)
     
+
+
     idRafaga = output_json.get("IdentificadorRafaga", '0')
-
-
     if(idRafaga != '0'):
         #Es una rafaga
         is_rafaga(output, output_json)
@@ -153,15 +152,19 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
     if(type == 0):
         print("Vamos a ejecutar el sistema de guardados de imagenes visibles")
         table_name = "observacion_aerea.captura_imagen_visible"
+        SensorId = output_json.get("SensorID")    
     if(type == 1):
         print("Vamos a ejecutar el sistema de guardados de imagenes infrarrojas")
         table_name = "observacion_aerea.captura_imagen_infrarroja"
+        SensorId = output_json.get("SensorID")    
     if(type == 2):
         print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
         table_name = "observacion_aerea.captura_imagen_multiespectral"
+        SensorId = output_json.get("SensorId")                       
     if(type == -1):
         print("Vamos a ejecutar el sistema de guardados de videos")
-        table_name = "observacion_aerea.captura_video"     
+        table_name = "observacion_aerea.captura_video"   
+        SensorId = output_json.get("SensorID")      
 
     #SI NO TIENE SENSOR ID A LA CAJA
 
@@ -216,7 +219,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
         if(type == -1):
             result = session.execute(query, {
-                'fid' :  output_json.get("SensorID"),   
+                'fid' :  SensorId,   
                 'payload_id': output_json.get("PayloadSN", None),
                 'multisim_id': output_json.get("MultisimSN", None),
                 'ground_control_station_id': output_json.get("GroundControlStationSN", None),
@@ -229,7 +232,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             })
         else:
             result = session.execute(query, {
-                'fid' :  output_json.get("SensorID"),   
+                'fid' :  SensorId,   
                 'payload_id': output_json.get("PayloadSN"),
                 'multisim_id': output_json.get("MultisimSN"),
                 'ground_control_station_id': output_json.get("GroundControlStationSN"),
@@ -270,7 +273,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     """)
                     session.execute(update_query, {
                         "new_start": timestamp_naive,
-                        'fid' :  output_json.get("SensorID"),   
+                        'fid' :  SensorId,   
                         'payload_id': output_json.get("PayloadSN"),
                         'multisim_id': output_json.get("MultisimSN"),
                         'ground_control_station_id': output_json.get("GroundControlStationSN"),
@@ -301,7 +304,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     """)
                     session.execute(update_query, {
                         "new_end": timestamp_naive,
-                        'fid' :  output_json.get("SensorID"),   
+                        'fid' :  SensorId,   
                         'payload_id': output_json.get("PayloadSN"),
                         'multisim_id': output_json.get("MultisimSN"),
                         'ground_control_station_id': output_json.get("GroundControlStationSN"),
@@ -331,7 +334,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             if(type == -1):
                 # Generar los valores de inserción
                 insert_values = {
-                    'fid': int(output_json.get("SensorID")),
+                    'fid': int(SensorId),
                     'valid_time_start': timestamp_naive,
                     'valid_time_end': timestamp_naive + timedelta(minutes=1),  # Ajusta el rango inicial
                     'payload_id': output_json.get("PayloadSN"),
@@ -345,7 +348,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 }
             if(type != -1):
                    insert_values = {
-                    'fid': int(output_json.get("SensorID")),
+                    'fid': int(SensorId),
                     'valid_time_start': timestamp_naive,
                     'valid_time_end': timestamp_naive + timedelta(minutes=1),  # Ajusta el rango inicial
                     'payload_id': output_json.get("PayloadSN"),
@@ -388,7 +391,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("MissionID"),
-                "procedure": int(output_json.get("SensorID")),
+                "procedure": int(SensorId),
                 "result_time":  timestamp_naive,
                 "phenomenon_time": timestamp_naive,
                 "imagen": outputt,
@@ -412,7 +415,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("MissionID", None),
-                "procedure": int(output_json.get("SensorID")),
+                "procedure": int(SensorId),
                 "result_time":  timestamp_naive,
                 "valid_time_start": timestamp_naive,
                 "valid_time_end":  valid_time_end,
