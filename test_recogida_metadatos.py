@@ -386,6 +386,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
                     :phenomenon_time, :imagen)
             """)
+
             shape = generar_shape_con_offsets(output_json)
             insert_values = {
                 "shape": shape,
@@ -569,7 +570,7 @@ def parse_output_to_json(output):
                 metadata[key] = value
 
     metadata_json = json.dumps(metadata, ensure_ascii=False, indent=4)
-    comment_json_formatted = json.dumps(comment_json, ensure_ascii=False, indent=4) if comment_json else None
+    comment_json_formatted = json.dumps(comment_json, ensure_ascii=False, indent=4) if comment_json else {}
 
     
     return metadata_json, comment_json_formatted
