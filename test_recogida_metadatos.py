@@ -384,20 +384,11 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             """)
 
             shape = generar_shape(output_json)
-            print(shape)
             out= json.loads(output)
-            print(out)
             duration_in_seconds = duration_to_seconds(out.get("MediaDuration", 0))
-            print(duration_in_seconds)
             valid_time_end = timestamp_naive + timedelta(seconds=duration_in_seconds)
-
-     
- 
-            print(valid_time_end)
             combined_json = {**output, **output_json}
-            print(combined_json)
 
-            
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("MissionID", None),
@@ -405,7 +396,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "result_time":  timestamp_naive,
                 "valid_time_start": timestamp_naive,
                 "valid_time_end":  valid_time_end,
-                "video": json.dumps(combined_json),
+                "video": combined_json,
             }
 
         session.execute(insert_query, insert_values)
