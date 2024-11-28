@@ -513,6 +513,7 @@ def dms_to_decimal(dms_value, ref):
         minutes_seconds = dms_parts[1].split("'")
 
         print(degrees)
+        print(minutes_seconds)
 
 
         
