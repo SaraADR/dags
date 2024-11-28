@@ -368,7 +368,7 @@ def parse_output_to_json(output):
             key = match.group(1).strip()
             key = key.strip()
             value = match.group(2).strip()
-            if key == "comment":
+            if key == "Comment":
                 try:
                     # Intentar cargar el valor como JSON
                     comment_json = json.loads(value.strip("'"))
