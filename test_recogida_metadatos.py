@@ -197,7 +197,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             AND (sensor = :sensor OR (sensor IS NULL AND :sensor IS NULL))
             AND (platform = :platform OR (platform IS NULL AND :platform IS NULL))
             AND (
-                tsrange(lower(valid_time) - INTERVAL '2 HOURS', upper(valid_time) + INTERVAL '2 HOURS', '[)') @> :fecha_dada:
+                tsrange(lower(valid_time) - INTERVAL '2 HOURS', upper(valid_time) + INTERVAL '2 HOURS', '[)') @> :fecha_dada
             )
         """)
 
@@ -225,7 +225,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 'pilot_name': output_json.get("PN", None),
                 'sensor': output_json.get("Model"),
                 'platform': output_json.get("AircraftNumberPlate"),
-                'fecha_dada': timestamp_naive
+                'fecha_dada': date_time_original
             })
         else:
             result = session.execute(query, {
