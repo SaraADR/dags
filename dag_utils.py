@@ -15,7 +15,7 @@ from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 from airflow.hooks.base_hook import BaseHook
 from datetime import datetime, timedelta
-
+import re
 
 
 # Función para enviar notificaciones a la BD
@@ -299,3 +299,93 @@ def geojson_to_wkt(geojson):
     except KeyError as e:
         print(f"Error al convertir GeoJSON a WKT: {str(e)}")
         raise
+
+
+def dms_to_decimal(dms_value, ref):
+    """
+    Convierte una coordenada DMS (grados, minutos, segundos) a formato decimal.
+    La referencia (N/S para latitud, E/W para longitud) indica el signo.
+    """
+    try:
+        # Reemplazar comillas dobles y limpiar espacios
+        dms_value = dms_value.replace("''", "").strip()
+
+        print(f"Procesando DMS: {dms_value}")
+
+        # Separar grados
+        dms_parts = dms_value.split('°')
+        if len(dms_parts) != 2:
+            raise ValueError(f"Formato DMS inválido: {dms_value}")
+
+        degrees = dms_parts[0].strip()
+        minutes_seconds = dms_parts[1].split("'")
+
+        print(f"Grados: {degrees}")
+        print(f"Minutos y segundos: {minutes_seconds}")
+
+        # Separar minutos y segundos
+        if len(minutes_seconds) != 2:
+            raise ValueError(f"Formato minutos/segundos inválido: {dms_value}")
+
+        minutes = minutes_seconds[0].strip()
+        seconds = minutes_seconds[1].strip()
+
+        print(f"Minutos: {minutes}, Segundos: {seconds}")
+
+        # Convertir a decimal
+        decimal = float(degrees) + float(minutes) / 60 + float(seconds) / 3600
+
+        # Ajustar el signo según la referencia (N/S/E/W)
+        if ref in ["S", "W"]:
+            decimal = -decimal
+
+        return decimal
+
+    except ValueError as e:
+        print(f"Error al convertir DMS a decimal: {e}")
+        return None
+    except Exception as e:
+        print(f"Error inesperado: {e}")
+        return None
+    
+
+
+
+
+#Funcion que convierte un string en json
+def parse_output_to_json(output):
+    """
+    Toma el output del comando docker como una cadena de texto y lo convierte en un diccionario JSON.
+    """
+    metadata = {}
+    comment_json = None
+
+    # Expresión regular para capturar pares clave-valor separados por ":"
+    pattern = r"^(.*?):\s*(.*)$"
+    for line in output.splitlines():
+        match = re.match(pattern, line)
+        if match:
+            key = match.group(1).strip()
+            key = key.strip()
+            value = match.group(2).strip()
+            if key == "comment":
+                try:
+                    # Intentar cargar el valor como JSON
+                    comment_json = json.loads(value.strip("'"))
+                except json.JSONDecodeError:
+                    print(f"Error al procesar el JSON dentro de 'comment': {value}")
+                    comment_json = None
+            else:
+                metadata[key] = value
+
+    metadata_json = json.dumps(metadata, ensure_ascii=False, indent=4)
+    comment_json_formatted = json.dumps(comment_json, ensure_ascii=False, indent=4) if comment_json else {}
+
+    
+    return metadata_json, comment_json_formatted
+
+
+#Funcion para pasar una string de segundos a segundos
+def duration_to_seconds(duration_str):
+    h, m, s = map(int, duration_str.split(":"))
+    return timedelta(hours=h, minutes=m, seconds=s).total_seconds()
