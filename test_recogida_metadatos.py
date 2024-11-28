@@ -539,11 +539,18 @@ def generar_shape(data):
         print("No tenemos los campos de GPS")
         return None
 
-    print(gps_lat + '_' + gps_lat_ref + '_' + gps_long + '_' + gps_long_ref)
+    if not isinstance(gps_lat, str) or not isinstance(gps_long, str):
+        print(f"Formato inválido de coordenadas: {gps_lat}, {gps_long}")
+        return None
 
     # Convertir coordenadas de DMS a formato decimal
     lat_central = dms_to_decimal(gps_lat, gps_lat_ref)
     long_central = dms_to_decimal(gps_long, gps_long_ref)
+
+    # Validar que la conversión fue exitosa
+    if lat_central is None or long_central is None:
+        print("Error al convertir coordenadas a decimal")
+        return None
 
     # Definir un pequeño desplazamiento (en grados decimales) para generar un área alrededor del punto
     offset = 0.0001  # Desplazamiento arbitrario para crear un área pequeña
