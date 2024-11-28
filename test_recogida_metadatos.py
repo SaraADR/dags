@@ -168,7 +168,11 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         if(SensorId == None):
             SensorId = output_json.get("general", {}).get("SM", None)  
             if(SensorId != None):
-                print("Estamos ante un video de tipo 2")
+                print("Estamos ante un video de tipo 2, en estos momentos esta comentada su funcionalidad")
+                return
+                #Normalizamos el json de general para que coincida con los tipo videos
+                #output_json = generalizacionDatosMetadatos(output_json, output)
+
 
 
     if SensorId is None : 
@@ -608,6 +612,25 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
             print(f"Error en el proceso: {str(e)}")
         return None  # Devolver None si hay un error
 
+def generalizacionDatosMetadatos(output_json, output):
+    output_load = json.loads(output)
+    
+    new_json = {
+        "AircraftNumberPlate": output_json.get("general", {}).get("AP", ""),
+
+        # "GPS Latitude Ref": "N", 
+        # "GPS Latitude": "40° 57' 8.53''",  # Aquí, un ejemplo estático, pero podrías cambiar según datos disponibles.
+        # "GPS Longitude Ref": "W",  # Lo mismo que para la latitud.
+        # "GPS Longitude": "1° 17' 37.74''",  # Ejemplo estático.
+        # "GPS Altitude": 1001,  # Este valor podría cambiar según los datos disponibles.
+        # "GPS Speed": 57.0,  # Este también sería calculado o proporcionado dinámicamente.
+
+        "xmp:dateTimeOriginal": datetime.now().strftime("%Y-%m-%dT%H:%M"),  # Fecha actual en formato ISO.
+        "SensorID": output_json.get("general", {}).get("SM", None),  # Asumiendo que SM es el SensorID en tipo 2.
+        "Make": "AXIS",  # Esto podría venir de otro lado si es dinámico.
+        "Camera Model Name": "FA1080"  # Igualmente, esto puede cambiar si tienes información de la cámara.
+    }
+    return new_json
 
 
 def clean_temp_directory():
