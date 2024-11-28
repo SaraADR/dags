@@ -387,7 +387,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             print(shape)
             out= json.loads(output)
             print(out)
-            duration_in_seconds = duration_to_seconds(out.get("MediaDuration", None))
+            duration_in_seconds = duration_to_seconds(out.get("MediaDuration", 0))
             print(duration_in_seconds)
             valid_time_end = timestamp_naive + timedelta(seconds=duration_in_seconds)
 
