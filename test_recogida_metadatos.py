@@ -167,8 +167,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         SensorId = output_json.get("SensorID")  
         if(SensorId == None):
             SensorId = output_json.get("general", {}).get("SM", None)  
-        if(SensorId != None):
-            print("Estamos ante un video de tipo 2")
+            if(SensorId != None):
+                print("Estamos ante un video de tipo 2")
 
 
     if SensorId is None : 
