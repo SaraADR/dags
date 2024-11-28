@@ -249,10 +249,10 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             fid = row['fid']
             valid_time = row['valid_time']  
             
-            if not (date_time_original in valid_time):  # Verifica si la fecha no está en el rango actual
-                if date_time_original < valid_time.lower:  # Fecha antes del inicio del rango
-                    diferencia = valid_time.lower - date_time_original
-                    print(f"Fecha dada {date_time_original} está antes del inicio ({valid_time.lower}) en {diferencia} (h:m:s), se actualiza el inicio del rango.")
+            if not (timestamp_naive in valid_time):  # Verifica si la fecha no está en el rango actual
+                if timestamp_naive < valid_time.lower:  # Fecha antes del inicio del rango
+                    diferencia = valid_time.lower - timestamp_naive
+                    print(f"Fecha dada {timestamp_naive} está antes del inicio ({valid_time.lower}) en {diferencia} (h:m:s), se actualiza el inicio del rango.")
 
                     # Actualizar el inicio del rango
                     update_query = text(f"""
@@ -269,7 +269,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         AND fid = :fid
                     """)
                     session.execute(update_query, {
-                        "new_start": date_time_original,
+                        "new_start": timestamp_naive,
                         'fid' :  output_json.get("SensorID"),   
                         'payload_id': output_json.get("PayloadSN"),
                         'multisim_id': output_json.get("MultisimSN"),
@@ -281,9 +281,9 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         'platform': output_json.get("aircraft_number_plate")
                     })
 
-                elif date_time_original > valid_time.upper:  # Fecha después del final del rango
-                    diferencia = date_time_original - valid_time.upper
-                    print(f"Fecha dada {date_time_original} está después del final ({valid_time.upper}) en {diferencia} (h:m:s), se actualiza el final del rango.")
+                elif timestamp_naive > valid_time.upper:  # Fecha después del final del rango
+                    diferencia = timestamp_naive - valid_time.upper
+                    print(f"Fecha dada {timestamp_naive} está después del final ({valid_time.upper}) en {diferencia} (h:m:s), se actualiza el final del rango.")
 
                     # Actualizar el final del rango
                     update_query = text(f"""
@@ -300,7 +300,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         AND fid = :fid
                     """)
                     session.execute(update_query, {
-                        "new_end": date_time_original,
+                        "new_end": timestamp_naive,
                         'fid' :  output_json.get("SensorID"),   
                         'payload_id': output_json.get("PayloadSN"),
                         'multisim_id': output_json.get("MultisimSN"),
@@ -312,7 +312,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         'platform': output_json.get("aircraft_number_plate")
                     })
             else:
-                print(f"Fecha dada {date_time_original} está dentro del rango {valid_time}, no se realiza actualización.")
+                print(f"Fecha dada {timestamp_naive} está dentro del rango {valid_time}, no se realiza actualización.")
 
 
         else:
@@ -332,8 +332,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 # Generar los valores de inserción
                 insert_values = {
                     'fid': int(output_json.get("SensorID")),
-                    'valid_time_start': date_time_original,
-                    'valid_time_end': date_time_original + timedelta(minutes=1),  # Ajusta el rango inicial
+                    'valid_time_start': timestamp_naive,
+                    'valid_time_end': timestamp_naive + timedelta(minutes=1),  # Ajusta el rango inicial
                     'payload_id': output_json.get("PayloadSN"),
                     'multisim_id': output_json.get("MultisimSN"),
                     'ground_control_station_id': output_json.get("GroundControlStationSN"),
@@ -346,8 +346,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             if(type != -1):
                    insert_values = {
                     'fid': int(output_json.get("SensorID")),
-                    'valid_time_start': date_time_original,
-                    'valid_time_end': date_time_original + timedelta(minutes=1),  # Ajusta el rango inicial
+                    'valid_time_start': timestamp_naive,
+                    'valid_time_end': timestamp_naive + timedelta(minutes=1),  # Ajusta el rango inicial
                     'payload_id': output_json.get("PayloadSN"),
                     'multisim_id': output_json.get("MultisimSN"),
                     'ground_control_station_id': output_json.get("GroundControlStationSN"),
@@ -389,8 +389,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "shape": shape,
                 "sampled_feature": output_json.get("MissionID"),
                 "procedure": int(output_json.get("SensorID")),
-                "result_time":  date_time_original,
-                "phenomenon_time": date_time_original,
+                "result_time":  timestamp_naive,
+                "phenomenon_time": timestamp_naive,
                 "imagen": outputt,
             }
 
@@ -406,15 +406,15 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
             shape = generar_shape(output_json)
             duration_in_seconds = 30
-            valid_time_end = date_time_original + timedelta(seconds=duration_in_seconds)
+            valid_time_end = timestamp_naive + timedelta(seconds=duration_in_seconds)
 
 
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("MissionID", None),
                 "procedure": int(output_json.get("SensorID")),
-                "result_time":  date_time_original,
-                "valid_time_start": date_time_original,
+                "result_time":  timestamp_naive,
+                "valid_time_start": timestamp_naive,
                 "valid_time_end":  valid_time_end,
                 "video": json.dumps(output_json),
             }
