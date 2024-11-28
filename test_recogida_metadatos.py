@@ -435,7 +435,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         raise 
 
     file_name = os.path.basename(message)
-    mission_id = 12297
+    mission_id = '12297'
     if mission_id != -1 :
         try:
             upload_to_minio('minio_conn', 'missions', mission_id + '/' + file_name, local_zip_path)
