@@ -386,7 +386,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             duration_in_seconds = 30
             valid_time_end = timestamp_naive + timedelta(seconds=duration_in_seconds)
 
-
+            combined_json = {**output, **output_json}
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("MissionID", None),
@@ -394,7 +394,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "result_time":  timestamp_naive,
                 "valid_time_start": timestamp_naive,
                 "valid_time_end":  valid_time_end,
-                "video": json.dumps(output_json),
+                "video": json.dumps(combined_json),
             }
 
         session.execute(insert_query, insert_values)
@@ -431,7 +431,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 def resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session):
     print(os.path.basename(message))
     if(type == -1): #ES UN VIDEO
-            if(os.path.basename(message).startswith('vid')):
+            if(os.path.basename(message).startswith('EC')):
+                print("Video tipo EC")
                 result = session.execute(query, {
                     'fid' :  SensorId,   
                     'payload_id': output_json.get("PayloadSN", None),
@@ -440,11 +441,12 @@ def resultByType(type, message, output, output_json, query, SensorId, timestamp_
                     'pc_embarcado_id': output_json.get("PCEmbarcadoSN", None),
                     'operator_name': output_json.get("OperatorName", None),
                     'pilot_name': output_json.get("PilotName", None),
-                    'sensor': output_json.get("CameraModelName"),
+                    'sensor': output_json.get("Camera Model Name"),
                     'platform': output_json.get("AircraftNumberPlate"),
                     'fecha_dada': timestamp_naive
                 })
-            if(os.path.basename(message).startswith('EC')):
+            if(os.path.basename(message).startswith('vid')):
+                print("Video tipo vid")
                 result = session.execute(query, {
                     'fid' :  SensorId,   
                     'payload_id': output_json.get("PayloadSN", None),
@@ -453,7 +455,7 @@ def resultByType(type, message, output, output_json, query, SensorId, timestamp_
                     'pc_embarcado_id': output_json.get("PCEmbarcadoSN", None),
                     'operator_name': output_json.get("ON", None),
                     'pilot_name': output_json.get("PN", None),
-                    'sensor': output_json.get("CameraModelName"),
+                    'sensor': output_json.get("Camera Model Name"),
                     'platform': output_json.get("AP"),
                     'fecha_dada': timestamp_naive
                 })
