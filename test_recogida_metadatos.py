@@ -410,7 +410,11 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             shape = generar_shape(output_json)
             duration_in_seconds = duration_to_seconds(output.get("duration"))
             valid_time_end = date_time_original + timedelta(seconds=duration_in_seconds)
+            
             print(output_json)
+            print(duration_in_seconds)
+            print(valid_time_end)
+
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("mission_id", None),
