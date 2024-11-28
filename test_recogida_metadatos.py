@@ -116,11 +116,11 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     #SON VIDEOS
     elif message.endswith(".mp4"):
         comments = json.loads(comment_json)
-        is_visible_or_ter(message, local_zip_path, output, comments, -1)
+        is_visible_or_ter(message, local_zip_path, output_json_noload, comments, -1)
     #SON IMAGENES
     elif "-vis" in message:
         #Es imagen visible
-        is_visible_or_ter(message,local_zip_path, output,output_json, 0)
+        is_visible_or_ter(message,local_zip_path, output, output_json, 0)
     elif "-ter" in message:
         # Es termodinamica
         is_visible_or_ter(message,local_zip_path,output,output_json, 1)
@@ -208,7 +208,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 timestamp_naive = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
             elif(type == -1):
                 date_time_str = output_json.get("xmp:dateTimeOriginal")
-                date_time_original = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
+                timestamp_naive = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
             else:
                 date_time_str = output_json.get("DateTimeOriginal")
                 date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S%z")
@@ -218,33 +218,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
             raise
 
-        if(type == -1):
-            result = session.execute(query, {
-                'fid' :  SensorId,   
-                'payload_id': output_json.get("PayloadSN", None),
-                'multisim_id': output_json.get("MultisimSN", None),
-                'ground_control_station_id': output_json.get("GroundControlStationSN", None),
-                'pc_embarcado_id': output_json.get("PCEmbarcadoSN", None),
-                'operator_name': output_json.get("ON", None),
-                'pilot_name': output_json.get("PN", None),
-                'sensor': output_json.get("Model"),
-                'platform': output_json.get("AircraftNumberPlate"),
-                'fecha_dada': timestamp_naive
-            })
-        else:
-            result = session.execute(query, {
-                'fid' :  SensorId,   
-                'payload_id': output_json.get("PayloadSN"),
-                'multisim_id': output_json.get("MultisimSN"),
-                'ground_control_station_id': output_json.get("GroundControlStationSN"),
-                'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
-                'operator_name': output_json.get("OperatorName"),
-                'pilot_name': output_json.get("PilotName"),
-                'sensor': output_json.get("Model"),
-                'platform': output_json.get("AircraftNumberPlate"),
-                'fecha_dada': timestamp_naive
-            })
-
+        result = resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session)
         row = result.fetchone()
         
         #SE COMPRUEBA SI SE ACTUALIZA O CREA NUEVA
@@ -446,6 +420,57 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
 
+
+
+
+
+
+
+
+
+def resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session):
+    print(os.path.basename(message))
+    if(type == -1): #ES UN VIDEO
+            if(os.path.basename(message).startswith('vid')):
+                result = session.execute(query, {
+                    'fid' :  SensorId,   
+                    'payload_id': output_json.get("PayloadSN", None),
+                    'multisim_id': output_json.get("MultisimSN", None),
+                    'ground_control_station_id': output_json.get("GroundControlStationSN", None),
+                    'pc_embarcado_id': output_json.get("PCEmbarcadoSN", None),
+                    'operator_name': output_json.get("OperatorName", None),
+                    'pilot_name': output_json.get("PilotName", None),
+                    'sensor': output_json.get("CameraModelName"),
+                    'platform': output_json.get("AircraftNumberPlate"),
+                    'fecha_dada': timestamp_naive
+                })
+            if(os.path.basename(message).startswith('EC')):
+                result = session.execute(query, {
+                    'fid' :  SensorId,   
+                    'payload_id': output_json.get("PayloadSN", None),
+                    'multisim_id': output_json.get("MultisimSN", None),
+                    'ground_control_station_id': output_json.get("GroundControlStationSN", None),
+                    'pc_embarcado_id': output_json.get("PCEmbarcadoSN", None),
+                    'operator_name': output_json.get("ON", None),
+                    'pilot_name': output_json.get("PN", None),
+                    'sensor': output_json.get("CameraModelName"),
+                    'platform': output_json.get("AP"),
+                    'fecha_dada': timestamp_naive
+                })
+    else: #ES UNA IMAGEN
+        result = session.execute(query, {
+            'fid' :  SensorId,   
+            'payload_id': output_json.get("PayloadSN"),
+            'multisim_id': output_json.get("MultisimSN"),
+            'ground_control_station_id': output_json.get("GroundControlStationSN"),
+            'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
+            'operator_name': output_json.get("OperatorName"),
+            'pilot_name': output_json.get("PilotName"),
+            'sensor': output_json.get("Model"),
+            'platform': output_json.get("AircraftNumberPlate"),
+            'fecha_dada': timestamp_naive
+        })
+    return result
 
 
 def generar_shape_con_offsets(data):
