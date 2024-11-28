@@ -432,7 +432,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
     if mission_id != -1 :
         try:
             # upload_to_minio('minio_conn', 'missions', mission_id + '/' + file_name, local_zip_path)
-            upload_to_minio_path('minio_conn', 'cuarentena', message, local_zip_path)
+            upload_to_minio_path('minio_conn', 'cuarentena', mission_id + '/', local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
