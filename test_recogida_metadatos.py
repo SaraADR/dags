@@ -11,7 +11,7 @@ from airflow.operators.python_operator import PythonOperator
 from botocore.exceptions import ClientError
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
-from dag_utils import dms_to_decimal, parse_output_to_json, upload_to_minio, upload_to_minio_path
+from dag_utils import dms_to_decimal, duration_to_seconds, parse_output_to_json, upload_to_minio, upload_to_minio_path
 
 #TRAE TODOS LOS FICHEROS DE LA CARPETA DE MINIO
 def process_extracted_files(**kwargs):
@@ -387,7 +387,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             print(shape)
             out= json.loads(output)
             print(out)
-            duration_in_seconds = out.get("MediaDuration", None)
+            duration_in_seconds = duration_to_seconds(out.get("MediaDuration", None))
             print(duration_in_seconds)
             valid_time_end = timestamp_naive + timedelta(seconds=duration_in_seconds)
 

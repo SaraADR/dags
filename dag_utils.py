@@ -186,6 +186,29 @@ def execute_query(conn_id, query, params=None):
 
 
 
+def duration_to_seconds(duration: str) -> int:
+    """
+    Convierte una duración en formato h:mm:ss (o m:ss) a segundos.
+
+    :param duration: Duración como cadena, por ejemplo "0:00:30" o "1:15:30".
+    :return: Duración total en segundos.
+    """
+    # Expresión regular para extraer horas, minutos y segundos
+    match = re.match(r"(?:(\d+):)?(\d{1,2}):(\d{2})", duration)
+    
+    if match:
+        # Si se encuentra el formato, obtenemos horas, minutos y segundos
+        hours = int(match.group(1) or 0)  # Horas, por defecto 0 si no se encuentran
+        minutes = int(match.group(2))     # Minutos
+        seconds = int(match.group(3))     # Segundos
+
+        # Convertimos todo a segundos
+        total_seconds = hours * 3600 + minutes * 60 + seconds
+        return total_seconds
+    else:
+        raise ValueError(f"Formato de duración inválido: {duration}")
+    
+
 # Función para actualizar estados
 
 def update_job_status(conn_id, job_id, status):
