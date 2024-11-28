@@ -404,7 +404,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 INSERT INTO {table_name_observacion}
                 ( procedure, sampled_feature, shape, result_time, phenomenon_time, video)
                 VALUES ( :procedure, :sampled_feature, :shape, :result_time, 
-                    tsrange(:valid_time_start, :valid_time_end, '[)'), :imagen)
+                    tsrange(:valid_time_start, :valid_time_end, '[)'), :video)
             """)
 
             shape = generar_shape(output_json)
@@ -418,10 +418,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "result_time":  date_time_original,
                 "valid_time_start": date_time_original,
                 "valid_time_end":  valid_time_end,
-                "imagen": output_json,
+                "video": output_json,
             }
-
-        print(insert_values)
 
         session.execute(insert_query, insert_values)
         session.commit()
