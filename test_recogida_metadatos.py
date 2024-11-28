@@ -197,7 +197,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             AND (sensor = :sensor OR (sensor IS NULL AND :sensor IS NULL))
             AND (platform = :platform OR (platform IS NULL AND :platform IS NULL))
             AND (
-                tsrange(lower(valid_time) - INTERVAL '2 HOURS', upper(valid_time) + INTERVAL '2 HOURS', '[)') @> :fecha_dada::timestamp
+                tsrange(lower(valid_time) - INTERVAL '2 HOURS', upper(valid_time) + INTERVAL '2 HOURS', '[)') @> CAST(:fecha_dada AS TIMESTAMPTZ)
             )
         """)
 
