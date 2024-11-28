@@ -354,6 +354,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         print("Insertamos en observación")
         
         outputt , outputcomment = parse_output_to_json(output)
+
         if(type != -1):
             insert_query = text(f"""
                 INSERT INTO {table_name_observacion}
@@ -383,10 +384,16 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             """)
 
             shape = generar_shape(output_json)
-            duration_in_seconds = 30
+            duration_in_seconds = output.get("MediaDuration", None)
             valid_time_end = timestamp_naive + timedelta(seconds=duration_in_seconds)
 
+            print(shape)
+            print(duration_in_seconds)
+            print(valid_time_end)
             combined_json = {**output, **output_json}
+            print(combined_json)
+
+            
             insert_values = {
                 "shape": shape,
                 "sampled_feature": output_json.get("MissionID", None),
