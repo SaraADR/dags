@@ -418,7 +418,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
             insert_values = {
                 "shape": shape,
-                "sampled_feature": 12297,
+                "sampled_feature": output_json.get("mission_id", None),
                 "procedure": int(output_json.get("SensorID")),
                 "result_time":  date_time_original,
                 "valid_time_start": date_time_original,
@@ -435,7 +435,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         raise 
 
     file_name = os.path.basename(message)
-    mission_id = '12297'
+    mission_id = output_json.get("mission_id", -1)
     if mission_id != -1 :
         try:
             upload_to_minio('minio_conn', 'missions', mission_id + '/' + file_name, local_zip_path)
