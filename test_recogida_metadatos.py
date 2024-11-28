@@ -166,7 +166,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         table_name = "observacion_aerea.captura_video"   
         SensorId = output_json.get("SensorID")  
         if(SensorId == None):
-            SensorId = output_json["data"][0]["general"]["SM"]    
+            SensorId = output_json["data"]["general"]["SM"]    
         if(SensorId != None):
             print("Estamos ante un video de tipo 2")
 
