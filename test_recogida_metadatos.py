@@ -225,7 +225,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 'pilot_name': output_json.get("PN", None),
                 'sensor': output_json.get("Model"),
                 'platform': output_json.get("AircraftNumberPlate"),
-                'fecha_dada': date_time_original
+                'fecha_dada': timestamp_naive
             })
         else:
             result = session.execute(query, {
