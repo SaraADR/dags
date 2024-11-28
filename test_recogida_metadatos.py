@@ -237,7 +237,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 'operator_name': output_json.get("OperatorName"),
                 'pilot_name': output_json.get("PilotName"),
                 'sensor': output_json.get("Model"),
-                'platform': output_json.get("aircraft_number_plate"),
+                'platform': output_json.get("AircraftNumberPlate"),
                 'fecha_dada': timestamp_naive
             })
 
@@ -278,7 +278,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         'operator_name': output_json.get("OperatorName"),
                         'pilot_name': output_json.get("PilotName"),
                         'sensor': output_json.get("Model"),
-                        'platform': output_json.get("aircraft_number_plate")
+                        'platform': output_json.get("AircraftNumberPlate")
                     })
 
                 elif timestamp_naive > valid_time.upper:  # Fecha después del final del rango
@@ -309,7 +309,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         'operator_name': output_json.get("OperatorName"),
                         'pilot_name': output_json.get("PilotName"),
                         'sensor': output_json.get("Model"),
-                        'platform': output_json.get("aircraft_number_plate")
+                        'platform': output_json.get("AircraftNumberPlate")
                     })
             else:
                 print(f"Fecha dada {timestamp_naive} está dentro del rango {valid_time}, no se realiza actualización.")
@@ -341,7 +341,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     'operator_name': output_json.get("OperatorName"),
                     'pilot_name': output_json.get("PilotName"),
                     'sensor': output_json.get("Model"),
-                    'platform': output_json.get("aircraft_number_plate")
+                    'platform': output_json.get("AircraftNumberPlate")
                 }
             if(type != -1):
                    insert_values = {
@@ -355,7 +355,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     'operator_name': output_json.get("OperatorName"),
                     'pilot_name': output_json.get("PilotName"),
                     'sensor': output_json.get("Model"),
-                    'platform': output_json.get("aircraft_number_plate")
+                    'platform': output_json.get("AircraftNumberPlate")
                 }
 
             session.execute(insert_query, insert_values)
