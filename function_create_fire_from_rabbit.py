@@ -18,17 +18,16 @@ default_args = {
 }
 
 def print_message_consolelog(**context):
-    message = context['dag_run'].conf
+    message = context['dag_run'].msg_json
     print(f"Received message: {message}")
 
-    inner_message = message.get('message')
-    if not inner_message:
+    if not message:
         print("No 'message' field found in the received data.")
         return
 
     try:
         # Extraemos el campo 'data' que está dentro del 'message'
-        data_str = inner_message.get('data')
+        data_str = message.get('data')
         if not data_str:
             print("No 'data' field found in the 'message'.")
             return
