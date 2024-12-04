@@ -202,7 +202,7 @@ def obtenerCustomerId(session, latitude, longitude, epsg = 4326):
             )"""
         )
         if result.length() > 0:
-            return result[0].status_id
+            return result[0].customer_id
         else:
             return ""
     except Exception as e:
