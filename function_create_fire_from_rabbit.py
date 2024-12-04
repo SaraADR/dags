@@ -77,7 +77,7 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
             print(initial_status)
 
             # Componemos geometría
-            geometry = '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::{srid}" } }, "coordinates": [{longitude},{latitude}]}'
+            geometry = f"{{'type': 'Point', 'crs': {{'type':'name','properties': {{'name': 'urn:ogc:def:crs:EPSG::{srid}' }} }},'coordinates': [{longitude},{latitude}]}}"
             print(geometry)
 
             mss_mission_insert = {
