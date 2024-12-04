@@ -26,7 +26,7 @@ def consumer_function(message, prefix, **kwargs):
         return None  
 
 # process rabbit msg
-def process_message(msg_value, **kwargs):
+def process_message(message, **kwargs):
     try:
         print(message)
 
