@@ -24,21 +24,28 @@ def consumer_function(message, prefix, **kwargs):
 
 # process rabbit msg
 def process_message(msg_value, **kwargs):
-    if msg_value is not None and msg_value != 'null':
-        try:
-            msg_json = json.loads(msg_value)
-            print(msg_json)
-            
-            data_txt = msg_json.get('data')
-            print(data_txt)
-            #data_json = json.loads(data_txt)
-            
+    try:
+        print(message)
 
-        except Exception as e:
+        try:
+            msg_json = json.loads(message)
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+
+        # unique_id = uuid.uuid4()
+        # conf = {'message': msg_json}
+        # trigger_dag_run = TriggerDagRunOperator(
+        #     task_id=str(unique_id),
+        #     trigger_dag_id='function_email_send_with_template',
+        #     conf=conf,
+        #     execution_date=datetime.now().replace(tzinfo=timezone.utc),
+        #     dag=dag
+        # )
+        # trigger_dag_run.execute(context=kwargs)
+
+    except Exception as e:
             print(f"Task instance incorrecto: {e}")
 
-    else:
-        print("No message pulled from XCom")
 
 
 default_args = {
@@ -54,12 +61,11 @@ default_args = {
 dag = DAG(
     'kafka_consumer_rabbit_avincis',
     default_args=default_args,
-    description='DAG que consume eventos de la cola rabbit de avincis (creación/edición de incendios - fires) (viene: nifi --> kafka --> DAG)',
+    description='DAG que consume eventos de la cola rabbit de avincis (creacion/edicion de incendios - fires) (viene: nifi --> kafka --> DAG)',
     schedule_interval='*/1 * * * *',
     catchup=False,
     max_active_runs=1,
-    concurrency=1
-    
+    concurrency=1    
 )
 
 consume_from_topic = ConsumeFromTopicOperator(
