@@ -1,4 +1,6 @@
+from email import message
 import json
+import uuid
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
@@ -20,7 +22,9 @@ def consumer_function(message, prefix, **kwargs):
         else:
             print("Empty message received")      
             return None  
-    
+    else:
+        print("Empty message received")    
+        return None  
 
 # process rabbit msg
 def process_message(msg_value, **kwargs):
@@ -32,16 +36,16 @@ def process_message(msg_value, **kwargs):
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
 
-        # unique_id = uuid.uuid4()
-        # conf = {'message': msg_json}
-        # trigger_dag_run = TriggerDagRunOperator(
-        #     task_id=str(unique_id),
-        #     trigger_dag_id='function_email_send_with_template',
-        #     conf=conf,
-        #     execution_date=datetime.now().replace(tzinfo=timezone.utc),
-        #     dag=dag
-        # )
-        # trigger_dag_run.execute(context=kwargs)
+        unique_id = uuid.uuid4()
+        conf = {'message': msg_json}
+        trigger_dag_run = TriggerDagRunOperator(
+            task_id=str(unique_id),
+            trigger_dag_id='function_create_fire_from_rabbit',
+            conf=conf,
+            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+            dag=dag
+        )
+        trigger_dag_run.execute(context=kwargs)
 
     except Exception as e:
             print(f"Task instance incorrecto: {e}")
