@@ -52,9 +52,10 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
 
         fire_id = msg_json.get('id')    
         #fire_name = msg_json.get('name', 'noname')
-        latitude = msg_json.get('position.y')
-        longitude = msg_json.get('position.x')
-        srid = msg_json.get('srid')
+        position = msg_json.get('position', {})
+        latitude = position.get('y', None)
+        longitude = position.get('x', None)
+        srid = position.get('srid', None)
         # ignition_date = msg_json.get('start')
         #end = msg_json.get('end') # NO SIRVE; se ha de cerrar misión manualmente
         #lastUpdate = msg_json.get('lastUpdate')
