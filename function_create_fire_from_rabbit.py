@@ -73,7 +73,7 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
             print(customer_id)
 
             # Obtenemos initial status
-            initial_status = obtenerInitialStatus(session)
+            initial_status = obtenerInitialStatus(session, 3)
             print(initial_status)
 
             # Componemos geometría
@@ -89,7 +89,7 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
                 'customer_id': customer_id,
                 #'creationtimestamp': creation_date, # AHORA es now() porque es creación de la MISIÓN
                 'status_id': initial_status,
-                'updateTimestamp': msg_json.get('lastUpdate')
+                'updatetimestamp': msg_json.get('lastUpdate')
             }
             
 
