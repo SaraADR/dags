@@ -70,15 +70,21 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
 
             # Query para extraer el customer_id
             customer_id = obtenerCustomerId(session, latitude, longitude)
+            print(customer_id)
 
             # Obtenemos initial status
             initial_status = obtenerInitialStatus(session)
-     
+            print(initial_status)
+
+            # Componemos geometría
+            geometry = '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::{srid}" } }, "coordinates": [{longitude},{latitude}]}'
+            print(geometry)
+
             mss_mission_insert = {
                 #id es auto_increment; alias es NULL; service_id es NULL, end_date es NULL
                 'name': msg_json.get('name', 'noname'),
                 'start_date': msg_json.get('start'),
-                'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::{srid}" } }, "coordinates": [{longitude},{latitude}]}',
+                'geometry': geometry,
                 'type_id': 3,
                 'customer_id': customer_id,
                 #'creationtimestamp': creation_date, # AHORA es now() porque es creación de la MISIÓN
@@ -173,7 +179,11 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
 # TODO: PASAR A UTILS estas funciones?
 def obtenerInitialStatus(session, missionType = 3):
     try:
-        result = session.execute(f"SELECT status_id FROM missions.mss_mission_initial_status WHERE mission_type_id = {missionType}")
+        result = session.execute(f"""
+            SELECT status_id 
+            FROM missions.mss_mission_initial_status 
+            WHERE mission_type_id = {missionType}
+        """)
         if result.length() > 0:
             return result[0].status_id
         else:
@@ -183,13 +193,13 @@ def obtenerInitialStatus(session, missionType = 3):
 
 def obtenerCustomerId(session, latitude, longitude, epsg = 4326):
     try:
-        result = session.execute(f" \
-            SELECT customer_id \
-            FROM missions.mss_extinguish_customers \
-            WHERE ST_Contains(\
-                geometry,\
-                ST_GeomFromText('POINT({longitude} {latitude})',{epsg})\
-            )"
+        result = session.execute(f"""
+            SELECT customer_id
+            FROM missions.mss_extinguish_customers
+            WHERE ST_Contains(
+                geometry,
+                ST_GeomFromText('POINT({longitude} {latitude})',{epsg})
+            )"""
         )
         return result
     except Exception as e:
