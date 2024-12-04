@@ -17,10 +17,8 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-def print_message_consolelog(**context):
+def receive_data_and_create_fire(**context):
     message = context['dag_run'].conf
-    print(f"Received message: {message}")
-
     if not message:
         print("No 'message' field found in the received data.")
         return
@@ -32,50 +30,17 @@ def print_message_consolelog(**context):
             print("No 'data' field found in the 'message'.")
             return
 
-        # Si el campo 'data' es una cadena, lo decodificamos como JSON
+        # Si el campo 'data' es una cadena, lo decodificamos como JSON (99% veces va a ser)
         data = json.loads(data_str) if isinstance(data_str, str) else data_str
         print(f"Received message data: {data}")
+        # aqui es donde se inserta en bd
+        # INSERT EN BD CREATE FIRE
 
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
         return
 
     return 
-
-
-def other_task_esta_vacia(**context):
-    return
-    # message = context['dag_run'].conf
-    # print(f"Received message: {message}")
-    
-    # inner_message = message.get('message')
-    # if not inner_message:
-    #     print("No 'message' field found in the received data.")
-    #     return
-
-    # idElemento = inner_message.get('id')
-    # try:
-   
-    #     # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-    #     db_conn = BaseHook.get_connection('biobd')
-    #     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-    #     engine = create_engine(connection_string)
-    #     Session = sessionmaker(bind=engine)
-    #     session = Session()
-
-        
-    #     # Update job status to 'FINISHED'
-    #     metadata = MetaData(bind=engine)
-    #     notificationTable = Table('notifications', metadata, schema='public', autoload_with=engine)
-    #     update_stmt = notificationTable.update().where(notificationTable.c.id == idElemento).values(status='FINISHED')
-    #     session.execute(update_stmt)
-    #     session.commit()
-    #     print(f"Notificacion ID {idElemento} status updated to FINISHED")
-
-    # except Exception as e:
-    #     session.rollback()
-    #     print(f"Error durante el guardado del estado de la notificacion: {str(e)}")
-
 
 
 dag = DAG(
@@ -87,20 +52,12 @@ dag = DAG(
 )
 
 # Manda correo
-print_message_clog = PythonOperator(
-    task_id='print_message',
-    python_callable=print_message_consolelog,
+receive_data_process = PythonOperator(
+    task_id='receive_and_create_fire',
+    python_callable=receive_data_and_create_fire,
     provide_context=True,
     dag=dag,
 )
 
-#Cambia estado de job
-other_task_vacia = PythonOperator(
-    task_id='change_state_job',
-    python_callable=other_task_esta_vacia,
-    provide_context=True,
-    dag=dag,
-)
-
-
-print_message_clog >> other_task_vacia
+receive_data_process 
+#>> other_task_vacia
