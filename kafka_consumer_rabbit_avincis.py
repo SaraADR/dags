@@ -13,7 +13,7 @@ from airflow.exceptions import AirflowSkipException
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
         msg_value = message.value().decode('utf-8')
-        print("Esto es el mensaje")
+        print("Mensaje consumido: ")
         print(f"{msg_value}")
         
         if msg_value:
@@ -28,8 +28,6 @@ def consumer_function(message, prefix, **kwargs):
 # process rabbit msg
 def process_message(message, **kwargs):
     try:
-        print(message)
-
         try:
             msg_json = json.loads(message)
         except json.JSONDecodeError as e:
@@ -39,7 +37,7 @@ def process_message(message, **kwargs):
         trigger_dag_run = TriggerDagRunOperator(
             task_id=str(unique_id),
             trigger_dag_id='function_create_fire_from_rabbit',
-            msg_json=msg_json,
+            conf=conf,
             execution_date=datetime.now().replace(tzinfo=timezone.utc),
             dag=dag
         )
