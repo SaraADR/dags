@@ -18,7 +18,7 @@ default_args = {
 }
 
 def print_message_consolelog(**context):
-    message = context['dag_run'].conf
+    message = context['dag_run'].con
     print(f"Received message: {message}")
 
     if not message:

@@ -37,7 +37,7 @@ def process_message(message, **kwargs):
         trigger_dag_run = TriggerDagRunOperator(
             task_id=str(unique_id),
             trigger_dag_id='function_create_fire_from_rabbit',
-            conf=conf,
+            conf=msg_json,
             execution_date=datetime.now().replace(tzinfo=timezone.utc),
             dag=dag
         )
