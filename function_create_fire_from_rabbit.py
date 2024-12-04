@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.operators.email import EmailOperator
 import json
 from jinja2 import Template
 from airflow.hooks.base_hook import BaseHook
