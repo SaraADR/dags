@@ -182,12 +182,12 @@ def obtenerInitialStatus(session, missionType = 3):
 
 def obtenerCustomerId(session, latitude, longitude, epsg = 4326):
     try:
-        result = session.execute(f" 
-            SELECT customer_id 
-            FROM missions.mss_extinguish_customers 
-            WHERE ST_Contains(
-                geometry,
-                ST_GeomFromText('POINT({longitude} {latitude})',{epsg})
+        result = session.execute(f" \
+            SELECT customer_id \
+            FROM missions.mss_extinguish_customers \
+            WHERE ST_Contains(\
+                geometry,\
+                ST_GeomFromText('POINT({longitude} {latitude})',{epsg})\
             )"
         )
         return result
