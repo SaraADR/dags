@@ -177,18 +177,21 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
 
 
 # TODO: PASAR A UTILS estas funciones?
-def obtenerInitialStatus(session, missionType = 3):
+def obtenerInitialStatus(session, missionType=3):
     try:
-        result = session.execute(f"""
+        query = f"""
             SELECT status_id 
             FROM missions.mss_mission_initial_status 
             WHERE mission_type_id = {missionType}
-        """)
-        if result.length() > 0:
-            return result[0].status_id
+        """
+        result = session.execute(query)
+        rows = result.fetchall()
+        if rows:
+            return rows[0][0]  
         else:
-            return 1
+            return 1  
     except Exception as e:
+        print(f"Error fetching initial status: {e}")
         return 1
 
 def obtenerCustomerId(session, latitude, longitude, epsg = 4326):
