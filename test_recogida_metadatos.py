@@ -490,17 +490,17 @@ def resultByType(type, message, output, output_json, query, SensorId, timestamp_
             'fecha_dada': timestamp_naive
         })
 
-        print("Valores para session.execute:")
-        print(f"fid: {SensorId}")
-        print(f"payload_id: {output_json.get('PayloadSN')}")
-        print(f"multisim_id: {output_json.get('MultisimSN')}")
-        print(f"ground_control_station_id: {output_json.get('GroundControlStationSN')}")
-        print(f"pc_embarcado_id: {output_json.get('PCEmbarcadoSN')}")
-        print(f"operator_name: {output_json.get('OperatorName')}")
-        print(f"pilot_name: {output_json.get('PilotName')}")
-        print(f"sensor: {output_json.get('Camera Model Name')}")
-        print(f"platform: {output_json.get('AircraftNumberPlate')}")
-        print(f"fecha_dada: {timestamp_naive}")
+    print("Valores para session.execute:")
+    print(f"fid: {SensorId}")
+    print(f"payload_id: {output_json.get('PayloadSN')}")
+    print(f"multisim_id: {output_json.get('MultisimSN')}")
+    print(f"ground_control_station_id: {output_json.get('GroundControlStationSN')}")
+    print(f"pc_embarcado_id: {output_json.get('PCEmbarcadoSN')}")
+    print(f"operator_name: {output_json.get('OperatorName')}")
+    print(f"pilot_name: {output_json.get('PilotName')}")
+    print(f"sensor: {output_json.get('Camera Model Name')}")
+    print(f"platform: {output_json.get('AircraftNumberPlate')}")
+    print(f"fecha_dada: {timestamp_naive}")
 
     return result
 
