@@ -215,7 +215,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             if(type == 2): #Multiespectral
                 date_time_str = output_json.get("DateTimeOriginal")
                 timestamp_naive = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
-            elif(type == -1): #Es video
+            elif(type == -1):
                 date_time_str = output_json.get("xmp:dateTimeOriginal")
                 timestamp_naive = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
             else:
@@ -380,7 +380,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             shape = generar_shape_con_offsets(output_json)
             insert_values = {
                 "shape": shape,
-                "sampled_feature": '12306',
+                "sampled_feature": output_json.get("MissionID"),
                 "procedure": int(SensorId),
                 "result_time":  timestamp_naive,
                 "phenomenon_time": timestamp_naive,
@@ -406,7 +406,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
    
             insert_values = {
                 "shape": shape,
-                "sampled_feature": '12306',
+                "sampled_feature": output_json.get("MissionID", None),
                 "procedure": int(SensorId),
                 "result_time":  timestamp_naive,
                 "valid_time_start": timestamp_naive,
@@ -423,7 +423,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         raise 
 
     file_name = os.path.basename(message)
-    mission_id = '12306'
+    mission_id = output_json.get("MissionID", -1)
     if mission_id != -1 :
         try:
             upload_to_minio_path('minio_conn', 'missions', mission_id + '/', local_zip_path)
@@ -489,19 +489,6 @@ def resultByType(type, message, output, output_json, query, SensorId, timestamp_
             'platform': output_json.get("AircraftNumberPlate"),
             'fecha_dada': timestamp_naive
         })
-
-    print("Valores para session.execute:")
-    print(f"fid: {SensorId}")
-    print(f"payload_id: {output_json.get('PayloadSN')}")
-    print(f"multisim_id: {output_json.get('MultisimSN')}")
-    print(f"ground_control_station_id: {output_json.get('GroundControlStationSN')}")
-    print(f"pc_embarcado_id: {output_json.get('PCEmbarcadoSN')}")
-    print(f"operator_name: {output_json.get('OperatorName')}")
-    print(f"pilot_name: {output_json.get('PilotName')}")
-    print(f"sensor: {output_json.get('Camera Model Name')}")
-    print(f"platform: {output_json.get('AircraftNumberPlate')}")
-    print(f"fecha_dada: {timestamp_naive}")
-
     return result
 
 
