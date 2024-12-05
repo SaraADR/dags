@@ -332,7 +332,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                     'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
                     'operator_name': output_json.get("OperatorName"),
                     'pilot_name': output_json.get("PilotName"),
-                    'sensor': output_json.get("Model"),
+                    'sensor': output_json.get("Camera Model Name"),
                     'platform': output_json.get("AircraftNumberPlate")
                 }
             if(type != -1):
