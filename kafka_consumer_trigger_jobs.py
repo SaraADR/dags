@@ -38,7 +38,7 @@ def process_message(msg_value, **kwargs):
             elif job == 'heatmap-incendios' or job == 'heatmap-aeronaves':
                 dag_to_trigger = 'algorithm_heatmap_post_process' 
             elif job == 'escape-routes' :
-                dag_to_trigger = 'algorithm_escape-routes_post_process' 
+                dag_to_trigger = 'algorithm_escape_routes_post_process' 
             elif job == 'create_fire':
                 dag_to_trigger = 'mission_fire_creation_and_notify'
             elif job == 'vegetation-review-incidence':
