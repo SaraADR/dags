@@ -21,43 +21,54 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 
 
-def generate_input_data():
-    
+import json
 
-    input_data = {
-    "direccion_avance": "Valor numérico que indica la dirección del avance del incendio en grados (0° Norte, 90° Este, 180° Sur, 270° Oeste)",
-    "distancia": "Tamaño de la zona donde se calculará la ruta (en metros)",
-    "dir_obstaculos": "Ruta absoluta de la capa Shapefile con geometría de obstáculos definidos por el usuario",
-    "dir_carr_csv": "Ruta del archivo CSV con identificadores de tramos, clase y situación",
-    "dir_output": "Ruta absoluta donde se guardarán las capas creadas",
-    "zonas_abiertas": "Ruta de la capa vectorial con zonas abiertas",
-    "dir_incendio": "Ruta de la capa vectorial con la geometría del incendio",
-    "dir_mdt": "Ruta donde se guardan hojas MTN50 organizando MDT. Si NULL, usa servicio WCS",
-    "dir_hojasmtn50": "Ruta del archivo Shapefile con cuadrículas cartográficas MTN50",
-    "dir_combustible": "Ruta del raster con modelos de combustible clasificados",
-    "api_idee": "Si TRUE, utiliza API IDEE para obtener datos",
-    "dir_vias": "Ruta de la capa Shapefile con geometría de las vías",
-    "dir_cursos_agua": "Ruta de la capa Shapefile con geometría de cursos de agua",
-    "dir_aguas_estancadas": "Ruta de la capa Shapefile con geometría de aguas estancadas",
-    "dist_estudio": "Distancia máxima desde el incendio para definir la zona de estudio (por defecto: 5000 m)"
+def process_input_data(front_input):
+   
+    # Configuración base con valores predeterminados
+    default_input_data = {
+        "direccion_avance": None,  # Dirección del avance del incendio en grados
+        "distancia": None,  # Tamaño de la zona donde se calculará la ruta
+        "dir_obstaculos": None,  # Ruta de la capa Shapefile con obstáculos
+        "dir_carr_csv": None,  # Ruta del archivo CSV con tramos
+        "dir_output": None,  # Ruta donde se guardarán las capas
+        "zonas_abiertas": None,  # Ruta de la capa vectorial con zonas abiertas
+        "dir_incendio": None,  # Ruta de la capa vectorial con la geometría del incendio
+        "dir_mdt": None,  # Ruta donde se guardan hojas MTN50
+        "dir_hojasmtn50": None,  # Ruta del archivo Shapefile de cuadrículas MTN50
+        "dir_combustible": None,  # Ruta del raster con modelos de combustible
+        "api_idee": True,  # Si TRUE, utiliza API IDEE para obtener datos
+        "dir_vias": None,  # Ruta de la capa Shapefile con geometría de las vías
+        "dir_cursos_agua": None,  # Ruta de la capa Shapefile con geometría de cursos de agua
+        "dir_aguas_estancadas": None,  # Ruta de la capa Shapefile con geometría de aguas estancadas
+        "dist_estudio": 5000  # Distancia máxima desde el incendio (en metros)
+    }
+
+    # Actualizar valores predeterminados con los datos del front-end
+    for key, value in front_input.items():
+        if key in default_input_data:
+            default_input_data[key] = value
+
+    return default_input_data
+
+
+# Simulación de datos enviados desde el front-end
+front_data = {
+    "direccion_avance": 90,
+    "distancia": 3000,
+    "dir_obstaculos": "/path/to/obstacles.shp",
+    "dir_carr_csv": "/path/to/carr.csv",
+    "dir_output": "/output/path",
+    "zonas_abiertas": "/path/to/open_zones.shp",
+    "dir_incendio": "/path/to/fire.shp",
+    "dist_estudio": 10000
 }
 
+# Procesar los datos recibidos
+processed_data = process_input_data(front_data)
 
-
-    return input_data
-
-# Ejemplo de uso
-if __name__ == "__main__":
-    input_data = generate_input_data()
-    
-    # Guardar input_data como JSON (opcional)
-    with open("input_data.json", "w", encoding="utf-8") as f:
-        json.dump(input_data, f, indent=4, ensure_ascii=False)
-    
-    # Imprimir input_data
-    print(json.dumps(input_data, indent=4, ensure_ascii=False))
-
-
+# Mostrar los datos procesados
+print(json.dumps(processed_data, indent=4, ensure_ascii=False))
 
 
 # def process_heatmap_data(**context):
