@@ -23,8 +23,10 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
-
-
+from datetime import datetime, timedelta
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+import json
 
 def process_escape_routes_data(**context):
     # Obtener los datos del contexto del DAG
@@ -32,13 +34,23 @@ def process_escape_routes_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
-    # Extraer los argumentos necesarios
+    # Extraer los argumentos necesarios, incluyendo los nuevos
     params = {
+        "dir_incendio": input_data.get('dir_incendio', None),
+        "dir_mdt": input_data.get('dir_mdt', None),
+        "dir_hojasmtn50": input_data.get('dir_hojasmtn50', None),
+        "dir_combustible": input_data.get('dir_combustible', None),
+        "api_idee": input_data.get('api_idee', True),  # Valor predeterminado True
+        "dir_vias": input_data.get('dir_vias', None),
+        "dir_cursos_agua": input_data.get('dir_cursos_agua', None),
+        "dir_aguas_estancadas": input_data.get('dir_aguas_estancadas', None),
         "destino": input_data.get('destino', None),
         "direccion_avance": input_data.get('direccion_avance', None),
         "distancia": input_data.get('distancia', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": input_data.get('dir_carr_csv', None),
+        "dir_output": input_data.get('dir_output', None),
+        "sugerir": input_data.get('sugerir', False),  # Valor predeterminado False
         "zonas_abiertas": input_data.get('zonas_abiertas', None),
         "v_viento": input_data.get('v_viento', None),
         "f_buffer": input_data.get('f_buffer', 100),  # Valor predeterminado 100
@@ -57,11 +69,21 @@ def process_escape_routes_data(**context):
 def create_json(params):
     # Generar un JSON basado en los parámetros proporcionados
     input_data = {
+        "dir_incendio": params.get("dir_incendio", None),
+        "dir_mdt": params.get("dir_mdt", None),
+        "dir_hojasmtn50": params.get("dir_hojasmtn50", None),
+        "dir_combustible": params.get("dir_combustible", None),
+        "api_idee": params.get("api_idee", True),
+        "dir_vias": params.get("dir_vias", None),
+        "dir_cursos_agua": params.get("dir_cursos_agua", None),
+        "dir_aguas_estancadas": params.get("dir_aguas_estancadas", None),
         "destino": params.get("destino", None),
         "direccion_avance": params.get("direccion_avance", None),
         "distancia": params.get("distancia", None),
         "dir_obstaculos": params.get("dir_obstaculos", None),
         "dir_carr_csv": params.get("dir_carr_csv", None),
+        "dir_output": params.get("dir_output", None),
+        "sugerir": params.get("sugerir", False),
         "zonas_abiertas": params.get("zonas_abiertas", None),
         "v_viento": params.get("v_viento", None),
         "f_buffer": params.get("f_buffer", 100),
