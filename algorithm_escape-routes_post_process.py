@@ -25,28 +25,23 @@ def generate_input_data():
     
 
     input_data = {
-        "destino": "Coordenadas geográficas de evacuación en formato JSON o GeoJSON",
-        "direccion_avance": "Valor numérico que indica la dirección del avance del incendio en grados (0° Norte, 90° Este, 180° Sur, 270° Oeste)",
-        "distancia": "Tamaño de la zona donde se calculará la ruta (en metros)",
-        "dir_obstaculos": "Ruta absoluta de la capa Shapefile con geometría de obstáculos definidos por el usuario",
-        "dir_carr_csv": "Ruta del archivo CSV con identificadores de tramos, clase y situación",
-        "dir_output": "Ruta absoluta donde se guardarán las capas creadas",
-        "sugerir": "Si TRUE, calcula rutas adicionales en zonas abiertas",
-        "zonas_abiertas": "Ruta de la capa vectorial con zonas abiertas",
-        "v_viento": "Velocidad del viento en km/h",
-        "f_buffer": "Distancia mínima a mantener con el incendio (por defecto: 100 m)",
-        "c_prop": "Condiciones de propagación: 'Bajas', 'Moderadas', 'Extremas' (por defecto: 'Extremas')",
-        "lim_pendiente": "Límite de pendiente considerado transitable (por defecto: sin límite)",
-        "dir_incendio": "Ruta de la capa vectorial con la geometría del incendio",
-        "dir_mdt": "Ruta donde se guardan hojas MTN50 organizando MDT. Si NULL, usa servicio WCS",
-        "dir_hojasmtn50": "Ruta del archivo Shapefile con cuadrículas cartográficas MTN50",
-        "dir_combustible": "Ruta del raster con modelos de combustible clasificados",
-        "api_idee": "Si TRUE, utiliza API IDEE para obtener datos",
-        "dir_vias": "Ruta de la capa Shapefile con geometría de las vías",
-        "dir_cursos_agua": "Ruta de la capa Shapefile con geometría de cursos de agua",
-        "dir_aguas_estancadas": "Ruta de la capa Shapefile con geometría de aguas estancadas",
-        "dist_estudio": "Distancia máxima desde el incendio para definir la zona de estudio (por defecto: 5000 m)"
-    }
+    "direccion_avance": "Valor numérico que indica la dirección del avance del incendio en grados (0° Norte, 90° Este, 180° Sur, 270° Oeste)",
+    "distancia": "Tamaño de la zona donde se calculará la ruta (en metros)",
+    "dir_obstaculos": "Ruta absoluta de la capa Shapefile con geometría de obstáculos definidos por el usuario",
+    "dir_carr_csv": "Ruta del archivo CSV con identificadores de tramos, clase y situación",
+    "dir_output": "Ruta absoluta donde se guardarán las capas creadas",
+    "zonas_abiertas": "Ruta de la capa vectorial con zonas abiertas",
+    "dir_incendio": "Ruta de la capa vectorial con la geometría del incendio",
+    "dir_mdt": "Ruta donde se guardan hojas MTN50 organizando MDT. Si NULL, usa servicio WCS",
+    "dir_hojasmtn50": "Ruta del archivo Shapefile con cuadrículas cartográficas MTN50",
+    "dir_combustible": "Ruta del raster con modelos de combustible clasificados",
+    "api_idee": "Si TRUE, utiliza API IDEE para obtener datos",
+    "dir_vias": "Ruta de la capa Shapefile con geometría de las vías",
+    "dir_cursos_agua": "Ruta de la capa Shapefile con geometría de cursos de agua",
+    "dir_aguas_estancadas": "Ruta de la capa Shapefile con geometría de aguas estancadas",
+    "dist_estudio": "Distancia máxima desde el incendio para definir la zona de estudio (por defecto: 5000 m)"
+}
+
 
 
     return input_data
