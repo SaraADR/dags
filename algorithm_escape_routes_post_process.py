@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
+from sqlalchemy import create_engine, Table, MetaData
+from airflow.hooks.base import BaseHook
 
 def process_escape_routes_data(**context):
     # Obtener los datos del contexto del DAG
@@ -15,29 +17,26 @@ def process_escape_routes_data(**context):
 
     # Ajustar "inicio" y "destino" según los datos recibidos
     if isinstance(inicio, str):
-        # Convertir string JSON en diccionario
         try:
             inicio = json.loads(inicio)
         except json.JSONDecodeError:
             inicio = None
 
     if isinstance(destino, list):
-        # Convertir lista de strings JSON en lista de diccionarios
         try:
             destino = [json.loads(d) if isinstance(d, str) else d for d in destino]
         except json.JSONDecodeError:
             destino = None
     elif isinstance(destino, dict):
-        # Usar directamente el destino si es un diccionario
         pass
 
-    # Extraer los argumentos necesarios, incluyendo las características específicas
+    # Extraer los argumentos necesarios
     params = {
         "dir_incendio": input_data.get('dir_incendio', None),
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": input_data.get('dir_hojasmtn50', None),
         "dir_combustible": input_data.get('dir_combustible', None),
-        "api_idee": input_data.get('api_idee', True),  # Valor predeterminado True
+        "api_idee": input_data.get('api_idee', True),
         "dir_vias": input_data.get('dir_vias', None),
         "dir_cursos_agua": input_data.get('dir_cursos_agua', None),
         "dir_aguas_estancadas": input_data.get('dir_aguas_estancadas', None),
@@ -45,17 +44,17 @@ def process_escape_routes_data(**context):
         "destino": destino,
         "direccion_avance": input_data.get('direccion_avance', None),
         "distancia": input_data.get('distancia', None),
-        "dist_seguridad": input_data.get('dist_seguridad', None),  # Propiedad adicional
+        "dist_seguridad": input_data.get('dist_seguridad', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": input_data.get('dir_carr_csv', None),
         "dir_output": input_data.get('dir_output', None),
-        "sugerir": input_data.get('sugerir', False),  # Valor predeterminado False
+        "sugerir": input_data.get('sugerir', False),
         "zonas_abiertas": input_data.get('zonas_abiertas', None),
         "v_viento": input_data.get('v_viento', None),
-        "f_buffer": input_data.get('f_buffer', 100),  # Valor predeterminado 100
-        "c_prop": input_data.get('c_prop', "Extremas"),  # Valor predeterminado "Extremas"
+        "f_buffer": input_data.get('f_buffer', 100),
+        "c_prop": input_data.get('c_prop', "Extremas"),
         "lim_pendiente": input_data.get('lim_pendiente', None),
-        "dist_estudio": input_data.get('dist_estudio', 5000),  # Valor predeterminado 5000
+        "dist_estudio": input_data.get('dist_estudio', 5000),
     }
 
     # Crear el JSON dinámicamente
@@ -64,6 +63,14 @@ def process_escape_routes_data(**context):
     # Mostrar el JSON por pantalla
     print("JSON generado:")
     print(json.dumps(json_data, indent=4))
+
+    # Actualizar el estado del job a 'FINISHED' si todo se completa correctamente
+    try:
+        job_id = message['message']['id']
+        update_job_status(job_id, "FINISHED")
+    except Exception as e:
+        print(f"Error al actualizar el estado del trabajo: {e}")
+        raise
 
 def create_json(params):
     # Generar un JSON basado en los parámetros proporcionados
@@ -94,6 +101,26 @@ def create_json(params):
     }
     return input_data
 
+def update_job_status(job_id, status):
+    try:
+        # Conexión a la base de datos usando las credenciales de Airflow
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        metadata = MetaData(bind=engine)
+
+        # Tabla de trabajos
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+
+        # Actualizar el estado del trabajo
+        with engine.connect() as connection:
+            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status)
+            connection.execute(update_stmt)
+            print(f"Job ID {job_id} status updated to {status}")
+    except Exception as e:
+        print(f"Error al actualizar el estado del trabajo: {e}")
+        raise
+
 # Configuración del DAG
 default_args = {
     'owner': 'oscar',
@@ -108,7 +135,7 @@ default_args = {
 dag = DAG(
     'algorithm_escape_routes_post_process',
     default_args=default_args,
-    description='DAG para generar JSON y mostrarlo por pantalla',
+    description='DAG para generar JSON, mostrarlo por pantalla y actualizar estado del job',
     schedule_interval=None,
     catchup=False,
     concurrency=1
@@ -122,13 +149,5 @@ process_escape_routes_task = PythonOperator(
     dag=dag,
 )
 
-# Cambiar el estado del job (si fuera necesario en un futuro)
-change_state_task = PythonOperator(
-    task_id='change_state_job',
-    python_callable=lambda: print("Cambio de estado no implementado."),
-    provide_context=True,
-    dag=dag,
-)
-
 # Definir el flujo de tareas
-process_escape_routes_task >> change_state_task
+process_escape_routes_task
