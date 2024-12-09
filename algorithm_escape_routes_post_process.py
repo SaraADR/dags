@@ -2,31 +2,6 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
-from datetime import datetime, timedelta
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-import json
-import uuid
-import boto3
-from botocore.client import Config
-from airflow.hooks.base_hook import BaseHook
-import os
-from airflow.providers.postgres.operators.postgres import PostgresOperator
-import os
-from airflow.hooks.base import BaseHook
-from sqlalchemy import create_engine, Table, MetaData, text
-from airflow.providers.postgres.operators.postgres import PostgresOperator
-from sqlalchemy.orm import sessionmaker
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from datetime import datetime, timedelta, timezone
-from airflow.providers.ssh.hooks.ssh import SSHHook
-import rasterio
-from rasterio.warp import calculate_default_transform, reproject, Resampling
-import numpy as np
-from datetime import datetime, timedelta
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-import json
 
 def process_escape_routes_data(**context):
     # Obtener los datos del contexto del DAG
@@ -34,7 +9,29 @@ def process_escape_routes_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
-    # Extraer los argumentos necesarios, incluyendo los nuevos
+    # Procesar "inicio" y "destino" para permitir diferentes estructuras
+    inicio = input_data.get('inicio', None)
+    destino = input_data.get('destino', None)
+
+    # Ajustar "inicio" y "destino" según los datos recibidos
+    if isinstance(inicio, str):
+        # Convertir string JSON en diccionario
+        try:
+            inicio = json.loads(inicio)
+        except json.JSONDecodeError:
+            inicio = None
+
+    if isinstance(destino, list):
+        # Convertir lista de strings JSON en lista de diccionarios
+        try:
+            destino = [json.loads(d) if isinstance(d, str) else d for d in destino]
+        except json.JSONDecodeError:
+            destino = None
+    elif isinstance(destino, dict):
+        # Usar directamente el destino si es un diccionario
+        pass
+
+    # Extraer los argumentos necesarios, incluyendo las características específicas
     params = {
         "dir_incendio": input_data.get('dir_incendio', None),
         "dir_mdt": input_data.get('dir_mdt', None),
@@ -44,9 +41,11 @@ def process_escape_routes_data(**context):
         "dir_vias": input_data.get('dir_vias', None),
         "dir_cursos_agua": input_data.get('dir_cursos_agua', None),
         "dir_aguas_estancadas": input_data.get('dir_aguas_estancadas', None),
-        "destino": input_data.get('destino', None),
+        "inicio": inicio,
+        "destino": destino,
         "direccion_avance": input_data.get('direccion_avance', None),
         "distancia": input_data.get('distancia', None),
+        "dist_seguridad": input_data.get('dist_seguridad', None),  # Propiedad adicional
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": input_data.get('dir_carr_csv', None),
         "dir_output": input_data.get('dir_output', None),
@@ -77,9 +76,11 @@ def create_json(params):
         "dir_vias": params.get("dir_vias", None),
         "dir_cursos_agua": params.get("dir_cursos_agua", None),
         "dir_aguas_estancadas": params.get("dir_aguas_estancadas", None),
+        "inicio": params.get("inicio", None),
         "destino": params.get("destino", None),
         "direccion_avance": params.get("direccion_avance", None),
         "distancia": params.get("distancia", None),
+        "dist_seguridad": params.get("dist_seguridad", None),
         "dir_obstaculos": params.get("dir_obstaculos", None),
         "dir_carr_csv": params.get("dir_carr_csv", None),
         "dir_output": params.get("dir_output", None),
