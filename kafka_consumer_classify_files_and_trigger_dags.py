@@ -260,7 +260,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     topics=["sftp789"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_batch",
+    commit_cadence="earliest",
     dag=dag,
 )
 
