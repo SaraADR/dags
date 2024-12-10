@@ -264,6 +264,4 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-
-
 consume_from_topic
