@@ -46,49 +46,50 @@ def receive_data_and_create_fire(**context):
 
 
 def createMissionMissionFireAndHistoryStatus(msg_json):
-
     try:
         
         fire_id = msg_json.get('id')    
+        #fire_name = msg_json.get('name', 'noname')
         position = msg_json.get('position', {})
         latitude = position.get('y', None)
         longitude = position.get('x', None)
         srid = position.get('srid', None)
-      
+        
         try:
-            # Conexión a la base de datos
+            #Insertamos la mision
             db_conn = BaseHook.get_connection('biobd')
             connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
             engine = create_engine(connection_string)
             Session = sessionmaker(bind=engine)
             session = Session()
 
-            # Comprobar si ya existe una misión de Extinción asociada a este incendio
+            # Verificar si ya existe una misión de Extinción asociada al incendio
             existing_mission = session.execute(f"""
-                SELECT m.mission_id, m.updatetimestamp
-                FROM missions.mss_mission m
-                JOIN missions.mss_mission_fire mf ON mission_type_id = mf.mission_id
+                SELECT mission_id, updatetimestamp
+                FROM missions.mss_mission_fire mf
+                JOIN missions.mss_mission m ON mf.mission_id = m.id
                 WHERE mf.fire_id = {fire_id} AND m.type_id = 3
             """).fetchone()
 
             if existing_mission:
-                # Si ya existe una misión de Extinción asociada, verificar si se necesita actualizar el updatetimestamp
-                existing_mission_id, existing_update_timestamp = existing_mission
-                if datetime.fromisoformat(msg_json['lastUpdate']) > existing_update_timestamp:
-                    # Actualizar el updatetimestamp porque es posterior al guardado
+                # Comparar fechas de actualización
+                existing_updatetimestamp = existing_mission['updatetimestamp']
+                new_updatetimestamp = datetime.fromisoformat(msg_json.get('lastUpdate'))
+
+                if new_updatetimestamp > existing_updatetimestamp:
+                    # Actualizar el updatetimestamp en la misión existente
                     session.execute(f"""
                         UPDATE missions.mss_mission
-                        SET updatetimestamp = '{msg_json['lastUpdate']}'
-                        WHERE mission_id = {existing_mission_id}
+                        SET updatetimestamp = '{new_updatetimestamp}'
+                        WHERE id = {existing_mission['mission_id']}
                     """)
                     session.commit()
-
-                    print(f"Misión actualizada con ID: {existing_mission_id}")
+                    print(f"Updated mission {existing_mission['mission_id']} with new updatetimestamp.")
                 else:
-                    # No se necesita ninguna acción porque la fecha es anterior
-                    print(f"No se necesita actualización para la misión ID: {existing_mission_id}")
-                return  # Salir de la función porque no es necesario crear una nueva misión
-     
+                    print("No update required; received timestamp is not newer.")
+                return  # No se crea una nueva misión
+
+
             # Query para extraer el customer_id
             customer_id = obtenerCustomerId(session, latitude, longitude)
             print(customer_id)
