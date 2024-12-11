@@ -67,7 +67,7 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
             existing_mission = session.execute(f"""
                 SELECT m.mission_id, m.updatetimestamp
                 FROM missions.mss_mission m
-                JOIN missions.mss_mission_fire mf ON mf.mission_id = mf.mission_id
+                JOIN missions.mss_mission_fire mf ON m.mission_id = mf.mission_id
                 WHERE mf.fire_id = {fire_id} AND m.type_id = 3
             """).fetchone()
 
@@ -82,6 +82,7 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
                         WHERE mission_id = {existing_mission_id}
                     """)
                     session.commit()
+
                     print(f"Misión actualizada con ID: {existing_mission_id}")
                 else:
                     # No se necesita ninguna acción porque la fecha es anterior
