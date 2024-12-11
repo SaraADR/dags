@@ -2,234 +2,162 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
-from jinja2 import Template
-from airflow.hooks.base_hook import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
+from airflow.hooks.base_hook import BaseHook
 
 default_args = {
-    'owner': 'sadr',
+    'owner': 'user',
     'depends_on_past': False,
     'start_date': datetime(2023, 1, 1),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': timedelta(minutes=1),
+    'retry_delay': timedelta(minutes=5),
 }
 
-def receive_data_and_create_fire(**context):
+def process_fire_message(**context):
+    # Mensaje recibido de la cola
     message = context['dag_run'].conf
     if not message:
-        print("No 'message' field found in the received data.")
+        print("No message found in the received data.")
         return
 
     try:
-        # Extraemos el campo 'data' que está dentro del 'message'
-        data_str = message.get('data')
-        if not data_str:
-            print("No 'data' field found in the 'message'.")
+        # Procesar y decodificar el mensaje
+        data = json.loads(message.get('data', '{}'))
+        fire_id = data.get('id')
+        last_update = data.get('lastUpdate')
+        start_date = data.get('start')
+        position = data.get('position', {})
+        latitude = position.get('y')
+        longitude = position.get('x')
+        srid = position.get('srid')
+        
+        if not fire_id or not last_update or not start_date:
+            print("Incomplete fire data.")
             return
 
-        # Si el campo 'data' es una cadena, lo decodificamos como JSON (99% veces va a ser)
-        data = json.loads(data_str) if isinstance(data_str, str) else data_str
-        print(f"Received message data: {data}")
-        # aqui es donde se inserta en bd
-        # INSERT EN BD CREATE FIRE
-        return createMissionMissionFireAndHistoryStatus(data)
+        # Conexión a la base de datos
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        return
+        # Verificar si el incendio ya está asociado a una misión de extinción
+        metadata = MetaData(bind=engine)
+        mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+        mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
 
-    return 
+        existing_mission_query = session.query(mission).join(
+            mission_fire, mission_fire.c.mission_id == mission.c.id
+        ).filter(mission_fire.c.fire_id == fire_id, mission.c.type_id == 3).first()
 
-
-
-def createMissionMissionFireAndHistoryStatus(msg_json):
-    try:
-        # MENSAJE EJEMPLO
-        # {'id': 226697, 'name': 'Almería', 'position': {'srid': 4326, 'x': -2.31630925639473, 'y': 36.9592973041375, 'z': None}, 'comment': None, 'lastUpdate': '2024-12-03T09:19:08.425+0000', 'start': '2024-11-20T14:38:25.000+0000', 'end': '2024-11-21T16:35:17.000+0000', 'vehicles': ['EC-NPT', 'EC-NPT-MSCD'], 'source': 'ALGORITHM'}
-
-        fire_id = msg_json.get('id')    
-        #fire_name = msg_json.get('name', 'noname')
-        position = msg_json.get('position', {})
-        latitude = position.get('y', None)
-        longitude = position.get('x', None)
-        srid = position.get('srid', None)
-        # ignition_date = msg_json.get('start')
-        #end = msg_json.get('end') # NO SIRVE; se ha de cerrar misión manualmente
-        #lastUpdate = msg_json.get('lastUpdate')
-
-        try:
-            #Insertamos la mision
-            db_conn = BaseHook.get_connection('biobd')
-            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-            engine = create_engine(connection_string)
-            Session = sessionmaker(bind=engine)
-            session = Session()
-
-            # Query para extraer el customer_id
+        if existing_mission_query:
+            # Actualizar el campo `updatetimestamp` si la fecha es posterior
+            stored_update_timestamp = existing_mission_query.updatetimestamp
+            if datetime.fromisoformat(last_update[:-1]) > stored_update_timestamp:
+                existing_mission_query.updatetimestamp = datetime.fromisoformat(last_update[:-1])
+                session.commit()
+                print(f"Mission for fire_id {fire_id} updated.")
+            else:
+                print(f"Received update is not newer for fire_id {fire_id}. No action taken.")
+        else:
+            # Crear nueva misión de extinción
             customer_id = obtenerCustomerId(session, latitude, longitude)
-            print(customer_id)
-
-            # Obtenemos initial status
             initial_status = obtenerInitialStatus(session, 3)
-            print(initial_status)
-
-            # Componemos geometría
-            geometry = f"{{'type': 'Point', 'crs': {{'type':'name','properties': {{'name': 'urn:ogc:def:crs:EPSG::{srid}' }} }},'coordinates': [{longitude},{latitude}]}}"
-            print(geometry)
-
-            mss_mission_insert = {
-                #id es auto_increment; alias es NULL; service_id es NULL, end_date es NULL
-                'name': msg_json.get('name', 'noname'),
-                'start_date': msg_json.get('start'),
-                'geometry': geometry,
-                'type_id': 3,
-                'customer_id': customer_id,
-                #'creationtimestamp': creation_date, # AHORA es now() porque es creación de la MISIÓN
-                'status_id': initial_status,
-                'updatetimestamp': msg_json.get('lastUpdate')
+            geometry = {
+                "type": "Point",
+                "crs": {
+                    "type": "name",
+                    "properties": {"name": f"urn:ogc:def:crs:EPSG::{srid}"}
+                },
+                "coordinates": [longitude, latitude]
             }
-            
 
-            metadata = MetaData(bind=engine)
-            mission = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
-
-            # Inserción 
-            insert_stmt = mission.insert().values(mss_mission_insert)
-            #Guardamos el resultado para traer el id
-            result = session.execute(insert_stmt)
-            session.commit()
-            session.close()
-
+            new_mission = mission.insert().values(
+                name=data.get('name', 'Unnamed'),
+                start_date=start_date,
+                geometry=str(geometry),
+                type_id=3,
+                customer_id=customer_id,
+                status_id=initial_status,
+                updatetimestamp=last_update
+            )
+            result = session.execute(new_mission)
             mission_id = result.inserted_primary_key[0]
-            print(f"Misión creada con ID: {mission_id}")
-        except Exception as e:
-            session.rollback()
-            print(f"Error durante el guardado de la misión: {str(e)}")
-            raise Exception("Error durante el guardado del estado de la misión")
 
-        try:
-            if (mission_id is not None):
-                #Insertamos la mision_fire
-                db_conn = BaseHook.get_connection('biobd')
-                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                engine = create_engine(connection_string)
-                Session = sessionmaker(bind=engine)
-                session = Session()
+            # Asociar incendio con misión
+            mission_fire_insert = mission_fire.insert().values(
+                mission_id=mission_id,
+                fire_id=fire_id
+            )
+            session.execute(mission_fire_insert)
 
-                mss_mission_fire_insert = {
-                    'mission_id': mission_id,
-                    # 'ignition_timestamp': ignition_date,
-                    'fire_id': fire_id
-                }
-            
+            # Registrar estado inicial de la misión
+            mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
+            mission_status_history_insert = mission_status_history.insert().values(
+                mission_id=mission_id,
+                status_id=initial_status,
+                updatetimestamp=datetime.now(),
+                source="ALGORITHM",
+                username="ALGORITHM"
+            )
+            session.execute(mission_status_history_insert)
+            session.commit()
+            print(f"New mission created for fire_id {fire_id}.")
 
-                metadata = MetaData(bind=engine)
-                mission_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+    except Exception as e:
+        session.rollback()
+        print(f"Error processing fire message: {str(e)}")
+    finally:
+        session.close()
 
-                # Inserción de la relación
-                insert_stmt = mission_fire.insert().values(mss_mission_fire_insert)
-                session.execute(insert_stmt)
-                session.commit()
-                session.close()
-        except Exception as e:
-            session.rollback()
-            print(f"Error durante el guardado de la relacion mission fire: {str(e)}")
-            raise Exception("Error durante el guardado de la relacion mission fire")
-
-        try:
-            if (mission_id is not None):
-                #Insertamos la mision_fire
-                db_conn = BaseHook.get_connection('biobd')
-                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                engine = create_engine(connection_string)
-                Session = sessionmaker(bind=engine)
-                session = Session()
-
-                mss_mission_history_state_insert = {
-                    'mission_id': mission_id,
-                    'status_id': initial_status,
-                    'updatetimestamp': datetime.now(),
-                    'source': 'ALGORITHM',
-                    'username': 'ALGORITHM'
-                }
-            
-
-                metadata = MetaData(bind=engine)
-                mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
-
-                # Inserción de la relación
-                insert_stmt = mission_status_history.insert().values(mss_mission_history_state_insert)
-                session.execute(insert_stmt)
-                session.commit()
-                session.close()
-        except Exception as e:
-            session.rollback()
-            print(f"Error durante el guardado del estado de la misión: {str(e)}")   
-            raise Exception("Error durante el guardado del estado de la misión")
-
- 
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        # Variable.delete("mensaje_save")
-
-
-# TODO: PASAR A UTILS estas funciones?
-def obtenerInitialStatus(session, missionType=3):
+# Función para obtener el estado inicial
+def obtenerInitialStatus(session, mission_type):
     try:
         query = f"""
             SELECT status_id 
             FROM missions.mss_mission_initial_status 
-            WHERE mission_type_id = {missionType}
+            WHERE mission_type_id = {mission_type}
         """
-        result = session.execute(query)
-        rows = result.fetchall()
-        if rows:
-            return rows[0][0]  
-        else:
-            return 1  
+        result = session.execute(query).fetchone()
+        return result[0] if result else 1
     except Exception as e:
         print(f"Error fetching initial status: {e}")
         return 1
 
-def obtenerCustomerId(session, latitude, longitude, epsg = 4326):
+# Función para obtener el customer_id
+def obtenerCustomerId(session, latitude, longitude, epsg=4326):
     try:
-        result = session.execute(f"""
+        query = f"""
             SELECT customer_id
             FROM missions.mss_extinguish_customers
             WHERE ST_Contains(
                 geometry,
-                ST_GeomFromText('POINT({longitude} {latitude})',{epsg})
-            )"""
-        )
-        if result.length() > 0:
-            return result[0].customer_id
-        else:
-            return ""
+                ST_GeomFromText('POINT({longitude} {latitude})', {epsg})
+            )
+        """
+        result = session.execute(query).fetchone()
+        return result[0] if result else None
     except Exception as e:
-        return ""
-
-# end todo.
-
-
+        print(f"Error fetching customer_id: {e}")
+        return None
 
 dag = DAG(
-    'function_create_fire_from_rabbit',
+    'process_fire_mission',
     default_args=default_args,
-    description='DAG que crea el fire desde el rabbit',
+    description='Process fire messages and create or update missions',
     schedule_interval=None,
     catchup=False
 )
 
-# Manda correo
-receive_data_process = PythonOperator(
-    task_id='receive_and_create_fire',
-    python_callable=receive_data_and_create_fire,
+process_fire_task = PythonOperator(
+    task_id='process_fire_message',
+    python_callable=process_fire_message,
     provide_context=True,
     dag=dag,
 )
 
-receive_data_process 
-#>> other_task_vacia
+process_fire_task
