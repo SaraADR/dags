@@ -65,9 +65,9 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
 
             # Comprobar si ya existe una misión de Extinción asociada a este incendio
             existing_mission = session.execute(f"""
-                SELECT missions.mission_id, m.updatetimestamp
+                SELECT m.mission_id, m.updatetimestamp
                 FROM missions.mss_mission m
-                JOIN missions.mss_mission_fire mf ON missions.mission_id = missions.mission_id
+                JOIN missions.mss_mission_fire mf ON mf.mission_id = mf.mission_id
                 WHERE mf.fire_id = {fire_id} AND m.type_id = 3
             """).fetchone()
 
