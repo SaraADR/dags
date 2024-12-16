@@ -85,7 +85,7 @@ def process_escape_routes_data(**context):
             ssh_client.exec_command(f"touch -p {json_file_path}")
 
             with sftp.file(json_file_path, 'w') as json_file:
-                json.dumps(json_file_path, json_data, indent=4)
+                json.dumps(json_data, json_file, indent=4)
             print(f"Archivo JSON guardado en: {json_file_path}")
 
     except Exception as e:
