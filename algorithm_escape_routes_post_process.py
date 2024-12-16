@@ -81,8 +81,11 @@ def process_escape_routes_data(**context):
             print(f"Creando carpeta y guardando el json en su interior: {carpeta_destino}")
             ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
             json_file_path = f"{carpeta_destino}/input_data_{id_ruta}.json"
+
+            ssh_client.exec_command(f"touch -p {json_file_path}")
+
             with sftp.file(json_file_path, 'w') as json_file:
-                json_file.write(json.dumps(json_data, indent=4))
+                json.dumps(json_file_path, json_data, indent=4)
             print(f"Archivo JSON guardado en: {json_file_path}")
 
     except Exception as e:
