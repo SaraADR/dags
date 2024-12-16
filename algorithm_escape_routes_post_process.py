@@ -4,6 +4,8 @@ from airflow.operators.python import PythonOperator
 import json
 from sqlalchemy import create_engine, Table, MetaData
 from airflow.hooks.base import BaseHook
+from airflow.providers.ssh.hooks.ssh import SSHHook
+
 
 def process_escape_routes_data(**context):
     # Obtener los datos del contexto del DAG
@@ -47,7 +49,7 @@ def process_escape_routes_data(**context):
         "dist_seguridad": input_data.get('dist_seguridad', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": input_data.get('dir_carr_csv', None),
-        "dir_output": input_data.get('dir_output', None),
+        "dir_output": '/share_data/output/' + 'rutas_escape_' + str(message['message']['id']),
         "sugerir": input_data.get('sugerir', False),
         "zonas_abiertas": input_data.get('zonas_abiertas', None),
         "v_viento": input_data.get('v_viento', None),
@@ -63,6 +65,34 @@ def process_escape_routes_data(**context):
     # Mostrar el JSON por pantalla
     print("JSON generado:")
     print(json.dumps(json_data, indent=4))
+
+
+
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    try:
+        # Conectarse al servidor SSH
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            print(f"Sftp abierto")
+
+            id_ruta = str(message['message']['id'])
+            carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/input/input_{id_ruta}_rutas_escape"
+            
+            print(f"Creando carpeta y guardando el json en su interior: {carpeta_destino}")
+            ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
+            json_file_path = f"{carpeta_destino}/input_data_{id_ruta}.json"
+            with sftp.file(json_file_path, 'w') as json_file:
+                json_file.write(json.dumps(json_data, indent=4))
+            print(f"Archivo JSON guardado en: {json_file_path}")
+
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")
+
+    finally:
+        # Cerrar SFTP si está abierto
+        if 'sftp' in locals():
+            sftp.close()
+            print("SFTP cerrado.")
 
     # Actualizar el estado del job a 'FINISHED' si todo se completa correctamente
     try:
