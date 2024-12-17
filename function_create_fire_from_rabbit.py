@@ -47,7 +47,6 @@ def receive_data_and_create_fire(**context):
 
 def createMissionMissionFireAndHistoryStatus(msg_json):
     try:
-        
         fire_id = msg_json.get('id')    
         #fire_name = msg_json.get('name', 'noname')
         position = msg_json.get('position', {})
