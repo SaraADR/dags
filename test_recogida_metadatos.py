@@ -118,6 +118,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     elif message.endswith(".mp4"):
         comments = json.loads(comment_json)
         is_visible_or_ter(message, local_zip_path, output_json_noload, comments, -1)
+        print("ARCHIVO MP4 SELECCIONADO (PRUEBA)")
 
     elif message.endswith(".ts"):
         comments = json.loads(comment_json)
