@@ -84,9 +84,9 @@ def process_escape_routes_data(**context):
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
 
-            with sftp.file(json_file_path, 'w') as json_file:
-                json.dumps(json_data, json_file, indent=4)
-            print(f"Archivo JSON guardado en: {json_file_path}")
+            # with sftp.file(json_file_path, 'w') as json_file:
+            #     json.dumps(json_data, json_file, indent=4)
+            # print(f"Archivo JSON guardado en: {json_file_path}")
 
 
             command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-masterr/launch &&  docker-compose -f compose.yaml up --build'
