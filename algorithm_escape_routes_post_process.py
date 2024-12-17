@@ -94,6 +94,9 @@ def process_escape_routes_data(**context):
             output = stdout.read().decode()
             error_output = stderr.read().decode()
             exit_status = stdout.channel.recv_exit_status() 
+            if exit_status != 0:
+                print("Errores al ejecutar run.sh:")
+                print(error_output)
 
             print("Salida de docker:")
             print(output)
