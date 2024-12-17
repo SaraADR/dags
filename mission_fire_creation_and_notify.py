@@ -36,19 +36,15 @@ def create_mission(**context):
 
         # Iniciando una transacción
         with session.begin():
-            # Arreglo: Usamos un query seguro con parámetro y fetchone() para obtener el status_id.
-            query = text("""
-                SELECT status_id 
-                FROM missions.mss_mission_initial_status 
-                WHERE mission_type_id = :type_id
-            """)
-            result = session.execute(query, {"type_id": input_data['type_id']}).fetchone()
-
-            # Arreglo: Verificamos si se obtuvo un resultado; si no, asignamos un valor por defecto.
-            if result:
-                initial_status = result.status_id  # Accedemos al atributo correctamente.
+            # Obtener el estado inicial desde la tabla tipo_misión - status_inicial
+            result = session.execute(f"SELECT status_id FROM missions.mss_mission_initial_status WHERE mission_type_id = {input_data['type_id']}")
+            if result.length() > 0:
+                initial_status = result[0].status_id
             else:
-                initial_status = 1  # Valor por defecto.
+                initial_status = 1
+
+            # if not initial_status:
+            #     raise ValueError(f"No se encontró un estado inicial para el tipo de misión {input_data['type_id']}")
 
             # Valores para insertar en la tabla mss_mission
             values_to_insert = {
@@ -62,59 +58,58 @@ def create_mission(**context):
                 'alias': input_data['alias']
             }
 
-            # Metadatos y tabla de misión en la base de datos
-            metadata = MetaData(bind=engine)
-            missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+        # Metadatos y tabla de misión en la base de datos
+        metadata = MetaData(bind=engine)
+        missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
-            # Inserción de la nueva misión
-            insert_stmt = missions.insert().values(values_to_insert)
-            result = session.execute(insert_stmt)
-            mission_id = result.inserted_primary_key[0]
-            session.commit()
-            print(f"Misión creada con ID: {mission_id}")
+        # Inserción de la nueva misión
+        insert_stmt = missions.insert().values(values_to_insert)
+        result = session.execute(insert_stmt)
+        mission_id = result.inserted_primary_key[0]
+        session.commit()
+        print(f"Misión creada con ID: {mission_id}")
 
-            # Lógica adicional para crear un incendio si el tipo de misión es 3
-            if input_data['type_id'] == 3:
-                fire_id = create_fire(input_data) 
-            else:
-                fire_id = input_data['fireId']
+        if input_data['type_id'] == 3:
+            fire_id = create_fire(input_data) 
+        else:
+            fire_id = input_data['fireId']
 
-            # Inserción de la relación misión-incendio
-            if not (fire_id == None or fire_id == 0):
-                insert_relation_mission_fire(mission_id, fire_id)
 
-            # Inserción en la tabla mss_mission_status_history
-            mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
-            status_history_values = {
-                'mission_id': mission_id,
-                'status_id': initial_status,  # Ahora toma el status inicial que corresponda
-            }
-            insert_status_stmt = mission_status_history.insert().values(status_history_values)
-            session.execute(insert_status_stmt)
-            session.commit()
-            print(f"Estado de la misión {mission_id} registrado en mss_mission_status_history.")
+        if not (fire_id == None or fire_id == 0):
+            insert_relation_mission_fire(mission_id, fire_id)
 
-            # Almacenar mission_id en XCom para ser utilizado por otras tareas
-            input_data['mission_id'] = mission_id
-            context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+        # Inserción en la tabla mss_mission_status_history
+        mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
+        status_history_values = {
+            'mission_id': mission_id,
+            'status_id': initial_status,  # Ahora toma el status inicial que corresponda
+        }
+        insert_status_stmt = mission_status_history.insert().values(status_history_values)
+        session.execute(insert_status_stmt)
+        session.commit()
+        print(f"Estado de la misión {mission_id} registrado en mss_mission_status_history.")
 
-            # Actualización del estado del trabajo a 'FINISHED'
-            jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
-            session.execute(update_stmt)
-            session.commit()
-            print(f"Job ID {job_id} status updated to FINISHED")
+        # Almacenar mission_id en XCom para ser utilizado por otras tareas
+        input_data['mission_id'] = mission_id
+        context['task_instance'].xcom_push(key='mission_id', value=mission_id)
 
-            # Inserción de una notificación si loadMission está habilitado
-            if input_data.get('loadMission', False) is True:
-                user = message['message']['from_user']
-                insert_notification(mission_id, user)
+        # Update job status to 'FINISHED'
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to FINISHED")
+
+        if input_data.get('loadMission', False) is True:
+            user = message['message']['from_user']
+            insert_notification(mission_id, user)
 
     except Exception as e:
-        # En caso de error, hacemos rollback y registramos el estado del trabajo como "ERROR"
         session.rollback()
         print(f"Error durante el guardado de la misión: {str(e)}")
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        
+        # Actualizar el estado del trabajo a "ERROR"
         update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='ERROR')
         session.execute(update_stmt)
         session.commit()
@@ -122,7 +117,6 @@ def create_mission(**context):
 
         # Lanzar la excepción para que la tarea falle
         raise RuntimeError(f"Error durante el guardado de la misión: {str(e)}")
-
 
 
 # Función para crear un incendio a través del servicio ATC
