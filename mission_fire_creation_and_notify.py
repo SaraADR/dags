@@ -276,14 +276,5 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-trigger_conversion_task = TriggerDagRunOperator(
-    task_id='trigger_convert_ts_to_mp4',
-    trigger_dag_id='convert_ts_to_mp4_dag',  
-    conf={'video_key': 'uuid12345/video_prueba.ts'}, 
-    dag=dag, 
-)
-
-
-
 # Modifica la secuencia de tareas
-print_message_task >> create_mission_task >> trigger_conversion_task
+print_message_task >> create_mission_task 
