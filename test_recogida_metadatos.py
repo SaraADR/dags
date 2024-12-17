@@ -118,47 +118,11 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     elif message.endswith(".mp4"):
         comments = json.loads(comment_json)
         is_visible_or_ter(message, local_zip_path, output_json_noload, comments, -1)
-        print("ARCHIVO MP4 SELECCIONADO (PRUEBA)")
 
     elif message.endswith(".ts"):
-        comments = json.loads(comment_json)
-        is_visible_or_ter(message, local_zip_path, output_json_noload, comments, -1)
+        process_ts_job(output, message, local_zip_path)
         print(f"Archivo {message} procesado con éxito.")
     
-        resource_id = str(uuid.uuid4())  # Genera un UUID
-        time_now = datetime.now(timezone.utc)
-
-        #Añadimos notificacion
-        try:
-            db_conn = BaseHook.get_connection('biobd')
-            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-            engine = create_engine(connection_string)
-            Session = sessionmaker(bind=engine)
-            session = Session()
-
-            #input_data columna
-            data_json = json.dumps({
-                "resource_id":resource_id,
-            })
-
-            query = text("""
-                INSERT INTO public.jobs
-                (job, "input_data", "date", status)
-                VALUES (:job_name, :data, :date, QUEUED);
-            """)
-            session.execute(query, {
-                'job_name': "convert-ts-to-mp4",
-                'data': data_json,
-                'date': time_now
-            })
-            session.commit()
-
-        except Exception as e:
-            session.rollback()
-            print(f"Error durante la inserción de la notificación: {str(e)}")
-        finally:
-            session.close()
-
     #SON IMAGENES
     elif "-vis" in message:
         #Es imagen visible
@@ -179,6 +143,44 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             print("No se reconoce el tipo de imagen o video aportado")
         return 
     return
+
+# Nueva función para manejar archivos .ts
+def process_ts_job(output, message, local_zip_path):
+    print(f"Procesando archivo .ts: {message}")
+    
+    resource_id = str(uuid.uuid4())  # Genera un UUID
+    time_now = datetime.now(timezone.utc)
+
+    try:
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        # Crear input_data JSON
+        data_json = json.dumps({
+            "resource_id": resource_id
+        })
+
+        # Insertar notificación en la tabla jobs
+        query = text("""
+            INSERT INTO public.jobs
+            (job, "input_data", "date", status)
+            VALUES (:job_name, :data, :date, 'QUEUED');
+        """)
+        session.execute(query, {
+            'job_name': "convert-ts-to-mp4",
+            'data': data_json,
+            'date': time_now
+        })
+        session.commit()
+        print(f"Notificación enviada a jobs para archivo: {message}")
+    except Exception as e:
+        session.rollback()
+        print(f"Error durante la inserción de la notificación: {str(e)}")
+    finally:
+        session.close()
 
 
 ##--------------------------- PROCEDIMIENTO DE RAFAGAS ------------------------------------------------
