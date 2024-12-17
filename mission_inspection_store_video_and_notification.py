@@ -195,46 +195,6 @@ def generate_notify_job(**context):
         finally:
             session.close()
     
-    video = context['dag_run'].conf.get('otros', [])
-    json_content = context['dag_run'].conf.get('json') 
-    
-    resource_id = str(uuid.uuid4())  # Genera un UUID
-    time_now = datetime.now(timezone.utc)
-
-    # si alguno de los vídeos subidos acaba en .ts
-    if any(v['filename'].endswith('.ts') for v in video):
-        print("Se encontró un archivo que termina con '.ts'")
-       
-        #Añadimos notificacion
-        try:
-            db_conn = BaseHook.get_connection('biobd')
-            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-            engine = create_engine(connection_string)
-            Session = sessionmaker(bind=engine)
-            session = Session()
-
-            #input_data columna
-            data_json = json.dumps({
-                "resource_id":resource_id,
-            })
-
-            query = text("""
-                INSERT INTO public.jobs
-                (job, "input_data", "date", status)
-                VALUES (:job_name, :data, :date, QUEUED);
-            """)
-            session.execute(query, {
-                'job_name': "convert-ts-to-mp4",
-                'data': data_json,
-                'date': time_now
-            })
-            session.commit()
-
-        except Exception as e:
-            session.rollback()
-            print(f"Error durante la inserción de la notificación: {str(e)}")
-        finally:
-            session.close()
 
 
 default_args = {
