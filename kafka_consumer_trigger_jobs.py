@@ -47,6 +47,8 @@ def process_message(msg_value, **kwargs):
                 dag_to_trigger = 'mission_inspection_video_review_postprocess_and_notification'
             elif job == 'listen-detections-finished':
                 dag_to_trigger = 'mission_inspection_video_revision_monitor_and_job_update'
+            elif job == 'convert-ts-to-mp4':
+                dag_to_trigger = 'convert_ts_to_mp4_dag'
             else:
                 print(f"Unrecognized job type: {job}")
                 raise AirflowSkipException(f"Unrecognized job type: {job}")
