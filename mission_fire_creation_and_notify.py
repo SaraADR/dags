@@ -38,13 +38,12 @@ def create_mission(**context):
         with session.begin():
             # Obtener el estado inicial desde la tabla tipo_misión - status_inicial
             result = session.execute(f"SELECT status_id FROM missions.mss_mission_initial_status WHERE mission_type_id = {input_data['type_id']}")
-            if result.length() > 0:
-                initial_status = result[0].status_id
+            row = result.fetchone()
+            if row:
+                initial_status = row.status_id
             else:
                 initial_status = 1
 
-            # if not initial_status:
-            #     raise ValueError(f"No se encontró un estado inicial para el tipo de misión {input_data['type_id']}")
 
             # Valores para insertar en la tabla mss_mission
             values_to_insert = {
@@ -73,7 +72,6 @@ def create_mission(**context):
             fire_id = create_fire(input_data) 
         else:
             fire_id = input_data['fireId']
-
 
         if not (fire_id == None or fire_id == 0):
             insert_relation_mission_fire(mission_id, fire_id)
