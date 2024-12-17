@@ -276,6 +276,5 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-
 # Modifica la secuencia de tareas
 print_message_task >> create_mission_task 
