@@ -229,6 +229,4 @@ generate_notify = PythonOperator(
 )
 
 
-
-
 process_extracted_files_task >> generate_notify
