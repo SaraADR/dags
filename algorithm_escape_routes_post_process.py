@@ -88,6 +88,16 @@ def process_escape_routes_data(**context):
                 json.dumps(json_data, json_file, indent=4)
             print(f"Archivo JSON guardado en: {json_file_path}")
 
+
+            command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-masterr/launch &&  docker-compose -f compose.yaml up --build'
+            stdin, stdout, stderr = ssh_client.exec_command(command)
+            output = stdout.read().decode()
+            error_output = stderr.read().decode()
+            exit_status = stdout.channel.recv_exit_status() 
+
+            print("Salida de docker:")
+            print(output)
+
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
 
