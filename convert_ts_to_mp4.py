@@ -1,7 +1,7 @@
 import os
 import json
 import tempfile
-import ffmpeg as ffmpeg_lib
+import ffmpeg
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
