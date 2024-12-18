@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 def download_convert_upload_video(**kwargs):
     """ Descarga un video .ts desde MinIO, lo convierte a .mp4 con ffmpeg y lo sube de nuevo a MinIO. """
-    video_key = kwargs['dag_run'].conf.get('video_key')
+    video_key = kwargs['dag_run'].conf.get('resource_id')
     if not video_key:
         raise ValueError("No se ha proporcionado una clave de video .ts.")
 
