@@ -166,7 +166,7 @@ def process_ts_job(output, message, local_zip_path):
         # Insertar notificación en la tabla jobs
         query = text("""
             INSERT INTO public.jobs
-            (job, "input_data", "execution_date", status, "from_user"
+            (job, "input_data", "execution_date", status, "from_user")
             VALUES (:job_name, :data, :date, 'QUEUED', from_user );
         """)
         session.execute(query, {
