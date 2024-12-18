@@ -11,7 +11,9 @@ import boto3
 from botocore.client import Config
 
 def convert_ts_to_mp4(**kwargs):
-    
+    """
+    Convierte un archivo .ts a .mp4 usando ffmpeg y actualiza el estado del trabajo en la base de datos.
+    """
     print("Iniciando conversión de archivo .ts a .mp4...")
 
     # Leer datos desde `dag_run.conf`
@@ -35,8 +37,7 @@ def convert_ts_to_mp4(**kwargs):
     if not resource_id or not job_id:
         raise ValueError("Faltan datos necesarios: `resource_id` o `job_id`.")
 
-
-    # Configurar MinIO
+    # Configuración del bucket y directorios
     print("Configurando conexión con MinIO...")
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
@@ -48,10 +49,12 @@ def convert_ts_to_mp4(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
-    # Configuración del bucket y directorios
-    bucket_name = 'missions'
-    ts_key = f"{resource_id}.ts"
-    mp4_key = f"{resource_id}.mp4"
+    # Nuevos valores para el bucket y directorios
+    bucket_name = 'temp'  # Bucket donde está el archivo .ts
+    folder_prefix = 'metadatos/'  # Prefijo en el bucket
+    local_directory = 'temp'  # Directorio local para trabajo temporal
+    ts_key = f"{folder_prefix}{resource_id}.ts"  # Ruta completa del archivo TS
+    mp4_key = f"{folder_prefix}{resource_id}.mp4"  # Ruta completa del archivo MP4
     print(f"Bucket Name: {bucket_name}")
     print(f"Archivo TS en MinIO: {ts_key}")
     print(f"Archivo MP4 en MinIO: {mp4_key}")
@@ -88,9 +91,9 @@ def convert_ts_to_mp4(**kwargs):
 
     except Exception as e:
         print(f"Error durante la conversión: {e}")
-        print(f"Actualizando estado del trabajo {job_id} a FAILED...")
-        update_job_status(job_id, "FAILED", {"error": str(e)})
-        print(f"Estado actualizado a FAILED para Job ID: {job_id}")
+        print(f"Actualizando estado del trabajo {job_id} a ERROR...")
+        update_job_status(job_id, "ERROR", {"error": str(e)})
+        print(f"Estado actualizado a ERROR para Job ID: {job_id}")
         raise
 
     finally:
