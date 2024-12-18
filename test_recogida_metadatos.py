@@ -144,7 +144,6 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         return 
     return
 
-# Nueva función para manejar archivos .ts
 def process_ts_job(output, message, local_zip_path):
     print(f"Procesando archivo .ts: {message}")
     
@@ -158,31 +157,48 @@ def process_ts_job(output, message, local_zip_path):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-
         # Datos de entrada
-        data_json = '{"resource_id": "ab4ef4d5-3ae1-4c7d-a878-a60b321fdf11"}'
+        data_json = f'{{"resource_id": "{resource_id}"}}'
 
-        # Consulta SQL corregida
-        query = text("""
+        # Insertar trabajo inicial
+        query_insert = text("""
             INSERT INTO public.jobs
             (job, input_data, application_date, status, from_user)
-            VALUES (:job_name, :data, :date, 'QUEUED', :from_user);
+            VALUES (:job_name, :data, :date, 'QUEUED', :from_user)
+            RETURNING id;
         """)
 
-        # Ejecución
-        session.execute(query, {
+        result = session.execute(query_insert, {
             'job_name': "convert-ts-to-mp4",
             'data': data_json,
-            'date': datetime.now(),
-            'from_user': "Francisco José Blanco Garza"  
+            'date': time_now,
+            'from_user': "Francisco José Blanco Garza"
+        })
+        job_id = result.fetchone()[0]
+        session.commit()
+
+        print(f"Notificación enviada a jobs para archivo: {message}")
+
+        # Actualizar el estado a FINISHED
+        query_update = text("""
+            UPDATE public.jobs
+            SET status = 'FINISHED', execution_date = :execution_date
+            WHERE id = :job_id;
+        """)
+        session.execute(query_update, {
+            'execution_date': datetime.now(timezone.utc),
+            'job_id': job_id
         })
         session.commit()
-        print(f"Notificación enviada a jobs para archivo: {message}")
+
+        print(f"Trabajo {job_id} actualizado a FINISHED.")
+    
     except Exception as e:
         session.rollback()
-        print(f"Error durante la inserción de la notificación: {str(e)}")
+        print(f"Error durante el procesamiento o actualización: {str(e)}")
     finally:
         session.close()
+
 
 
 ##--------------------------- PROCEDIMIENTO DE RAFAGAS ------------------------------------------------
