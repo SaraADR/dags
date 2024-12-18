@@ -1,7 +1,7 @@
 import os
 import json
 import tempfile
-import ffmpeg
+import subprocess
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -12,7 +12,7 @@ from botocore.client import Config
 
 def convert_ts_to_mp4(**kwargs):
     """
-    Convierte un archivo .ts a .mp4 usando ffmpeg y actualiza el estado del trabajo en la base de datos.
+    Convierte un archivo .ts a .mp4 usando el comando `ffmpeg` y actualiza el estado del trabajo en la base de datos.
     """
     print("Iniciando conversión de archivo .ts a .mp4...")
 
@@ -74,9 +74,11 @@ def convert_ts_to_mp4(**kwargs):
         s3_client.download_file(bucket_name, ts_key, ts_path)
         print(f"Archivo descargado correctamente: {ts_path}")
 
-        # Convertir archivo a .mp4 con ffmpeg
+        # Convertir archivo a .mp4 con ffmpeg usando subprocess
         print(f"Iniciando conversión de {ts_path} a {mp4_path}...")
-        ffmpeg.input(ts_path).output(mp4_path, codec="libx264", audio_bitrate="128k").run()
+        command = f"ffmpeg -i '{ts_path}' -c:v libx264 -c:a aac -b:a 128k '{mp4_path}'"
+        print(f"Comando ejecutado: {command}")
+        subprocess.run(command, shell=True, check=True)
         print(f"Conversión completada. Archivo convertido: {mp4_path}")
 
         # Subir archivo convertido a MinIO
@@ -89,13 +91,18 @@ def convert_ts_to_mp4(**kwargs):
         update_job_status(job_id, "FINISHED", {"resource_id": resource_id, "file": mp4_key})
         print(f"Estado actualizado exitosamente para Job ID: {job_id}")
 
+    except subprocess.CalledProcessError as e:
+        print(f"Error durante la conversión: {e}")
+        print(f"Actualizando estado del trabajo {job_id} a ERROR...")
+        update_job_status(job_id, "ERROR", {"error": str(e)})
+        print(f"Estado actualizado a ERROR para Job ID: {job_id}")
+        raise
     except Exception as e:
         print(f"Error durante la conversión: {e}")
         print(f"Actualizando estado del trabajo {job_id} a ERROR...")
         update_job_status(job_id, "ERROR", {"error": str(e)})
         print(f"Estado actualizado a ERROR para Job ID: {job_id}")
         raise
-
     finally:
         print(f"Limpiando directorios temporales en: {temp_dir}...")
         os.remove(ts_path)
@@ -126,6 +133,7 @@ def update_job_status(job_id, status, output_data=None):
             'job_id': job_id
         })
         print(f"Estado del trabajo {job_id} actualizado a {status}.")
+
 
 # Configuración por defecto para el DAG
 default_args = {
