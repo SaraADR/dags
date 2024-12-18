@@ -145,29 +145,35 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     return
 
 def process_ts_job(output, message, local_zip_path):
+    """
+    Procesa un archivo .ts y registra un trabajo en la base de datos, utilizando el nombre del archivo como resource_id.
+    """
     print(f"Procesando archivo .ts: {message}")
-    
-    resource_id = str(uuid.uuid4())  # Genera un UUID
-    time_now = datetime.now(timezone.utc)
 
     try:
+        # Extraer el nombre del archivo sin la extensión para usarlo como resource_id
+        resource_id = message.split("/")[-1] 
+        print(f"Resource ID asignado: {resource_id}")
+        
+        time_now = datetime.now(timezone.utc)
+
+        # Conectar a la base de datos
         db_conn = BaseHook.get_connection('biobd')
         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
         engine = create_engine(connection_string)
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        # Datos de entrada
+        # Crear JSON de entrada con el nombre del archivo como resource_id
         data_json = f'{{"resource_id": "{resource_id}"}}'
 
-        # Insertar trabajo inicial
+        # Insertar trabajo inicial en la base de datos
         query_insert = text("""
             INSERT INTO public.jobs
             (job, input_data, application_date, status, from_user)
             VALUES (:job_name, :data, :date, 'QUEUED', :from_user)
             RETURNING id;
         """)
-
         result = session.execute(query_insert, {
             'job_name': "convert-ts-to-mp4",
             'data': data_json,
@@ -178,26 +184,14 @@ def process_ts_job(output, message, local_zip_path):
         session.commit()
 
         print(f"Notificación enviada a jobs para archivo: {message}")
-
-        # # Actualizar el estado a FINISHED
-        # query_update = text("""
-        #     UPDATE public.jobs
-        #     SET status = 'FINISHED', execution_date = :execution_date
-        #     WHERE id = :job_id;
-        # """)
-        # session.execute(query_update, {
-        #     'execution_date': datetime.now(timezone.utc),
-        #     'job_id': job_id
-        # })
-        # session.commit()
-
-        print(f"Job con Id {job_id} actualizado a FINISHED.")
+        print(f"Job creado con Id {job_id} para el archivo {resource_id}.")
     
     except Exception as e:
         session.rollback()
-        print(f"Error durante el procesamiento o actualización: {str(e)}")
+        print(f"Error durante el procesamiento o inserción del trabajo: {str(e)}")
     finally:
         session.close()
+
 
 
 
