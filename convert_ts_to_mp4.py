@@ -11,18 +11,15 @@ from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
 
-def convert_ts_to_mp4(**kwargs):
+def convert_ts_to_mp4_fixed_test(**kwargs):
     """
     Convierte un archivo .ts a .mp4 usando ffmpeg y actualiza el estado del trabajo.
+    Datos fijos para prueba.
     """
-    # Recibir parámetros del DAG Trigger
-    conf = kwargs['dag_run'].conf
-    job_id = conf.get('id')
-    resource_id = conf.get('input_data', {}).get('resource_id')
-    from_user = conf.get('from_user')
-    
-    if not resource_id or not job_id:
-        raise ValueError("Faltan datos necesarios: resource_id o job_id.")
+    # Datos fijos para prueba
+    job_id = 683  # ID de prueba
+    resource_id = "f0032eb8-3c3d-41b9-8aca-483422562cf4"  # ID del recurso de prueba
+    from_user = "Francisco José Blanco Garza"  
 
     # Configurar MinIO
     connection = BaseHook.get_connection('minio_conn')
@@ -106,16 +103,16 @@ default_args = {
 }
 
 dag = DAG(
-    'convert_ts_to_mp4_dag',
+    'convert_ts_to_mp4_dag_test',
     default_args=default_args,
-    description='Convierte archivos .ts a .mp4 y actualiza el estado del trabajo',
+    description='Convierte archivos .ts a .mp4 con datos fijos para prueba',
     schedule_interval=None,
     catchup=False,
 )
 
 convert_task = PythonOperator(
-    task_id='convert_ts_to_mp4_task',
-    python_callable=convert_ts_to_mp4,
+    task_id='convert_ts_to_mp4_task_fixed',
+    python_callable=convert_ts_to_mp4_fixed_test,
     provide_context=True,
     dag=dag,
 )
