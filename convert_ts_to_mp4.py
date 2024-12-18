@@ -1,7 +1,8 @@
 import os
 import json
 import tempfile
-from moviepy.editor import VideoFileClip
+
+from moviepy import VideoFileClip
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
