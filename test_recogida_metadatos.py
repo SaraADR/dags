@@ -158,22 +158,24 @@ def process_ts_job(output, message, local_zip_path):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        # Crear input_data JSON
-        data_json = json.dumps({
-            "resource_id": resource_id
-        })
 
-        # Insertar notificación en la tabla jobs
+        # Datos de entrada
+        data_json = '{"resource_id": "ab4ef4d5-3ae1-4c7d-a878-a60b321fdf11"}'
+        time_now = datetime.utcnow()
+
+        # Consulta SQL corregida
         query = text("""
             INSERT INTO public.jobs
-            (job, "input_data", "execution_date", status, "from_user")
-            VALUES (:job_name, :data, :date, 'QUEUED', from_user );
+            (job, input_data, application_date, status, from_user)
+            VALUES (:job_name, :data, :date, 'QUEUED', :from_user);
         """)
+
+        # Ejecución
         session.execute(query, {
             'job_name': "convert-ts-to-mp4",
             'data': data_json,
             'date': time_now,
-            'from_user':"José Blanco"
+            'from_user': "Francisco José Blanco Garza"  # Cambia esto al usuario adecuado
         })
         session.commit()
         print(f"Notificación enviada a jobs para archivo: {message}")
