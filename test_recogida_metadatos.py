@@ -166,13 +166,14 @@ def process_ts_job(output, message, local_zip_path):
         # Insertar notificación en la tabla jobs
         query = text("""
             INSERT INTO public.jobs
-            (job, "input_data", "execution_date", status)
-            VALUES (:job_name, :data, :date, 'QUEUED');
+            (job, "input_data", "execution_date", status, "from_user"
+            VALUES (:job_name, :data, :date, 'QUEUED', from_user );
         """)
         session.execute(query, {
             'job_name': "convert-ts-to-mp4",
             'data': data_json,
-            'date': time_now
+            'date': time_now,
+            'from_user':"José Blanco"
         })
         session.commit()
         print(f"Notificación enviada a jobs para archivo: {message}")
