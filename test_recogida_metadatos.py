@@ -152,7 +152,7 @@ def process_ts_job(output, message, local_zip_path):
 
     try:
         # Extraer el nombre del archivo sin la extensión para usarlo como resource_id
-        resource_id = message.split("/")[-1] 
+        resource_id = message.split("/")[-1].replace(".ts", "")  # Obtiene el nombre del archivo (sin la extensión .ts)
         print(f"Resource ID asignado: {resource_id}")
         
         time_now = datetime.now(timezone.utc)
