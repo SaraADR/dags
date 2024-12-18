@@ -179,19 +179,19 @@ def process_ts_job(output, message, local_zip_path):
 
         print(f"Notificación enviada a jobs para archivo: {message}")
 
-        # Actualizar el estado a FINISHED
-        query_update = text("""
-            UPDATE public.jobs
-            SET status = 'FINISHED', execution_date = :execution_date
-            WHERE id = :job_id;
-        """)
-        session.execute(query_update, {
-            'execution_date': datetime.now(timezone.utc),
-            'job_id': job_id
-        })
-        session.commit()
+        # # Actualizar el estado a FINISHED
+        # query_update = text("""
+        #     UPDATE public.jobs
+        #     SET status = 'FINISHED', execution_date = :execution_date
+        #     WHERE id = :job_id;
+        # """)
+        # session.execute(query_update, {
+        #     'execution_date': datetime.now(timezone.utc),
+        #     'job_id': job_id
+        # })
+        # session.commit()
 
-        print(f"Tarea con Id {job_id} actualizado a FINISHED.")
+        print(f"Job con Id {job_id} actualizado a FINISHED.")
     
     except Exception as e:
         session.rollback()
