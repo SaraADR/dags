@@ -76,7 +76,17 @@ def convert_ts_to_mp4(**kwargs):
 
         # Convertir archivo a .mp4 con ffmpeg usando subprocess
         print(f"Iniciando conversión de {ts_path} a {mp4_path}...")
-        command = f"ffmpeg -i '{ts_path}' -c:v libx264 -c:a aac -b:a 128k '{mp4_path}'"
+        command = [
+        "ffmpeg",
+        "-y",  # Sobrescribir el archivo de salida si ya existe
+        "-i", ts_path,  # Archivo de entrada
+        "-c:v", "libx264",  # Códec de video
+        "-preset", "fast",  # Configuración de codificación para velocidad/eficiencia
+        "-c:a", "aac",  # Códec de audio
+        "-b:a", "128k",  # Bitrate del audio
+        "-movflags", "+faststart",  # Mejora la reproducción progresiva en streaming
+        mp4_path  # Archivo de salida
+]
         print(f"Comando ejecutado: {command}")
         subprocess.run(command, shell=True, check=True)
         print(f"Conversión completada. Archivo convertido: {mp4_path}")
