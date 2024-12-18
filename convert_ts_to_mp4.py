@@ -1,24 +1,30 @@
 import os
 import json
-import uuid
-import ffmpeg
 import tempfile
+import ffmpeg
 from datetime import datetime, timedelta, timezone
-import boto3
-from botocore.client import Config
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+import boto3
+from botocore.client import Config
 
+def convert_ts_to_mp4(**kwargs):
+    """
+    Convierte un archivo .ts a .mp4 usando ffmpeg y actualiza el estado del trabajo.
+    """
+    # Recibir parámetros del DAG Trigger
+    conf = kwargs['dag_run'].conf
+    job_id = conf.get('id')
+    resource_id = conf.get('input_data', {}).get('resource_id')
+    from_user = conf.get('from_user')
+    
+    if not resource_id or not job_id:
+        raise ValueError("Faltan datos necesarios: resource_id o job_id.")
 
-def download_convert_upload_video(**kwargs):
-    """ Descarga un video .ts desde MinIO, lo convierte a .mp4 con ffmpeg y lo sube de nuevo a MinIO. """
-    video_key = kwargs['dag_run'].conf.get('resource_id')
-    if not video_key:
-        raise ValueError("No se ha proporcionado una clave de video .ts.")
-
+    # Configurar MinIO
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
     s3_client = boto3.client(
@@ -29,88 +35,72 @@ def download_convert_upload_video(**kwargs):
         config=Config(signature_version='s3v4')
     )
     bucket_name = 'missions'
-    resource_id = str(uuid.uuid4())
+    ts_key = f"{resource_id}.ts"
+    mp4_key = f"{resource_id}.mp4"
 
+    # Crear directorios temporales
     temp_dir = tempfile.mkdtemp()
-    input_file_path = os.path.join(temp_dir, "input.ts")
-    output_file_path = os.path.join(temp_dir, "output.mp4")
+    ts_path = os.path.join(temp_dir, "input.ts")
+    mp4_path = os.path.join(temp_dir, "output.mp4")
 
     try:
-        s3_client.download_file(bucket_name, video_key, input_file_path)
-        ffmpeg.input(input_file_path).output(output_file_path, codec="libx264", audio_bitrate="128k").run()
-        mp4_key = video_key.replace(".ts", ".mp4")
-        s3_client.upload_file(output_file_path, bucket_name, mp4_key)
-        insert_job(resource_id, mp4_key)
+        # Descargar archivo .ts desde MinIO
+        print(f"Descargando {ts_key} desde MinIO...")
+        s3_client.download_file(bucket_name, ts_key, ts_path)
 
-        # Pasar resource_id a la siguiente tarea
-        kwargs['ti'].xcom_push(key='resource_id', value=resource_id)
+        # Convertir a .mp4 con ffmpeg
+        print(f"Convirtiendo {ts_key} a .mp4...")
+        ffmpeg.input(ts_path).output(mp4_path, codec="libx264", audio_bitrate="128k").run()
 
+        # Subir el archivo convertido a MinIO
+        print(f"Subiendo {mp4_key} a MinIO...")
+        s3_client.upload_file(mp4_path, bucket_name, mp4_key)
+
+        # Actualizar estado del trabajo a FINISHED
+        update_job_status(job_id, "FINISHED", {"resource_id": resource_id, "file": mp4_key})
+
+    except Exception as e:
+        print(f"Error durante la conversión: {e}")
+        update_job_status(job_id, "FAILED", {"error": str(e)})
+        raise
     finally:
-        os.remove(input_file_path)
-        os.remove(output_file_path)
+        os.remove(ts_path)
+        os.remove(mp4_path)
         os.rmdir(temp_dir)
 
 
-def insert_job(resource_id, mp4_key):
+def update_job_status(job_id, status, output_data=None):
+    """
+    Actualiza el estado del trabajo en la tabla `jobs`.
+    """
     db_conn = BaseHook.get_connection('biobd')
     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
     engine = create_engine(connection_string)
     Session = sessionmaker(bind=engine)
     session = Session()
 
-    input_data = json.dumps({"resource_id": resource_id, "file": mp4_key})
-    time_now = datetime.now(timezone.utc)
-
     try:
         query = text("""
-            INSERT INTO public.jobs (job, input_data, date, status)
-            VALUES (:job_name, :data, :date, :status);
+            UPDATE public.jobs
+            SET status = :status, output_data = :output_data, execution_date = :execution_date
+            WHERE id = :job_id;
         """)
         session.execute(query, {
-            'job_name': "convert-ts-to-mp4",
-            'data': input_data,
-            'date': time_now,
-            'status': "QUEUED"
+            'status': status,
+            'output_data': json.dumps(output_data) if output_data else None,
+            'execution_date': datetime.now(timezone.utc),
+            'job_id': job_id
         })
         session.commit()
     finally:
         session.close()
 
 
-def notify_mission_update(**kwargs):
-    resource_id = kwargs['ti'].xcom_pull(task_ids='download_convert_upload_video', key='resource_id')
-    if not resource_id:
-        raise ValueError("No se encontró el resource_id.")
-
-    db_conn = BaseHook.get_connection('biobd')
-    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-    engine = create_engine(connection_string)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
-    data_json = json.dumps({"action": "reloadMission", "resource_id": resource_id})
-    time_now = datetime.now(timezone.utc)
-
-    try:
-        query = text("""
-            INSERT INTO public.notifications (destination, data, date, status)
-            VALUES (:destination, :data, :date, NULL);
-        """)
-        session.execute(query, {
-            'destination': "inspection",
-            'data': data_json,
-            'date': time_now
-        })
-        session.commit()
-    finally:
-        session.close()
-
-
+# Configuración del DAG
 default_args = {
     'owner': 'converter',
     'depends_on_past': False,
     'start_date': datetime(2024, 6, 17),
-    'email_on_failure': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
 }
@@ -118,21 +108,14 @@ default_args = {
 dag = DAG(
     'convert_ts_to_mp4_dag',
     default_args=default_args,
-    description='DAG que convierte videos .ts a .mp4, sube a MinIO y notifica',
+    description='Convierte archivos .ts a .mp4 y actualiza el estado del trabajo',
     schedule_interval=None,
     catchup=False,
 )
 
 convert_task = PythonOperator(
-    task_id='download_convert_upload_video',
-    python_callable=download_convert_upload_video,
+    task_id='convert_ts_to_mp4_task',
+    python_callable=convert_ts_to_mp4,
+    provide_context=True,
     dag=dag,
 )
-
-notify_task = PythonOperator(
-    task_id='notify_mission_update',
-    python_callable=notify_mission_update,
-    dag=dag,
-)
-
-convert_task >> notify_task
