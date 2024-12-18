@@ -1,7 +1,7 @@
 import os
 import json
 import tempfile
-import ffmpeg
+from moviepy.editor import VideoFileClip
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -12,7 +12,7 @@ from botocore.client import Config
 
 def convert_ts_to_mp4(**kwargs):
     """
-    Convierte un archivo .ts a .mp4 usando ffmpeg y actualiza el estado del trabajo en la base de datos.
+    Convierte un archivo .ts a .mp4 usando MoviePy y actualiza el estado del trabajo en la base de datos.
     """
     print("Iniciando conversión de archivo .ts a .mp4...")
 
@@ -74,9 +74,10 @@ def convert_ts_to_mp4(**kwargs):
         s3_client.download_file(bucket_name, ts_key, ts_path)
         print(f"Archivo descargado correctamente: {ts_path}")
 
-        # Convertir archivo a .mp4 con ffmpeg
+        # Convertir archivo a .mp4 con MoviePy
         print(f"Iniciando conversión de {ts_path} a {mp4_path}...")
-        ffmpeg.input(ts_path).output(mp4_path, codec="libx264", audio_bitrate="128k").run()
+        video = VideoFileClip(ts_path)
+        video.write_videofile(mp4_path, codec="libx264", audio_codec="aac")
         print(f"Conversión completada. Archivo convertido: {mp4_path}")
 
         # Subir archivo convertido a MinIO
@@ -126,6 +127,7 @@ def update_job_status(job_id, status, output_data=None):
             'job_id': job_id
         })
         print(f"Estado del trabajo {job_id} actualizado a {status}.")
+
 
 # Configuración por defecto para el DAG
 default_args = {
