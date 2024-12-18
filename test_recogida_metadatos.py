@@ -191,7 +191,7 @@ def process_ts_job(output, message, local_zip_path):
         })
         session.commit()
 
-        print(f"Trabajo {job_id} actualizado a FINISHED.")
+        print(f"Tarea con Id {job_id} actualizado a FINISHED.")
     
     except Exception as e:
         session.rollback()
