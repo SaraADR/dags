@@ -11,17 +11,20 @@ from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
 
-def convert_ts_to_mp4_fixed_test(**kwargs):
+def convert_ts_to_mp4(**kwargs):
     """
     Convierte un archivo .ts a .mp4 usando ffmpeg y actualiza el estado del trabajo.
-    Datos fijos para prueba.
     """
-    # Datos fijos para prueba
-    job_id = 683  # ID de prueba
-    resource_id = "f0032eb8-3c3d-41b9-8aca-483422562cf4"  # ID del recurso de prueba
-    from_user = "Francisco José Blanco Garza"  
+    # Recibir parámetros del DAG Trigger
+    conf = kwargs['dag_run'].conf
+    job_id = conf.get('id')
+    resource_id = conf.get('input_data', {}).get('resource_id')
+    from_user = conf.get('from_user')
+    
+    if not resource_id or not job_id:
+        raise ValueError("Faltan datos necesarios: resource_id o job_id.")
 
-    # Configurar MinIO
+    # Configuración de MinIO
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
     s3_client = boto3.client(
@@ -31,9 +34,14 @@ def convert_ts_to_mp4_fixed_test(**kwargs):
         aws_secret_access_key=extra['aws_secret_access_key'],
         config=Config(signature_version='s3v4')
     )
-    bucket_name = 'missions'
-    ts_key = f"{resource_id}.ts"
-    mp4_key = f"{resource_id}.mp4"
+
+    # Nombre del bucket y directorios
+    bucket_name = 'temp'  # Bucket donde está el archivo .ts
+    folder_prefix = 'metadatos/'  # Prefijo del archivo en MinIO
+    local_directory = 'temp'  # Carpeta local para trabajo temporal
+
+    ts_key = f"{folder_prefix}{resource_id}.ts"  # Ruta del archivo en MinIO
+    mp4_key = f"{folder_prefix}{resource_id}.mp4"  # Ruta del archivo convertido en MinIO
 
     # Crear directorios temporales
     temp_dir = tempfile.mkdtemp()
@@ -42,7 +50,7 @@ def convert_ts_to_mp4_fixed_test(**kwargs):
 
     try:
         # Descargar archivo .ts desde MinIO
-        print(f"Descargando {ts_key} desde MinIO...")
+        print(f"Descargando {ts_key} desde MinIO en bucket {bucket_name}...")
         s3_client.download_file(bucket_name, ts_key, ts_path)
 
         # Convertir a .mp4 con ffmpeg
@@ -50,7 +58,7 @@ def convert_ts_to_mp4_fixed_test(**kwargs):
         ffmpeg.input(ts_path).output(mp4_path, codec="libx264", audio_bitrate="128k").run()
 
         # Subir el archivo convertido a MinIO
-        print(f"Subiendo {mp4_key} a MinIO...")
+        print(f"Subiendo {mp4_key} a MinIO en bucket {bucket_name}...")
         s3_client.upload_file(mp4_path, bucket_name, mp4_key)
 
         # Actualizar estado del trabajo a FINISHED
@@ -61,6 +69,7 @@ def convert_ts_to_mp4_fixed_test(**kwargs):
         update_job_status(job_id, "FAILED", {"error": str(e)})
         raise
     finally:
+        # Eliminar archivos temporales
         os.remove(ts_path)
         os.remove(mp4_path)
         os.rmdir(temp_dir)
@@ -103,16 +112,16 @@ default_args = {
 }
 
 dag = DAG(
-    'convert_ts_to_mp4_dag_test',
+    'convert_ts_to_mp4_dag',
     default_args=default_args,
-    description='Convierte archivos .ts a .mp4 con datos fijos para prueba',
+    description='Convierte archivos .ts a .mp4 desde el bucket temp y actualiza el estado del trabajo',
     schedule_interval=None,
     catchup=False,
 )
 
 convert_task = PythonOperator(
-    task_id='convert_ts_to_mp4_task_fixed',
-    python_callable=convert_ts_to_mp4_fixed_test,
+    task_id='convert_ts_to_mp4_task',
+    python_callable=convert_ts_to_mp4,
     provide_context=True,
     dag=dag,
 )
