@@ -11,9 +11,7 @@ import boto3
 from botocore.client import Config
 
 def convert_ts_to_mp4(**kwargs):
-    """
-    Convierte un archivo .ts a .mp4 usando ffmpeg y actualiza el estado del trabajo en la base de datos.
-    """
+    
     print("Iniciando conversión de archivo .ts a .mp4...")
 
     # Leer datos desde `dag_run.conf`
@@ -23,17 +21,20 @@ def convert_ts_to_mp4(**kwargs):
     if not conf:
         raise ValueError("No se proporcionaron datos en `dag_run.conf`.")
 
-    # Extraer datos necesarios
-    job_id = conf.get('id')
-    resource_id = conf.get('input_data', {}).get('resource_id')
-    from_user = conf.get('from_user')
+    # Extraer datos desde el objeto anidado `message`
+    message = conf.get('message', {})
+    job_id = message.get('id')
+    resource_id = json.loads(message.get('input_data', '{}')).get('resource_id')  # Decodificar input_data
+    from_user = message.get('from_user')
 
+    # Debugging detallado
     print(f"Job ID: {job_id}")
     print(f"Resource ID: {resource_id}")
     print(f"From User: {from_user}")
 
     if not resource_id or not job_id:
         raise ValueError("Faltan datos necesarios: `resource_id` o `job_id`.")
+
 
     # Configurar MinIO
     print("Configurando conexión con MinIO...")
