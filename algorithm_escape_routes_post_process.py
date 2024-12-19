@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.hooks.http_hook import HttpHook
 import json
 from sqlalchemy import create_engine, Table, MetaData
 from airflow.hooks.base import BaseHook
@@ -13,27 +12,6 @@ def process_escape_routes_data(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
-
-  # Llamar al endpoint de Hasura
-    try:
-        # Configurar HttpHook con la conexión a Hasura
-        http_hook = HttpHook(http_conn_id='hasura_conn', method='POST')
-
-        # Crear la consulta GraphQL
-        query = ""
-        payload = {"query": query}
-
-        # Ejecutar la solicitud al endpoint
-        response = http_hook.run(endpoint='', data=json.dumps(payload), headers={"Content-Type": "application/json"})
-        response.raise_for_status()  # Levanta excepción si el status no es 200
-
-        # Parsear los datos obtenidos del endpoint
-        hasura_data = response.json()
-        print("Datos obtenidos del endpoint de Hasura:")
-        print(json.dumps(hasura_data, indent=4))
-    except Exception as e:
-        print(f"Error al llamar al endpoint de Hasura: {e}")
-        raise
 
     # Procesar "inicio" y "destino" para permitir diferentes estructuras
     inicio = input_data.get('inicio', None)
@@ -88,8 +66,56 @@ def process_escape_routes_data(**context):
     print("JSON generado:")
     print(json.dumps(json_data, indent=4))
 
-    # Continuar con el resto del procesamiento...
 
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    try:
+        # Conectarse al servidor SSH
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            print(f"Sftp abierto")
+
+            id_ruta = str(message['message']['id'])
+            carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/input/input_{id_ruta}_rutas_escape"
+            
+            print(f"Creando carpeta y guardando el json en su interior: {carpeta_destino}")
+            ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
+            json_file_path = f"{carpeta_destino}/input_data_{id_ruta}.json"
+
+            ssh_client.exec_command(f"touch -p {json_file_path}")
+
+            # with sftp.file(json_file_path, 'w') as json_file:
+            #     json.dumps(json_data, json_file, indent=4)
+            # print(f"Archivo JSON guardado en: {json_file_path}")
+
+
+            command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch &&  docker-compose -f compose.yaml up --build'
+            stdin, stdout, stderr = ssh_client.exec_command(command)
+            output = stdout.read().decode()
+            error_output = stderr.read().decode()
+            exit_status = stdout.channel.recv_exit_status() 
+            if exit_status != 0:
+                print("Errores al ejecutar run.sh:")
+                print(error_output)
+
+            print("Salida de docker:")
+            print(output)
+
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")
+
+    finally:
+        # Cerrar SFTP si está abierto
+        if 'sftp' in locals():
+            sftp.close()
+            print("SFTP cerrado.")
+
+    # Actualizar el estado del job a 'FINISHED' si todo se completa correctamente
+    try:
+        job_id = message['message']['id']
+        update_job_status(job_id, "FINISHED")
+    except Exception as e:
+        print(f"Error al actualizar el estado del trabajo: {e}")
+        raise
 
 def create_json(params):
     # Generar un JSON basado en los parámetros proporcionados
@@ -120,6 +146,26 @@ def create_json(params):
     }
     return input_data
 
+def update_job_status(job_id, status):
+    try:
+        # Conexión a la base de datos usando las credenciales de Airflow
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        metadata = MetaData(bind=engine)
+
+        # Tabla de trabajos
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+
+        # Actualizar el estado del trabajo
+        with engine.connect() as connection:
+            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status)
+            connection.execute(update_stmt)
+            print(f"Job ID {job_id} status updated to {status}")
+    except Exception as e:
+        print(f"Error al actualizar el estado del trabajo: {e}")
+        raise
+
 # Configuración del DAG
 default_args = {
     'owner': 'oscar',
@@ -134,13 +180,13 @@ default_args = {
 dag = DAG(
     'algorithm_escape_routes_post_process',
     default_args=default_args,
-    description='DAG para generar JSON, llamar al endpoint de Hasura y procesar datos',
+    description='DAG para generar JSON, mostrarlo por pantalla y actualizar estado del job',
     schedule_interval=None,
     catchup=False,
     concurrency=1
 )
 
-# Tarea para procesar los datos
+# Tarea para generar y mostrar el JSON
 process_escape_routes_task = PythonOperator(
     task_id='process_escape_routes',
     provide_context=True,
