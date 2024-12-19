@@ -14,8 +14,26 @@ def process_escape_routes_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
-    # Llamar al endpoint de Hasura
-    hasura_data = call_hasura_endpoint()
+  # Llamar al endpoint de Hasura
+    try:
+        # Configurar HttpHook con la conexión a Hasura
+        http_hook = HttpHook(http_conn_id='hasura_conn', method='POST')
+
+        # Crear la consulta GraphQL
+        query = ""
+        payload = {"query": query}
+
+        # Ejecutar la solicitud al endpoint
+        response = http_hook.run(endpoint='', data=json.dumps(payload), headers={"Content-Type": "application/json"})
+        response.raise_for_status()  # Levanta excepción si el status no es 200
+
+        # Parsear los datos obtenidos del endpoint
+        hasura_data = response.json()
+        print("Datos obtenidos del endpoint de Hasura:")
+        print(json.dumps(hasura_data, indent=4))
+    except Exception as e:
+        print(f"Error al llamar al endpoint de Hasura: {e}")
+        raise
 
     # Procesar "inicio" y "destino" para permitir diferentes estructuras
     inicio = input_data.get('inicio', None)
@@ -72,28 +90,6 @@ def process_escape_routes_data(**context):
 
     # Continuar con el resto del procesamiento...
 
-def call_hasura_endpoint():
-    try:
-        # Configurar HttpHook con la conexión a Hasura
-        http_hook = HttpHook(http_conn_id='hasura_conn', method='POST')
-
-        # Crear la consulta GraphQL
-        query = ""
-        payload = {"query": query}
-
-        # Ejecutar la solicitud al endpoint
-        response = http_hook.run(endpoint='', data=json.dumps(payload), headers={"Content-Type": "application/json"})
-        response.raise_for_status()  # Levanta excepción si el status no es 200
-
-        # Parsear y devolver los datos obtenidos
-        hasura_data = response.json()
-        print("Datos obtenidos del endpoint de Hasura:")
-        print(json.dumps(hasura_data, indent=4))
-        return hasura_data
-
-    except Exception as e:
-        print(f"Error al llamar al endpoint de Hasura: {e}")
-        raise
 
 def create_json(params):
     # Generar un JSON basado en los parámetros proporcionados
