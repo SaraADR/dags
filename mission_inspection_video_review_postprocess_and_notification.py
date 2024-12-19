@@ -10,6 +10,8 @@ from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
 import datetime
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
 
 
 def process_element(**context):
@@ -82,9 +84,25 @@ def process_element(**context):
         timeforseconds = second_in_time(input_data['time_seconds'])
         print(second_in_time(input_data['time_seconds']))
 
+         # Verificar si el video necesita conversión
         if input_data['video_id'] is not None:
-            print(f"id_video: {input_data['video_id']}")
+            video_id = input_data['video_id']
+            
+            if video_id.endswith('.ts'):
+                print(f"El video {video_id} termina en .ts. Enviando al DAG de conversión.")
+                context['ti'].xcom_push(
+                    key='trigger_dag_data',
+                    value={
+                        'message': {
+                            'id': uuid_key.hex,
+                            'input_data': json.dumps({'resource_id': video_id}),
+                            'from_user': 'airflow'
+                        }
+                    }
+                )
+                return  # Detener aquí y dejar que el DAG de conversión continúe
 
+            print(f"id_video: {video_id}")
 
 
             #Actualizamos la base de datos
@@ -258,6 +276,15 @@ dag = DAG(
     catchup=False
 )
 
+# Añadir TriggerDagRunOperator
+trigger_convert_dag_task = TriggerDagRunOperator(
+    task_id='trigger_convert_ts_to_mp4',
+    trigger_dag_id='convert_ts_to_mp4_dag',
+    conf="{{ ti.xcom_pull(task_ids='process_message', key='trigger_dag_data') }}",
+    provide_context=True,
+    dag=dag,
+)
+
 process_element_task = PythonOperator(
     task_id='process_message',
     python_callable=process_element,
@@ -283,4 +310,4 @@ generate_notify = PythonOperator(
 
 
 
-process_element_task >> change_state_task >> generate_notify
+process_element_task >> trigger_convert_dag_task >> change_state_task >> generate_notify
