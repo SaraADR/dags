@@ -281,7 +281,6 @@ trigger_convert_dag_task = TriggerDagRunOperator(
     task_id='trigger_convert_ts_to_mp4',
     trigger_dag_id='convert_ts_to_mp4_dag',
     conf="{{ ti.xcom_pull(task_ids='process_message', key='trigger_dag_data') }}",
-    provide_context=True,
     dag=dag,
 )
 
