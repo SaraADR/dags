@@ -49,7 +49,7 @@ def process_element(**context):
             print(f"Error: {str(e)}")
             return
 
-    #Subir a minIO el recurso  thumbnail
+    #Subir a minIO el recurso thumbnail
     if(input_data['clipped'] is not None):
         try:
             connection = BaseHook.get_connection('minio_conn')
