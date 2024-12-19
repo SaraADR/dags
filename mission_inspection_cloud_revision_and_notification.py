@@ -14,8 +14,6 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
-
 
 def process_element(**context):
     message = context['dag_run'].conf
@@ -64,32 +62,13 @@ def process_element(**context):
                 print(f"Error durante la busqueda del mission_inspection: {str(e)}")
 
 
-
             index = 1
             uuid_key = uuid.uuid4()
             for resource in resources:
                 data = resource.get('data')
                 
                 if data:
-
-                    # Verificar si el archivo necesita conversión
-                    if resource.get('file_name', '').endswith('.ts'):
-                        print(f"El recurso {resource['file_name']} requiere conversión a MP4.")
-                        context['ti'].xcom_push(
-                            key='trigger_dag_data',
-                            value={
-                                'message': {
-                                    'id': str(uuid_key),
-                                    'input_data': json.dumps({'resource_id': resource['file_name']}),
-                                    'from_user': 'airflow'
-                                }
-                            }
-                        )
-                        # Detener el proceso estándar para este recurso, será procesado en el DAG de conversión
-                        continue
-
-                    # Subir el recurso si no requiere conversión
-
+                    #Subimos a esa carpeta los nuevos elementos
                     try:
                         connection = BaseHook.get_connection('minio_conn')
                         extra = json.loads(connection.extra)
@@ -307,14 +286,6 @@ dag = DAG(
     catchup=False
 )
 
-trigger_convert_dag_task = TriggerDagRunOperator(
-    task_id='trigger_convert_ts_to_mp4',
-    trigger_dag_id='convert_ts_to_mp4_dag',
-    conf="{{ ti.xcom_pull(task_ids='process_message', key='trigger_dag_data') }}",
-    provide_context=True,
-    dag=dag,
-)
-
 # Manda correo
 process_element_task = PythonOperator(
     task_id='process_message',
@@ -340,4 +311,4 @@ generate_notify = PythonOperator(
 )
 
 
-process_element_task >> trigger_convert_dag_task >> change_state_task >> generate_notify
+process_element_task >> change_state_task >> generate_notify
