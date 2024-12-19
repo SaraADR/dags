@@ -16,10 +16,7 @@ def process_escape_routes_data(**context):
 
  # Llamar al endpoint de Hasura
     try:
-        # Configurar HttpHook con la conexión a Hasura
         http_hook = HttpHook(http_conn_id='hasura_conn', method='POST')
-
-        # Crear la consulta GraphQL
         query = ""
         payload = {"query": query}
 
@@ -55,6 +52,8 @@ def process_escape_routes_data(**context):
     elif isinstance(destino, dict):
         pass
 
+    print(hasura_data)
+    print("hasura_data")
     # Extraer los argumentos necesarios
     params = {
         "dir_incendio": input_data.get('dir_incendio', None),
@@ -106,9 +105,9 @@ def process_escape_routes_data(**context):
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
 
-            # with sftp.file(json_file_path, 'w') as json_file:
-            #     json.dumps(json_data, json_file, indent=4)
-            # print(f"Archivo JSON guardado en: {json_file_path}")
+            with sftp.file(json_file_path, 'w') as json_file:
+                json.dumps(json_data, json_file, indent=4)
+            print(f"Archivo JSON guardado en: {json_file_path}")
 
 
             command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch &&  docker-compose -f compose.yaml up --build'
