@@ -6,6 +6,8 @@ from sqlalchemy import create_engine, Table, MetaData
 from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.hooks.http_hook import HttpHook
+import requests
+
 
 
 def process_escape_routes_data(**context):
@@ -14,26 +16,42 @@ def process_escape_routes_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
-    file_types = [
-     {"fileType": "hojasmtn50", "date": "2024-01-01", "location": "Galicia"},
-     {"fileType": "combustible", "date": "2024-02-01", "location": "Galicia"}, 
-     ]
-    payload = json.dumps(file_types)
-    
-    # Llamar al endpoint de Hasura
+
+    # Definir la URL del endpoint
+    url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-paths"
+
+    # Definir los datos a enviar en la petición
+    payload = [
+        {
+            "fileType": "hojasmtn50",
+            "date": "2024-01-01",
+            "location": "Galicia"
+        },
+        {
+            "fileType": "combustible",
+            "date": "2024-02-01",
+            "location": "Galicia"
+        }
+    ]
+
+    # Definir los encabezados de la petición
+    headers = {
+        "Content-Type": "application/json"
+    }
+
     try:
-        http_hook = HttpHook(http_conn_id='hasura_conn', method='POST')
-        response = http_hook.run( endpoint='geo-files-locator/get-files-paths',
-                                  data=payload, headers={"Content-Type": "application/json"} ) 
-        response.raise_for_status()  
+        # Hacer la petición POST al endpoint
+        response = requests.post(url, data=json.dumps(payload), headers=headers)
+        response.raise_for_status()  # Levantar excepción si el estado no es 200
 
         # Parsear los datos obtenidos del endpoint
-        hasura_data = response.json()
+        response_data = response.json()
         print("Datos obtenidos del endpoint de Hasura:")
-        print(json.dumps(hasura_data, indent=4))
-    except Exception as e:
+        print(json.dumps(response_data, indent=4))
+
+    except requests.exceptions.RequestException as e:
         print(f"Error al llamar al endpoint de Hasura: {e}")
-        raise
+
 
 
     # Procesar "inicio" y "destino" para permitir diferentes estructuras
