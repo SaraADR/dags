@@ -58,6 +58,8 @@ def process_extracted_files(**kwargs):
     print(f"Mission Inspection ID: {mission_inspection_id}")
 
     uuid_key = uuid.uuid4()
+    print(f"UUID generado para almacenamiento: {uuid_key}")  
+
 
     for videos in video:
         video_file_name = videos['file_name']
