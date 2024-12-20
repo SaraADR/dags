@@ -14,15 +14,18 @@ def process_escape_routes_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
- # Llamar al endpoint de Hasura
+    file_types = [
+     {"fileType": "hojasmtn50", "date": "2024-01-01", "location": "Galicia"},
+     {"fileType": "combustible", "date": "2024-02-01", "location": "Galicia"}, 
+     ]
+    payload = json.dumps(file_types)
+    
+    # Llamar al endpoint de Hasura
     try:
         http_hook = HttpHook(http_conn_id='hasura_conn', method='POST')
-        query = ""
-        payload = {"query": query}
-
-        # Ejecutar la solicitud al endpoint
-        response = http_hook.run(endpoint='', data=json.dumps(payload), headers={"Content-Type": "application/json"})
-        response.raise_for_status()  # Levanta excepción si el status no es 200
+        response = http_hook.run( endpoint='geo-files-locator/get-files-paths',
+                                  data=payload, headers={"Content-Type": "application/json"} ) 
+        response.raise_for_status()  
 
         # Parsear los datos obtenidos del endpoint
         hasura_data = response.json()
@@ -54,6 +57,7 @@ def process_escape_routes_data(**context):
 
     print(hasura_data)
     print("hasura_data")
+
     # Extraer los argumentos necesarios
     params = {
         "dir_incendio": input_data.get('dir_incendio', None),
