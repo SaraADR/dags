@@ -10,7 +10,7 @@ from airflow.hooks.base import BaseHook
 import io
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 import tempfile
 import os
 
