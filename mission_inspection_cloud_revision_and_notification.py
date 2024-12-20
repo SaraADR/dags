@@ -142,14 +142,6 @@ def process_element(**context):
         print("El mensaje no es correcto, no se puede realizar la subida de los datos entregados")
   
   
-  
-  
-
-
-
-     
-
-
 def fix_base64_padding(data):
     # Asegura que la longitud de la cadena sea un múltiplo de 4
     return data + '=' * (-len(data) % 4)
