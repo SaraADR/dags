@@ -14,18 +14,18 @@ def process_escape_routes_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
- # Llamar al endpoint de Hasura
+    file_types = [
+     {"fileType": "hojasmtn50", "date": "2024-01-01", "location": "Galicia"},
+     {"fileType": "combustible", "date": "2024-02-01", "location": "Galicia"}, 
+     ]
+    payload = json.dumps(file_types)
+    
+    # Llamar al endpoint de Hasura
     try:
-        # Configurar HttpHook con la conexión a Hasura
         http_hook = HttpHook(http_conn_id='hasura_conn', method='POST')
-
-        # Crear la consulta GraphQL
-        query = ""
-        payload = {"query": query}
-
-        # Ejecutar la solicitud al endpoint
-        response = http_hook.run(endpoint='', data=json.dumps(payload), headers={"Content-Type": "application/json"})
-        response.raise_for_status()  # Levanta excepción si el status no es 200
+        response = http_hook.run( endpoint='geo-files-locator/get-files-paths',
+                                  data=payload, headers={"Content-Type": "application/json"} ) 
+        response.raise_for_status()  
 
         # Parsear los datos obtenidos del endpoint
         hasura_data = response.json()
@@ -54,6 +54,9 @@ def process_escape_routes_data(**context):
             destino = None
     elif isinstance(destino, dict):
         pass
+
+    print(hasura_data)
+    print("hasura_data")
 
     # Extraer los argumentos necesarios
     params = {
@@ -106,9 +109,9 @@ def process_escape_routes_data(**context):
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
 
-            # with sftp.file(json_file_path, 'w') as json_file:
-            #     json.dumps(json_data, json_file, indent=4)
-            # print(f"Archivo JSON guardado en: {json_file_path}")
+            with sftp.file(json_file_path, 'w') as json_file:
+                json.dumps(json_data, json_file, indent=4)
+            print(f"Archivo JSON guardado en: {json_file_path}")
 
 
             command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch &&  docker-compose -f compose.yaml up --build'
