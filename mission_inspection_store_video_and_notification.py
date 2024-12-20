@@ -6,15 +6,16 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta, timezone
 import boto3
 from botocore.client import Config
-from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.base import BaseHook
 import io
-from sqlalchemy import create_engine, text, MetaData, Table
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from moviepy.editor import VideoFileClip
+import tempfile
+import os
 
-
+# Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
-    # Obtenemos los archivos extraídos que se pasan como "conf"
     video = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
 
@@ -24,7 +25,6 @@ def process_extracted_files(**kwargs):
 
     print("Archivos para procesar preparados")
 
-    #Accedemos al missionID para poder buscar si ya existe
     id_mission = None
     for metadata in json_content['metadata']:
         if metadata['name'] == 'MissionID':
@@ -32,7 +32,6 @@ def process_extracted_files(**kwargs):
             break
 
     print(f"MissionID: {id_mission}")
-
 
     try:
         db_conn = BaseHook.get_connection('biobd')
@@ -48,24 +47,19 @@ def process_extracted_files(**kwargs):
         """)
         result = session.execute(query, {'search_id': id_mission})
         row = result.fetchone()
-        if row is not None:
-            mission_inspection_id = row[0]  
-        else:
-            mission_inspection_id = None
-            print("El ID no está presente en la tabla mission.mss_mission_inspection")
+        mission_inspection_id = row[0] if row else None
 
     except Exception as e:
         session.rollback()
-        print(f"Error durante la busqueda del mission_inspection: {str(e)}")
-        
+        print(f"Error durante la búsqueda del mission_inspection: {str(e)}")
+    finally:
+        session.close()
 
+    print(f"Mission Inspection ID: {mission_inspection_id}")
 
-    print(f"row: {row}")
+    uuid_key = uuid.uuid4()
 
-    uuid_key= uuid.uuid4()
-    #Subimos todos los videos a la carpeta de minIo
     for videos in video:
-
         video_file_name = videos['file_name']
         video_content = base64.b64decode(videos['content'])
 
@@ -79,10 +73,9 @@ def process_extracted_files(**kwargs):
             config=Config(signature_version='s3v4')
         )
 
-        bucket_name = 'missions'  
-        video_key = str(uuid_key) +'/' + video_file_name
+        bucket_name = 'missions'
+        video_key = str(uuid_key) + '/' + video_file_name
 
-        # Subir el archivo a MinIO
         s3_client.put_object(
             Bucket=bucket_name,
             Key=video_key,
@@ -90,75 +83,65 @@ def process_extracted_files(**kwargs):
         )
         print(f'{video_file_name} subido correctamente a MinIO.')
 
-    #Subimos el archivo JSON
     json_str = json.dumps(json_content).encode('utf-8')
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
+    json_key = str(uuid_key) + '/' + 'algorithm_result.json'
 
-    bucket_name = 'missions'  
-    json_key = str(uuid_key) +'/' + 'algorithm_result.json'
-
-    # Subir el archivo a MinIO
     s3_client.put_object(
-        Bucket=bucket_name,
+        Bucket='missions',
         Key=json_key,
         Body=io.BytesIO(json_str),
         ContentType='application/json'
     )
-    print(f'{video_file_name} subido correctamente a MinIO.')
+    print(f'Archivo JSON subido correctamente a MinIO.')
 
+    kwargs['ti'].xcom_push(key='video_uuid', value=str(uuid_key))
+    kwargs['ti'].xcom_push(key='mission_inspection_id', value=mission_inspection_id)
 
+# Función para convertir archivos TS a MP4
+def convert_ts_files(**kwargs):
+    videos = kwargs['dag_run'].conf.get('otros', [])
+    converted_files = []
 
+    for video in videos:
+        file_name = video['file_name']
+        file_content = base64.b64decode(video['content'])
 
-    try:
+        if file_name.endswith('.ts'):
+            print(f"Archivo {file_name} es .ts. Iniciando conversión a .mp4...")
+            with tempfile.TemporaryDirectory() as temp_dir:
+                ts_path = os.path.join(temp_dir, "input.ts")
+                mp4_path = os.path.join(temp_dir, "output.mp4")
 
-        id_resource_uuid = uuid.UUID(video_key.split('/')[0])
+                with open(ts_path, 'wb') as f:
+                    f.write(file_content)
 
-        query = text("""
-        INSERT INTO missions.mss_inspection_video 
-        (mission_inspection_id, resource_id, reviewed)
-        VALUES (:id_video, :id_resource, false)
-        """)
-        session.execute(query, {'id_resource': id_resource_uuid, 'id_video': mission_inspection_id})
-        session.commit()
-        print(f"Video {video_key} registrado en la inspección {mission_inspection_id}")
-    except Exception as e:
-        session.rollback()
-        print(f"Error al insertar video en mss_inspection_video: {str(e)}")
+                video_clip = VideoFileClip(ts_path)
+                video_clip.write_videofile(mp4_path, codec="libx264", audio_codec="aac")
 
+                with open(mp4_path, 'rb') as f:
+                    converted_content = base64.b64encode(f.read()).decode('utf-8')
 
-    finally:
-        session.close()
-        print("Conexión a la base de datos cerrada correctamente")
+                converted_files.append({
+                    'file_name': file_name.replace('.ts', '.mp4'),
+                    'content': converted_content
+                })
+                print(f"Archivo {file_name} convertido exitosamente a MP4.")
+        else:
+            converted_files.append(video)
 
-  
-def get_idmission(data):
-    for metadata in data['metadata']:
-        if metadata['name'] == 'MissionID':
-            return metadata['value']
-    return None
+    kwargs['ti'].xcom_push(key='converted_videos', value=converted_files)
+    print("Archivos convertidos enviados a XCom.")
 
+# Función para generar notificación
 def generate_notify_job(**context):
     json_content = context['dag_run'].conf.get('json')
- 
-    if not json_content:
-        print("Ha habido un error con el traspaso de los documentos")
-        return
+    id_mission = None
+    for metadata in json_content['metadata']:
+        if metadata['name'] == 'MissionID':
+            id_mission = metadata['value']
+            break
 
-    #Accedemos al missionID para poder buscar si ya existe
-    id_mission = get_idmission(json_content)
-    print(f"MissionID: {id_mission}")
-
-
-    if id_mission is not None:
-        #Añadimos notificacion
+    if id_mission:
         try:
             db_conn = BaseHook.get_connection('biobd')
             connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
@@ -167,12 +150,10 @@ def generate_notify_job(**context):
             session = Session()
 
             data_json = json.dumps({
-                "to":"all_users",
-                "actions":[{
-                    "type":"reloadMission",
-                    "data":{
-                        "missionId":id_mission
-                    }
+                "to": "all_users",
+                "actions": [{
+                    "type": "reloadMission",
+                    "data": {"missionId": id_mission}
                 }]
             })
             time = datetime.now().replace(tzinfo=timezone.utc)
@@ -188,15 +169,13 @@ def generate_notify_job(**context):
                 'date': time
             })
             session.commit()
-
         except Exception as e:
             session.rollback()
             print(f"Error durante la inserción de la notificación: {str(e)}")
         finally:
             session.close()
-    
 
-
+# Definición del DAG
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
@@ -210,7 +189,7 @@ default_args = {
 dag = DAG(
     'mission_inspection_store_video_and_notification',
     default_args=default_args,
-    description='DAG que procesa archivos extraídos del ZIP, imprime JSON, guarda videos en MinIO y retorna IDs',
+    description='DAG que procesa archivos extraídos, convierte videos si es necesario, y genera notificaciones.',
     schedule_interval=None,
     catchup=False,
 )
@@ -222,7 +201,13 @@ process_extracted_files_task = PythonOperator(
     dag=dag,
 )
 
-#Generar notificación de vuelta
+convert_videos_task = PythonOperator(
+    task_id='convert_videos_task',
+    python_callable=convert_ts_files,
+    provide_context=True,
+    dag=dag,
+)
+
 generate_notify = PythonOperator(
     task_id='generate_notify_job',
     python_callable=generate_notify_job,
@@ -230,4 +215,5 @@ generate_notify = PythonOperator(
     dag=dag,
 )
 
-process_extracted_files_task >> generate_notify 
+# Flujo del DAG
+process_extracted_files_task >> convert_videos_task >> generate_notify
