@@ -17,10 +17,9 @@ def process_escape_routes_data(**context):
     input_data = json.loads(input_data_str)
 
 
-    # Definir la URL del endpoint
+
     url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-paths"
 
-    # Definir los datos a enviar en la petición
     payload = [
         {
             "fileType": "hojasmtn50",
@@ -31,10 +30,14 @@ def process_escape_routes_data(**context):
             "fileType": "combustible",
             "date": "2024-02-01",
             "location": "Galicia"
+        },
+        {
+            "fileType": "vias",
+            "date": "2024-02-01",
+            "location": "Galicia"
         }
     ]
 
-    # Definir los encabezados de la petición
     headers = {
         "Content-Type": "application/json"
     }
@@ -42,9 +45,8 @@ def process_escape_routes_data(**context):
     try:
         # Hacer la petición POST al endpoint
         response = requests.post(url, data=json.dumps(payload), headers=headers)
-        response.raise_for_status()  # Levantar excepción si el estado no es 200
+        response.raise_for_status()  
 
-        # Parsear los datos obtenidos del endpoint
         response_data = response.json()
         print("Datos obtenidos del endpoint de Hasura:")
         print(json.dumps(response_data, indent=4))
@@ -73,35 +75,63 @@ def process_escape_routes_data(**context):
     elif isinstance(destino, dict):
         pass
 
-    print(hasura_data)
-    print("hasura_data")
+  
 
-    # Extraer los argumentos necesarios
+    # Crear un diccionario para almacenar los paths
+    file_paths = {
+        "dir_hojasmtn50": None,
+        "dir_combustible": None,
+        "dir_vias": None,
+        "dir_cursos_agua": None,
+        "dir_aguas_estancadas": None,
+        "dir_carr_csv": None,
+        "zonas_abiertas": None
+    }
+
+    # Rellenar el diccionario con los paths obtenidos del response
+    for file in response_data:
+        if "fileType" in file and "path" in file:
+            if file["fileType"] == "hojasmtn50":
+                file_paths["dir_hojasmtn50"] = file["path"]
+            elif file["fileType"] == "combustible":
+                file_paths["dir_combustible"] = file["path"]
+            elif file["fileType"] == "vias":
+                file_paths["dir_vias"] = file["path"]
+            elif file["fileType"] == "cursos_agua":
+                file_paths["dir_cursos_agua"] = file["path"]
+            elif file["fileType"] == "aguas_estancadas":
+                file_paths["dir_aguas_estancadas"] = file["path"]
+            elif file["fileType"] == "carr_csv":
+                file_paths["dir_carr_csv"] = file["path"]
+            elif file["fileType"] == "zonas_abiertas":
+                file_paths["zonas_abiertas"] = file["path"]
+
     params = {
         "dir_incendio": input_data.get('dir_incendio', None),
         "dir_mdt": input_data.get('dir_mdt', None),
-        "dir_hojasmtn50": input_data.get('dir_hojasmtn50', None),
-        "dir_combustible": input_data.get('dir_combustible', None),
+        "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
+        "dir_combustible": file_paths["dir_combustible"],
         "api_idee": input_data.get('api_idee', True),
-        "dir_vias": input_data.get('dir_vias', None),
-        "dir_cursos_agua": input_data.get('dir_cursos_agua', None),
-        "dir_aguas_estancadas": input_data.get('dir_aguas_estancadas', None),
-        "inicio": inicio,
-        "destino": destino,
+        "dir_vias": file_paths["dir_vias"],
+        "dir_cursos_agua": file_paths["dir_cursos_agua"],
+        "dir_aguas_estancadas": file_paths["dir_aguas_estancadas"],
+        "inicio": inicio, 
+        "destino": destino,  
         "direccion_avance": input_data.get('direccion_avance', None),
         "distancia": input_data.get('distancia', None),
         "dist_seguridad": input_data.get('dist_seguridad', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
-        "dir_carr_csv": input_data.get('dir_carr_csv', None),
+        "dir_carr_csv": file_paths["dir_carr_csv"],
         "dir_output": '/share_data/output/' + 'rutas_escape_' + str(message['message']['id']),
         "sugerir": input_data.get('sugerir', False),
-        "zonas_abiertas": input_data.get('zonas_abiertas', None),
+        "zonas_abiertas": file_paths["zonas_abiertas"],
         "v_viento": input_data.get('v_viento', None),
         "f_buffer": input_data.get('f_buffer', 100),
         "c_prop": input_data.get('c_prop', "Extremas"),
         "lim_pendiente": input_data.get('lim_pendiente', None),
         "dist_estudio": input_data.get('dist_estudio', 5000),
     }
+
 
     # Crear el JSON dinámicamente
     json_data = create_json(params)
@@ -132,7 +162,7 @@ def process_escape_routes_data(**context):
             print(f"Archivo JSON guardado en: {json_file_path}")
 
 
-            command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch &&  docker-compose -f compose.yaml up --build'
+            command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch &&  CONFIGURATION_PATH={json_file_path} docker-compose -f compose.yaml up --build'
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
             error_output = stderr.read().decode()
