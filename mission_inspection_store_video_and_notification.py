@@ -96,7 +96,7 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
-    return uuid_key
+    return str(uuid_key)
 
     # kwargs['ti'].xcom_push(key='video_uuid', value=str(uuid_key))
     # kwargs['ti'].xcom_push(key='mission_inspection_id', value=mission_inspection_id)
