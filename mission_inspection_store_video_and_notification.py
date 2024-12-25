@@ -96,13 +96,19 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
-    kwargs['ti'].xcom_push(key='video_uuid', value=str(uuid_key))
-    kwargs['ti'].xcom_push(key='mission_inspection_id', value=mission_inspection_id)
+    return uuid_key
+
+    # kwargs['ti'].xcom_push(key='video_uuid', value=str(uuid_key))
+    # kwargs['ti'].xcom_push(key='mission_inspection_id', value=mission_inspection_id)
 
 # Función para convertir archivos TS a MP4
 def convert_ts_files(**kwargs):
     videos = kwargs['dag_run'].conf.get('otros', [])
     converted_files = []
+
+    ti = kwargs['ti']
+    generated_uuid = ti.xcom_pull(task_ids='process_extracted_files_task')
+    print(f"UUID recibido en convert_ts_files: {generated_uuid}")
 
     for video in videos:
         file_name = video['file_name']
@@ -139,7 +145,7 @@ def convert_ts_files(**kwargs):
 
             s3_client.put_object(
                 Bucket=bucket_name,
-                Key=f"{uuid.uuid4()}/{mp4_file_name}",
+                Key=f"{str(generated_uuid)}/{mp4_file_name}",
                 Body=f.read(),
                 ContentType='video/mp4'
             )
