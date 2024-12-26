@@ -96,10 +96,29 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
+    try:
+
+        id_resource_uuid = uuid.UUID(video_key.split('/')[0])
+
+        query = text("""
+        INSERT INTO missions.mss_inspection_video 
+        (mission_inspection_id, resource_id, reviewed)
+        VALUES (:id_video, :id_resource, false)
+        """)
+        session.execute(query, {'id_resource': id_resource_uuid, 'id_video': mission_inspection_id})
+        session.commit()
+        print(f"Video {video_key} registrado en la inspección {mission_inspection_id}")
+    except Exception as e:
+        session.rollback()
+        print(f"Error al insertar video en mss_inspection_video: {str(e)}")
+
+
+    finally:
+        session.close()
+        print("Conexión a la base de datos cerrada correctamente")
+
     return str(uuid_key)
 
-    # kwargs['ti'].xcom_push(key='video_uuid', value=str(uuid_key))
-    # kwargs['ti'].xcom_push(key='mission_inspection_id', value=mission_inspection_id)
 
 # Función para convertir archivos TS a MP4
 def convert_ts_files(**kwargs):
@@ -115,41 +134,41 @@ def convert_ts_files(**kwargs):
         file_content = base64.b64decode(video['content'])
         print("El nombre del video es " + file_name)
 
-    if file_name.endswith('.ts'):
-        print(f"Archivo {file_name} es .ts. Iniciando conversión a .mp4...")
-    with tempfile.TemporaryDirectory() as temp_dir:
-        ts_path = os.path.join(temp_dir, "input.ts")
-        mp4_path = os.path.join(temp_dir, "output.mp4")
+        if file_name.endswith('.ts'):
+            print(f"Archivo {file_name} es .ts. Iniciando conversión a .mp4...")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            ts_path = os.path.join(temp_dir, "input.ts")
+            mp4_path = os.path.join(temp_dir, "output.mp4")
 
-        # Guardar contenido .ts temporalmente
-        with open(ts_path, 'wb') as f:
-            f.write(file_content)
+            # Guardar contenido .ts temporalmente
+            with open(ts_path, 'wb') as f:
+                f.write(file_content)
 
-        # Convertir a .mp4
-        video_clip = VideoFileClip(ts_path)
-        video_clip.write_videofile(mp4_path, codec="libx264", audio_codec="aac")
+            # Convertir a .mp4
+            video_clip = VideoFileClip(ts_path)
+            video_clip.write_videofile(mp4_path, codec="libx264", audio_codec="aac")
 
-        # Leer el archivo convertido y subir a MinIO
-        bucket_name = 'missions'
-        mp4_file_name = file_name.replace('.ts', '.mp4')
-        with open(mp4_path, 'rb') as f:
-            connection = BaseHook.get_connection('minio_conn')
-            extra = json.loads(connection.extra)
-            s3_client = boto3.client(
-                's3',
-                endpoint_url=extra['endpoint_url'],
-                aws_access_key_id=extra['aws_access_key_id'],
-                aws_secret_access_key=extra['aws_secret_access_key'],
-                config=Config(signature_version='s3v4')
-            )
+            # Leer el archivo convertido y subir a MinIO
+            bucket_name = 'missions'
+            mp4_file_name = file_name.replace('.ts', '.mp4')
+            with open(mp4_path, 'rb') as f:
+                connection = BaseHook.get_connection('minio_conn')
+                extra = json.loads(connection.extra)
+                s3_client = boto3.client(
+                    's3',
+                    endpoint_url=extra['endpoint_url'],
+                    aws_access_key_id=extra['aws_access_key_id'],
+                    aws_secret_access_key=extra['aws_secret_access_key'],
+                    config=Config(signature_version='s3v4')
+                )
 
-            s3_client.put_object(
-                Bucket=bucket_name,
-                Key=f"{str(generated_uuid)}/{mp4_file_name}",
-                Body=f.read(),
-                ContentType='video/mp4'
-            )
-        print(f"Archivo convertido y subido a MinIO como {mp4_file_name}.")
+                s3_client.put_object(
+                    Bucket=bucket_name,
+                    Key=f"{str(generated_uuid)}/{mp4_file_name}",
+                    Body=f.read(),
+                    ContentType='video/mp4'
+                )
+            print(f"Archivo convertido y subido a MinIO como {mp4_file_name}.")
 
 
 # Función para generar notificación
