@@ -16,6 +16,7 @@ from sqlalchemy import create_engine, text
 def print_message(**context):
     message = context['dag_run'].conf
     print(f"Received message: {message}")
+    
 
 # Función para crear una misión en la base de datos
 def create_mission(**context):
@@ -104,17 +105,23 @@ def create_mission(**context):
 
     except Exception as e:
         session.rollback()
-        print(f"Error durante el guardado de la misión: {str(e)}")
+        error_message = str(e)
+        print(f"Error durante el guardado de la misión: {error_message}")
+
+        # Crear el JSON de salida con el mensaje de error
+        output_data = json.dumps({"errorMessage": error_message}, ensure_ascii=False)
+
+        # Actualizar el estado del trabajo a "ERROR" y guardar el mensaje en output_data
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-        
-        # Actualizar el estado del trabajo a "ERROR"
-        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='ERROR')
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='ERROR', output_data=output_data)
         session.execute(update_stmt)
         session.commit()
-        print(f"Job ID {job_id} status updated to ERROR")
+
+        print(f"Job ID {job_id} actualizado a ERROR con mensaje: {output_data}")
 
         # Lanzar la excepción para que la tarea falle
-        raise RuntimeError(f"Error durante el guardado de la misión: {str(e)}")
+        raise RuntimeError(f"Error durante el guardado de la misión: {error_message}")
+
 
 
 # Función para crear un incendio a través del servicio ATC
@@ -228,7 +235,7 @@ def insert_notification(id_mission, user):
                 VALUES (:destination, :data, :date, NULL);
             """)
             session.execute(query, {
-                'destination': 'ignis',
+                'destination': 'ignis',"jeje"
                 'data': data_json,
                 'date': time
             })
