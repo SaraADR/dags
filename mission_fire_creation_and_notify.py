@@ -46,9 +46,6 @@ def create_mission(**context):
             else:
                 initial_status = 1
 
-                
-
-
             # Valores para insertar en la tabla mss_mission
             values_to_insert = {
                 'name': input_data['fire']['name'],
@@ -112,7 +109,10 @@ def create_mission(**context):
         session.rollback()
         error_message = str(e)
         print(f"Error durante el guardado de la misión: {error_message}")
-
+        # Actualizar el estado del job a ERROR y registrar el error
+        job_id = input_data.get('job_id')
+        throw_job_error(job_id, e)
+        raise
 
 
 
@@ -179,6 +179,7 @@ def insert_relation_mission_fire(id_mission, id_fire):
     except Exception as e:
         # session.rollback()
         print(f"Error durante la relación misión-incendio: {str(e)}")
+        
 
 # Función para convertir coordenadas GeoJSON a WKT
 def geojson_to_wkt(geojson):
