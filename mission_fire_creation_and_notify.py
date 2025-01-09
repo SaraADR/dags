@@ -10,6 +10,7 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 import pytz
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
+from dag_utils import update_job_status, throw_job_error
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -26,6 +27,7 @@ def create_mission(**context):
     input_data = json.loads(input_data_str)
     print(input_data)
     job_id = message['message']['id']  # Extracting job_id from the message
+    raise BaseException
 
     try:
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
@@ -44,6 +46,8 @@ def create_mission(**context):
                 initial_status = row.status_id
             else:
                 initial_status = 1
+
+                
 
 
             # Valores para insertar en la tabla mss_mission
@@ -102,8 +106,10 @@ def create_mission(**context):
         if input_data.get('loadMission', False) is True:
             user = message['message']['from_user']
             insert_notification(mission_id, user)
+            
 
     except Exception as e:
+        
         session.rollback()
         error_message = str(e)
         print(f"Error durante el guardado de la misión: {error_message}")
@@ -124,7 +130,7 @@ def create_mission(**context):
 
 
 
-# Función para crear un incendio a través del servicio ATC
+# Función para crear un incendio a través del servicio ATC con manejo de errores
 def create_fire(input_data):
     try:
         print("Creando incendio vía servicio ATC...")
@@ -138,17 +144,19 @@ def create_fire(input_data):
         if response.status_code == 200:
             print("Incendio creado con éxito.")
             fire_data = response.json()
-            print(fire_data)
-            print("id del fire: ")
-            print(fire_data['id'])
+            print(f"ID del incendio: {fire_data['id']}")
             return fire_data['id']
-            
         else:
             print(f"Error en la creación del incendio: {response.status_code}")
             print(response.text)
+            raise Exception(f"Error en la creación del incendio: {response.status_code}")
 
     except Exception as e:
-        print(f"Error al crear el incendio: {str(e)}")
+        # Actualizar el estado del job a ERROR y registrar el error
+        job_id = input_data.get('job_id')
+        throw_job_error(job_id, e)
+        raise
+
 
 
 # Función para insertar una relación entre misión e incendio en la base de datos
