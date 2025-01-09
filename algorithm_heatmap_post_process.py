@@ -110,7 +110,6 @@ def process_heatmap_data(**context):
     #Guardar el json en la carpeta correspondiente
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
     try:
-        raise "Una excepción forzada para Oscar"
         # Conectarse al servidor SSH
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
