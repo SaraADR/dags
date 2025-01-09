@@ -27,7 +27,6 @@ def create_mission(**context):
     input_data = json.loads(input_data_str)
     print(input_data)
     job_id = message['message']['id']  # Extracting job_id from the message
-    raise BaseException
 
     try:
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
@@ -54,7 +53,7 @@ def create_mission(**context):
             values_to_insert = {
                 'name': input_data['fire']['name'],
                 'start_date': input_data['fire']['start'],
-                'geometry': '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '
+                'geometry': 111
                             + input_data['fire']['position']['x'] + ', ' + input_data['fire']['position']['y'] + ' ] }',
                 'type_id': input_data['type_id'],
                 'status_id': initial_status,  # Asignación dinámica del estado inicial
@@ -114,19 +113,6 @@ def create_mission(**context):
         error_message = str(e)
         print(f"Error durante el guardado de la misión: {error_message}")
 
-        # Crear el JSON de salida con el mensaje de error
-        output_data = json.dumps({"errorMessage": error_message}, ensure_ascii=False)
-
-        # Actualizar el estado del trabajo a "ERROR" y guardar el mensaje en output_data
-        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-        update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='ERROR', output_data=output_data)
-        session.execute(update_stmt)
-        session.commit()
-
-        print(f"Job ID {job_id} actualizado a ERROR con mensaje: {output_data}")
-
-        # Lanzar la excepción para que la tarea falle
-        raise RuntimeError(f"Error durante el guardado de la misión: {error_message}")
 
 
 
