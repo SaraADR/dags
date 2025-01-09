@@ -122,7 +122,7 @@ def create_mission(**context):
         # Lanzar la excepción para que la tarea falle
         raise RuntimeError(f"Error durante el guardado de la misión: {error_message}")
 
-
+a
 
 # Función para crear un incendio a través del servicio ATC
 def create_fire(input_data):
@@ -235,7 +235,7 @@ def insert_notification(id_mission, user):
                 VALUES (:destination, :data, :date, NULL);
             """)
             session.execute(query, {
-                'destination': 'ignis',"jeje"
+                'destination': 'ignis',
                 'data': data_json,
                 'date': time
             })
