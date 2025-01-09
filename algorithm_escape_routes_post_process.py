@@ -35,23 +35,7 @@ def process_escape_routes_data(**context):
             "fileType": "vias",
             "date": "2024-02-01",
             "location": "Galicia"
-        },
-        {
-            "fileType": "cursos_agua",
-            "date": "2024-01-01",
-            "location": "Galicia"
-        },
-        {
-            "fileType": "aguas_estancadas",
-            "date": "2024-02-01",
-            "location": "Galicia"
-        },
-        {
-            "fileType": "carr_csv",
-            "date": "2024-02-01",
-            "location": "Galicia"
         }
-    
     ]
 
     headers = {
@@ -91,21 +75,7 @@ def process_escape_routes_data(**context):
     elif isinstance(destino, dict):
         pass
 
-    # Procesar geoJson en path 
-    geo = input_data.get('dir_incendio', None)
-    geojson_content = {
-    "type": "FeatureCollection",
-    "features": [
-        {
-            "type": "Feature",
-            "properties": {
-                "mission_id": input_data.get('mission_id', None)
-            },
-            "geometry": 33
-        }
-    ]
-    }
-
+  
 
     # Crear un diccionario para almacenar los paths
     file_paths = {
@@ -114,7 +84,8 @@ def process_escape_routes_data(**context):
         "dir_vias": None,
         "dir_cursos_agua": None,
         "dir_aguas_estancadas": None,
-        "dir_carr_csv": None
+        "dir_carr_csv": None,
+        "zonas_abiertas": None
     }
 
     # Rellenar el diccionario con los paths obtenidos del response
@@ -132,9 +103,11 @@ def process_escape_routes_data(**context):
                 file_paths["dir_aguas_estancadas"] = file["path"]
             elif file["fileType"] == "carr_csv":
                 file_paths["dir_carr_csv"] = file["path"]
+            elif file["fileType"] == "zonas_abiertas":
+                file_paths["zonas_abiertas"] = file["path"]
 
     params = {
-        "dir_incendio": '.',
+        "dir_incendio": input_data.get('dir_incendio', None),
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
         "dir_combustible": file_paths["dir_combustible"],
@@ -151,13 +124,12 @@ def process_escape_routes_data(**context):
         "dir_carr_csv": file_paths["dir_carr_csv"],
         "dir_output": '/share_data/output/' + 'rutas_escape_' + str(message['message']['id']),
         "sugerir": input_data.get('sugerir', False),
-        "zonas_abiertas": input_data.get('zonas_abiertas', False),
+        "zonas_abiertas": file_paths["zonas_abiertas"],
         "v_viento": input_data.get('v_viento', None),
         "f_buffer": input_data.get('f_buffer', 100),
         "c_prop": input_data.get('c_prop', "Extremas"),
         "lim_pendiente": input_data.get('lim_pendiente', None),
-        "dist_estudio": input_data.get('dist_estudio', 0),
-        "mission_id": input_data.get('mission_id', None),
+        "dist_estudio": input_data.get('dist_estudio', 5000),
     }
 
 
@@ -189,12 +161,6 @@ def process_escape_routes_data(**context):
                 json.dumps(json_data, json_file, indent=4)
             print(f"Archivo JSON guardado en: {json_file_path}")
 
-
-            #ruta geojson
-            geojson_file_path = f"{carpeta_destino}/dir_incendio.geojson"
-            with open(geojson_file_path, "w") as f:
-                json.dump(geojson_content, f, indent=4)
-            print(f"GeoJSON guardado en {geojson_file_path}")
 
             command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch &&  CONFIGURATION_PATH={json_file_path} docker-compose -f compose.yaml up --build'
             stdin, stdout, stderr = ssh_client.exec_command(command)
@@ -251,7 +217,6 @@ def create_json(params):
         "c_prop": params.get("c_prop", "Extremas"),
         "lim_pendiente": params.get("lim_pendiente", None),
         "dist_estudio": params.get("dist_estudio", 5000),
-        "mission_id": input_data.get('mission_id', None),
     }
     return input_data
 
@@ -275,17 +240,7 @@ def update_job_status(job_id, status):
         print(f"Error al actualizar el estado del trabajo: {e}")
         raise
 
-def update_job_status_after_process(**context):
-    message = context['dag_run'].conf
-    job_id = message['message']['id']
-    try:
-        update_job_status(job_id, "FINISHED")
-    except Exception as e:
-        update_job_status(job_id, "ERROR")
-        error_message = str(e)
-        print(f"Error durante el guardado de la misión: {error_message}")
-        raise
-
+# Configuración del DAG
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
@@ -305,6 +260,7 @@ dag = DAG(
     concurrency=1
 )
 
+# Tarea para generar y mostrar el JSON
 process_escape_routes_task = PythonOperator(
     task_id='process_escape_routes',
     provide_context=True,
@@ -312,11 +268,5 @@ process_escape_routes_task = PythonOperator(
     dag=dag,
 )
 
-update_status_task = PythonOperator(
-    task_id='update_status',
-    provide_context=True,
-    python_callable=update_job_status_after_process,
-    dag=dag,
-)
-
-process_escape_routes_task >> update_status_task
+# Definir el flujo de tareas
+process_escape_routes_task
