@@ -34,7 +34,7 @@ def process_heatmap_data(**context):
     arincendios = ''
     if task_type == 'heatmap-incendios':
         # Lógica específica para el heatmap de incendios
-        raise RuntimeError("Error intencional para prueba.")
+        print("Procesando datos para el heatmap de incendios.")
   
         # Modificaciones o lógica específica para incendios
         arincendios = "historical_fires.csv"
@@ -51,7 +51,15 @@ def process_heatmap_data(**context):
         isIncendio = "FALSE"
         # input_data["url_search_aircraft"] = "https://pre.atcservices.cirpas.gal/rest/AircraftService/searchByIntersection"
         # input_data["url_aircraftperimeter_service"] = "https://pre.atcservices.cirpas.gal/rest/AircraftAlgorithm_AircraftPerimeterService/getByAircraft?id="
+    
+    
+    # Convertir las fechas a datetime
+    # low_search_date = datetime.strptime(input_data['lowSearchDate'], '%Y-%m-%dT%H:%M:%S.%fZ')
+    # high_search_date = datetime.strptime(input_data['highSearchDate'], '%Y-%m-%dT%H:%M:%S.%fZ')
 
+    # # Formatear las fechas al nuevo formato con zona horaria '+0000'
+    # input_data['lowSearchDate'] = low_search_date.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+0000'
+    # input_data['highSearchDate'] = high_search_date.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + '+0000'
 
 
     if 'lonlat' in input_data and len(input_data['lonlat']) == 4:
@@ -223,36 +231,7 @@ def process_heatmap_data(**context):
             up_to_minio(local_output_directory, from_user, isIncendio, '/tmp')
 
     except Exception as e:
-        print(f"Error durante el proceso: {e}")
-        # Actualizar el estado del trabajo a ERROR
-        update_job_status(job_id, "ERROR", {"error": str(e)})
-        print(f"Estado actualizado a ERROR para Job ID: {job_id}")
-        raise
-
-
-def update_job_status(job_id, status, output_data=None):
-    """
-    Actualiza el estado del trabajo en la tabla `jobs`.
-    """
-    print(f"Iniciando actualización de estado para Job ID: {job_id}...")
-    db_conn = BaseHook.get_connection('biobd')
-    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-    print(f"Conexión a la base de datos: {connection_string}")
-
-    engine = create_engine(connection_string)
-    with engine.connect() as connection:
-        query = text("""
-            UPDATE public.jobs
-            SET status = :status, output_data = :output_data, execution_date = :execution_date
-            WHERE id = :job_id;
-        """)
-        connection.execute(query, {
-            'status': status,
-            'output_data': json.dumps(output_data) if output_data else None,
-            'execution_date': datetime.now(timezone.utc),
-            'job_id': job_id
-        })
-        print(f"Estado del trabajo {job_id} actualizado a {status}.")
+        print(f"Error en el proceso: {str(e)}")
 
 
 
