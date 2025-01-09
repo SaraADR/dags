@@ -33,6 +33,8 @@ def process_heatmap_data(**context):
     isIncendio = "FALSE"
     arincendios = ''
     if task_type == 'heatmap-incendios':
+        raise ValueError("Fallo forzado para probar la gestión de errores.")
+
         # Lógica específica para el heatmap de incendios
         print("Procesando datos para el heatmap de incendios.")
   
@@ -241,7 +243,7 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
 
     try:
         # Conexión a MinIO
-        connection = BaseHook.get_connection('minio_con')
+        connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
             's3',
