@@ -251,9 +251,6 @@ def change_state_job(**context):
         Session = sessionmaker(bind=engine)
         session = Session()
 
-        
-       
-
         # Update job status to 'FINISHED'
         metadata = MetaData(bind=engine)
         jobs = Table('jobs', metadata, schema='public', autoload_with=engine)

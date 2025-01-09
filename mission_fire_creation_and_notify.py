@@ -235,7 +235,7 @@ def insert_notification(id_mission, user):
                 VALUES (:destination, :data, :date, NULL);
             """)
             session.execute(query, {
-                'destination': 'ignis',"jeje"
+                'destination': 'ignis',
                 'data': data_json,
                 'date': time
             })

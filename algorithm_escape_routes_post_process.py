@@ -275,7 +275,15 @@ def update_job_status(job_id, status):
         print(f"Error al actualizar el estado del trabajo: {e}")
         raise
 
-# Configuración del DAG
+def update_job_status_after_process(**context):
+    message = context['dag_run'].conf
+    job_id = message['message']['id']
+    try:
+        update_job_status(job_id, "FINISHED")
+    except Exception:
+        update_job_status(job_id, "ERROR")
+        raise
+
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
@@ -295,7 +303,6 @@ dag = DAG(
     concurrency=1
 )
 
-# Tarea para generar y mostrar el JSON
 process_escape_routes_task = PythonOperator(
     task_id='process_escape_routes',
     provide_context=True,
@@ -303,5 +310,11 @@ process_escape_routes_task = PythonOperator(
     dag=dag,
 )
 
-# Definir el flujo de tareas
-process_escape_routes_task
+update_status_task = PythonOperator(
+    task_id='update_status',
+    provide_context=True,
+    python_callable=update_job_status_after_process,
+    dag=dag,
+)
+
+process_escape_routes_task >> update_status_task

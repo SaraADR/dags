@@ -7,15 +7,7 @@ from airflow.hooks.base_hook import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 
-default_args = {
-    'owner': 'sadr',
-    'depends_on_past': False,
-    'start_date': datetime(2023, 1, 1),
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=1),
-}
+
 
 def receive_data_and_create_fire(**context):
     message = context['dag_run'].conf
@@ -234,7 +226,15 @@ def obtenerCustomerId(session, latitude, longitude, epsg = 4326):
 
 # end todo.
 
-
+default_args = {
+    'owner': 'sadr',
+    'depends_on_past': False,
+    'start_date': datetime(2023, 1, 1),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=1),
+}
 
 dag = DAG(
     'function_create_fire_from_rabbit',
