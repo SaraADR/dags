@@ -110,7 +110,8 @@ def create_mission(**context):
         error_message = str(e)
         print(f"Error durante el guardado de la misión: {error_message}")
         # Actualizar el estado del job a ERROR y registrar el error
-        job_id = input_data.get('job_id')
+        # Obtener job_id desde el contexto del DAG
+        job_id = context['dag_run'].conf['message']['id']        
         throw_job_error(job_id, e)
         raise
 
