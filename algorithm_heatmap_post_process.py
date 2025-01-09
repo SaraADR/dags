@@ -19,6 +19,7 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
+from dag_utils import update_job_status, throw_job_error
 
 
 def process_heatmap_data(**context):
@@ -170,6 +171,7 @@ def process_heatmap_data(**context):
                 except Exception as e:
                     session.rollback()
                     print(f"Error durante el guardado del estado del job")
+                    throw_job_error(job_id, e)
 
                 # Lanzar la excepción para que la tarea falle
                 raise RuntimeError(f"Error durante el guardado de la misión")
@@ -206,6 +208,8 @@ def process_heatmap_data(**context):
                 reproject_tiff(input_path, output_path)
             except Exception as e:
                 print(f"Error en el proceso: {str(e)}")
+                throw_job_error(message['message']['id'], e)
+                raise e
                 # try:
 
                 #     # Conexión a la base de datos usando las credenciales almacenadas en Airflow
@@ -228,10 +232,15 @@ def process_heatmap_data(**context):
                 #     print(f"Error durante el guardado del estado del job")
 
             #Una vez tenemos lo que ha salido lo subimos a minio
-            up_to_minio(local_output_directory, from_user, isIncendio, '/tmp')
+            try:
+                up_to_minio(local_output_directory, from_user, isIncendio, '/tmp')
+            except Exception as e:
+                print(f"Error al subir archivos a MinIO: {str(e)}")
+                raise e
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
+        throw_job_error(message['message']['id'], e)
 
 
 
@@ -287,7 +296,7 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
                     print(f" URL: {file_url}")
                     
     except Exception as e:
-        print(f"Error al subir archivos a MinIO: {str(e)}")
+        raise e
 
 
 
@@ -332,6 +341,8 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
     except Exception as e:
         session.rollback()
         print(f"Error durante la inserción de la notificación: {str(e)}")
+        raise e
+        
     finally:
         session.close()
 
@@ -358,28 +369,7 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
 def change_state_job(**context):
     message = context['dag_run'].conf
     job_id = message['message']['id']
-    print(f"jobid {job_id}" )
-
-    try:
-        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
-
-        # Update job status to 'FINISHED'
-        metadata = MetaData(bind=engine)
-        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-        update_stmt = jobs.update().where((jobs.c.id == job_id) & (jobs.c.status != 'ERROR')).values(status='FINISHED')
-        session.execute(update_stmt)
-        session.commit()
-        print(f"Job ID {job_id} status updated to FINISHED")
-
-    except Exception as e:
-        session.rollback()
-        print(f"Error durante el guardado del estado del job: {str(e)}")
-
+    update_job_status(job_id, 'FINISHED')
 
 def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
     """

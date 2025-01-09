@@ -123,6 +123,7 @@ def create_mission(**context):
         raise RuntimeError(f"Error durante el guardado de la misión: {error_message}")
 
 
+
 # Función para crear un incendio a través del servicio ATC
 def create_fire(input_data):
     try:
