@@ -226,7 +226,15 @@ def obtenerCustomerId(session, latitude, longitude, epsg = 4326):
 
 # end todo.
 
-
+default_args = {
+    'owner': 'sadr',
+    'depends_on_past': False,
+    'start_date': datetime(2023, 1, 1),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=1),
+}
 
 dag = DAG(
     'function_create_fire_from_rabbit',
