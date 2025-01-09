@@ -176,8 +176,7 @@ def process_heatmap_data(**context):
                     throw_job_error(job_id, e)
                     raise
 
-                # Lanzar la excepción para que la tarea falle
-                raise RuntimeError(f"Error durante el guardado de la misión")
+
 
             else:
                 output_directory = '/home/admin3//Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/output/' + str(task_type) + '_' + str(message['message']['id'])
