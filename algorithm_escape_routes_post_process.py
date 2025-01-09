@@ -101,7 +101,7 @@ def process_escape_routes_data(**context):
             "properties": {
                 "mission_id": input_data.get('mission_id', None)
             },
-            "geometry": geo
+            "geometry": 33
         }
     ]
     }
@@ -280,8 +280,10 @@ def update_job_status_after_process(**context):
     job_id = message['message']['id']
     try:
         update_job_status(job_id, "FINISHED")
-    except Exception:
+    except Exception as e:
         update_job_status(job_id, "ERROR")
+        error_message = str(e)
+        print(f"Error durante el guardado de la misión: {error_message}")
         raise
 
 default_args = {

@@ -264,9 +264,7 @@ def change_state_job(**context):
         print(f"Error durante el guardado del estado del job: {str(e)}")
 
  
-
-
-
+ 
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
