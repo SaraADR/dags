@@ -170,13 +170,15 @@ def process_heatmap_data(**context):
 
                 except Exception as e:
                     session.rollback()
-                    print(f"Error durante el guardado del estado del job")
+                    error_message = str(e)
+                    print(f"Error durante el guardado de la misión: {error_message}")
+                    job_id = context['dag_run'].conf['message']['id']        
                     throw_job_error(job_id, e)
+                    raise
 
                 # Lanzar la excepción para que la tarea falle
                 raise RuntimeError(f"Error durante el guardado de la misión")
 
-            
             else:
                 output_directory = '/home/admin3//Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/output/' + str(task_type) + '_' + str(message['message']['id'])
                 local_output_directory = '/tmp' + '/' + str(message['message']['id'])
