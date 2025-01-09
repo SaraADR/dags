@@ -30,8 +30,10 @@ def process_element(**context):
             os.makedirs(local_output_directory, exist_ok=True)
             sftp.chdir(output_directory)
             print(f"Cambiando al directorio de salida: {output_directory}")
+            sftp.close()
     except Exception as e:
         print(f"Error: {str(e)}")    
+        sftp.close()
     return
 
 
@@ -56,7 +58,7 @@ dag = DAG(
     concurrency=1
 )
 
-# Manda correo
+
 process_element_task = PythonOperator(
     task_id='process_message',
     python_callable=process_element,
