@@ -21,6 +21,31 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 
 
+# Función para registrar el estado de error en la tabla 'jobs'
+def update_job_status_to_error(job_id, error_message):
+    try:
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        # Actualizar el estado a ERROR y guardar el mensaje de error
+        metadata = MetaData(bind=engine)
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        update_stmt = jobs.update().where(jobs.c.id == job_id).values(
+            status='ERROR',
+            output_data=json.dumps({"error": error_message})
+        )
+        session.execute(update_stmt)
+        session.commit()
+        print(f"Job ID {job_id} status updated to ERROR.")
+    except Exception as e:
+        print(f"Error al actualizar el estado del trabajo a ERROR: {str(e)}")
+    finally:
+        session.close()
+
+
 def process_heatmap_data(**context):
 
     # Obtener el valor de 'type' de default_args a través del contexto
@@ -176,8 +201,7 @@ def process_heatmap_data(**context):
                 # Lanzar la excepción para que la tarea falle
                 raise RuntimeError(f"Error durante el guardado de la misión")
 
-            
-
+        
             else:
                 output_directory = '/home/admin3//Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/output/' + str(task_type) + '_' + str(message['message']['id'])
                 local_output_directory = '/tmp' + '/' + str(message['message']['id'])
@@ -234,9 +258,12 @@ def process_heatmap_data(**context):
             up_to_minio(local_output_directory, from_user, isIncendio, '/tmp')
 
     except Exception as e:
-        print(f"Error en el proceso: {str(e)}")
-
-
+        error_message = f"Error en process_heatmap_data: {str(e)}"
+        print(error_message)
+        # Actualizar el estado a ERROR en la tabla 'jobs'
+        update_job_status_to_error(job_id, error_message)
+        # Relanzar la excepción para que la tarea de Airflow falle también
+        raise
 
 def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
     key = f"{uuid.uuid4()}"
@@ -292,8 +319,6 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
     except Exception as e:
         print(f"Error al subir archivos a MinIO: {str(e)}")
 
-
-
     try:
         db_conn = BaseHook.get_connection('biobd')
         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
@@ -337,26 +362,6 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
         print(f"Error durante la inserción de la notificación: {str(e)}")
     finally:
         session.close()
-
-
-
-
-    # Subir el archivo TIFF a MinIO
-
-    # cambiar_proyeccion_tiff(input_tiff=TIFF,output_tiff=TIFF2)
-    # output_tiff = crear el directorio del output tiff con uuid 
-
-
-
-    # tiff_key = f"{uuid.uuid4()}.tiff"
-    # with tempfile.TemporaryDirectory() as temp_dir:
-    #     temp_dir_file = os.path.join(temp_dir, tiff_key)
-
-    #     reproject_tiff(algorithm_output_tiff, temp_dir_file)
-    #     # input_data["temp_tiff_path"] = output_tiff
-    
-
-
 
 def change_state_job(**context):
     message = context['dag_run'].conf
@@ -499,11 +504,8 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
-    'type': 'incendios',
 }
 
-
-# Definición del DAG incendios
 dag = DAG(
     'algorithm_heatmap_post_process',
     default_args=default_args,
@@ -521,13 +523,5 @@ process_heatmap_task = PythonOperator(
     dag=dag,
 )
 
-#Cambia estado de job
-change_state_task = PythonOperator(
-    task_id='change_state_job',
-    python_callable=change_state_job,
-    provide_context=True,
-    dag=dag,
-)
-
 # Ejecución de la tarea en el DAG
-process_heatmap_task >> change_state_task
+process_heatmap_task
