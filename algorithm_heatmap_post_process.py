@@ -241,7 +241,7 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
 
     try:
         # Conexión a MinIO
-        connection = BaseHook.get_connection('minio_conn')
+        connection = BaseHook.get_connection('minio_con')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
             's3',
