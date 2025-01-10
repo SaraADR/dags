@@ -172,7 +172,8 @@ def process_heatmap_data(**context):
                     session.rollback()
                     error_message = str(e)
                     print(f"Error durante el guardado de la misión: {error_message}")
-                    job_id = context['dag_run'].conf['message']['id']        
+                    job_id = context['dag_run'].conf['message']['id']   
+                    update_job_status(job_id, "ERROR", {"error": str(e)})
                     throw_job_error(job_id, e)
                     raise
 
