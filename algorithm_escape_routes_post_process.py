@@ -55,6 +55,14 @@ def process_escape_routes_data(**context):
 
     except requests.exceptions.RequestException as e:
         print(f"Error al llamar al endpoint de Hasura: {e}")
+        error_message = str(e)
+        print(f"Error durante el guardado de la misión: {error_message}")
+        # Actualizar el estado del job a ERROR y registrar el error
+        # Obtener job_id desde el contexto del DAG
+        job_id = context['dag_run'].conf['message']['id']        
+        throw_job_error(job_id, e)
+        raise
+
 
 
 
