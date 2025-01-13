@@ -7,6 +7,8 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.hooks.http_hook import HttpHook
 import requests
+from dag_utils import update_job_status, throw_job_error
+
 
 
 
@@ -16,9 +18,9 @@ def process_escape_routes_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
+        #ELIMINADA UNA S PARA PRUEBAS
 
-
-    url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-paths"
+    url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-path"  
 
     payload = [
         {
@@ -187,9 +189,16 @@ def process_escape_routes_data(**context):
     try:
         job_id = message['message']['id']
         update_job_status(job_id, "FINISHED")
+
     except Exception as e:
-        print(f"Error al actualizar el estado del trabajo: {e}")
+        error_message = str(e)
+        print(f"Error durante el guardado de la misión: {error_message}")
+        # Actualizar el estado del job a ERROR y registrar el error
+        # Obtener job_id desde el contexto del DAG
+        job_id = context['dag_run'].conf['message']['id']        
+        throw_job_error(job_id, e)
         raise
+    
 
 def create_json(params):
     # Generar un JSON basado en los parámetros proporcionados
