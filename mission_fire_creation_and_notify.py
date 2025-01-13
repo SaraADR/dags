@@ -50,9 +50,8 @@ def create_mission(**context):
             values_to_insert = {
                 'name': input_data['fire']['name'],
                 'start_date': input_data['fire']['start'],
-                'geometry': 775,
-#                   '{ "type": "Point", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::4326" } }, "coordinates": [ '
-# + input_data['fire']['position']['x'] + ', ' + input_data['fire']['position']['y'] + ' ] }',
+                'geometry': 111
+                            + input_data['fire']['position']['x'] + ', ' + input_data['fire']['position']['y'] + ' ] }',
                 'type_id': input_data['type_id'],
                 'status_id': initial_status,  # Asignación dinámica del estado inicial
                 'customer_id': input_data['customer_id'],
@@ -112,8 +111,7 @@ def create_mission(**context):
         print(f"Error durante el guardado de la misión: {error_message}")
         # Actualizar el estado del job a ERROR y registrar el error
         # Obtener job_id desde el contexto del DAG
-        job_id = context['dag_run'].conf['message']['id']      
-        update_job_status(job_id, "ERROR", {"error": str(e)})  
+        job_id = context['dag_run'].conf['message']['id']        
         throw_job_error(job_id, e)
         raise
 
