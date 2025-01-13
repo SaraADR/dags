@@ -66,7 +66,7 @@ def process_heatmap_data(**context):
     if 'lonlat' in input_data and len(input_data['lonlat']) == 4:
         lonlat = input_data.get('lonlat')
         if isIncendio == "FALSE":
-            aircrafts_string = ", ".join(input_data.get('airafts', None))
+            aircrafts_string = ", ".join(input_data.get('aircrafts', None))
         else:
             aircrafts_string = ''
         # Asignar los valores a minLon, maxLon, minLat, maxLat

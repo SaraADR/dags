@@ -25,7 +25,6 @@ import boto3
 from botocore.config import Config
 from airflow.hooks.base_hook import BaseHook
 from PIL import Image
-from dag_utils import update_job_status, throw_job_error
 
 
 
