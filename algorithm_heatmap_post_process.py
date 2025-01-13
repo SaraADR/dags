@@ -66,7 +66,7 @@ def process_heatmap_data(**context):
     if 'lonlat' in input_data and len(input_data['lonlat']) == 4:
         lonlat = input_data.get('lonlat')
         if isIncendio == "FALSE":
-            aircrafts_string = ", ".join(input_data.get('aircrafts', None))
+            aircrafts_string = ", ".join(input_data.get('airafts', None))
         else:
             aircrafts_string = ''
         # Asignar los valores a minLon, maxLon, minLat, maxLat
@@ -172,8 +172,9 @@ def process_heatmap_data(**context):
                     session.rollback()
                     error_message = str(e)
                     print(f"Error durante el guardado de la misión: {error_message}")
-                    job_id = context['dag_run'].conf['message']['id']   
-                    update_job_status(job_id, "ERROR", {"error": str(e)})
+                    # Actualizar el estado del job a ERROR y registrar el error
+                    # Obtener job_id desde el contexto del DAG
+                    job_id = context['dag_run'].conf['message']['id']        
                     throw_job_error(job_id, e)
                     raise
 
@@ -242,11 +243,17 @@ def process_heatmap_data(**context):
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
-        throw_job_error(message['message']['id'], e)
+        error_message = str(e)
+        print(f"Error durante el guardado de la misión: {error_message}")
+        # Actualizar el estado del job a ERROR y registrar el error
+        # Obtener job_id desde el contexto del DAG
+        job_id = context['dag_run'].conf['message']['id']        
+        throw_job_error(job_id, e)
+        raise
 
 
 
-def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
+def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir,context):
     key = f"{uuid.uuid4()}"
 
     try:
@@ -298,6 +305,13 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
                     print(f" URL: {file_url}")
                     
     except Exception as e:
+        error_message = str(e)
+        print(f"Error durante el guardado de la misión: {error_message}")
+        # Actualizar el estado del job a ERROR y registrar el error
+        # Obtener job_id desde el contexto del DAG
+        job_id = context['dag_run'].conf['message']['id']        
+        throw_job_error(job_id, e)
+        raise
         raise e
 
 
@@ -343,6 +357,12 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir):
     except Exception as e:
         session.rollback()
         print(f"Error durante la inserción de la notificación: {str(e)}")
+        error_message = str(e)
+        print(f"Error durante el guardado de la misión: {error_message}")
+        # Actualizar el estado del job a ERROR y registrar el error
+        # Obtener job_id desde el contexto del DAG
+        job_id = context['dag_run'].conf['message']['id']        
+        throw_job_error(job_id, e)
         raise e
         
     finally:

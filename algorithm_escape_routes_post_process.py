@@ -18,9 +18,8 @@ def process_escape_routes_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
-        #ELIMINADA UNA S PARA PRUEBAS
 
-    url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-path"  
+    url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-paths"  
 
     payload = [
         {
@@ -186,6 +185,14 @@ def process_escape_routes_data(**context):
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
+        error_message = str(e)
+        print(f"Error durante el guardado de la misión: {error_message}")
+        # Actualizar el estado del job a ERROR y registrar el error
+        # Obtener job_id desde el contexto del DAG
+        job_id = context['dag_run'].conf['message']['id']        
+        throw_job_error(job_id, e)
+        raise
+
 
     finally:
         # Cerrar SFTP si está abierto
@@ -237,25 +244,6 @@ def create_json(params):
     }
     return input_data
 
-def update_job_status(job_id, status):
-    try:
-        # Conexión a la base de datos usando las credenciales de Airflow
-        db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        engine = create_engine(connection_string)
-        metadata = MetaData(bind=engine)
-
-        # Tabla de trabajos
-        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-
-        # Actualizar el estado del trabajo
-        with engine.connect() as connection:
-            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status)
-            connection.execute(update_stmt)
-            print(f"Job ID {job_id} status updated to {status}")
-    except Exception as e:
-        print(f"Error al actualizar el estado del trabajo: {e}")
-        raise
 
 # Configuración del DAG
 default_args = {
