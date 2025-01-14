@@ -31,7 +31,7 @@ def create_mission(**context):
     try:
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
         db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_conn.database}"
         engine = create_engine(connection_string)
         Session = sessionmaker(bind=engine)
         session = Session()
