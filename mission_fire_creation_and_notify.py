@@ -10,7 +10,7 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 import pytz
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
-from dag_utils import update_job_status, throw_job_error
+from dag_utils import update_job_status, throw_job_error,get_db_session
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -29,14 +29,8 @@ def create_mission(**context):
     job_id = message['message']['id']  # Extracting job_id from the message
 
     try:
-        # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        db_conn = BaseHook.get_connection('biobd')
-        # Extraer el nombre de la base de datos del campo extra
-        db_name = db_conn.extra_dejson.get('database', 'postgres')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        # Crear la sesión de base de datos
+        session = get_db_session()
 
         # Iniciando una transacción
         with session.begin():
@@ -61,8 +55,8 @@ def create_mission(**context):
             }
 
         # Metadatos y tabla de misión en la base de datos
-        metadata = MetaData(bind=engine)
-        missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
+        metadata = MetaData(bind=session)
+        missions = Table('mss_mission', metadata, schema='missions', autoload_with=session)
 
         # Inserción de la nueva misión
         insert_stmt = missions.insert().values(values_to_insert)
@@ -80,7 +74,7 @@ def create_mission(**context):
             insert_relation_mission_fire(mission_id, fire_id)
 
         # Inserción en la tabla mss_mission_status_history
-        mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
+        mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=session)
         status_history_values = {
             'mission_id': mission_id,
             'status_id': initial_status,  # Ahora toma el status inicial que corresponda
@@ -95,7 +89,7 @@ def create_mission(**context):
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
 
         # Update job status to 'FINISHED'
-        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
+        jobs = Table('jobs', metadata, schema='public', autoload_with=session)
         update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
         session.execute(update_stmt)
         session.commit()

@@ -146,7 +146,8 @@ def find_the_folder(**context):
 
                     # Conexión a la base de datos usando las credenciales almacenadas en Airflow
                     db_conn = BaseHook.get_connection('biobd')
-                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                    db_name = db_conn.extra_dejson.get('database', 'postgres')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
                     engine = create_engine(connection_string)
                     Session = sessionmaker(bind=engine)
                     session = Session()
@@ -246,7 +247,8 @@ def change_state_job(**context):
    
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
         db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        db_name = db_conn.extra_dejson.get('database', 'postgres')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
         engine = create_engine(connection_string)
         Session = sessionmaker(bind=engine)
         session = Session()

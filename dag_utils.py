@@ -43,6 +43,27 @@ def prepare_and_send_notification(conn_id, message, destination='ignis'):
         raise
 
 
+def get_db_session(connection_id='biobd'):
+    """
+    Función que crea una sesión de base de datos utilizando las credenciales almacenadas en Airflow.
+    :param connection_id: El ID de la conexión almacenada en Airflow.
+    :return: Sesión de SQLAlchemy.
+    """
+    # Obtener las credenciales de la conexión almacenada en Airflow
+    db_conn = BaseHook.get_connection(connection_id)
+    
+    # Crear el string de conexión
+    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_conn.schema}"
+    
+    # Crear el motor de conexión
+    engine = create_engine(connection_string)
+    
+    # Crear una sesión de base de datos
+    Session = sessionmaker(bind=engine)
+    
+    # Retornar la sesión
+    return Session()
+
 
 # Función para enviar emails
 
