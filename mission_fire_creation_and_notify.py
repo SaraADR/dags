@@ -31,7 +31,9 @@ def create_mission(**context):
     try:
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
         db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        # Extraer el nombre de la base de datos del campo extra
+        db_name = db_conn.extra_dejson.get('database', 'postgres')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
         engine = create_engine(connection_string)
         Session = sessionmaker(bind=engine)
         session = Session()
@@ -151,7 +153,8 @@ def insert_relation_mission_fire(id_mission, id_fire):
     try:
         #Conexión a la base de datos usando las credenciales almacenadas en Airflow
         db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        db_name = db_conn.extra_dejson.get('database', 'postgres')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
         engine = create_engine(connection_string)
         Session = sessionmaker(bind=engine)
         session = Session()
@@ -201,7 +204,8 @@ def insert_notification(id_mission, user):
         #Añadimos notificacion
         try:
             db_conn = BaseHook.get_connection('biobd')
-            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            db_name = db_conn.extra_dejson.get('database', 'postgres')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
             engine = create_engine(connection_string)
             Session = sessionmaker(bind=engine)
             session = Session()
