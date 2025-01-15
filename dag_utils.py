@@ -1,33 +1,17 @@
 import json
-import boto3
 from botocore.client import Config
 from jinja2 import Template
 from airflow.operators.email import EmailOperator
-from sqlalchemy import create_engine, text
-from airflow.hooks.base_hook import BaseHook
-import json
 import boto3
 import os
-from botocore.client import Config
-from jinja2 import Template
-from airflow.operators.email import EmailOperator
-from sqlalchemy import create_engine, Table, MetaData
-from sqlalchemy.orm import sessionmaker
-from airflow.hooks.base_hook import BaseHook
-from datetime import datetime, timedelta
-import re
-from datetime import datetime, timedelta
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-import json
-import requests
-from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData, text
 from sqlalchemy.orm import sessionmaker
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
-import pytz
-from datetime import datetime, timedelta, timezone
-from dag_utils import update_job_status, throw_job_error,get_db_session
+from datetime import datetime, timedelta
+import re
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+import requests
+from airflow.hooks.base import BaseHook
 
 
 # Función para enviar notificaciones a la BD
