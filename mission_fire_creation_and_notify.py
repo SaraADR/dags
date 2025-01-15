@@ -145,13 +145,8 @@ def create_fire(input_data):
 # Función para insertar una relación entre misión e incendio en la base de datos
 def insert_relation_mission_fire(id_mission, id_fire):
     try:
-        #Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        db_conn = BaseHook.get_connection('biobd')
-        db_name = db_conn.extra_dejson.get('database', 'postgres')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        
+        session = get_db_session()
 
         values_to_insert = {
             'mission_id': id_mission,
@@ -163,8 +158,8 @@ def insert_relation_mission_fire(id_mission, id_fire):
         }
 
         # Metadatos y tabla de relación misión-incendio en la base de datos
-        metadata = MetaData(bind=engine)
-        missions_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=engine)
+        metadata = MetaData(bind=session.get_bind())
+        missions_fire = Table('mss_mission_fire', metadata, schema='missions', autoload_with=session.get_bind())
 
         # Inserción de la relación
         insert_stmt = missions_fire.insert().values(values_to_insert)
@@ -197,12 +192,8 @@ def insert_notification(id_mission, user):
     if id_mission is not None:
         #Añadimos notificacion
         try:
-            db_conn = BaseHook.get_connection('biobd')
-            db_name = db_conn.extra_dejson.get('database', 'postgres')
-            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
-            engine = create_engine(connection_string)
-            Session = sessionmaker(bind=engine)
-            session = Session()
+            
+            session = get_db_session()
 
             data_json = json.dumps({
                 "to": str(user),
