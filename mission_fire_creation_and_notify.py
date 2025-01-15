@@ -4,11 +4,12 @@ from airflow.operators.python import PythonOperator
 import json
 import requests
 from airflow.hooks.base import BaseHook
-from sqlalchemy import create_engine, Table, MetaData, text
+from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 import pytz
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import create_engine, text
 from dag_utils import update_job_status, throw_job_error,get_db_session
 
 
@@ -28,8 +29,8 @@ def create_mission(**context):
     job_id = message['message']['id']  # Extracting job_id from the message
 
     try:
-        # Crear la sesión de base de datos
         session = get_db_session()
+        engine = session.get_bind()
 
         # Iniciando una transacción
         with session.begin():
@@ -54,8 +55,8 @@ def create_mission(**context):
             }
 
         # Metadatos y tabla de misión en la base de datos
-        metadata = MetaData(bind=session)
-        missions = Table('mss_mission', metadata, schema='missions', autoload_with=session)
+        metadata = MetaData(bind=engine)
+        missions = Table('mss_mission', metadata, schema='missions', autoload_with=engine)
 
         # Inserción de la nueva misión
         insert_stmt = missions.insert().values(values_to_insert)
@@ -73,7 +74,7 @@ def create_mission(**context):
             insert_relation_mission_fire(mission_id, fire_id)
 
         # Inserción en la tabla mss_mission_status_history
-        mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=session)
+        mission_status_history = Table('mss_mission_status_history', metadata, schema='missions', autoload_with=engine)
         status_history_values = {
             'mission_id': mission_id,
             'status_id': initial_status,  # Ahora toma el status inicial que corresponda
@@ -88,7 +89,7 @@ def create_mission(**context):
         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
 
         # Update job status to 'FINISHED'
-        jobs = Table('jobs', metadata, schema='public', autoload_with=session)
+        jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
         update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='FINISHED')
         session.execute(update_stmt)
         session.commit()
@@ -144,7 +145,6 @@ def create_fire(input_data):
 # Función para insertar una relación entre misión e incendio en la base de datos
 def insert_relation_mission_fire(id_mission, id_fire):
     try:
-
         session = get_db_session()
         engine = session.get_bind()
 
@@ -192,8 +192,8 @@ def insert_notification(id_mission, user):
     if id_mission is not None:
         #Añadimos notificacion
         try:
-
-            session = get_db_session()
+            session = get_db_session()           
+            engine = session.get_bind()
 
             data_json = json.dumps({
                 "to": str(user),
