@@ -16,6 +16,18 @@ from sqlalchemy.orm import sessionmaker
 from airflow.hooks.base_hook import BaseHook
 from datetime import datetime, timedelta
 import re
+from datetime import datetime, timedelta
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+import json
+import requests
+from airflow.hooks.base import BaseHook
+from sqlalchemy import create_engine, Table, MetaData, text
+from sqlalchemy.orm import sessionmaker
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+import pytz
+from datetime import datetime, timedelta, timezone
+from dag_utils import update_job_status, throw_job_error,get_db_session
 
 
 # Función para enviar notificaciones a la BD
