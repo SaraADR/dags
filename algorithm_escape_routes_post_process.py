@@ -178,7 +178,12 @@ def process_escape_routes_data(**context):
                 json.dump(json_data, json_file, indent=4)
             
             print(f"Archivo JSON guardado en: {json_file_path}")
- 
+
+
+            carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/input/Test_funcionales/"
+            json_file_path = f"{carpeta_destino}/Test2_1.json.json"
+
+
             command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch &&  CONFIGURATION_PATH={json_file_path} docker-compose -f compose.yaml up --build'
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
@@ -192,6 +197,7 @@ def process_escape_routes_data(**context):
             print(output)
 
             output_directory = '../output/' + 'rutas_escape_' + str(message['message']['id'])
+            output_directory = '../output/outputtest'
             local_output_directory = '/tmp'
 
             sftp.chdir(output_directory)
