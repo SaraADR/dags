@@ -158,6 +158,9 @@ def process_escape_routes_data(**context):
             sftp = ssh_client.open_sftp()
             print(f"Sftp abierto")
 
+            print(f"Limpieza de voluemnes")
+            stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/launch && docker-compose down --volumes')
+
             id_ruta = str(message['message']['id'])
             carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/input/input_{id_ruta}_rutas_escape"
             
