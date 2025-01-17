@@ -167,7 +167,9 @@ def process_escape_routes_data(**context):
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
-            
+
+            print(json_file)
+
             with sftp.file(json_file_path, 'w') as json_file:
                 json.dumps(json_data, json_file, indent=4)
             print(f"Archivo JSON guardado en: {json_file_path}")
