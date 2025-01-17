@@ -132,7 +132,7 @@ def process_escape_routes_data(**context):
         "dist_seguridad": input_data.get('dist_seguridad', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": file_paths["dir_carr_csv"],
-        "dir_output": '/share_data/output/' + 'rutas_escape_' + str(message['message']['id']),
+        "dir_output": '../output/' + 'rutas_escape_' + str(message['message']['id']),
         "sugerir": input_data.get('sugerir', False),
         "zonas_abiertas": file_paths["zonas_abiertas"],
         "v_viento": input_data.get('v_viento', None),
