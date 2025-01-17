@@ -8,6 +8,7 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.hooks.http_hook import HttpHook
 import requests
 from dag_utils import update_job_status, throw_job_error
+import os
 
 
 
@@ -172,8 +173,8 @@ def process_escape_routes_data(**context):
 
             with sftp.file(json_file_path, 'w') as json_file:
                 json.dumps(json_data, json_file, indent=4)
+            
             print(f"Archivo JSON guardado en: {json_file_path}")
-
 
             command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch &&  CONFIGURATION_PATH={json_file_path} docker-compose -f compose.yaml up --build'
             stdin, stdout, stderr = ssh_client.exec_command(command)
@@ -186,6 +187,31 @@ def process_escape_routes_data(**context):
 
             print("Salida de docker:")
             print(output)
+
+            output_directory = '../output/' + 'rutas_escape_' + str(message['message']['id'])
+            local_output_directory = '/tmp'
+
+            sftp.chdir(output_directory)
+            print(f"Cambiando al directorio de salida: {output_directory}")
+
+            downloaded_files = []
+            for filename in sftp.listdir():
+                remote_file_path = os.path.join(output_directory, filename)
+                local_file_path = os.path.join(local_output_directory, filename)
+
+                # Descargar cada archivo
+                sftp.get(remote_file_path, local_file_path)
+                print(f"Archivo {filename} descargado a {local_file_path}")
+                downloaded_files.append(local_file_path)
+            sftp.close()
+
+            if not downloaded_files:
+                print("Errores al ejecutar run.sh:")
+                print(error_output)
+            
+            else:
+                print_directory_contents(local_output_directory)
+
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
@@ -218,6 +244,16 @@ def process_escape_routes_data(**context):
         throw_job_error(job_id, e)
         raise
     
+def print_directory_contents(directory):
+    print(f"Contenido del directorio: {directory}")
+    for root, dirs, files in os.walk(directory):
+        level = root.replace(directory, '').count(os.sep)
+        indent = ' ' * 4 * level
+        print(f"{indent}{os.path.basename(root)}/")
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            print(f"{subindent}{f}")
+    print("------------------------------------------")    
 
 def create_json(params):
     # Generar un JSON basado en los parámetros proporcionados
