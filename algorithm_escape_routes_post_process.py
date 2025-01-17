@@ -19,7 +19,6 @@ def process_escape_routes_data(**context):
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
-
     url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-paths"  
 
     payload = [
@@ -38,6 +37,7 @@ def process_escape_routes_data(**context):
             "date": "2024-02-01",
             "location": "Galicia"
         }
+
     ]
 
     headers = {
