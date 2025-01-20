@@ -252,31 +252,29 @@ def process_escape_routes_data(**context):
 
 
 
-            # output_directory = f'./algoritmo_rutas_escape/share_data/output/rutas_escape_{str(message['message']['id'])}'
-            # ssh_client.exec_command(f"touch -p {output_directory}")
-            # ssh_client.exec_command(f"chmod 644 {output_directory}")
-            # local_output_directory = '/tmp'
+            output_directory = f'./algoritmo_rutas_escape/output/Test_7'
+            local_output_directory = '/tmp'
 
-            # sftp.chdir(output_directory)
-            # print(f"Cambiando al directorio de salida: {output_directory}")
+            sftp.chdir(output_directory)
+            print(f"Cambiando al directorio de salida: {output_directory}")
 
-            # downloaded_files = []
-            # for filename in sftp.listdir():
-            #     remote_file_path = os.path.join(output_directory, filename)
-            #     local_file_path = os.path.join(local_output_directory, filename)
+            downloaded_files = []
+            for filename in sftp.listdir():
+                remote_file_path = os.path.join(output_directory, filename)
+                local_file_path = os.path.join(local_output_directory, filename)
 
-            #     # Descargar cada archivo
-            #     sftp.get(remote_file_path, local_file_path)
-            #     print(f"Archivo {filename} descargado a {local_file_path}")
-            #     downloaded_files.append(local_file_path)
-            # sftp.close()
+                # Descargar cada archivo
+                sftp.get(remote_file_path, local_file_path)
+                print(f"Archivo {filename} descargado a {local_file_path}")
+                downloaded_files.append(local_file_path)
+            sftp.close()
 
-            # if not downloaded_files:
-            #     print("Errores al ejecutar run.sh:")
-            #     print(error_output)
+            if not downloaded_files:
+                print("Errores al ejecutar run.sh:")
+                print(error_output)
             
-            # else:
-            #     print_directory_contents(local_output_directory)
+            else:
+                print_directory_contents(local_output_directory)
 
 
     except Exception as e:
