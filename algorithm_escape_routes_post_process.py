@@ -132,7 +132,7 @@ def process_escape_routes_data(**context):
         "dist_seguridad": input_data.get('dist_seguridad', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": file_paths["dir_carr_csv"],
-        "dir_output": '/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/output/' + 'rutas_escape_' + str(message['message']['id']),
+        "dir_output": '/home/admin3/algoritmo_rutas_escape/output/' + 'rutas_escape_' + str(message['message']['id']),
         "sugerir": input_data.get('sugerir', False),
         "zonas_abiertas": file_paths["zonas_abiertas"],
         "v_viento": input_data.get('v_viento', None),
@@ -164,7 +164,7 @@ def process_escape_routes_data(**context):
             )
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/share_data/input/input_{id_ruta}_rutas_escape"
+            carpeta_destino = f"/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape"
             
             print(f"Creando carpeta y guardando el json en su interior: {carpeta_destino}")
             ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
@@ -180,15 +180,15 @@ def process_escape_routes_data(**context):
             print(f"Archivo JSON guardado en: {json_file_path}")
 
 
-            # carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/Algoritmo_rutas_escape/share_data/input/Test_funcionales/"
+            # carpeta_destino = f"/home/admin3/algoritmo_rutas_escape/Algoritmo_rutas_escape/share_data/input/Test_funcionales/"
             # json_file_path = f"{carpeta_destino}/Test2_1.json"
 
 
 
             containerName = f'rutas_escape_input_data_{id_ruta}'
-            volumePath = f'/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master'
+            volumePath = f'/home/admin3/algoritmo_rutas_escape'
             command = (
-                f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch && '
+                f'cd /home/admin3/algoritmo_rutas_escape/launch && '
                 f'CONFIGURATION_PATH={json_file_path} CONTAINER_NAME={containerName} VOLUME_PATH={volumePath}'
                 'docker-compose -f compose.yaml up --build'
             )
