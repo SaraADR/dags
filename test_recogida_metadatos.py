@@ -753,7 +753,7 @@ dag = DAG(
     'test_metadatos_mock',
     default_args=default_args,
     description='DAG procesa metadatos',
-    schedule_interval=None,
+    schedule_interval='*/1 * * * *',
     catchup=False,
     max_active_runs=1,
     concurrency=1,
