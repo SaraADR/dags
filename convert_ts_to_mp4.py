@@ -1,7 +1,6 @@
 import os
 import json
 import tempfile
-
 from moviepy import VideoFileClip
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
