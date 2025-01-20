@@ -8,6 +8,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 import pytz
+from dag_utils import update_job_status, throw_job_error,get_db_session
 
 def consumer_function(message, prefix, **kwargs):
  
@@ -174,11 +175,8 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
             
         try:
             #Insertamos la mision
-            db_conn = BaseHook.get_connection('biobd')
-            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-            engine = create_engine(connection_string)
-            Session = sessionmaker(bind=engine)
-            session = Session()
+            session = get_db_session()
+            engine = session.get_bind()
 
             result = session.execute(f"SELECT status_id FROM missions.mss_mission_initial_status WHERE mission_type_id = 3")
             if result.length() > 0:
