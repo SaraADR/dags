@@ -122,7 +122,7 @@ def process_escape_routes_data(**context):
     dir_incendio = input_data['dir_incendio'] 
     id_ruta = str(message['message']['id'])
     geojson = { "type": "FeatureCollection", "features": [ { "type": "Feature", "geometry": dir_incendio, "properties": {} } ] }
-    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/input/input_{id_ruta}_rutas_escape'
+    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/TestFuncionales'
 
 
     try:
@@ -130,11 +130,11 @@ def process_escape_routes_data(**context):
             sftp = ssh_client.open_sftp()
             print(f"Sftp abierto")
 
-            print(f"Creando carpeta y guardando el geojson en su interior: {geojson_file_path}")
-            ssh_client.exec_command(f"mkdir -p {geojson_file_path}")
-            ssh_client.exec_command(f"chmod 755 {geojson_file_path}")
+            # print(f"Creando carpeta y guardando el geojson en su interior: {geojson_file_path}")
+            # ssh_client.exec_command(f"mkdir -p {geojson_file_path}")
+            # ssh_client.exec_command(f"chmod 755 {geojson_file_path}")
 
-            json_file_path = f"{geojson_file_path}/geo.geojson"
+            json_file_path = f"{geojson_file_path}/input_{id_ruta}_rutas_escape.geojson"
             ssh_client.exec_command(f"touch -p {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
 
@@ -150,8 +150,9 @@ def process_escape_routes_data(**context):
 
 
     params = {
-        "directorio_alg" : '/launch',
-        "dir_incendio": f'/input/input_{id_ruta}_rutas_escape/geojson.geojson',
+        "directorio_alg" : ".",
+        "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
+        "dir_incendio": f"{json_file_path}",
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
         "dir_combustible": file_paths["dir_combustible"],
@@ -166,7 +167,6 @@ def process_escape_routes_data(**context):
         "dist_seguridad": input_data.get('dist_seguridad', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": file_paths["dir_carr_csv"],
-        "dir_output": f'/output/rutas_escape_{str(message['message']['id'])}',
         "sugerir": input_data.get('sugerir', False),
         "zonas_abiertas": file_paths["zonas_abiertas"],
         "v_viento": input_data.get('v_viento', None),
@@ -193,8 +193,8 @@ def process_escape_routes_data(**context):
             print(f"Sftp abierto")
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f'./algoritmo_rutas_escape/input/input_{id_ruta}_rutas_escape'
-            json_file_path = f'{carpeta_destino}/input_data.json'
+            carpeta_destino = f'./algoritmo_rutas_escape/input/Test_funcionales'
+            json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
@@ -203,16 +203,14 @@ def process_escape_routes_data(**context):
             
             print(f"Archivo JSON guardado en: {json_file_path}")
 
-            configuration_path = f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape/input_data.json'
+            configuration_path = f'./algoritmo_rutas_escape/input/Test_funcionales/input_{id_ruta}_rutas_escape.json'
             print("Contenido del archivo JSON:") 
             stdin, stdout, stderr = ssh_client.exec_command(f"cat {configuration_path}") 
             json_content = stdout.read().decode() 
             print(json_content)
 
-
-#
             command = (
-                f' cd /home/admin3/algoritmo_rutas_escape/launch  && CONFIGURATION_PATH={configuration_path} docker-compose -f compose.yaml up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
+                f' cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH={configuration_path} docker-compose -f compose.yaml up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
             )
 
             stdin, stdout, stderr = ssh_client.exec_command(command)
@@ -228,31 +226,31 @@ def process_escape_routes_data(**context):
 
 
 
-            output_directory = f'./algoritmo_rutas_escape/share_data/output/rutas_escape_{str(message['message']['id'])}'
-            ssh_client.exec_command(f"touch -p {output_directory}")
-            ssh_client.exec_command(f"chmod 644 {output_directory}")
-            local_output_directory = '/tmp'
+            # output_directory = f'./algoritmo_rutas_escape/share_data/output/rutas_escape_{str(message['message']['id'])}'
+            # ssh_client.exec_command(f"touch -p {output_directory}")
+            # ssh_client.exec_command(f"chmod 644 {output_directory}")
+            # local_output_directory = '/tmp'
 
-            sftp.chdir(output_directory)
-            print(f"Cambiando al directorio de salida: {output_directory}")
+            # sftp.chdir(output_directory)
+            # print(f"Cambiando al directorio de salida: {output_directory}")
 
-            downloaded_files = []
-            for filename in sftp.listdir():
-                remote_file_path = os.path.join(output_directory, filename)
-                local_file_path = os.path.join(local_output_directory, filename)
+            # downloaded_files = []
+            # for filename in sftp.listdir():
+            #     remote_file_path = os.path.join(output_directory, filename)
+            #     local_file_path = os.path.join(local_output_directory, filename)
 
-                # Descargar cada archivo
-                sftp.get(remote_file_path, local_file_path)
-                print(f"Archivo {filename} descargado a {local_file_path}")
-                downloaded_files.append(local_file_path)
-            sftp.close()
+            #     # Descargar cada archivo
+            #     sftp.get(remote_file_path, local_file_path)
+            #     print(f"Archivo {filename} descargado a {local_file_path}")
+            #     downloaded_files.append(local_file_path)
+            # sftp.close()
 
-            if not downloaded_files:
-                print("Errores al ejecutar run.sh:")
-                print(error_output)
+            # if not downloaded_files:
+            #     print("Errores al ejecutar run.sh:")
+            #     print(error_output)
             
-            else:
-                print_directory_contents(local_output_directory)
+            # else:
+            #     print_directory_contents(local_output_directory)
 
 
     except Exception as e:
