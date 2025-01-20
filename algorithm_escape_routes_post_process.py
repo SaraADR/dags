@@ -150,7 +150,7 @@ def process_escape_routes_data(**context):
 
 
     params = {
-        "directorio_alg" : '.',
+        "directorio_alg" : '/home/admin3/algoritmo_rutas_escape/launch',
         "dir_incendio": f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape/geojson.geojson',
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
