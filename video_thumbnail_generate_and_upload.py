@@ -4,30 +4,33 @@ import tempfile
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.hooks.base import BaseHook
 import boto3
 from botocore.client import Config
 from moviepy import VideoFileClip
-from airflow.hooks.base import BaseHook
 
-
-# Ruta del archivo de registro local
+# Ruta para almacenar el registro de videos procesados
 PROCESSED_VIDEOS_FILE = "/tmp/processed_videos.json"
 
 def load_processed_videos():
-    """ Carga la lista de videos procesados desde un archivo JSON"""
+    """
+    Carga la lista de videos procesados desde un archivo JSON.
+    """
     if os.path.exists(PROCESSED_VIDEOS_FILE):
         with open(PROCESSED_VIDEOS_FILE, "r") as f:
             return json.load(f)
     return []
 
 def save_processed_videos(processed_videos):
-    """ Guarda la lista de videos procesados en un archivo JSON."""
+    """
+    Guarda la lista de videos procesados en un archivo JSON.
+    """
     with open(PROCESSED_VIDEOS_FILE, "w") as f:
         json.dump(processed_videos, f)
 
 def scan_minio_for_videos(**kwargs):
     """
-    Escanea un bucket de MinIO para detectar nuevos videos que no hayan sido procesados.
+    Escanea un bucket de MinIO para detectar nuevos videos.
     """
     # Cargar videos ya procesados
     processed_videos = load_processed_videos()
@@ -46,9 +49,8 @@ def scan_minio_for_videos(**kwargs):
 
     # Escaneo del bucket
     bucket_name = 'temp'  # Cambia según tu bucket
-    prefix = ''  # Cambia si necesitas escanear un subdirectorio específico
     paginator = s3_client.get_paginator('list_objects_v2')
-    result = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+    result = paginator.paginate(Bucket=bucket_name)
 
     # Filtrar videos que no estén en la lista de procesados
     new_videos = []
@@ -142,7 +144,7 @@ dag = DAG(
     'scan_minio_and_generate_thumbnails',
     default_args=default_args,
     description='Escanea MinIO para videos y genera miniaturas',
-    schedule_interval='@hourly',  # Cambia según la frecuencia deseada
+    schedule_interval='*/1 * * * *',
     catchup=False,
 )
 
