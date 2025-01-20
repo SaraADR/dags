@@ -176,6 +176,32 @@ def process_escape_routes_data(**context):
         "dist_estudio": input_data.get('dist_estudio', 5000),
     }
 
+    params = {
+        "directorio_alg" : ".",
+        "dir_output": "/share_data/output/Test_7",
+        "dir_incendio": f"{json_file_path}",
+        "dir_mdt": input_data.get('dir_mdt', None),
+        "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
+        "dir_combustible": "/share_data/input/modelos_combustible_Galicia_2020.tif",
+        "api_idee": True,
+        "dir_vias": file_paths["dir_vias"],
+        "dir_cursos_agua": file_paths["dir_cursos_agua"],
+        "dir_aguas_estancadas": file_paths["dir_aguas_estancadas"],
+        "inicio": '{"latitude": 42.275683, "longitude": -8.082887}', 
+        "destino": '{"latitude": 42.27571, "longitude":-8.0885}',  
+        "direccion_avance": 90,
+        "dist_seguridad": input_data.get('dist_seguridad', None),
+        "dir_obstaculos": input_data.get('dir_obstaculos', None),
+        "dir_carr_csv": file_paths["dir_carr_csv"],
+        "sugerir": input_data.get('sugerir', False),
+        "zonas_abiertas": file_paths["zonas_abiertas"],
+        "v_viento": input_data.get('v_viento', None),
+        "f_buffer": 100,
+        "c_prop": input_data.get('c_prop', None),
+        "lim_pendiente": input_data.get('lim_pendiente', 90),
+        "dist_estudio": input_data.get('dist_estudio', 3000),
+    }
+
 
     # Crear el JSON dinámicamente
     json_data = create_json(params)
