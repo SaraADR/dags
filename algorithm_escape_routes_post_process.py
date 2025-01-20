@@ -164,7 +164,7 @@ def process_escape_routes_data(**context):
             )
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f"/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape"
+            carpeta_destino = f"/share_data/input/input_{id_ruta}_rutas_escape"
             
             print(f"Creando carpeta y guardando el json en su interior: {carpeta_destino}")
             ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
@@ -189,7 +189,7 @@ def process_escape_routes_data(**context):
             volumePath = f'/home/admin3/algoritmo_rutas_escape'
             command = (
                 f'cd /home/admin3/algoritmo_rutas_escape/launch && '
-                f'CONFIGURATION_PATH={json_file_path} CONTAINER_NAME={containerName}'
+                f'CONFIGURATION_PATH={json_file_path}'
                 'docker-compose -f compose.yaml up --build'
             )
             stdin, stdout, stderr = ssh_client.exec_command(command)
