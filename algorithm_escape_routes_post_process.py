@@ -122,7 +122,7 @@ def process_escape_routes_data(**context):
     dir_incendio = input_data['dir_incendio'] 
     id_ruta = str(message['message']['id'])
     geojson = { "type": "FeatureCollection", "features": [ { "type": "Feature", "geometry": dir_incendio, "properties": {} } ] }
-    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape'
+    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/input/input_{id_ruta}_rutas_escape'
 
 
     try:
@@ -150,8 +150,8 @@ def process_escape_routes_data(**context):
 
 
     params = {
-        "directorio_alg" : '/home/admin3/algoritmo_rutas_escape/launch',
-        "dir_incendio": f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape/geojson.geojson',
+        "directorio_alg" : '/launch',
+        "dir_incendio": f'/input/input_{id_ruta}_rutas_escape/geojson.geojson',
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
         "dir_combustible": file_paths["dir_combustible"],
@@ -166,7 +166,7 @@ def process_escape_routes_data(**context):
         "dist_seguridad": input_data.get('dist_seguridad', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": file_paths["dir_carr_csv"],
-        "dir_output": f'/home/admin3/algoritmo_rutas_escape/share_data/output/rutas_escape_{str(message['message']['id'])}',
+        "dir_output": f'/output/rutas_escape_{str(message['message']['id'])}',
         "sugerir": input_data.get('sugerir', False),
         "zonas_abiertas": file_paths["zonas_abiertas"],
         "v_viento": input_data.get('v_viento', None),
@@ -192,13 +192,8 @@ def process_escape_routes_data(**context):
             sftp = ssh_client.open_sftp()
             print(f"Sftp abierto")
 
-            print(f"Limpieza de voluemnes")
-            stdin, stdout, stderr = ssh_client.exec_command(
-                    'cd /home/admin3/Algoritmo_mapas_calor/algoritmo-mapas-de-calor-objetivo-1-master/launch && docker-compose down --volumes --remove-orphans'
-            )
-
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f'./algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape'
+            carpeta_destino = f'./algoritmo_rutas_escape/input/input_{id_ruta}_rutas_escape'
             json_file_path = f'{carpeta_destino}/input_data.json'
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
@@ -208,23 +203,6 @@ def process_escape_routes_data(**context):
             
             print(f"Archivo JSON guardado en: {json_file_path}")
 
-            stdin, stdout, stderr = ssh_client.exec_command(
-                    'cd /home/admin3/algoritmo_rutas_escape/launch && pwd'
-            )
-
-            # Leer y decodificar la salida estándar
-            output = stdout.read().decode()
-            error_output = stderr.read().decode()
-
-            # Imprimir las salidas en consola
-            if output:
-                print("Salida de 'pwd':")
-                print(output)
-
-            if error_output:
-                print("Errores al ejecutar 'pwd ':")
-                print(error_output)
-
             configuration_path = f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape/input_data.json'
             print("Contenido del archivo JSON:") 
             stdin, stdout, stderr = ssh_client.exec_command(f"cat {configuration_path}") 
@@ -232,9 +210,9 @@ def process_escape_routes_data(**context):
             print(json_content)
 
 
-#CONFIGURATION_PATH={configuration_path}
+#
             command = (
-                f' docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml up --build --abort-on-container-exit && docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml down --volumes'
+                f' cd /home/admin3/algoritmo_rutas_escape/launch  && CONFIGURATION_PATH={configuration_path} docker-compose -f compose.yaml up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
             )
 
             stdin, stdout, stderr = ssh_client.exec_command(command)
@@ -247,6 +225,8 @@ def process_escape_routes_data(**context):
 
             print("Salida de docker:")
             print(output)
+
+
 
             output_directory = f'./algoritmo_rutas_escape/share_data/output/rutas_escape_{str(message['message']['id'])}'
             ssh_client.exec_command(f"touch -p {output_directory}")
