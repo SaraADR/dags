@@ -282,6 +282,58 @@ def process_escape_routes_data(**context):
             else:
                 print_directory_contents(local_output_directory)
 
+                local_output_directory = '/tmp'
+                shapefile_path = os.path.join(local_output_directory, "ruta_escape.shp")
+                tiff_output_path = os.path.join(local_output_directory, "ruta_escape.tiff")
+
+                # Leer el shapefile usando GeoPandas
+                gdf = gpd.read_file(shapefile_path)
+
+                # Obtener la proyección del shapefile
+                crs = CRS.from_string(gdf.crs.to_string())
+
+                # Configurar el transform (proyección)
+                bounds = gdf.total_bounds  # xmin, ymin, xmax, ymax
+                resolution = 0.0001  # Ajusta la resolución del raster
+                width = int((bounds[2] - bounds[0]) / resolution)
+                height = int((bounds[3] - bounds[1]) / resolution)
+
+                transform = rasterio.transform.from_bounds(
+                    bounds[0], bounds[1], bounds[2], bounds[3], width, height
+                )
+
+                # Crear el GeoTIFF
+                with rasterio.open(
+                    tiff_output_path,
+                    'w',
+                    driver='GTiff',
+                    height=height,
+                    width=width,
+                    count=1,
+                    dtype='uint8',
+                    crs=crs.to_string(),
+                    transform=transform,
+                ) as dst:
+                    # Rasterizar las geometrías
+                    rasterized = rasterize(
+                        ((shape(geom), 1) for geom in gdf.geometry),
+                        out_shape=(height, width),
+                        transform=transform,
+                        fill=0,
+                        all_touched=True,
+                        dtype='uint8',
+                    )
+                    dst.write(rasterized, 1)
+
+                print(f"GeoTIFF creado en: {tiff_output_path}")
+                print_directory_contents(local_output_directory)
+                try:
+                    upload_to_minio_path('minio_conn', 'tmp', 'escape_routes' + '/', local_output_directory + '/ruta_escape.tiff')
+                except Exception as e:
+                    print(f"Error al subir archivos a MinIO: {str(e)}")
+                raise e
+
+
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")
@@ -324,59 +376,6 @@ def print_directory_contents(directory):
         for f in files:
             print(f"{subindent}{f}")
     print("------------------------------------------")    
-
-
-def create_geotiff():
-    local_output_directory = '/tmp'
-    shapefile_path = os.path.join(local_output_directory, "ruta_escape.shp")
-    tiff_output_path = os.path.join(local_output_directory, "ruta_escape.tiff")
-
-    # Leer el shapefile usando GeoPandas
-    gdf = gpd.read_file(shapefile_path)
-
-    # Obtener la proyección del shapefile
-    crs = CRS.from_string(gdf.crs.to_string())
-
-    # Configurar el transform (proyección)
-    bounds = gdf.total_bounds  # xmin, ymin, xmax, ymax
-    resolution = 0.0001  # Ajusta la resolución del raster
-    width = int((bounds[2] - bounds[0]) / resolution)
-    height = int((bounds[3] - bounds[1]) / resolution)
-
-    transform = rasterio.transform.from_bounds(
-        bounds[0], bounds[1], bounds[2], bounds[3], width, height
-    )
-
-    # Crear el GeoTIFF
-    with rasterio.open(
-        tiff_output_path,
-        'w',
-        driver='GTiff',
-        height=height,
-        width=width,
-        count=1,
-        dtype='uint8',
-        crs=crs.to_string(),
-        transform=transform,
-    ) as dst:
-        # Rasterizar las geometrías
-        rasterized = rasterize(
-            ((shape(geom), 1) for geom in gdf.geometry),
-            out_shape=(height, width),
-            transform=transform,
-            fill=0,
-            all_touched=True,
-            dtype='uint8',
-        )
-        dst.write(rasterized, 1)
-
-    print(f"GeoTIFF creado en: {tiff_output_path}")
-    print_directory_contents(local_output_directory)
-    try:
-        upload_to_minio_path('minio_conn', 'tmp', 'escape_routes' + '/', local_output_directory + '/ruta_escape.tiff')
-    except Exception as e:
-        print(f"Error al subir archivos a MinIO: {str(e)}")
-    raise e
 
 
 
@@ -439,11 +438,7 @@ process_escape_routes_task = PythonOperator(
     dag=dag,
 )
 
-convert_to_tiff = PythonOperator(
-    task_id='create_geotiff_task',
-    python_callable=create_geotiff,
-    dag=dag,
-)
+
 
 # Definir el flujo de tareas
-process_escape_routes_task >> convert_to_tiff
+process_escape_routes_task 
