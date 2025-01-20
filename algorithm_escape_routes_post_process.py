@@ -25,7 +25,7 @@ def process_escape_routes_data(**context):
 
     payload = [
         {
-            "fileType": "dir_carr_csv",
+            "fileType": "carr_csv",
             "date": "2024-01-01",
             "location": "Galicia"
         },
@@ -212,8 +212,9 @@ def process_escape_routes_data(**context):
             volumePath = f'/home/admin3/algoritmo_rutas_escape'
             command = (
                 f'cd /home/admin3/algoritmo_rutas_escape/launch && '
-                f'CONFIGURATION_PATH={json_file_path}'
-                'docker-compose -f compose.yaml up --build'
+                f'CONFIGURATION_PATH={json_file_path} '
+                'docker-compose -f compose.yaml up --build --abort-on-container-exit && '
+                'docker-compose -f compose.yaml down --volumes'
             )
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
