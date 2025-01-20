@@ -9,10 +9,33 @@ import boto3
 from botocore.client import Config
 from moviepy import VideoFileClip
 
-def scan_minio_for_videos(**kwargs):
+# Ruta para almacenar el registro de videos procesados
+PROCESSED_VIDEOS_FILE = "/tmp/processed_videos.json"
 
-    """ Escanea un bucket de MinIO para detectar nuevos videos."""  
-    
+def load_processed_videos():
+    """
+    Carga la lista de videos procesados desde un archivo JSON.
+    """
+    if os.path.exists(PROCESSED_VIDEOS_FILE):
+        with open(PROCESSED_VIDEOS_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+def save_processed_videos(processed_videos):
+    """
+    Guarda la lista de videos procesados en un archivo JSON.
+    """
+    with open(PROCESSED_VIDEOS_FILE, "w") as f:
+        json.dump(processed_videos, f)
+
+def scan_minio_for_videos(**kwargs):
+    """
+    Escanea un bucket de MinIO para detectar nuevos videos.
+    """
+    # Cargar videos ya procesados
+    processed_videos = load_processed_videos()
+    print(f"Videos procesados previamente: {processed_videos}")
+
     # Conexión a MinIO
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
@@ -29,12 +52,13 @@ def scan_minio_for_videos(**kwargs):
     paginator = s3_client.get_paginator('list_objects_v2')
     result = paginator.paginate(Bucket=bucket_name)
 
-    # Filtrar videos
+    # Filtrar videos que no estén en la lista de procesados
     new_videos = []
     for page in result:
         for content in page.get('Contents', []):
-            if content['Key'].endswith('.mp4'):
-                new_videos.append(content['Key'])
+            video_key = content['Key']
+            if video_key.endswith('.mp4') and video_key not in processed_videos:
+                new_videos.append(video_key)
 
     print(f"Nuevos videos detectados: {new_videos}")
     kwargs['task_instance'].xcom_push(key='new_videos', value=new_videos)
@@ -62,6 +86,9 @@ def process_and_generate_thumbnail(**kwargs):
 
     bucket_name = 'temp'  # Cambia según tu bucket
 
+    # Cargar lista de videos procesados
+    processed_videos = load_processed_videos()
+
     for video_key in videos:
         print(f"Procesando video: {video_key}")
 
@@ -87,6 +114,11 @@ def process_and_generate_thumbnail(**kwargs):
             print(f"Subiendo miniatura a MinIO: {thumbnail_key}...")
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
             print(f"Miniatura subida correctamente: {thumbnail_key}")
+
+            # Registrar el video como procesado
+            processed_videos.append(video_key)
+            save_processed_videos(processed_videos)
+            print(f"Video registrado como procesado: {video_key}")
 
         except Exception as e:
             print(f"Error procesando {video_key}: {e}")
@@ -115,7 +147,6 @@ dag = DAG(
     schedule_interval='*/1 * * * *',
     catchup=False,
 )
-
 
 scan_minio_task = PythonOperator(
     task_id='scan_minio',
