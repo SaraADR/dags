@@ -189,7 +189,7 @@ def process_escape_routes_data(**context):
             volumePath = f'/home/admin3/algoritmo_rutas_escape'
             command = (
                 f'cd /home/admin3/algoritmo_rutas_escape/launch && '
-                f'CONFIGURATION_PATH={json_file_path} CONTAINER_NAME={containerName} VOLUME_PATH={volumePath}'
+                f'CONFIGURATION_PATH={json_file_path} CONTAINER_NAME={containerName}'
                 'docker-compose -f compose.yaml up --build'
             )
             stdin, stdout, stderr = ssh_client.exec_command(command)
