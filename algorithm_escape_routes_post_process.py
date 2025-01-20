@@ -186,7 +186,7 @@ def process_escape_routes_data(**context):
 
 
             containerName = f'rutas_escape_input_data_{id_ruta}'
-            volumePath = f'/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/share_data'
+            volumePath = f'/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master'
             command = (
                 f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch && '
                 f'CONFIGURATION_PATH={json_file_path} CONTAINER_NAME={containerName} VOLUME_PATH={volumePath}'
