@@ -241,7 +241,7 @@ def process_escape_routes_data(**context):
             print("Salida de docker:")
             print(output)
 
-            output_directory = './algoritmo_rutas_escape/share_data/output/' + 'rutas_escape_' + str(message['message']['id'])
+            output_directory = f'./algoritmo_rutas_escape/share_data/output/rutas_escape_{str(message['message']['id'])}'
             ssh_client.exec_command(f"touch -p {output_directory}")
             ssh_client.exec_command(f"chmod 644 {output_directory}")
             local_output_directory = '/tmp'
