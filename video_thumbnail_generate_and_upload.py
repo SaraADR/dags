@@ -7,35 +7,13 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.hooks.base import BaseHook
 import boto3
 from botocore.client import Config
-from moviepy import VideoFileClip
+from moviepy.editor import VideoFileClip
+from sqlalchemy import create_engine, text
+from dag_utils import update_job_status, throw_job_error,get_db_session
 
-# Ruta para almacenar el registro de videos procesados
-PROCESSED_VIDEOS_FILE = "/tmp/processed_videos.json"
-
-def load_processed_videos():
-    """
-    Carga la lista de videos procesados desde un archivo JSON.
-    """
-    if os.path.exists(PROCESSED_VIDEOS_FILE):
-        with open(PROCESSED_VIDEOS_FILE, "r") as f:
-            return json.load(f)
-    return []
-
-def save_processed_videos(processed_videos):
-    """
-    Guarda la lista de videos procesados en un archivo JSON.
-    """
-    with open(PROCESSED_VIDEOS_FILE, "w") as f:
-        json.dump(processed_videos, f)
 
 def scan_minio_for_videos(**kwargs):
-    """
-    Escanea un bucket de MinIO para detectar nuevos videos.
-    """
-    # Cargar videos ya procesados
-    processed_videos = load_processed_videos()
-    print(f"Videos procesados previamente: {processed_videos}")
-
+    """ Escanea un bucket de MinIO para detectar nuevos videos que no estén en la base de datos."""
     # Conexión a MinIO
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
@@ -47,18 +25,25 @@ def scan_minio_for_videos(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
+    # Conexión a la base de datos
+    engine = get_db_session()
+
     # Escaneo del bucket
     bucket_name = 'temp'  # Cambia según tu bucket
-    paginator = s3_client.get_paginator('list_objects_v2')
+    paginator = s3_client.get_paginator('')
     result = paginator.paginate(Bucket=bucket_name)
 
-    # Filtrar videos que no estén en la lista de procesados
+    # Filtrar videos que no estén en la tabla `processed_videos`
     new_videos = []
     for page in result:
         for content in page.get('Contents', []):
             video_key = content['Key']
-            if video_key.endswith('.mp4') and video_key not in processed_videos:
-                new_videos.append(video_key)
+            if video_key.endswith('.mp4'):
+                with engine.connect() as conn:
+                    query = text("SELECT 1 FROM processed_videos WHERE video_key = :video_key")
+                    result = conn.execute(query, {'video_key': video_key})
+                    if result.fetchone() is None:  # Si no está en la base de datos
+                        new_videos.append(video_key)
 
     print(f"Nuevos videos detectados: {new_videos}")
     kwargs['task_instance'].xcom_push(key='new_videos', value=new_videos)
@@ -67,12 +52,6 @@ def process_and_generate_thumbnail(**kwargs):
     """
     Descarga videos, genera miniaturas y las sube a MinIO.
     """
-    # Obtener videos detectados
-    videos = kwargs['task_instance'].xcom_pull(key='new_videos', default=[])
-    if not videos:
-        print("No hay nuevos videos para procesar.")
-        return
-
     # Conexión a MinIO
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
@@ -84,10 +63,16 @@ def process_and_generate_thumbnail(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
-    bucket_name = 'temp'  # Cambia según tu bucket
+    # Conexión a la base de datos
+    engine = get_db_session()
 
-    # Cargar lista de videos procesados
-    processed_videos = load_processed_videos()
+    # Obtener videos detectados
+    videos = kwargs['task_instance'].xcom_pull(key='new_videos', default=[])
+    if not videos:
+        print("No hay nuevos videos para procesar.")
+        return
+
+    bucket_name = 'temp'  # Cambia según tu bucket
 
     for video_key in videos:
         print(f"Procesando video: {video_key}")
@@ -107,7 +92,7 @@ def process_and_generate_thumbnail(**kwargs):
             # Generar el thumbnail
             print(f"Generando miniatura para {video_path}...")
             with VideoFileClip(video_path) as video:
-                video.save_frame(thumbnail_path, t=10)  # Captura en el segundo 10
+                video.save_frame(thumbnail_path, t=10)
             print(f"Miniatura generada: {thumbnail_path}")
 
             # Subir el thumbnail a MinIO
@@ -115,9 +100,13 @@ def process_and_generate_thumbnail(**kwargs):
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
             print(f"Miniatura subida correctamente: {thumbnail_key}")
 
-            # Registrar el video como procesado
-            processed_videos.append(video_key)
-            save_processed_videos(processed_videos)
+            # Registrar el video en la base de datos
+            with engine.connect() as conn:
+                query = text("""
+                    INSERT INTO processed_videos (video_key)
+                    VALUES (:video_key)
+                """)
+                conn.execute(query, {'video_key': video_key})
             print(f"Video registrado como procesado: {video_key}")
 
         except Exception as e:
@@ -141,9 +130,9 @@ default_args = {
 }
 
 dag = DAG(
-    'scan_minio_and_generate_thumbnails',
+    'scan_minio_and_generate_thumbnails_with_db',
     default_args=default_args,
-    description='Escanea MinIO para videos y genera miniaturas',
+    description='Escanea MinIO para videos y genera miniaturas usando DB',
     schedule_interval='*/1 * * * *',
     catchup=False,
 )
