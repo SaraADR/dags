@@ -25,7 +25,7 @@ def process_escape_routes_data(**context):
 
     payload = [
         {
-            "fileType": "hojasmtn50",
+            "fileType": "dir_carr_csv",
             "date": "2024-01-01",
             "location": "Galicia"
         },
@@ -33,12 +33,12 @@ def process_escape_routes_data(**context):
             "fileType": "combustible",
             "date": "2024-02-01",
             "location": "Galicia"
-        },
-        {
-            "fileType": "vias",
-            "date": "2024-02-01",
-            "location": "Galicia"
         }
+        # {
+        #     "fileType": "vias",
+        #     "date": "2024-02-01",
+        #     "location": "Galicia"
+        # }
 
     ]
 
@@ -150,6 +150,7 @@ def process_escape_routes_data(**context):
 
 
     params = {
+        "directorio_alg" : '.',
         "dir_incendio": f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape/geojson.geojson',
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
