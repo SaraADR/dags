@@ -15,44 +15,6 @@ from sqlalchemy.orm import sessionmaker
 from dag_utils import dms_to_decimal, duration_to_seconds, parse_output_to_json, upload_to_minio, upload_to_minio_path
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 
-# #TRAE TODOS LOS FICHEROS DE LA CARPETA DE MINIO
-# def process_extracted_files(**kwargs):
-
-#     # Establecer conexión con MinIO
-#     connection = BaseHook.get_connection('minio_conn')
-#     extra = json.loads(connection.extra)
-#     s3_client = boto3.client(
-#         's3',
-#         endpoint_url=extra['endpoint_url'],
-#         aws_access_key_id=extra['aws_access_key_id'],
-#         aws_secret_access_key=extra['aws_secret_access_key'],
-#         config=Config(signature_version='s3v4')
-#     )
-
-
-#     # Nombre del bucket donde está almacenado el archivo/carpeta
-#     bucket_name = 'temp'
-#     folder_prefix = 'metadatos/'
-#     local_directory = 'temp'  
-
-#     try:
-#         # Listar objetos en la carpeta
-#         response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=folder_prefix)
-
-#         if 'Contents' not in response:
-#             print(f"No hay archivos en la carpeta {folder_prefix}")
-#             return
-        
-#         for obj in response['Contents']:
-#             file_key = obj['Key']
-#             print(f"Procesando archivo: {file_key}")
-#             local_zip_path = download_from_minio(s3_client, bucket_name, file_key, local_directory, folder_prefix)
-#             process_zip_file(local_zip_path, file_key, file_key,  **kwargs)
-#         return  
-#     except Exception as e:
-#         print(f"Error al procesar los archivos: {e}")
-
-
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
@@ -76,7 +38,7 @@ def consumer_function(message, prefix, **kwargs):
     )
 
     # Nombre del bucket donde está almacenado el archivo/carpeta
-    bucket_name = 'temp'
+    bucket_name = 'tmp'
     folder_prefix = 'metadatos/'
     local_directory = 'temp'  
 
