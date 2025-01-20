@@ -7,7 +7,7 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.hooks.base import BaseHook
 import boto3
 from botocore.client import Config
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 
 def scan_minio_for_videos(**kwargs):
 

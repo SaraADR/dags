@@ -8,7 +8,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 import pytz
-import dag_utils import get_db_session
+from dag_utils import update_job_status, throw_job_error,get_db_session
 
 def consumer_function(message, prefix, **kwargs):
  
