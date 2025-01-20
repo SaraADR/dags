@@ -198,7 +198,7 @@ def process_escape_routes_data(**context):
             )
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f"/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape"
+            carpeta_destino = f"./algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape"
             json_file_path = f"{carpeta_destino}/input_data_{id_ruta}.json"
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
@@ -209,11 +209,8 @@ def process_escape_routes_data(**context):
             print(f"Archivo JSON guardado en: {json_file_path}")
 
             stdin, stdout, stderr = ssh_client.exec_command(
-                    'cd /home/admin3/algoritmo_rutas_escape/launch'
+                    'cd ./algoritmo_rutas_escape/launch'
             )
-
-            containerName = f'rutas_escape_input_data_{id_ruta}'
-            volumePath = f'/home/admin3/algoritmo_rutas_escape'
             stdin, stdout, stderr = ssh_client.exec_command(
                     'pwd && ls -la'
             )
@@ -231,7 +228,7 @@ def process_escape_routes_data(**context):
                 print(error_output)
 
             command = (
-                f' CONFIGURATION_PATH={json_file_path} docker-compose -f "/home/admin3/algoritmo_rutas_escape/launch/compose.yaml" up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
+                f' CONFIGURATION_PATH={json_file_path} docker-compose -f "./algoritmo_rutas_escape/launch/compose.yaml" up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
             )
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
@@ -244,7 +241,7 @@ def process_escape_routes_data(**context):
             print("Salida de docker:")
             print(output)
 
-            output_directory = '/home/admin3/algoritmo_rutas_escape/share_data/output/' + 'rutas_escape_' + str(message['message']['id'])
+            output_directory = './algoritmo_rutas_escape/share_data/output/' + 'rutas_escape_' + str(message['message']['id'])
             ssh_client.exec_command(f"touch -p {output_directory}")
             ssh_client.exec_command(f"chmod 644 {output_directory}")
             local_output_directory = '/tmp'
