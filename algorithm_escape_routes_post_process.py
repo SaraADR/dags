@@ -208,9 +208,9 @@ def process_escape_routes_data(**context):
             stdin, stdout, stderr = ssh_client.exec_command(f"cat {configuration_path}") 
             json_content = stdout.read().decode() 
             print(json_content)
-
+#CONFIGURATION_PATH={configuration_path}
             command = (
-                f' cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH={configuration_path} docker-compose -f compose.yaml up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
+                f' cd /home/admin3/algoritmo_rutas_escape/launch &&  docker-compose -f compose.yaml up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
             )
 
             stdin, stdout, stderr = ssh_client.exec_command(command)
