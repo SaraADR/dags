@@ -225,10 +225,11 @@ def process_escape_routes_data(**context):
                 print("Errores al ejecutar 'pwd ':")
                 print(error_output)
 
+            configuration_path = f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape/input_data.json'
             command = (
-                f'CONFIGURATION_PATH={json_file_path} docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml up --build --abort-on-container-exit && docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml down --volumes'
+                f'CONFIGURATION_PATH={configuration_path} docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml up --build --abort-on-container-exit && docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml down --volumes'
             )
-            
+
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
             error_output = stderr.read().decode()
