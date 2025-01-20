@@ -260,13 +260,14 @@ def process_escape_routes_data(**context):
 
             downloaded_files = []
             for filename in sftp.listdir():
-                remote_file_path = os.path.join(output_directory, filename)
-                local_file_path = os.path.join(local_output_directory, filename)
+                if "ruta_escape" in filename:
+                        remote_file_path = os.path.join(output_directory, filename)
+                        local_file_path = os.path.join(local_output_directory, filename)
 
-                # Descargar cada archivo
-                sftp.get(remote_file_path, local_file_path)
-                print(f"Archivo {filename} descargado a {local_file_path}")
-                downloaded_files.append(local_file_path)
+                        # Descargar el archivo
+                        sftp.get(remote_file_path, local_file_path)
+                        print(f"Archivo {filename} descargado a {local_file_path}")
+                        downloaded_files.append(local_file_path)
             sftp.close()
 
             if not downloaded_files:
