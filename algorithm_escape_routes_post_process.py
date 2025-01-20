@@ -9,6 +9,7 @@ from airflow.hooks.http_hook import HttpHook
 import requests
 from dag_utils import update_job_status, throw_job_error
 import os
+import geojson
 
 
 
@@ -18,6 +19,7 @@ def process_escape_routes_data(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
     url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-paths"  
 
@@ -85,7 +87,6 @@ def process_escape_routes_data(**context):
     elif isinstance(destino, dict):
         pass
 
-  
 
     # Crear un diccionario para almacenar los paths
     file_paths = {
@@ -116,8 +117,28 @@ def process_escape_routes_data(**context):
             elif file["fileType"] == "zonas_abiertas":
                 file_paths["zonas_abiertas"] = file["path"]
 
+
+    #Crear geojson con el incendio
+    dir_incendio = input_data['dir_incendio'] 
+    id_ruta = str(message['message']['id'])
+    geojson = { "type": "FeatureCollection", "features": [ { "type": "Feature", "geometry": dir_incendio, "properties": {} } ] }
+    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape/geojson.geojson'
+
+    try:
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            print(f"Sftp abierto")
+            with sftp.file(geojson_file_path, 'w') as json_file: 
+                json.dump(geojson, json_file, indent=4)
+            print(f"GeoJSON guardado en {geojson_file_path}")
+            sftp.close()
+
+    except Exception as e: 
+        print(f"Error al guardar GeoJSON: {str(e)}")
+
+
     params = {
-        "dir_incendio": input_data.get('dir_incendio', None),
+        "dir_incendio": f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape/geojson.geojson',
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
         "dir_combustible": file_paths["dir_combustible"],
@@ -151,7 +172,7 @@ def process_escape_routes_data(**context):
     print(json.dumps(json_data, indent=4))
 
 
-    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+
     try:
         # Conectarse al servidor SSH
         with ssh_hook.get_conn() as ssh_client:
@@ -164,7 +185,7 @@ def process_escape_routes_data(**context):
             )
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f"/share_data/input/input_{id_ruta}_rutas_escape"
+            carpeta_destino = f"/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape"
             
             print(f"Creando carpeta y guardando el json en su interior: {carpeta_destino}")
             ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
@@ -178,12 +199,6 @@ def process_escape_routes_data(**context):
                 json.dump(json_data, json_file, indent=4)
             
             print(f"Archivo JSON guardado en: {json_file_path}")
-
-
-            # carpeta_destino = f"/home/admin3/algoritmo_rutas_escape/Algoritmo_rutas_escape/share_data/input/Test_funcionales/"
-            # json_file_path = f"{carpeta_destino}/Test2_1.json"
-
-
 
             containerName = f'rutas_escape_input_data_{id_ruta}'
             volumePath = f'/home/admin3/algoritmo_rutas_escape'
@@ -203,8 +218,7 @@ def process_escape_routes_data(**context):
             print("Salida de docker:")
             print(output)
 
-            output_directory = '../output/' + 'rutas_escape_' + str(message['message']['id'])
-            # output_directory = '../output/outputtest'
+            output_directory = '/home/admin3/algoritmo_rutas_escape/share_data/output/' + 'rutas_escape_' + str(message['message']['id'])
             local_output_directory = '/tmp'
 
             sftp.chdir(output_directory)
