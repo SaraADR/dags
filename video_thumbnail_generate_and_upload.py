@@ -7,7 +7,7 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.hooks.base import BaseHook
 import boto3
 from botocore.client import Config
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 from sqlalchemy import create_engine, text
 from dag_utils import update_job_status, throw_job_error,get_db_session
 
