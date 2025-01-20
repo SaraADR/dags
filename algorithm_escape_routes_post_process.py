@@ -229,7 +229,7 @@ def process_escape_routes_data(**context):
             
             print(f"Archivo JSON guardado en: {json_file_path}")
 
-            configuration_path = f'./algoritmo_rutas_escape/input/Test_funcionales/input_{id_ruta}_rutas_escape.json'
+            configuration_path = f"/home/admin3/algoritmo_rutas_escape/input/Test_funcionales/input_{id_ruta}_rutas_escape.json"
             print("Contenido del archivo JSON:") 
             stdin, stdout, stderr = ssh_client.exec_command(f"cat {configuration_path}") 
             json_content = stdout.read().decode() 
