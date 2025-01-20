@@ -13,10 +13,57 @@ from botocore.exceptions import ClientError
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 from dag_utils import dms_to_decimal, duration_to_seconds, parse_output_to_json, upload_to_minio, upload_to_minio_path
+from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 
-#TRAE TODOS LOS FICHEROS DE LA CARPETA DE MINIO
-def process_extracted_files(**kwargs):
+# #TRAE TODOS LOS FICHEROS DE LA CARPETA DE MINIO
+# def process_extracted_files(**kwargs):
 
+#     # Establecer conexión con MinIO
+#     connection = BaseHook.get_connection('minio_conn')
+#     extra = json.loads(connection.extra)
+#     s3_client = boto3.client(
+#         's3',
+#         endpoint_url=extra['endpoint_url'],
+#         aws_access_key_id=extra['aws_access_key_id'],
+#         aws_secret_access_key=extra['aws_secret_access_key'],
+#         config=Config(signature_version='s3v4')
+#     )
+
+
+#     # Nombre del bucket donde está almacenado el archivo/carpeta
+#     bucket_name = 'temp'
+#     folder_prefix = 'metadatos/'
+#     local_directory = 'temp'  
+
+#     try:
+#         # Listar objetos en la carpeta
+#         response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=folder_prefix)
+
+#         if 'Contents' not in response:
+#             print(f"No hay archivos en la carpeta {folder_prefix}")
+#             return
+        
+#         for obj in response['Contents']:
+#             file_key = obj['Key']
+#             print(f"Procesando archivo: {file_key}")
+#             local_zip_path = download_from_minio(s3_client, bucket_name, file_key, local_directory, folder_prefix)
+#             process_zip_file(local_zip_path, file_key, file_key,  **kwargs)
+#         return  
+#     except Exception as e:
+#         print(f"Error al procesar los archivos: {e}")
+
+
+
+def consumer_function(message, prefix, **kwargs):
+    print(f"Mensaje crudo: {message}")
+    try:
+        msg_value = message.value().decode('utf-8')
+        print("Mensaje procesado: ", msg_value)
+    except Exception as e:
+        print(f"Error al procesar el mensaje: {e}")
+
+    file_path_in_minio =  msg_value  
+        
     # Establecer conexión con MinIO
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
@@ -28,28 +75,18 @@ def process_extracted_files(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
-
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'temp'
     folder_prefix = 'metadatos/'
     local_directory = 'temp'  
 
     try:
-        # Listar objetos en la carpeta
-        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=folder_prefix)
-
-        if 'Contents' not in response:
-            print(f"No hay archivos en la carpeta {folder_prefix}")
-            return
-        
-        for obj in response['Contents']:
-            file_key = obj['Key']
-            print(f"Procesando archivo: {file_key}")
-            local_zip_path = download_from_minio(s3_client, bucket_name, file_key, local_directory, folder_prefix)
-            process_zip_file(local_zip_path, file_key, file_key,  **kwargs)
-        return  
+        local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
+        print(local_zip_path)
+        process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
     except Exception as e:
-        print(f"Error al procesar los archivos: {e}")
+        print(f"Error al descargar desde MinIO: {e}")
+        raise 
 
 
 
@@ -60,7 +97,6 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
         return
     
-
     name_short = os.path.basename(file_path)
     file_name = 'temp/' + name_short
     print(f"Ejecutando proceso de docker con el file {file_name}")
@@ -75,7 +111,6 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
             sftp.put(file_name, shared_volume_path)
             print(f"Copied {file_name} to {shared_volume_path}")
-
 
             # Execute Docker command for each file
             docker_command = (
@@ -114,15 +149,19 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     if(idRafaga != '0' and idRafaga != '' and idRafaga != None):
         #Es una rafaga
         is_rafaga(output, output_json)
+
+
+
     #SON VIDEOS
     elif message.endswith(".mp4"):
         comments = json.loads(comment_json)
         is_visible_or_ter(message, local_zip_path, output_json_noload, comments, -1)
-
     elif message.endswith(".ts"):
         process_ts_job(output, message, local_zip_path)
         print(f"Archivo {message} procesado con éxito.")
     
+
+
     #SON IMAGENES
     elif "-vis" in message:
         #Es imagen visible
@@ -143,6 +182,9 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             print("No se reconoce el tipo de imagen o video aportado")
         return 
     return
+
+
+
 
 def process_ts_job(output, message, local_zip_path):
     """
@@ -230,7 +272,6 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 #output_json = generalizacionDatosMetadatos(output_json, output)
 
 
-
     if SensorId is None : 
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
         try:
@@ -238,6 +279,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
+    
 
     # Buscar los metadatos en captura
     try:
@@ -266,7 +308,6 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         """)
 
         
-
         try:
             if(type == 2): #Multiespectral
                 date_time_str = output_json.get("DateTimeOriginal")
@@ -718,12 +759,12 @@ dag = DAG(
     concurrency=1,
 )
 
-process_extracted_files_task = PythonOperator(
-    task_id='process_extracted_files',
-    python_callable=process_extracted_files,
-    provide_context=True,
-    dag=dag,
-)
+# process_extracted_files_task = PythonOperator(
+#     task_id='process_extracted_files',
+#     python_callable=process_extracted_files,
+#     provide_context=True,
+#     dag=dag,
+# )
 
     # Tarea de limpieza
 cleanup_task = PythonOperator(
@@ -731,5 +772,15 @@ cleanup_task = PythonOperator(
         python_callable=clean_temp_directory,
 )
 
+consume_from_topic = ConsumeFromTopicOperator(
+    kafka_config_id="kafka_connection",
+    task_id="consume_from_topic_minio",
+    topics=["metadato"],
+    apply_function=consumer_function,
+    apply_function_kwargs={"prefix": "consumed:::"},
+    commit_cadence="end_of_operator",
+    dag=dag,
+)
 
-process_extracted_files_task >> cleanup_task
+
+consume_from_topic >> cleanup_task
