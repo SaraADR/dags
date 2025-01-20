@@ -229,9 +229,9 @@ def process_escape_routes_data(**context):
             if error_output:
                 print("Errores al ejecutar 'pwd && ls -la':")
                 print(error_output)
-                
+
             command = (
-                f' CONFIGURATION_PATH={json_file_path} docker-compose -f compose.yaml up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
+                f' CONFIGURATION_PATH={json_file_path} docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
             )
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
