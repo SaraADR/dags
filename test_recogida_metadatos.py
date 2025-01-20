@@ -721,12 +721,6 @@ dag = DAG(
     concurrency=1,
 )
 
-# process_extracted_files_task = PythonOperator(
-#     task_id='process_extracted_files',
-#     python_callable=process_extracted_files,
-#     provide_context=True,
-#     dag=dag,
-# )
 
     # Tarea de limpieza
 cleanup_task = PythonOperator(
