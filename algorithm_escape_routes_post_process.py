@@ -209,22 +209,20 @@ def process_escape_routes_data(**context):
             print(f"Archivo JSON guardado en: {json_file_path}")
 
             stdin, stdout, stderr = ssh_client.exec_command(
-                    'cd /home/admin3/algoritmo_rutas_escape/launch'
+                    'cd /home/admin3/algoritmo_rutas_escape/launch && pwd'
             )
-            stdin, stdout, stderr = ssh_client.exec_command(
-                    'pwd && ls -la'
-            )
+
             # Leer y decodificar la salida estándar
             output = stdout.read().decode()
             error_output = stderr.read().decode()
 
             # Imprimir las salidas en consola
             if output:
-                print("Salida de 'pwd && ls -la':")
+                print("Salida de 'pwd':")
                 print(output)
 
             if error_output:
-                print("Errores al ejecutar 'pwd && ls -la':")
+                print("Errores al ejecutar 'pwd ':")
                 print(error_output)
 
             command = (
