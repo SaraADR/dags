@@ -166,7 +166,7 @@ def process_escape_routes_data(**context):
         "dist_seguridad": input_data.get('dist_seguridad', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": file_paths["dir_carr_csv"],
-        "dir_output": '/home/admin3/algoritmo_rutas_escape/output/' + 'rutas_escape_' + str(message['message']['id']),
+        "dir_output": f'/home/admin3/algoritmo_rutas_escape/output/rutas_escape_{str(message['message']['id'])}',
         "sugerir": input_data.get('sugerir', False),
         "zonas_abiertas": file_paths["zonas_abiertas"],
         "v_viento": input_data.get('v_viento', None),
@@ -198,7 +198,7 @@ def process_escape_routes_data(**context):
             )
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f"./algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape"
+            carpeta_destino = f'./algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape'
             json_file_path = f"{carpeta_destino}/input_data_{id_ruta}.json"
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
