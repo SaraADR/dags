@@ -122,13 +122,25 @@ def process_escape_routes_data(**context):
     dir_incendio = input_data['dir_incendio'] 
     id_ruta = str(message['message']['id'])
     geojson = { "type": "FeatureCollection", "features": [ { "type": "Feature", "geometry": dir_incendio, "properties": {} } ] }
-    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape/geojson.geojson'
+    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape'
+
 
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
             print(f"Sftp abierto")
-            with sftp.file(geojson_file_path, 'w') as json_file: 
+
+            print(f"Creando carpeta y guardando el geojson en su interior: {geojson_file_path}")
+            ssh_client.exec_command(f"mkdir -p {geojson_file_path}")
+            ssh_client.exec_command(f"chmod 755 {geojson_file_path}")
+
+            json_file_path = f"{geojson_file_path}/geo.geojson"
+            ssh_client.exec_command(f"touch -p {json_file_path}")
+            ssh_client.exec_command(f"chmod 644 {json_file_path}")
+
+
+
+            with sftp.file(json_file_path, 'w') as json_file: 
                 json.dump(geojson, json_file, indent=4)
             print(f"GeoJSON guardado en {geojson_file_path}")
             sftp.close()
@@ -186,15 +198,10 @@ def process_escape_routes_data(**context):
 
             id_ruta = str(message['message']['id'])
             carpeta_destino = f"/home/admin3/algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape"
-            
-            print(f"Creando carpeta y guardando el json en su interior: {carpeta_destino}")
-            ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
-            ssh_client.exec_command(f"chmod 755 {carpeta_destino}")
             json_file_path = f"{carpeta_destino}/input_data_{id_ruta}.json"
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
-
             with sftp.file(json_file_path, 'w') as json_file:
                 json.dump(json_data, json_file, indent=4)
             
