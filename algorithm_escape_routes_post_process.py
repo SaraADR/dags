@@ -301,6 +301,7 @@ def print_directory_contents(directory):
 def create_json(params):
     # Generar un JSON basado en los parámetros proporcionados
     input_data = {
+        "directorio_alg": params.get("directorio_alg", None),
         "dir_incendio": params.get("dir_incendio", None),
         "dir_mdt": params.get("dir_mdt", None),
         "dir_hojasmtn50": params.get("dir_hojasmtn50", None),
