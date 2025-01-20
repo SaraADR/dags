@@ -199,7 +199,7 @@ def process_escape_routes_data(**context):
 
             id_ruta = str(message['message']['id'])
             carpeta_destino = f'./algoritmo_rutas_escape/share_data/input/input_{id_ruta}_rutas_escape'
-            json_file_path = f"{carpeta_destino}/input_data_{id_ruta}.json"
+            json_file_path = f'{carpeta_destino}/input_data.json'
 
             ssh_client.exec_command(f"touch -p {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
@@ -209,7 +209,7 @@ def process_escape_routes_data(**context):
             print(f"Archivo JSON guardado en: {json_file_path}")
 
             stdin, stdout, stderr = ssh_client.exec_command(
-                    'cd ./algoritmo_rutas_escape/launch'
+                    'cd /home/admin3/algoritmo_rutas_escape/launch'
             )
             stdin, stdout, stderr = ssh_client.exec_command(
                     'pwd && ls -la'
