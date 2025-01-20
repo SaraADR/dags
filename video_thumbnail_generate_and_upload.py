@@ -8,7 +8,38 @@ from airflow.hooks.base import BaseHook
 import boto3
 from botocore.client import Config
 from moviepy.editor import VideoFileClip
-
+import base64
+import json
+import os
+import uuid
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from airflow import DAG
+from airflow.operators.python_operator import PythonOperator
+from flask import Config
+import requests
+import logging
+import io  # Para manejar el archivo XML en memoria
+from pyproj import Proj, transform, CRS
+import re
+from airflow.hooks.base import BaseHook
+import boto3
+from PIL import Image
+import os
+import os
+import base64
+import tempfile
+import uuid
+import json
+import boto3
+from botocore.config import Config
+from airflow.hooks.base_hook import BaseHook
+from PIL import Image
+import base64
+import io
+import logging
+import requests
+from airflow.hooks.base import BaseHook
 def scan_minio_for_videos(**kwargs):
 
     """ Escanea un bucket de MinIO para detectar nuevos videos."""  
