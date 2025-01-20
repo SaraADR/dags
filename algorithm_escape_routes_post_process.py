@@ -217,6 +217,19 @@ def process_escape_routes_data(**context):
             stdin, stdout, stderr = ssh_client.exec_command(
                     'pwd && ls -la'
             )
+            # Leer y decodificar la salida estándar
+            output = stdout.read().decode()
+            error_output = stderr.read().decode()
+
+            # Imprimir las salidas en consola
+            if output:
+                print("Salida de 'pwd && ls -la':")
+                print(output)
+
+            if error_output:
+                print("Errores al ejecutar 'pwd && ls -la':")
+                print(error_output)
+                
             command = (
                 f' CONFIGURATION_PATH={json_file_path} docker-compose -f compose.yaml up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
             )
