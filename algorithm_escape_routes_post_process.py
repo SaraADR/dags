@@ -164,7 +164,7 @@ def process_escape_routes_data(**context):
             )
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/input/input_{id_ruta}_rutas_escape"
+            carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/share_data/input/input_{id_ruta}_rutas_escape"
             
             print(f"Creando carpeta y guardando el json en su interior: {carpeta_destino}")
             ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
@@ -180,11 +180,17 @@ def process_escape_routes_data(**context):
             print(f"Archivo JSON guardado en: {json_file_path}")
 
 
-            carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/input/Test_funcionales/"
-            json_file_path = f"{carpeta_destino}/Test2_1.json.json"
+            # carpeta_destino = f"/home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/Algoritmo_rutas_escape/share_data/input/Test_funcionales/"
+            # json_file_path = f"{carpeta_destino}/Test2_1.json"
 
 
-            command = f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch &&  CONFIGURATION_PATH={json_file_path} docker-compose -f compose.yaml up --build'
+
+            containerName = f'rutas_escape_input_data_{id_ruta}'
+            command = (
+                f'cd /home/admin3/algoritmo-rutas-de-escape-algoritmo-2-master/launch && '
+                f'CONFIGURATION_PATH={json_file_path} CONTAINER_NAME={containerName} '
+                'docker-compose -f compose.yaml up --build'
+            )
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
             error_output = stderr.read().decode()
@@ -197,7 +203,7 @@ def process_escape_routes_data(**context):
             print(output)
 
             output_directory = '../output/' + 'rutas_escape_' + str(message['message']['id'])
-            output_directory = '../output/outputtest'
+            # output_directory = '../output/outputtest'
             local_output_directory = '/tmp'
 
             sftp.chdir(output_directory)
