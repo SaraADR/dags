@@ -214,7 +214,7 @@ def process_escape_routes_data(**context):
 
 
 
-            carpeta_destino = f'./algoritmo_rutas_escape/share_data/input/Test_funcionales/input_{id_ruta}'
+            carpeta_destino = f'./algoritmo_rutas_escape/share_data/input/input_{id_ruta}'
             json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
 
             ssh_client.exec_command(f"touch {json_file_path}")
