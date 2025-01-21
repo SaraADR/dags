@@ -133,19 +133,23 @@ def process_escape_routes_data(**context):
     dir_incendio = input_data['dir_incendio'] 
     id_ruta = str(message['message']['id'])
     geojson = { "type": "FeatureCollection", "features": [ { "type": "Feature", "geometry": dir_incendio, "properties": {} } ] }
-    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/TestFuncionales'
+    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/input/TestFuncionales/{id_ruta}'
+    json_file_path = f"{geojson_file_path}/input_{id_ruta}_rutas_escape.geojson"
 
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
             print(f"Sftp abierto")
 
-            json_file_path = f"{geojson_file_path}/input_{id_ruta}_rutas_escape.geojson"
-            ssh_client.exec_command(f"touch -p {json_file_path}")
+            ssh_client.exec_command(f"mkdir -p {geojson_file_path}")
+            ssh_client.exec_command(f"chmod 777 {geojson_file_path}")
+
+            ssh_client.exec_command(f"touch {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
 
-            with sftp.file(json_file_path, 'w') as json_file: 
+            with sftp.file(json_file_path, 'w') as json_file:
                 json.dump(geojson, json_file, indent=4)
+
             print(f"GeoJSON guardado en {geojson_file_path}")
             sftp.close()
 
