@@ -134,9 +134,10 @@ def process_escape_routes_data(**context):
     #Crear geojson con el incendio
     dir_incendio = input_data['dir_incendio'] 
     id_ruta = str(message['message']['id'])
+
     if isinstance(dir_incendio, str):
         dir_incendio = json.loads(dir_incendio)
-        dir_incendio['type'] = "MultiPolygon"
+        dir_incendio['type'] = "Polygon"
         geojson = {
             "type": "FeatureCollection",
             "name": f"input_{id_ruta}_rutas_escape",
