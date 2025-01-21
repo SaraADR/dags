@@ -194,6 +194,7 @@ def process_escape_routes_data(**context):
 
 
     json_data = create_json(params)
+    print(json_data)
 
 
     #Llamar al algoritmo
@@ -210,7 +211,7 @@ def process_escape_routes_data(**context):
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
 
             with sftp.file(json_file_path, 'w') as json_file:
-                json.dump(json_data, json_file, indent=4).encode('utf-8')
+                json.dump(json_data, json_file, indent=4)
 
    
             print(f"Archivo JSON guardado en: {json_file_path}")
@@ -239,7 +240,7 @@ def process_escape_routes_data(**context):
 
 
             output_directory = f'/home/admin3/algoritmo_rutas_escape/output/rutas_escape_{str(message['message']['id'])}' 
-            #output_directory = f'/home/admin3/algoritmo_rutas_escape/output/Test2_1.json' 
+
             local_output_directory = '/tmp'
 
             sftp.chdir(output_directory)
