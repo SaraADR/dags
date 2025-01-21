@@ -200,12 +200,12 @@ def process_escape_routes_data(**context):
 
 
 
-    #,  "dir_incendio": f"{json_file_path}", "dir_carr_csv":  file_paths["dir_carr_csv"] file_paths["dir_combustible"]
+    #,  "dir_incendio": f"/share_data/input/input_{id_ruta}_rutas_escape.geojson",
     # Crear el JSON dinámicamente
     params = {
         "directorio_alg" : ".",
         "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
-        "dir_incendio": f"/share_data/input/input_{id_ruta}_rutas_escape.geojson",
+        "dir_incendio": f"/share_data/input/2022320440.geojson",
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
         "dir_combustible": '/share_data/input/modelos_combustible_Galicia_2020.tif',
