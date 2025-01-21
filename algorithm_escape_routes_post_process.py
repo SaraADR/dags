@@ -179,7 +179,7 @@ def process_escape_routes_data(**context):
     # Crear el JSON dinámicamente
     params = {
         "directorio_alg" : ".",
-        "dir_output": f"output/rutas_escape_{str(message['message']['id'])}",
+        "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
         "dir_incendio": "/share_data/input/2022320440.geojson",
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
