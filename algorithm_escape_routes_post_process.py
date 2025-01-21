@@ -343,11 +343,10 @@ def process_escape_routes_data(**context):
 
                 print(f"GeoTIFF creado en: {tiff_output_path}")
                 reproject_tiff(tiff_output_path, tiff_output_path)
-                
                 print_directory_contents(local_output_directory)
                 try:
                     key = f"{uuid.uuid4()}"
-                    file_key = '/escape_routes/' + str(key) 
+                    file_key = 'escape_routes/' + str(key) 
                     upload_to_minio_path('minio_conn', 'tmp', file_key, tiff_output_path)
                     file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}/ruta_escape.tiff"
                     print(f" URL: {file_url}")
