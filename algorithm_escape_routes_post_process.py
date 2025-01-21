@@ -133,7 +133,7 @@ def process_escape_routes_data(**context):
     dir_incendio = input_data['dir_incendio'] 
     id_ruta = str(message['message']['id'])
     geojson = { "type": "FeatureCollection", "features": [ { "type": "Feature", "geometry": dir_incendio, "properties": {} } ] }
-    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/input/TestFuncionales/{id_ruta}'
+    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/input/Test_funcionales/input_{id_ruta}'
     json_file_path = f"{geojson_file_path}/input_{id_ruta}_rutas_escape.geojson"
 
     try:
@@ -223,12 +223,12 @@ def process_escape_routes_data(**context):
             print(f"Sftp abierto")
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f'./algoritmo_rutas_escape/input/Test_funcionales'
+            carpeta_destino = f'./algoritmo_rutas_escape/input/Test_funcionales/input_{id_ruta}'
             json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
 
-            ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
             ssh_client.exec_command(f"touch {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
+            
             with sftp.file(json_file_path, 'w') as json_file:
                 json.dump(json_data, json_file, indent=4)
             
