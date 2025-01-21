@@ -207,7 +207,7 @@ def process_escape_routes_data(**context):
         "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
         "dir_incendio": f"/share_data/input/input_{id_ruta}_rutas_escape.geojson",
         "dir_mdt": '/share_data/input/mdt05_hojasmtn50',
-        "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
+        "dir_hojasmtn50": "/share_data/input/cuadriculas/MTN50_ETRS89_Peninsula_Baleares_Canarias.shp",
         "dir_combustible": '/share_data/input/modelos_combustible_Galicia_2020.tif',
         "api_idee": input_data.get('api_idee', True),
         "dir_vias": file_paths["dir_vias"],
