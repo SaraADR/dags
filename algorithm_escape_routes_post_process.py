@@ -167,7 +167,7 @@ def process_escape_routes_data(**context):
     # Crear el JSON dinámicamente
     params = {
         "directorio_alg" : ".",
-        "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
+        "dir_output": f"output/rutas_escape_{str(message['message']['id'])}",
         "dir_incendio": "/share_data/input/2022320440.geojson",
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
@@ -203,46 +203,25 @@ def process_escape_routes_data(**context):
             print(f"Sftp abierto")
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f'./algoritmo_rutas_escape/input/Test_funcionales/input_{id_ruta}'
+            carpeta_destino = f'/share_data/input/Test_funcionales'
             json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
 
             ssh_client.exec_command(f"touch {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
 
             with sftp.file(json_file_path, 'w') as json_file:
-                json.dump(json_data, json_file, indent=4)
+                json.dump(json_data, json_file, indent=4).encode('utf-8')
 
-
-
-            carpeta_destino = f'./algoritmo_rutas_escape/share_data/input/input_{id_ruta}'
-            json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
-
-
-            ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
-            ssh_client.exec_command(f"chmod 777 {carpeta_destino}")
-
-            ssh_client.exec_command(f"touch {json_file_path}")
-            ssh_client.exec_command(f"chmod 644 {json_file_path}")
-
-            with sftp.file(json_file_path, 'w') as json_file:
-                json.dump(json_data, json_file, indent=4)    
-
-            
+   
             print(f"Archivo JSON guardado en: {json_file_path}")
-
-            config_path = f"share_data/input/input_{id_ruta}/input_{id_ruta}_rutas_escape.json"
-            stdin, stdout, stderr = ssh_client.exec_command(f"cat {config_path}")
-            json_content = stdout.read().decode()
-            print("Contenido del archivo JSON:")
-            print(json_content)
-
 
             # Validar JSON
             with sftp.file(json_file_path, 'r') as json_file:
                 json_data = json.load(json_file)
                 print("Contenido del JSON válido:", json.dumps(json_data, indent=4))
+                
 
-            path = '/share_data/input/Test_funcionales/Test2_1.json'
+            path = f'/share_data/input/Test_funcionales/input_{id_ruta}_rutas_escape.json' 
             command = (
                 f'cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH={path} docker-compose -f compose.yaml up --build'
             )
@@ -260,7 +239,7 @@ def process_escape_routes_data(**context):
 
 
             output_directory = f'/home/admin3/algoritmo_rutas_escape/output/rutas_escape_{str(message['message']['id'])}' 
-            output_directory = f'/home/admin3/algoritmo_rutas_escape/share_data/output/Test2_1.json' 
+            #output_directory = f'/home/admin3/algoritmo_rutas_escape/output/Test2_1.json' 
             local_output_directory = '/tmp'
 
             sftp.chdir(output_directory)
