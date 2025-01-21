@@ -136,14 +136,26 @@ def process_escape_routes_data(**context):
     id_ruta = str(message['message']['id'])
     if isinstance(dir_incendio, str):
         dir_incendio = json.loads(dir_incendio)
-
+        dir_incendio['type'] = "MultiPolygon"
         geojson = {
             "type": "FeatureCollection",
+            "name": f"input_{id_ruta}_rutas_escape",
+            "crs": {
+                "type": "name",
+                "properties": {
+                    "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+                }
+            },
             "features": [
                 {
                     "type": "Feature",
                     "geometry": dir_incendio,
-                    "properties": {}
+                    "properties": {
+                        # Puedes incluir propiedades básicas por si son necesarias
+                        "CODIGO": f"ruta_{id_ruta}",
+                        "SUPERFICIE": 0,  # Este valor puede ser calculado si es necesario
+                        "PERIMETRO": 0    # Este valor puede ser calculado si es necesario
+                    }
                 }
             ]
         }
