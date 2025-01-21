@@ -259,7 +259,7 @@ def process_escape_routes_data(**context):
             print(output)
 
 
-            output_directory = f'/home/admin3/algoritmo_rutas_escape/output/Test_7'  #CANBIAR POR EL OUTPUT
+            output_directory = f'/home/admin3/algoritmo_rutas_escape/output/rutas_escape_{str(message['message']['id'])}' 
             local_output_directory = '/tmp'
 
             sftp.chdir(output_directory)
@@ -336,9 +336,9 @@ def process_escape_routes_data(**context):
                 print_directory_contents(local_output_directory)
                 try:
                     key = f"{uuid.uuid4()}"
-                    file_key = local_output_directory + '/escape_routes/' + str(key) + '/ruta_escape.tiff'
+                    file_key = '/escape_routes/' + str(key) + '/ruta_escape.tiff'
                     upload_to_minio_path('minio_conn', 'tmp', file_key, tiff_output_path)
-                    file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}"
+                    file_url = f"https://minioapi.avincis.cuatrodigital.com/{file_key}"
                     print(f" URL: {file_url}")
                 except Exception as e:
                     print(f"Error al subir archivos a MinIO: {str(e)}")
