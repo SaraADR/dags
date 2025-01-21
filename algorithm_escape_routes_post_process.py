@@ -336,7 +336,7 @@ def process_escape_routes_data(**context):
                 print_directory_contents(local_output_directory)
                 try:
                     key = f"{uuid.uuid4()}"
-                    file_key = local_output_directory + '/' + str(key) + '/ruta_escape.tiff'
+                    file_key = local_output_directory + '/escape_routes/' + str(key) + '/ruta_escape.tiff'
                     upload_to_minio_path('minio_conn', 'tmp', 'escape_routes' + '/', file_key)
                     file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}"
                     print(f" URL: {file_url}")
