@@ -230,7 +230,7 @@ def process_escape_routes_data(**context):
             
             print(f"Archivo JSON guardado en: {json_file_path}")
 
-            config_path = f"share_data/input/input_{id_ruta}_rutas_escape.json"
+            config_path = f"share_data/input/input_{id_ruta}/input_{id_ruta}_rutas_escape.json"
             stdin, stdout, stderr = ssh_client.exec_command(f"cat {config_path}")
             json_content = stdout.read().decode()
             print("Contenido del archivo JSON:")
