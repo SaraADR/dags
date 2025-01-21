@@ -151,10 +151,9 @@ def process_escape_routes_data(**context):
                     "type": "Feature",
                     "geometry": dir_incendio,
                     "properties": {
-                        # Puedes incluir propiedades básicas por si son necesarias
                         "CODIGO": f"ruta_{id_ruta}",
-                        "SUPERFICIE": 0,  # Este valor puede ser calculado si es necesario
-                        "PERIMETRO": 0    # Este valor puede ser calculado si es necesario
+                        "SUPERFICIE": 0,  
+                        "PERIMETRO": 0   
                     }
                 }
             ]
