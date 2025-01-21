@@ -12,30 +12,36 @@ from moviepy import VideoFileClip
 # Ruta para almacenar el registro de videos procesados
 PROCESSED_VIDEOS_FILE = "/tmp/processed_videos.json"
 
-def load_processed_videos():
+def load_processed_videos_from_minio(s3_client, bucket_name, key):
     """
-    Carga la lista de videos procesados desde un archivo JSON.
+    Carga la lista de videos procesados desde MinIO.
     """
-    if os.path.exists(PROCESSED_VIDEOS_FILE):
-        with open(PROCESSED_VIDEOS_FILE, "r") as f:
-            return json.load(f)
-    return []
+    try:
+        response = s3_client.get_object(Bucket=bucket_name, Key=key)
+        processed_videos = json.loads(response['Body'].read().decode('utf-8'))
+        return processed_videos
+    except s3_client.exceptions.NoSuchKey:
+        print(f"No se encontró el archivo {key} en el bucket {bucket_name}. Creando lista vacía.")
+        return []
+    except Exception as e:
+        print(f"Error al cargar videos procesados: {e}")
+        return []
 
-def save_processed_videos(processed_videos):
+def save_processed_videos_to_minio(s3_client, bucket_name, key, processed_videos):
     """
-    Guarda la lista de videos procesados en un archivo JSON.
+    Guarda la lista de videos procesados en MinIO.
     """
-    with open(PROCESSED_VIDEOS_FILE, "w") as f:
-        json.dump(processed_videos, f)
+    try:
+        json_data = json.dumps(processed_videos)
+        s3_client.put_object(Bucket=bucket_name, Key=key, Body=json_data)
+        print(f"Lista de videos procesados guardada en {key}.")
+    except Exception as e:
+        print(f"Error al guardar videos procesados: {e}")
 
 def scan_minio_for_videos(**kwargs):
     """
     Escanea un bucket de MinIO para detectar nuevos videos.
     """
-    # Cargar videos ya procesados
-    processed_videos = load_processed_videos()
-    print(f"Videos procesados previamente: {processed_videos}")
-
     # Conexión a MinIO
     connection = BaseHook.get_connection('minio_conn')
     extra = json.loads(connection.extra)
@@ -47,12 +53,19 @@ def scan_minio_for_videos(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
+    # Parámetros del bucket y archivo de procesados
+    bucket_name = 'temp'  # Cambiar según tu configuración
+    processed_file_key = 'processed_videos.json'
+
+    # Cargar videos procesados desde MinIO
+    processed_videos = load_processed_videos_from_minio(s3_client, bucket_name, processed_file_key)
+    print(f"Videos procesados previamente: {processed_videos}")
+
     # Escaneo del bucket
-    bucket_name = 'temp'  # Cambia según tu bucket
     paginator = s3_client.get_paginator('list_objects_v2')
     result = paginator.paginate(Bucket=bucket_name)
 
-    # Filtrar videos que no estén en la lista de procesados
+    # Filtrar videos no procesados
     new_videos = []
     for page in result:
         for content in page.get('Contents', []):
@@ -62,6 +75,11 @@ def scan_minio_for_videos(**kwargs):
 
     print(f"Nuevos videos detectados: {new_videos}")
     kwargs['task_instance'].xcom_push(key='new_videos', value=new_videos)
+
+    # Guardar la lista actualizada en MinIO
+    processed_videos.extend(new_videos)
+    save_processed_videos_to_minio(s3_client, bucket_name, processed_file_key, processed_videos)
+
 
 def process_and_generate_thumbnail(**kwargs):
     """
