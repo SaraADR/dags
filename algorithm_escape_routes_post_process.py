@@ -211,6 +211,18 @@ def process_escape_routes_data(**context):
 
             with sftp.file(json_file_path, 'w') as json_file:
                 json.dump(json_data, json_file, indent=4)
+
+
+
+            carpeta_destino = f'./algoritmo_rutas_escape/share_data/input/Test_funcionales/input_{id_ruta}'
+            json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
+
+            ssh_client.exec_command(f"touch {json_file_path}")
+            ssh_client.exec_command(f"chmod 644 {json_file_path}")
+
+            with sftp.file(json_file_path, 'w') as json_file:
+                json.dump(json_data, json_file, indent=4)    
+
             
             print(f"Archivo JSON guardado en: {json_file_path}")
 
