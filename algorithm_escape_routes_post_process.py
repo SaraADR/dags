@@ -343,7 +343,7 @@ def process_escape_routes_data(**context):
                 print_directory_contents(local_output_directory)
                 try:
                     key = f"{uuid.uuid4()}"
-                    file_key = '/escape_routes/' + str(key) + '/ruta_escape.tiff'
+                    file_key = '/escape_routes/' + str(key) 
                     upload_to_minio_path('minio_conn', 'tmp', file_key, tiff_output_path)
                     file_url = f"https://minioapi.avincis.cuatrodigital.com/{file_key}"
                     print(f" URL: {file_url}")
@@ -366,7 +366,7 @@ def process_escape_routes_data(**context):
                         {
                         "type": "notify",
                         "data": {
-                            "message": "Datos del heatmap procesados correctamente"
+                            "message": "Datos de rutas de escape procesados correctamente"
                         }
                         },
                         {
