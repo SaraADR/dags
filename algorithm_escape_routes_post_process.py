@@ -200,12 +200,12 @@ def process_escape_routes_data(**context):
 
 
 
-    #,  "dir_incendio": f"/share_data/input/input_{id_ruta}_rutas_escape.geojson",
+    #,  "dir_incendio": f"{json_file_path}", "dir_carr_csv":  file_paths["dir_carr_csv"] file_paths["dir_combustible"]
     # Crear el JSON dinámicamente
     params = {
         "directorio_alg" : ".",
         "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
-        "dir_incendio": f"/share_data/input/2022320440.geojson",
+        "dir_incendio": f"/share_data/input/input_{id_ruta}_rutas_escape.geojson",
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
         "dir_combustible": '/share_data/input/modelos_combustible_Galicia_2020.tif',
@@ -301,17 +301,16 @@ def process_escape_routes_data(**context):
 
 
     #Cerramos el algoritmo, leemos el resultado
-            if not downloaded_files:
-                print("Errores al ejecutar run.sh:")
-                print(error_output)
-            
-            else:
-                print_directory_contents(local_output_directory)
+            print_directory_contents(local_output_directory)
 
-                local_output_directory = '/tmp'
-                shapefile_path = os.path.join(local_output_directory, "ruta_escape.shp")
-                tiff_output_path = os.path.join(local_output_directory, "ruta_escape.tiff")
+            local_output_directory = '/tmp'
+            shapefile_path = os.path.join(local_output_directory, "ruta_escape.shp")
+            tiff_output_path = os.path.join(local_output_directory, "ruta_escape.tiff")
 
+            if(shapefile_path is None):
+                print("Con los datos propuestos no se genero una ruta de escape")
+
+            if(shapefile_path is not None):
 
                 gdf = gpd.read_file(shapefile_path)
 
@@ -362,58 +361,58 @@ def process_escape_routes_data(**context):
                     print(f" URL: {file_url}")
                 except Exception as e:
                     print(f"Error al subir archivos a MinIO: {str(e)}")
-      
+    
 
 
-    #Creamos la notificación de vuelta  
-                try:
-                    db_conn = BaseHook.get_connection('biobd')
-                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                    engine = create_engine(connection_string)
-                    Session = sessionmaker(bind=engine)
-                    session = Session()
+        #Creamos la notificación de vuelta  
+                    try:
+                        db_conn = BaseHook.get_connection('biobd')
+                        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                        engine = create_engine(connection_string)
+                        Session = sessionmaker(bind=engine)
+                        session = Session()
 
-                    data_json = json.dumps({
-                        "to": from_user,
-                        "actions": [
-                        {
-                        "type": "notify",
-                        "data": {
-                            "message": "Datos de rutas de escape procesados correctamente"
-                        }
-                        },
-                        {
-                        "type": "paintTiff",
-                        "data": {
-                            "url": file_url
-                        }
-                        }
-                    ]
-                    }, ensure_ascii=False)
-                    time = datetime.now().replace(tzinfo=timezone.utc)
+                        data_json = json.dumps({
+                            "to": from_user,
+                            "actions": [
+                            {
+                            "type": "notify",
+                            "data": {
+                                "message": "Datos de rutas de escape procesados correctamente"
+                            }
+                            },
+                            {
+                            "type": "paintTiff",
+                            "data": {
+                                "url": file_url
+                            }
+                            }
+                        ]
+                        }, ensure_ascii=False)
+                        time = datetime.now().replace(tzinfo=timezone.utc)
 
-                    query = text("""
-                        INSERT INTO public.notifications
-                        (destination, "data", "date", status)
-                        VALUES (:destination, :data, :date, NULL);
-                    """)
-                    session.execute(query, {
-                        'destination': 'ignis',
-                        'data': data_json,
-                        'date': time
-                    })
-                    session.commit()
+                        query = text("""
+                            INSERT INTO public.notifications
+                            (destination, "data", "date", status)
+                            VALUES (:destination, :data, :date, NULL);
+                        """)
+                        session.execute(query, {
+                            'destination': 'ignis',
+                            'data': data_json,
+                            'date': time
+                        })
+                        session.commit()
 
-                except Exception as e:
-                    session.rollback()
-                    print(f"Error durante la inserción de la notificación: {str(e)}")
-                    error_message = str(e)
-                    print(f"Error durante el guardado de la misión: {error_message}")
-                    # Actualizar el estado del job a ERROR y registrar el error
-                    # Obtener job_id desde el contexto del DAG
-                    job_id = context['dag_run'].conf['message']['id']        
-                    throw_job_error(job_id, e)
-                    raise e
+                    except Exception as e:
+                        session.rollback()
+                        print(f"Error durante la inserción de la notificación: {str(e)}")
+                        error_message = str(e)
+                        print(f"Error durante el guardado de la misión: {error_message}")
+                        # Actualizar el estado del job a ERROR y registrar el error
+                        # Obtener job_id desde el contexto del DAG
+                        job_id = context['dag_run'].conf['message']['id']        
+                        throw_job_error(job_id, e)
+                        raise e
 
 
 
