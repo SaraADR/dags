@@ -545,7 +545,7 @@ def create_json(params):
         "c_prop": params.get("c_prop", "Extremas"),
         "lim_pendiente": params.get("lim_pendiente", None),
         "dist_estudio": params.get("dist_estudio", 5000),
-        "write":input_data.get('write', True),
+        "write":params.get('write', True),
     }
     return input_data
 
