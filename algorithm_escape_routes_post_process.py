@@ -175,7 +175,7 @@ def process_escape_routes_data(**context):
 
 
 
-    #,  "dir_incendio": f"{json_file_path}",
+    #,  "dir_incendio": f"{json_file_path}", "dir_carr_csv":  file_paths["dir_carr_csv"] file_paths["dir_combustible"]
     # Crear el JSON dinámicamente
     params = {
         "directorio_alg" : ".",
@@ -183,7 +183,7 @@ def process_escape_routes_data(**context):
         "dir_incendio": "/share_data/input/2022320440.geojson",
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
-        "dir_combustible": file_paths["dir_combustible"],
+        "dir_combustible": './modelos_combustible_Galicia_2020.tif',
         "api_idee": input_data.get('api_idee', True),
         "dir_vias": file_paths["dir_vias"],
         "dir_cursos_agua": file_paths["dir_cursos_agua"],
@@ -194,7 +194,7 @@ def process_escape_routes_data(**context):
         "distancia": input_data.get('distancia', None),
         "dist_seguridad": input_data.get('dist_seguridad', None),
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
-        "dir_carr_csv": file_paths["dir_carr_csv"],
+        "dir_carr_csv": './Tramos_de_carreteras.csv',
         "sugerir": input_data.get('sugerir', False),
         "zonas_abiertas": file_paths["zonas_abiertas"],
         "v_viento": input_data.get('v_viento', None),
