@@ -185,7 +185,7 @@ def process_escape_routes_data(**context):
 
     params = {
         "directorio_alg" : ".",
-        "dir_output": "/share_data/output/Test_7",
+        "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
         "dir_incendio": f"{json_file_path}",
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
@@ -229,14 +229,14 @@ def process_escape_routes_data(**context):
             
             print(f"Archivo JSON guardado en: {json_file_path}")
 
-            configuration_path = f"/home/admin3/algoritmo_rutas_escape/input/Test_funcionales/input_{id_ruta}_rutas_escape.json"
+            configuration_path = f"../input/Test_funcionales/input_{id_ruta}_rutas_escape.json"
             print("Contenido del archivo JSON:") 
             stdin, stdout, stderr = ssh_client.exec_command(f"cat {configuration_path}") 
             json_content = stdout.read().decode() 
             print(json_content)
             print(configuration_path)
             command = (
-                f' cd /home/admin3/algoritmo_rutas_escape/launch &&  CONFIGURATION_PATH={configuration_path} docker-compose -f compose.yaml up --build --abort-on-container-exit  && docker-compose -f compose.yaml down --volumes'
+                f" CONFIGURATION_PATH={configuration_path} docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml up --build --abort-on-container-exit  && docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml down --volumes"
             )
 
             stdin, stdout, stderr = ssh_client.exec_command(command)
