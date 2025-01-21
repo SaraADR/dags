@@ -266,7 +266,7 @@ def process_escape_routes_data(**context):
 
 
             output_directory = f'/home/admin3/algoritmo_rutas_escape/output/rutas_escape_{str(message['message']['id'])}' 
-            output_directory = f'/home/admin3/algoritmo_rutas_escape/output/Test7' 
+            output_directory = f'/share_data/output/Test_7' 
             local_output_directory = '/tmp'
 
             sftp.chdir(output_directory)
