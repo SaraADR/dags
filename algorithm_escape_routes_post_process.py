@@ -212,14 +212,6 @@ def process_escape_routes_data(**context):
     json_data = create_json(params)
 
 
-
-    # Mostrar el JSON por pantalla
-    print("JSON generado:")
-    print(json.dumps(json_data, indent=4))
-
-
-
-
     #Llamar al algoritmo
     try:
         with ssh_hook.get_conn() as ssh_client:
@@ -242,9 +234,9 @@ def process_escape_routes_data(**context):
             stdin, stdout, stderr = ssh_client.exec_command(f"cat {configuration_path}") 
             json_content = stdout.read().decode() 
             print(json_content)
-
+            print(configuration_path)
             command = (
-                f' cd /home/admin3/algoritmo_rutas_escape/launch &&  docker-compose -f compose.yaml up --build --abort-on-container-exit -e CONFIGURATION_PATH={configuration_path} && docker-compose -f compose.yaml down --volumes'
+                f' cd /home/admin3/algoritmo_rutas_escape/launch &&  CONFIGURATION_PATH={configuration_path} docker-compose -f compose.yaml up --build --abort-on-container-exit  && docker-compose -f compose.yaml down --volumes'
             )
 
             stdin, stdout, stderr = ssh_client.exec_command(command)
