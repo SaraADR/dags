@@ -222,7 +222,7 @@ def process_escape_routes_data(**context):
                 print("Contenido del JSON válido:", json.dumps(json_data, indent=4))
                 
 
-            path = f'/share_data/input/Test_funcionales/Test8.json' 
+            path = f'/share_data/input/Test_funcionales/Test9.json' 
             command = (
                 f'cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH={path} docker-compose -f compose.yaml up --build'
             )
