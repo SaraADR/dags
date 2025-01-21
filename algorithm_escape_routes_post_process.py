@@ -566,8 +566,8 @@ def create_json(params):
         "zonas_abiertas": params.get("zonas_abiertas", None),
         "v_viento": params.get("v_viento", None),
         "f_buffer": params.get("f_buffer", 100),
-        "c_prop": params.get("c_prop", "Extremas"),
-        "lim_pendiente": params.get("lim_pendiente", None),
+        "c_prop": params.get("c_prop", None),
+        "lim_pendiente": params.get("lim_pendiente", 10),
         "dist_estudio": params.get("dist_estudio", 5000),
         "write":params.get('write', True),
     }
