@@ -243,7 +243,7 @@ def process_escape_routes_data(**context):
                 print("Contenido del JSON válido:", json.dumps(json_data, indent=4))
 
             command = (
-                f'cd /home/admin3/algoritmo_rutas_escape && docker-compose -f launch/compose.yaml up --build'
+                f'cd /home/admin3/algoritmo_rutas_escape && CONFIGURATION_PATH={config_path} docker-compose -f launch/compose.yaml up --build'
             )
 
             stdin, stdout, stderr = ssh_client.exec_command(command)
