@@ -163,12 +163,12 @@ def process_escape_routes_data(**context):
 
 
 
-    #,
+    #,  "dir_incendio": f"{json_file_path}",
     # Crear el JSON dinámicamente
     params = {
         "directorio_alg" : ".",
         "dir_output": f"output/rutas_escape_{str(message['message']['id'])}",
-        "dir_incendio": f"{json_file_path}",
+        "dir_incendio": "/share_data/input/2022320440.geojson",
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
         "dir_combustible": file_paths["dir_combustible"],
@@ -204,8 +204,8 @@ def process_escape_routes_data(**context):
             print(f"Sftp abierto")
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f'/home/admin3/algoritmo_rutas_escape/share_data/input/Test_funcionales'
-            json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
+            carpeta_destino = f'/home/admin3/algoritmo_rutas_escape/input/Test_funcionales'
+            json_file_path = f'{carpeta_destino}/input_{id_ruta}.json'
 
             ssh_client.exec_command(f"touch {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
@@ -222,7 +222,7 @@ def process_escape_routes_data(**context):
                 print("Contenido del JSON válido:", json.dumps(json_data, indent=4))
                 
 
-            path = f'/share_data/input/Test_funcionales/Test9.json' 
+            path = f'/share_data/input/Test_funcionales/input_{id_ruta}.json' 
             command = (
                 f'cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH={path} docker-compose -f compose.yaml up --build'
             )
