@@ -206,7 +206,7 @@ def process_escape_routes_data(**context):
         "directorio_alg" : ".",
         "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
         "dir_incendio": f"/share_data/input/input_{id_ruta}_rutas_escape.geojson",
-        "dir_mdt": input_data.get('dir_mdt', None),
+        "dir_mdt": '/share_data/input/mdt05_hojasmtn50',
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
         "dir_combustible": '/share_data/input/modelos_combustible_Galicia_2020.tif',
         "api_idee": input_data.get('api_idee', True),
