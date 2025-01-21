@@ -222,7 +222,8 @@ def process_escape_routes_data(**context):
             carpeta_destino = f'./algoritmo_rutas_escape/input/Test_funcionales'
             json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
 
-            ssh_client.exec_command(f"touch -p {json_file_path}")
+            ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
+            ssh_client.exec_command(f"touch {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
             with sftp.file(json_file_path, 'w') as json_file:
                 json.dump(json_data, json_file, indent=4)
@@ -230,11 +231,12 @@ def process_escape_routes_data(**context):
             print(f"Archivo JSON guardado en: {json_file_path}")
 
             configuration_path = f"../input/Test_funcionales/input_{id_ruta}_rutas_escape.json"
-            print("Contenido del archivo JSON:") 
-            stdin, stdout, stderr = ssh_client.exec_command(f"cat {configuration_path}") 
-            json_content = stdout.read().decode() 
+            stdin, stdout, stderr = ssh_client.exec_command(f"cat {configuration_path}")
+            json_content = stdout.read().decode()
+            print("Contenido del archivo JSON:")
             print(json_content)
-            print(configuration_path)
+
+
             command = (
                 f" CONFIGURATION_PATH={configuration_path} docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml up --build --abort-on-container-exit  && docker-compose -f /home/admin3/algoritmo_rutas_escape/launch/compose.yaml down --volumes"
             )
