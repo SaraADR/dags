@@ -15,7 +15,13 @@ from pyproj import CRS
 from shapely.geometry import shape
 import geopandas as gpd
 from dag_utils import  upload_to_minio, upload_to_minio_path
-
+import uuid
+import boto3
+from botocore.client import Config
+from airflow.hooks.base_hook import BaseHook
+from sqlalchemy.orm import sessionmaker
+from datetime import datetime, timedelta, timezone
+from sqlalchemy import create_engine, Table, MetaData, text
 
 
 
@@ -24,8 +30,12 @@ def process_escape_routes_data(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
+    from_user = message['message']['from_user']
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
+
+
+    #Obtener urls de los path del algoritmo
     url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-paths"  
 
     payload = [
@@ -52,7 +62,6 @@ def process_escape_routes_data(**context):
     }
 
     try:
-        # Hacer la petición POST al endpoint
         response = requests.post(url, data=json.dumps(payload), headers=headers)
         response.raise_for_status()  
 
@@ -60,12 +69,38 @@ def process_escape_routes_data(**context):
         print("Datos obtenidos del endpoint de Hasura:")
         print(json.dumps(response_data, indent=4))
 
+            # Crear un diccionario para almacenar los paths
+        file_paths = {
+            "dir_hojasmtn50": None,
+            "dir_combustible": None,
+            "dir_vias": None,
+            "dir_cursos_agua": None,
+            "dir_aguas_estancadas": None,
+            "dir_carr_csv": None,
+            "zonas_abiertas": None
+        }
+
+        for file in response_data:
+            if "fileType" in file and "path" in file:
+                if file["fileType"] == "hojasmtn50":
+                    file_paths["dir_hojasmtn50"] = file["path"]
+                elif file["fileType"] == "combustible":
+                    file_paths["dir_combustible"] = file["path"]
+                elif file["fileType"] == "vias":
+                    file_paths["dir_vias"] = file["path"]
+                elif file["fileType"] == "cursos_agua":
+                    file_paths["dir_cursos_agua"] = file["path"]
+                elif file["fileType"] == "aguas_estancadas":
+                    file_paths["dir_aguas_estancadas"] = file["path"]
+                elif file["fileType"] == "carr_csv":
+                    file_paths["dir_carr_csv"] = file["path"]
+                elif file["fileType"] == "zonas_abiertas":
+                    file_paths["zonas_abiertas"] = file["path"]
+
     except requests.exceptions.RequestException as e:
         print(f"Error al llamar al endpoint de Hasura: {e}")
         error_message = str(e)
         print(f"Error durante el guardado de la misión: {error_message}")
-        # Actualizar el estado del job a ERROR y registrar el error
-        # Obtener job_id desde el contexto del DAG
         job_id = context['dag_run'].conf['message']['id']        
         throw_job_error(job_id, e)
         raise
@@ -77,7 +112,6 @@ def process_escape_routes_data(**context):
     inicio = input_data.get('inicio', None)
     destino = input_data.get('destino', None)
 
-    # Ajustar "inicio" y "destino" según los datos recibidos
     if isinstance(inicio, str):
         try:
             inicio = json.loads(inicio)
@@ -93,34 +127,6 @@ def process_escape_routes_data(**context):
         pass
 
 
-    # Crear un diccionario para almacenar los paths
-    file_paths = {
-        "dir_hojasmtn50": None,
-        "dir_combustible": None,
-        "dir_vias": None,
-        "dir_cursos_agua": None,
-        "dir_aguas_estancadas": None,
-        "dir_carr_csv": None,
-        "zonas_abiertas": None
-    }
-
-    # Rellenar el diccionario con los paths obtenidos del response
-    for file in response_data:
-        if "fileType" in file and "path" in file:
-            if file["fileType"] == "hojasmtn50":
-                file_paths["dir_hojasmtn50"] = file["path"]
-            elif file["fileType"] == "combustible":
-                file_paths["dir_combustible"] = file["path"]
-            elif file["fileType"] == "vias":
-                file_paths["dir_vias"] = file["path"]
-            elif file["fileType"] == "cursos_agua":
-                file_paths["dir_cursos_agua"] = file["path"]
-            elif file["fileType"] == "aguas_estancadas":
-                file_paths["dir_aguas_estancadas"] = file["path"]
-            elif file["fileType"] == "carr_csv":
-                file_paths["dir_carr_csv"] = file["path"]
-            elif file["fileType"] == "zonas_abiertas":
-                file_paths["zonas_abiertas"] = file["path"]
 
 
     #Crear geojson con el incendio
@@ -129,21 +135,14 @@ def process_escape_routes_data(**context):
     geojson = { "type": "FeatureCollection", "features": [ { "type": "Feature", "geometry": dir_incendio, "properties": {} } ] }
     geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/TestFuncionales'
 
-
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
             print(f"Sftp abierto")
 
-            # print(f"Creando carpeta y guardando el geojson en su interior: {geojson_file_path}")
-            # ssh_client.exec_command(f"mkdir -p {geojson_file_path}")
-            # ssh_client.exec_command(f"chmod 755 {geojson_file_path}")
-
             json_file_path = f"{geojson_file_path}/input_{id_ruta}_rutas_escape.geojson"
             ssh_client.exec_command(f"touch -p {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
-
-
 
             with sftp.file(json_file_path, 'w') as json_file: 
                 json.dump(geojson, json_file, indent=4)
@@ -154,6 +153,9 @@ def process_escape_routes_data(**context):
         print(f"Error al guardar GeoJSON: {str(e)}")
 
 
+
+
+    # Crear el JSON dinámicamente
     params = {
         "directorio_alg" : ".",
         "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
@@ -207,9 +209,9 @@ def process_escape_routes_data(**context):
         "dist_estudio": input_data.get('dist_estudio', 3000),
     }
 
-
-    # Crear el JSON dinámicamente
     json_data = create_json(params)
+
+
 
     # Mostrar el JSON por pantalla
     print("JSON generado:")
@@ -217,8 +219,9 @@ def process_escape_routes_data(**context):
 
 
 
+
+    #Llamar al algoritmo
     try:
-        # Conectarse al servidor SSH
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
             print(f"Sftp abierto")
@@ -239,9 +242,9 @@ def process_escape_routes_data(**context):
             stdin, stdout, stderr = ssh_client.exec_command(f"cat {configuration_path}") 
             json_content = stdout.read().decode() 
             print(json_content)
-#
+
             command = (
-                f' cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH={configuration_path} docker-compose -f compose.yaml up --build --abort-on-container-exit && docker-compose -f compose.yaml down --volumes'
+                f' cd /home/admin3/algoritmo_rutas_escape/launch &&  docker-compose -f compose.yaml up --build --abort-on-container-exit -e CONFIGURATION_PATH={configuration_path} && docker-compose -f compose.yaml down --volumes'
             )
 
             stdin, stdout, stderr = ssh_client.exec_command(command)
@@ -256,8 +259,7 @@ def process_escape_routes_data(**context):
             print(output)
 
 
-
-            output_directory = f'/home/admin3/algoritmo_rutas_escape/output/Test_7'
+            output_directory = f'/home/admin3/algoritmo_rutas_escape/output/Test_7'  #CANBIAR POR EL OUTPUT
             local_output_directory = '/tmp'
 
             sftp.chdir(output_directory)
@@ -275,6 +277,11 @@ def process_escape_routes_data(**context):
                         downloaded_files.append(local_file_path)
             sftp.close()
 
+
+
+
+
+    #Cerramos el algoritmo, leemos el resultado
             if not downloaded_files:
                 print("Errores al ejecutar run.sh:")
                 print(error_output)
@@ -286,15 +293,15 @@ def process_escape_routes_data(**context):
                 shapefile_path = os.path.join(local_output_directory, "ruta_escape.shp")
                 tiff_output_path = os.path.join(local_output_directory, "ruta_escape.tiff")
 
-                # Leer el shapefile usando GeoPandas
+
                 gdf = gpd.read_file(shapefile_path)
 
-                # Obtener la proyección del shapefile
+
                 crs = CRS.from_string(gdf.crs.to_string())
 
-                # Configurar el transform (proyección)
-                bounds = gdf.total_bounds  # xmin, ymin, xmax, ymax
-                resolution = 0.0001  # Ajusta la resolución del raster
+
+                bounds = gdf.total_bounds  
+                resolution = 0.0001  
                 width = int((bounds[2] - bounds[0]) / resolution)
                 height = int((bounds[3] - bounds[1]) / resolution)
 
@@ -328,10 +335,65 @@ def process_escape_routes_data(**context):
                 print(f"GeoTIFF creado en: {tiff_output_path}")
                 print_directory_contents(local_output_directory)
                 try:
-                    upload_to_minio_path('minio_conn', 'tmp', 'escape_routes' + '/', local_output_directory + '/ruta_escape.tiff')
+                    key = f"{uuid.uuid4()}"
+                    file_key = local_output_directory + '/' + str(key) + '/ruta_escape.tiff'
+                    upload_to_minio_path('minio_conn', 'tmp', 'escape_routes' + '/', file_key)
+                    file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}"
+                    print(f" URL: {file_url}")
                 except Exception as e:
                     print(f"Error al subir archivos a MinIO: {str(e)}")
-                raise e
+      
+
+
+    #Creamos la notificación de vuelta  
+                try:
+                    db_conn = BaseHook.get_connection('biobd')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                    engine = create_engine(connection_string)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
+
+                    data_json = json.dumps({
+                        "to": from_user,
+                        "actions": [
+                        {
+                        "type": "notify",
+                        "data": {
+                            "message": "Datos del heatmap procesados correctamente"
+                        }
+                        },
+                        {
+                        "type": "paintTiff",
+                        "data": {
+                            "url": file_url
+                        }
+                        }
+                    ]
+                    }, ensure_ascii=False)
+                    time = datetime.now().replace(tzinfo=timezone.utc)
+
+                    query = text("""
+                        INSERT INTO public.notifications
+                        (destination, "data", "date", status)
+                        VALUES (:destination, :data, :date, NULL);
+                    """)
+                    session.execute(query, {
+                        'destination': 'ignis',
+                        'data': data_json,
+                        'date': time
+                    })
+                    session.commit()
+
+                except Exception as e:
+                    session.rollback()
+                    print(f"Error durante la inserción de la notificación: {str(e)}")
+                    error_message = str(e)
+                    print(f"Error durante el guardado de la misión: {error_message}")
+                    # Actualizar el estado del job a ERROR y registrar el error
+                    # Obtener job_id desde el contexto del DAG
+                    job_id = context['dag_run'].conf['message']['id']        
+                    throw_job_error(job_id, e)
+                    raise e
 
 
 
@@ -352,6 +414,11 @@ def process_escape_routes_data(**context):
             sftp.close()
             print("SFTP cerrado.")
 
+
+
+
+
+
     # Actualizar el estado del job a 'FINISHED' si todo se completa correctamente
     try:
         job_id = message['message']['id']
@@ -366,6 +433,11 @@ def process_escape_routes_data(**context):
         throw_job_error(job_id, e)
         raise
     
+
+
+
+
+
 def print_directory_contents(directory):
     print(f"Contenido del directorio: {directory}")
     for root, dirs, files in os.walk(directory):
@@ -410,6 +482,8 @@ def create_json(params):
     return input_data
 
 
+
+
 # Configuración del DAG
 default_args = {
     'owner': 'oscar',
@@ -430,7 +504,7 @@ dag = DAG(
     concurrency=1
 )
 
-# Tarea para generar y mostrar el JSON
+
 process_escape_routes_task = PythonOperator(
     task_id='process_escape_routes',
     provide_context=True,
@@ -439,6 +513,4 @@ process_escape_routes_task = PythonOperator(
 )
 
 
-
-# Definir el flujo de tareas
 process_escape_routes_task 
