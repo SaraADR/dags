@@ -145,6 +145,18 @@ def process_escape_routes_data(**context):
 
             print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de voluemnes")
             stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/algoritmo_rutas_escape/launch && docker-compose down --volumes')
+
+            container_name = "launch_alg_rutas_escape"
+            stdin, stdout, stderr = ssh_client.exec_command(f"docker ps -a --filter name={container_name} --format '{{{{.ID}}}}'")
+            container_id = stdout.read().decode().strip()
+
+            if container_id:
+                print(f"Contenedor encontrado: {container_id}. Eliminando...")
+                # Detener y eliminar el contenedor
+                ssh_client.exec_command(f"docker rm -f {container_id}")
+                print(f"Contenedor {container_name} eliminado exitosamente.")
+            else:
+                print(f"No se encontró ningún contenedor con el nombre {container_name}.")
             
             ssh_client.exec_command(f"mkdir -p {geojson_file_path}")
             ssh_client.exec_command(f"chmod 777 {geojson_file_path}")
@@ -224,7 +236,7 @@ def process_escape_routes_data(**context):
 
             path = f'/share_data/input/input_{id_ruta}.json' 
             command = (
-                f'cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH={path} docker-compose -f compose.yaml up --build'
+                f'cd /home/admin3/algoritmo_rutas_escape && CONFIGURATION_PATH={path} docker-compose -f launch/compose.yaml up --build'
             )
 
             stdin, stdout, stderr = ssh_client.exec_command(command)
