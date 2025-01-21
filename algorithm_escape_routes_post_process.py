@@ -135,7 +135,7 @@ def process_escape_routes_data(**context):
     dir_incendio = input_data['dir_incendio'] 
     id_ruta = str(message['message']['id'])
     geojson = { "type": "FeatureCollection", "features": [ { "type": "Feature", "geometry": dir_incendio, "properties": {} } ] }
-    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/share_data/input'
+    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/input'
     json_file_path = f"{geojson_file_path}/input_{id_ruta}_rutas_escape.geojson"
 
     try:
