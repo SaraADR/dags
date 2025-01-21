@@ -246,7 +246,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
     # Buscar los metadatos en captura
     try:
         db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/v2.3"
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
         engine = create_engine(connection_string)
         Session = sessionmaker(bind=engine)
         session = Session()
