@@ -217,6 +217,10 @@ def process_escape_routes_data(**context):
             carpeta_destino = f'./algoritmo_rutas_escape/share_data/input/input_{id_ruta}'
             json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
 
+
+            ssh_client.exec_command(f"mkdir -p {carpeta_destino}")
+            ssh_client.exec_command(f"chmod 777 {carpeta_destino}")
+
             ssh_client.exec_command(f"touch {json_file_path}")
             ssh_client.exec_command(f"chmod 644 {json_file_path}")
 
