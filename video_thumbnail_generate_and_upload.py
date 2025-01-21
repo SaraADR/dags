@@ -9,9 +9,6 @@ import boto3
 from botocore.client import Config
 from moviepy import VideoFileClip
 
-# Ruta para almacenar el registro de videos procesados
-PROCESSED_VIDEOS_FILE = "/tmp/processed_videos.json"
-
 def load_processed_videos_from_minio(s3_client, bucket_name, key):
     """
     Carga la lista de videos procesados desde MinIO.
@@ -76,11 +73,6 @@ def scan_minio_for_videos(**kwargs):
     print(f"Nuevos videos detectados: {new_videos}")
     kwargs['task_instance'].xcom_push(key='new_videos', value=new_videos)
 
-    # Guardar la lista actualizada en MinIO
-    processed_videos.extend(new_videos)
-    save_processed_videos_to_minio(s3_client, bucket_name, processed_file_key, processed_videos)
-
-
 def process_and_generate_thumbnail(**kwargs):
     """
     Descarga videos, genera miniaturas y las sube a MinIO.
@@ -102,10 +94,11 @@ def process_and_generate_thumbnail(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
-    bucket_name = 'temp'  # Cambia según tu bucket
+    bucket_name = 'temp'  # Cambiar según tu configuración
+    processed_file_key = 'processed_videos.json'
 
-    # Cargar lista de videos procesados
-    processed_videos = load_processed_videos_from_minio()
+    # Cargar lista de videos procesados desde MinIO
+    processed_videos = load_processed_videos_from_minio(s3_client, bucket_name, processed_file_key)
 
     for video_key in videos:
         print(f"Procesando video: {video_key}")
@@ -118,36 +111,30 @@ def process_and_generate_thumbnail(**kwargs):
 
         try:
             # Descargar el video desde MinIO
-            print(f"Descargando video desde MinIO: {video_key}...")
             s3_client.download_file(bucket_name, video_key, video_path)
-            print(f"Video descargado correctamente: {video_path}")
 
             # Generar el thumbnail
-            print(f"Generando miniatura para {video_path}...")
             with VideoFileClip(video_path) as video:
                 video.save_frame(thumbnail_path, t=10)  # Captura en el segundo 10
-            print(f"Miniatura generada: {thumbnail_path}")
 
             # Subir el thumbnail a MinIO
-            print(f"Subiendo miniatura a MinIO: {thumbnail_key}...")
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
-            print(f"Miniatura subida correctamente: {thumbnail_key}")
 
             # Registrar el video como procesado
             processed_videos.append(video_key)
-            save_processed_videos_to_minio(processed_videos)
-            print(f"Video registrado como procesado: {video_key}")
 
         except Exception as e:
             print(f"Error procesando {video_key}: {e}")
         finally:
             # Limpieza de archivos temporales
-            print("Limpiando archivos temporales...")
             if os.path.exists(video_path):
                 os.remove(video_path)
             if os.path.exists(thumbnail_path):
                 os.remove(thumbnail_path)
             os.rmdir(temp_dir)
+
+    # Guardar la lista actualizada en MinIO
+    save_processed_videos_to_minio(s3_client, bucket_name, processed_file_key, processed_videos)
 
 # Configuración del DAG
 default_args = {
