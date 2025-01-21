@@ -224,7 +224,7 @@ def process_escape_routes_data(**context):
 
             path = f'/share_data/input/Test_funcionales/input_{id_ruta}_rutas_escape.json' 
             command = (
-                f'cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH=/share_data/input/Test_funcionales/input_910_rutas_escape.json docker-compose -f compose.yaml up --build'
+                f'cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH={path} docker-compose -f compose.yaml up --build'
             )
 
             stdin, stdout, stderr = ssh_client.exec_command(command)
