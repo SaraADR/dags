@@ -204,7 +204,7 @@ def process_escape_routes_data(**context):
             print(f"Sftp abierto")
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f'/home/admin3/algoritmo_rutas_escape/input/Test_funcionales'
+            carpeta_destino = f'/home/admin3/algoritmo_rutas_escape/input'
             json_file_path = f'{carpeta_destino}/input_{id_ruta}.json'
 
             ssh_client.exec_command(f"touch {json_file_path}")
@@ -222,7 +222,7 @@ def process_escape_routes_data(**context):
                 print("Contenido del JSON válido:", json.dumps(json_data, indent=4))
                 
 
-            path = f'/share_data/input/Test_funcionales/input_{id_ruta}.json' 
+            path = f'/share_data/input/input_{id_ruta}.json' 
             command = (
                 f'cd /home/admin3/algoritmo_rutas_escape/launch && CONFIGURATION_PATH={path} docker-compose -f compose.yaml up --build'
             )
