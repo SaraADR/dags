@@ -105,7 +105,7 @@ def process_and_generate_thumbnail(**kwargs):
     bucket_name = 'temp'  # Cambia según tu bucket
 
     # Cargar lista de videos procesados
-    processed_videos = load_processed_videos()
+    processed_videos = load_processed_videos_from_minio()
 
     for video_key in videos:
         print(f"Procesando video: {video_key}")
@@ -135,7 +135,7 @@ def process_and_generate_thumbnail(**kwargs):
 
             # Registrar el video como procesado
             processed_videos.append(video_key)
-            save_processed_videos(processed_videos)
+            save_processed_videos_to_minio(processed_videos)
             print(f"Video registrado como procesado: {video_key}")
 
         except Exception as e:
