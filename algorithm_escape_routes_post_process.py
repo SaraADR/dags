@@ -203,7 +203,7 @@ def process_escape_routes_data(**context):
             print(f"Sftp abierto")
 
             id_ruta = str(message['message']['id'])
-            carpeta_destino = f'/share_data/input/Test_funcionales'
+            carpeta_destino = f'/home/admin3/algoritmo_rutas_escape/share_data/input/Test_funcionales'
             json_file_path = f'{carpeta_destino}/input_{id_ruta}_rutas_escape.json'
 
             ssh_client.exec_command(f"touch {json_file_path}")
