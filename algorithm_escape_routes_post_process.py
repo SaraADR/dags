@@ -135,7 +135,7 @@ def process_escape_routes_data(**context):
     dir_incendio = input_data['dir_incendio'] 
     id_ruta = str(message['message']['id'])
     geojson = { "type": "FeatureCollection", "features": [ { "type": "Feature", "geometry": dir_incendio, "properties": {} } ] }
-    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/input/Test_funcionales/input_{id_ruta}'
+    geojson_file_path = f'/home/admin3/algoritmo_rutas_escape/share_data/input'
     json_file_path = f"{geojson_file_path}/input_{id_ruta}_rutas_escape.geojson"
 
     try:
@@ -180,7 +180,7 @@ def process_escape_routes_data(**context):
     params = {
         "directorio_alg" : ".",
         "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
-        "dir_incendio": f"{json_file_path}",
+        "dir_incendio": f"/share_data/input/input_{id_ruta}_rutas_escape.geojson",
         "dir_mdt": input_data.get('dir_mdt', None),
         "dir_hojasmtn50": file_paths["dir_hojasmtn50"],
         "dir_combustible": '/share_data/input/modelos_combustible_Galicia_2020.tif',
