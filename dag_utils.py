@@ -12,6 +12,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 import requests
 from airflow.hooks.base import BaseHook
+from pymediainfo import MediaInfo
 
 
 # Función para enviar notificaciones a la BD
@@ -56,6 +57,19 @@ def get_db_session(connection_id: str = 'biobd'):
     # Crea la sesión de SQLAlchemy
     Session = sessionmaker(bind=engine)
     return Session()
+
+
+
+def extract_metadata(video_path):
+    media_info = MediaInfo.parse(video_path)
+    for track in media_info.tracks:
+        if track.track_type == "General":
+            print("General Metadata:")
+            print(f"Title: {track.title}")
+            print(f"MissionID: {track.tagged_date}")
+            print(f"GPS: {track.gps_position}")
+            print(f"Registration: {track.registration}")  # Ejemplo si existe
+
 
 
 # Función para enviar emails

@@ -13,8 +13,8 @@ from sqlalchemy.orm import sessionmaker
 from moviepy import VideoFileClip
 import tempfile
 import os
+from test_recogida_metadatos import is_visible_or_ter
 
-# Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
     video = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
@@ -33,6 +33,7 @@ def process_extracted_files(**kwargs):
 
     print(f"MissionID: {id_mission}")
 
+    # Conexión a la base de datos para buscar Mission Inspection
     try:
         db_conn = BaseHook.get_connection('biobd')
         connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
@@ -58,13 +59,13 @@ def process_extracted_files(**kwargs):
     print(f"Mission Inspection ID: {mission_inspection_id}")
 
     uuid_key = uuid.uuid4()
-    print(f"UUID generado para almacenamiento: {uuid_key}")  
-
+    print(f"UUID generado para almacenamiento: {uuid_key}")
 
     for videos in video:
         video_file_name = videos['file_name']
         video_content = base64.b64decode(videos['content'])
 
+        # Subir videos a MinIO
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
@@ -85,6 +86,17 @@ def process_extracted_files(**kwargs):
         )
         print(f'{video_file_name} subido correctamente a MinIO.')
 
+        # Procesar video con is_visible_or_ter
+        print(f"Procesando metadatos del video {video_file_name} con is_visible_or_ter.")
+        is_visible_or_ter(
+            message=video_file_name,
+            local_zip_path="temp/" + video_file_name,
+            output=json.dumps(json_content),  # Usa json_content para metadatos
+            output_json=json_content,
+            type=-1  # Tipo -1 para videos
+        )
+
+    # Subir JSON a MinIO
     json_str = json.dumps(json_content).encode('utf-8')
     json_key = str(uuid_key) + '/' + 'algorithm_result.json'
 
@@ -96,8 +108,8 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
+    # Registrar el video en la base de datos
     try:
-
         id_resource_uuid = uuid.UUID(video_key.split('/')[0])
 
         query = text("""
@@ -111,14 +123,11 @@ def process_extracted_files(**kwargs):
     except Exception as e:
         session.rollback()
         print(f"Error al insertar video en mss_inspection_video: {str(e)}")
-
-
     finally:
         session.close()
         print("Conexión a la base de datos cerrada correctamente")
 
     return str(uuid_key)
-
 
 # Función para convertir archivos TS a MP4
 def convert_ts_files(**kwargs):
