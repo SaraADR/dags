@@ -154,7 +154,7 @@ def process_extracted_files(**kwargs):
                 print(f"Error al insertar en minio: {str(e)}")
 
 
-    print(childanduuid)
+    print("Uuid generado:" +  childanduuid)
     print(parent)
 
     #Buscamos el mission_inspection correspondiente a estos archivos
