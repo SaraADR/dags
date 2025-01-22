@@ -366,54 +366,54 @@ def process_escape_routes_data(**context):
 
 
         #Creamos la notificación de vuelta  
-                    try:
-                        db_conn = BaseHook.get_connection('biobd')
-                        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                        engine = create_engine(connection_string)
-                        Session = sessionmaker(bind=engine)
-                        session = Session()
+                try:
+                    db_conn = BaseHook.get_connection('biobd')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                    engine = create_engine(connection_string)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
 
-                        data_json = json.dumps({
-                            "to": from_user,
-                            "actions": [
-                            {
-                            "type": "notify",
-                            "data": {
-                                "message": "Datos de rutas de escape procesados correctamente"
-                            }
-                            },
-                            {
-                            "type": "paintTiff",
-                            "data": {
-                                "url": file_url
-                            }
-                            }
-                        ]
-                        }, ensure_ascii=False)
-                        time = datetime.now().replace(tzinfo=timezone.utc)
+                    data_json = json.dumps({
+                        "to": from_user,
+                        "actions": [
+                        {
+                        "type": "notify",
+                        "data": {
+                            "message": "Datos de rutas de escape procesados correctamente"
+                        }
+                        },
+                        {
+                        "type": "paintTiff",
+                        "data": {
+                            "url": file_url
+                        }
+                        }
+                    ]
+                    }, ensure_ascii=False)
+                    time = datetime.now().replace(tzinfo=timezone.utc)
 
-                        query = text("""
-                            INSERT INTO public.notifications
-                            (destination, "data", "date", status)
-                            VALUES (:destination, :data, :date, NULL);
-                        """)
-                        session.execute(query, {
-                            'destination': 'ignis',
-                            'data': data_json,
-                            'date': time
-                        })
-                        session.commit()
+                    query = text("""
+                        INSERT INTO public.notifications
+                        (destination, "data", "date", status)
+                        VALUES (:destination, :data, :date, NULL);
+                    """)
+                    session.execute(query, {
+                        'destination': 'ignis',
+                        'data': data_json,
+                        'date': time
+                    })
+                    session.commit()
 
-                    except Exception as e:
-                        session.rollback()
-                        print(f"Error durante la inserción de la notificación: {str(e)}")
-                        error_message = str(e)
-                        print(f"Error durante el guardado de la misión: {error_message}")
-                        # Actualizar el estado del job a ERROR y registrar el error
-                        # Obtener job_id desde el contexto del DAG
-                        job_id = context['dag_run'].conf['message']['id']        
-                        throw_job_error(job_id, e)
-                        raise e
+                except Exception as e:
+                    session.rollback()
+                    print(f"Error durante la inserción de la notificación: {str(e)}")
+                    error_message = str(e)
+                    print(f"Error durante el guardado de la misión: {error_message}")
+                    # Actualizar el estado del job a ERROR y registrar el error
+                    # Obtener job_id desde el contexto del DAG
+                    job_id = context['dag_run'].conf['message']['id']        
+                    throw_job_error(job_id, e)
+                    raise e
 
 
 
