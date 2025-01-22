@@ -16,76 +16,116 @@ from collections import defaultdict
 
 
 def process_extracted_files(**kwargs):
-    # Obtenemos los archivos 
+    # Obtenemos los archivos y el contenido JSON
     otros = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
 
-    
     if not json_content:
         print("Ha habido un error con el traspaso de los documentos")
         return
 
     print("Archivos para procesar preparados")
 
-    #Accedemos al missionID para poder buscar si ya existe
-    id_mission = get_idmission(json_content)
-    print(f"MissionID: {id_mission}")
+    # Extraer datos clave del JSON
+    metadata = {item['name']: item['value'] for item in json_content['metadata']}
 
+    mission_id = metadata.get("MissionID", "Desconocido")
+    aircraft_number_plate = metadata.get("AircraftNumberPlate", "No disponible")
+    pilot_name = metadata.get("PilotName", "No disponible")
+    operator_name = metadata.get("OperatorName", "No disponible")
+    reference_system = metadata.get("ReferenceSystem", "No disponible")
 
+    # Mostrar los datos clave extraídos
+    print(f"Datos clave extraídos del JSON:")
+    print(f"- Misión (MissionID): {mission_id}")
+    print(f"- Matrícula (AircraftNumberPlate): {aircraft_number_plate}")
+    print(f"- Piloto (PilotName): {pilot_name}")
+    print(f"- Operador (OperatorName): {operator_name}")
+    print(f"- Sistema de Referencia Geográfica (ReferenceSystem): {reference_system}")
 
-    # Agrupamos 'otros' por carpetas utilizando regex para extraer el prefijo de la carpeta
+    # Procesar los archivos y subirlos a MinIO
+    childanduuid = []
+    parent = None
+
     grouped_files = defaultdict(list)
     for file_info in otros:
         file_name = file_info['file_name']
-        
         match = re.match(r'resources/(cloud[^/]+)/', file_name)
         if match:
-            folder_name = match.group(1) 
+            folder_name = match.group(1)
             grouped_files[folder_name].append(file_info)
 
-    # Mostramos los archivos agrupados por carpetas
+    # Mostrar archivos agrupados por carpetas
     for folder, files in grouped_files.items():
         print(f"Carpeta: {folder}")
         for file_info in files:
             print(f"  Archivo: {file_info['file_name']}")
 
-
-    #Subimos a minIO cada carpeta con sus archivos correspondientes
-    childanduuid = []
-    parent = None
+    # Subir carpetas y archivos a MinIO
     for folder, files in grouped_files.items():
-            try:
-                
-                unique_id_child = str(uuid.uuid4())
-                if "cloudCut" in folder:
-                      childanduuid.append([folder, unique_id_child])
-                else:
-                      parent = unique_id_child
+        try:
+            unique_id_child = str(uuid.uuid4())
+            if "cloudCut" in folder:
+                childanduuid.append([folder, unique_id_child])
+            else:
+                parent = unique_id_child
 
-                connection = BaseHook.get_connection('minio_conn')
-                extra = json.loads(connection.extra)
-                s3_client = boto3.client(
-                    's3',
-                    endpoint_url=extra['endpoint_url'],
-                    aws_access_key_id=extra['aws_access_key_id'],
-                    aws_secret_access_key=extra['aws_secret_access_key'],
-                    config=Config(signature_version='s3v4')
+            connection = BaseHook.get_connection('minio_conn')
+            extra = json.loads(connection.extra)
+            s3_client = boto3.client(
+                's3',
+                endpoint_url=extra['endpoint_url'],
+                aws_access_key_id=extra['aws_access_key_id'],
+                aws_secret_access_key=extra['aws_secret_access_key'],
+                config=Config(signature_version='s3v4')
+            )
+            bucket_name = 'missions'
+
+            print(f"Subiendo archivos de la carpeta: {folder}")
+            for file in files:
+                file_name = os.path.basename(file['file_name'])
+                print(f"  Subiendo archivo: {file_name}")
+                content_bytes = base64.b64decode(file['content'])
+                actual_child_key = f"{unique_id_child}/{file_name}"
+
+                # Subir a MinIO
+                s3_client.put_object(
+                    Bucket=bucket_name,
+                    Key=actual_child_key,
+                    Body=io.BytesIO(content_bytes),
                 )
-                bucket_name = 'missions'  
-          
-                for file in files:
-                    content_bytes = base64.b64decode(file['content'])
-                    actual_child_key = str(unique_id_child) +'/' +  os.path.basename(file['file_name']) 
-                    # Subir el archivo a MinIO
-                    s3_client.put_object(
-                        Bucket=bucket_name,
-                        Key=actual_child_key,
-                        Body=io.BytesIO(content_bytes),
-                    )
-                    print(f'{os.path.basename(file['file_name'])} subido correctamente a MinIO.')
+                print(f"  Archivo '{file_name}' subido correctamente a MinIO con clave '{actual_child_key}'.")
 
-            except Exception as e:
-                print(f"Error al insertar en minio: {str(e)}")
+        except Exception as e:
+            print(f"Error al subir archivos a MinIO: {str(e)}")
+
+    # Subir el JSON (algorithm_result) al padre en MinIO
+    try:
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
+
+        bucket_name = 'missions'
+        json_key = f"{parent}/algorithm_result.json"
+        json_str = json.dumps(json_content).encode('utf-8')
+
+        s3_client.put_object(
+            Bucket=bucket_name,
+            Key=json_key,
+            Body=io.BytesIO(json_str),
+            ContentType='application/json'
+        )
+        print(f"Archivo JSON 'algorithm_result.json' subido correctamente a MinIO con clave '{json_key}'.")
+
+    except Exception as e:
+        print(f"Error al subir JSON a MinIO: {str(e)}")
+
 
 
     #Subimos el algorithm_result a la carpeta del padre
@@ -130,7 +170,7 @@ def process_extracted_files(**kwargs):
             FROM missions.mss_mission_inspection
             WHERE mission_id = :search_id
         """)
-        result = session.execute(query, {'search_id': id_mission})
+        result = session.execute(query, {'search_id': mission_id})
         row = result.fetchone()
         if row is not None:
             mission_inspection_id = row[0]  

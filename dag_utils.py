@@ -58,6 +58,7 @@ def get_db_session(connection_id: str = 'biobd'):
     return Session()
 
 
+
 # Función para enviar emails
 
 def send_email_with_template(to, cc=None, bcc=None, subject=None, template_path=None, template_data=None, conn_id='test_mailing', attachments=None):

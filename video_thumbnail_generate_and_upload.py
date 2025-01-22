@@ -1,6 +1,7 @@
 import os
 import json
 import tempfile
+import uuid  # Importar módulo UUID
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -29,7 +30,7 @@ def save_processed_videos_to_minio(s3_client, bucket_name, key, processed_videos
     Guarda la lista de videos procesados en MinIO.
     """
     try:
-        json_data = json.dumps(processed_videos)
+        json_data = json.dumps(processed_videos, indent=4)  # Mejorar legibilidad
         s3_client.put_object(Bucket=bucket_name, Key=key, Body=json_data)
         print(f"Lista de videos procesados guardada en {key}.")
     except Exception as e:
@@ -56,7 +57,8 @@ def scan_minio_for_videos(**kwargs):
 
     # Cargar videos procesados desde MinIO
     processed_videos = load_processed_videos_from_minio(s3_client, bucket_name, processed_file_key)
-    print(f"Videos procesados previamente: {processed_videos}")
+    processed_keys = [entry['key'] for entry in processed_videos]  # Extraer solo claves de los procesados
+    print(f"Videos procesados previamente: {processed_keys}")
 
     # Escaneo del bucket
     paginator = s3_client.get_paginator('list_objects_v2')
@@ -67,7 +69,7 @@ def scan_minio_for_videos(**kwargs):
     for page in result:
         for content in page.get('Contents', []):
             video_key = content['Key']
-            if video_key.endswith('.mp4') and video_key not in processed_videos:
+            if video_key.endswith('.mp4') and video_key not in processed_keys:
                 new_videos.append(video_key)
 
     print(f"Nuevos videos detectados: {new_videos}")
@@ -120,8 +122,11 @@ def process_and_generate_thumbnail(**kwargs):
             # Subir el thumbnail a MinIO
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
 
-            # Registrar el video como procesado
-            processed_videos.append(video_key)
+            # Registrar el video como procesado con UUID
+            processed_videos.append({
+                "key": video_key,
+                "uuid": str(uuid.uuid4())  # Generar UUID único
+            })
 
         except Exception as e:
             print(f"Error procesando {video_key}: {e}")
