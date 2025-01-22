@@ -200,15 +200,15 @@ def process_escape_routes_data(**context):
 
 
     #,  "dir_incendio": f"{json_file_path}", "dir_carr_csv":  file_paths["dir_carr_csv"] file_paths["dir_combustible"]
+    #        "dir_mdt": '/share_data/input/mdt05_hojasmtn50',
+    #   "dir_hojasmtn50": "/share_data/input/cuadriculas/MTN50_ETRS89_Peninsula_Baleares_Canarias.shp",
     # Crear el JSON dinámicamente
     params = {
         "directorio_alg" : ".",
         "dir_output": f"/share_data/output/rutas_escape_{str(message['message']['id'])}",
         "dir_incendio": f"/share_data/input/input_{id_ruta}_rutas_escape.geojson",
-        "dir_mdt": '/share_data/input/mdt05_hojasmtn50',
-        "dir_hojasmtn50": "/share_data/input/cuadriculas/MTN50_ETRS89_Peninsula_Baleares_Canarias.shp",
         "dir_combustible": '/share_data/input/modelos_combustible_Galicia_2020.tif',
-        "api_idee": input_data.get('api_idee', False),
+        "api_idee": input_data.get('api_idee', True),
         "dir_vias": "/share_data/input/ELEMENTOS/rt_tramo_vial.shp",
         "dir_cursos_agua": "/share_data/input/ELEMENTOS/cursosagua_Galicia.shp",
         "dir_aguas_estancadas": "/share_data/input/ELEMENTOS/aguas_estancadas_Galicia.shp",
@@ -220,7 +220,7 @@ def process_escape_routes_data(**context):
         "dir_obstaculos": input_data.get('dir_obstaculos', None),
         "dir_carr_csv": '/share_data/input/Tramos_de_carreteras.csv',
         "sugerir": input_data.get('sugerir', False),
-        "zonas_abiertas": file_paths["zonas_abiertas"],
+        "zonas_abiertas": "/share_data/input/ZonasSeguras/Ourense.gpkg",
         "v_viento": input_data.get('v_viento', None),
         "f_buffer": input_data.get('f_buffer', 100),
         "c_prop": input_data.get('c_prop', "Extremas"),
