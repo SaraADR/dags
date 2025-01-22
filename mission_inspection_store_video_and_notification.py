@@ -90,14 +90,22 @@ def process_extracted_files(**kwargs):
         print(f"Procesando metadatos del video {video_file_name} con is_visible_or_ter.")
         print(f"Extrayendo datos clave...")
 
-        # Extraer valores clave para mostrar
-        mission_id = json_content.get('MissionID', 'Desconocido')
-        gps = json_content.get('GPSPosition', 'No disponible')
-        registration = json_content.get('Registration', 'No disponible')
+            # Extraer datos clave del JSON
+        metadata = {item['name']: item['value'] for item in json_content['metadata']}
 
-        print(f"- Misión: {mission_id}")
-        print(f"- Matrícula: {registration}")
-        print(f"- GPS: {gps}")
+        mission_id = metadata.get("MissionID", "Desconocido")
+        aircraft_number_plate = metadata.get("AircraftNumberPlate", "No disponible")
+        pilot_name = metadata.get("PilotName", "No disponible")
+        operator_name = metadata.get("OperatorName", "No disponible")
+        reference_system = metadata.get("ReferenceSystem", "No disponible")
+
+        # Mostrar los datos clave extraídos
+        print(f"Datos clave extraídos del JSON:")
+        print(f"- Misión (MissionID): {mission_id}")
+        print(f"- Matrícula (AircraftNumberPlate): {aircraft_number_plate}")
+        print(f"- Piloto (PilotName): {pilot_name}")
+        print(f"- Operador (OperatorName): {operator_name}")
+        print(f"- Sistema de Referencia Geográfica (ReferenceSystem): {reference_system}")
 
         is_visible_or_ter(
             message=video_file_name,
