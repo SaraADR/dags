@@ -137,7 +137,6 @@ def process_escape_routes_data(**context):
 
     if isinstance(dir_incendio, str):
         dir_incendio = json.loads(dir_incendio)
-        dir_incendio['type'] = "Polygon"
         geojson = {
             "type": "FeatureCollection",
             "name": f"input_{id_ruta}_rutas_escape",
@@ -550,7 +549,7 @@ def create_json(params):
         "dir_mdt": params.get("dir_mdt", None),
         "dir_hojasmtn50": params.get("dir_hojasmtn50", None),
         "dir_combustible": params.get("dir_combustible", None),
-        "api_idee": params.get("api_idee", True),
+        "api_idee": params.get("api_idee", False),
         "dir_vias": params.get("dir_vias", None),
         "dir_cursos_agua": params.get("dir_cursos_agua", None),
         "dir_aguas_estancadas": params.get("dir_aguas_estancadas", None),
@@ -567,7 +566,7 @@ def create_json(params):
         "v_viento": params.get("v_viento", None),
         "f_buffer": params.get("f_buffer", 100),
         "c_prop": params.get("c_prop", None),
-        "lim_pendiente": params.get("lim_pendiente", 10),
+        "lim_pendiente": params.get("lim_pendiente", None),
         "dist_estudio": params.get("dist_estudio", 5000),
         "write":params.get('write', True),
     }
