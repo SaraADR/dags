@@ -270,7 +270,7 @@ def process_escape_routes_data(**context):
 
             algorithm_error_message = None
             for line in output.split("\n"):
-                if "Valor 100" in line or "Valor -2" in line or "Valor -1" in line:  # Cambiar la lógica según el formato del mensaje
+                if "Valor 100" in line or "Valor -2" in line or "Valor -1" in line:  
                     algorithm_error_message = line.strip()
                     print(f"Error durante el guardado de la misión: {algorithm_error_message}")
                     job_id = context['dag_run'].conf['message']['id']        
