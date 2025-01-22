@@ -350,12 +350,14 @@ def process_escape_routes_data(**context):
                     dst.write(rasterized, 1)
 
                 print(f"GeoTIFF creado en: {tiff_output_path}")
-                reproject_tiff(tiff_output_path, tiff_output_path)
+                outputTiff = os.path.join(local_output_directory, "out_ruta_escape.tiff")
+                reproject_tiff(tiff_output_path, outputTiff)
+
                 print_directory_contents(local_output_directory)
                 try:
                     key = f"{uuid.uuid4()}"
                     file_key = 'escape_routes/' + str(key) 
-                    upload_to_minio_path('minio_conn', 'tmp', file_key, tiff_output_path)
+                    upload_to_minio_path('minio_conn', 'tmp', file_key, outputTiff)
                     file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}/ruta_escape.tiff"
                     print(f" URL: {file_url}")
                 except Exception as e:
