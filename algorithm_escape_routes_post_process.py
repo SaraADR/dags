@@ -267,6 +267,16 @@ def process_escape_routes_data(**context):
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output = stdout.read().decode()
             error_output = stderr.read().decode()
+
+            algorithm_error_message = None
+            for line in output.split("\n"):
+                if "Valor 100" in line or "Valor -2" in line or "Valor -1" in line:  # Cambiar la lógica según el formato del mensaje
+                    algorithm_error_message = line.strip()
+                    print(f"Error durante el guardado de la misión: {algorithm_error_message}")
+                    job_id = context['dag_run'].conf['message']['id']        
+                    throw_job_error(job_id, algorithm_error_message)
+                    raise Exception(algorithm_error_message)
+
             exit_status = stdout.channel.recv_exit_status() 
             if exit_status != 0:
                 print("Errores al ejecutar run.sh:")
