@@ -86,8 +86,19 @@ def process_extracted_files(**kwargs):
         )
         print(f'{video_file_name} subido correctamente a MinIO.')
 
-        # Procesar video con is_visible_or_ter
+         # Procesar video con is_visible_or_ter
         print(f"Procesando metadatos del video {video_file_name} con is_visible_or_ter.")
+        print(f"Extrayendo datos clave...")
+
+        # Extraer valores clave para mostrar
+        mission_id = json_content.get('MissionID', 'Desconocido')
+        gps = json_content.get('GPSPosition', 'No disponible')
+        registration = json_content.get('Registration', 'No disponible')
+
+        print(f"- Misión: {mission_id}")
+        print(f"- Matrícula: {registration}")
+        print(f"- GPS: {gps}")
+
         is_visible_or_ter(
             message=video_file_name,
             local_zip_path="temp/" + video_file_name,
