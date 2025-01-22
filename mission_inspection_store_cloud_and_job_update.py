@@ -170,7 +170,7 @@ def process_extracted_files(**kwargs):
             FROM missions.mss_mission_inspection
             WHERE mission_id = :search_id
         """)
-        result = session.execute(query, {'search_id': id_mission})
+        result = session.execute(query, {'search_id': mission_id})
         row = result.fetchone()
         if row is not None:
             mission_inspection_id = row[0]  
