@@ -10,7 +10,7 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 import pytz
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
-from dag_utils import update_job_status, throw_job_error,get_db_session
+from dag_utils import update_job_status, throw_job_error,get_db_session,notify_and_update_mission
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -112,6 +112,19 @@ def create_mission(**context):
         raise
 
 
+def process_new_elements(**context):
+    # Datos del contexto
+    message = context['dag_run'].conf
+    mission_id = message.get('mission_id')
+    element_type = message.get('element_type')
+    element_data = message.get('element_data')
+
+    if not mission_id or not element_type or not element_data:
+        print("Faltan datos para procesar la actualización.")
+        return
+
+    # Llamar a la función para actualizar la misión
+    notify_and_update_mission(mission_id, element_type, element_data)
 
 # Función para crear un incendio a través del servicio ATC con manejo de errores
 def create_fire(input_data):
@@ -268,5 +281,13 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
+# DAG Operator
+update_mission_task = PythonOperator(
+    task_id='update_mission_task',
+    python_callable=process_new_elements,
+    provide_context=True,
+    dag=dag,
+)
+
 # Modifica la secuencia de tareas
-print_message_task >> create_mission_task 
+print_message_task >> create_mission_task >> update_mission_task

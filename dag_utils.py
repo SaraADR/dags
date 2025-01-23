@@ -39,6 +39,45 @@ def prepare_and_send_notification(conn_id, message, destination='ignis'):
         raise
 
 
+def notify_and_update_mission(mission_id, element_type, element_data):
+   
+    try:
+        # Conectar a la base de datos
+        session = get_db_session()
+        engine = session.get_bind()
+
+        # Actualizar la misión con los nuevos datos
+        update_query = text("""
+            UPDATE missions.mss_mission
+            SET last_update = NOW()
+            WHERE id = :mission_id
+        """)
+        session.execute(update_query, {'mission_id': mission_id})
+        
+        # Generar notificación para los usuarios
+        notification_query = text("""
+            INSERT INTO notifications (user_id, message, mission_id, element_type, created_at)
+            SELECT user_id, :message, :mission_id, :element_type, NOW()
+            FROM user_missions
+            WHERE mission_id = :mission_id
+        """)
+        session.execute(notification_query, {
+            'message': f"Nuevos datos disponibles para la misión {mission_id} ({element_type})",
+            'mission_id': mission_id,
+            'element_type': element_type,
+        })
+        
+        # Confirmar los cambios
+        session.commit()
+        print(f"Misión {mission_id} actualizada y usuarios notificados.")
+    except Exception as e:
+        session.rollback()
+        print(f"Error al actualizar misión o notificar usuarios: {e}")
+        raise
+    finally:
+        session.close()
+
+
 def get_db_session(connection_id: str = 'biobd'):
     
     # Obtiene la conexión desde Airflow
