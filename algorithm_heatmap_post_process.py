@@ -236,7 +236,7 @@ def process_heatmap_data(**context):
 
             #Una vez tenemos lo que ha salido lo subimos a minio
             try:
-                up_to_minio(local_output_directory, from_user, isIncendio, '/tmp')
+                up_to_minio(local_output_directory, from_user, isIncendio, '/tmp', context)
             except Exception as e:
                 print(f"Error al subir archivos a MinIO: {str(e)}")
                 raise e
