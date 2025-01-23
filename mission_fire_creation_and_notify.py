@@ -126,6 +126,7 @@ def process_new_elements(**context):
     # Llamar a la función para actualizar la misión
     notify_and_update_mission(mission_id, element_type, element_data)
 
+
 # Función para crear un incendio a través del servicio ATC con manejo de errores
 def create_fire(input_data):
     try:
