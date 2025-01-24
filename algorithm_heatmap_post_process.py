@@ -19,7 +19,7 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
-from dag_utils import update_job_status, throw_job_error, notify_and_update_mission
+from dag_utils import update_job_status, throw_job_error
 
 
 def process_heatmap_data(**context):
@@ -236,7 +236,7 @@ def process_heatmap_data(**context):
 
             #Una vez tenemos lo que ha salido lo subimos a minio
             try:
-                up_to_minio(local_output_directory, from_user, isIncendio, '/tmp', context)
+                up_to_minio(local_output_directory, from_user, isIncendio, '/tmp' , context)
             except Exception as e:
                 print(f"Error al subir archivos a MinIO: {str(e)}")
                 raise e
@@ -466,21 +466,6 @@ def reproject_tiff(input_tiff, output_tiff, dst_crs='EPSG:3857'):
         print(f"Reprojection complete. File saved at: {output_tiff}")
 
 
-def process_new_elements(**context):
-    # Datos del contexto
-    message = context['dag_run'].conf
-    mission_id = message.get('mission_id')
-    element_type = message.get('element_type')
-    element_data = message.get('element_data')
-
-    if not mission_id or not element_type or not element_data:
-        print("Faltan datos para procesar la actualización.")
-        return
-
-    # Llamar a la función para actualizar la misión
-    notify_and_update_mission(mission_id, element_type, element_data)
-
-
 def create_json(params):
     input_data = {
         "directorio_alg": params.get("directorio_alg", "."),
@@ -553,13 +538,5 @@ change_state_task = PythonOperator(
     dag=dag,
 )
 
-# DAG Operator
-update_mission_task = PythonOperator(
-    task_id='update_mission_task',
-    python_callable=process_new_elements,
-    provide_context=True,
-    dag=dag,
-)
-
 # Ejecución de la tarea en el DAG
-process_heatmap_task >> change_state_task >> update_mission_task
+process_heatmap_task >> change_state_task

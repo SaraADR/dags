@@ -443,12 +443,6 @@ def process_escape_routes_data(**context):
         if 'sftp' in locals():
             sftp.close()
             print("SFTP cerrado.")
-
-
-
-
-
-
     # Actualizar el estado del job a 'FINISHED' si todo se completa correctamente
     try:
         job_id = message['message']['id']
