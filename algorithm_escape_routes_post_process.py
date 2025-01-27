@@ -7,7 +7,7 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.hooks.http_hook import HttpHook
 import requests
-from dag_utils import update_job_status, throw_job_error
+from dag_utils import update_job_status, throw_job_error, crear_zip_si_existen
 import os
 import rasterio
 from rasterio.features import rasterize
@@ -309,7 +309,7 @@ def process_escape_routes_data(**context):
 
 
 
-    #Cerramos el algoritmo, leemos el resultado
+            #Cerramos el algoritmo, leemos el resultado
             print_directory_contents(local_output_directory)
 
             local_output_directory = '/tmp'
@@ -318,60 +318,65 @@ def process_escape_routes_data(**context):
 
             if(shapefile_path is None):
                 print("Con los datos propuestos no se genero una ruta de escape")
+                raise RuntimeError(f"Con los datos propuestos no se generó una ruta de escape")
 
             if(shapefile_path is not None):
 
-                gdf = gpd.read_file(shapefile_path)
+                # gdf = gpd.read_file(shapefile_path)
 
 
-                crs = CRS.from_string(gdf.crs.to_string())
+                # crs = CRS.from_string(gdf.crs.to_string())
 
 
-                bounds = gdf.total_bounds  
-                resolution = 0.0001  
-                width = int((bounds[2] - bounds[0]) / resolution)
-                height = int((bounds[3] - bounds[1]) / resolution)
+                # bounds = gdf.total_bounds  
+                # resolution = 0.0001  
+                # width = int((bounds[2] - bounds[0]) / resolution)
+                # height = int((bounds[3] - bounds[1]) / resolution)
 
-                transform = rasterio.transform.from_bounds(
-                    bounds[0], bounds[1], bounds[2], bounds[3], width, height
-                )
+                # transform = rasterio.transform.from_bounds(
+                #     bounds[0], bounds[1], bounds[2], bounds[3], width, height
+                # )
 
-                # Crear el GeoTIFF
-                with rasterio.open(
-                    tiff_output_path,
-                    'w',
-                    driver='GTiff',
-                    height=height,
-                    width=width,
-                    count=1,
-                    dtype='uint8',
-                    crs=crs.to_string(),
-                    transform=transform,
-                ) as dst:
-                    # Rasterizar las geometrías
-                    rasterized = rasterize(
-                        ((shape(geom), 1) for geom in gdf.geometry),
-                        out_shape=(height, width),
-                        transform=transform,
-                        fill=0,
-                        all_touched=True,
-                        dtype='uint8',
-                    )
-                    dst.write(rasterized, 1)
+                # # Crear el GeoTIFF
+                # with rasterio.open(
+                #     tiff_output_path,
+                #     'w',
+                #     driver='GTiff',
+                #     height=height,
+                #     width=width,
+                #     count=1,
+                #     dtype='uint8',
+                #     crs=crs.to_string(),
+                #     transform=transform,
+                # ) as dst:
+                #     # Rasterizar las geometrías
+                #     rasterized = rasterize(
+                #         ((shape(geom), 1) for geom in gdf.geometry),
+                #         out_shape=(height, width),
+                #         transform=transform,
+                #         fill=0,
+                #         all_touched=True,
+                #         dtype='uint8',
+                #     )
+                #     dst.write(rasterized, 1)
 
-                print(f"GeoTIFF creado en: {tiff_output_path}")
-                outputTiff = os.path.join(local_output_directory, "out_ruta_escape.tiff")
-                reproject_tiff(tiff_output_path, outputTiff)
+                # print(f"GeoTIFF creado en: {tiff_output_path}")
+                # outputTiff = os.path.join(local_output_directory, "out_ruta_escape.tiff")
+                # reproject_tiff(tiff_output_path, outputTiff)
 
-                print_directory_contents(local_output_directory)
+                # print_directory_contents(local_output_directory)
+
                 try:
+                    outputZip = os.path.join(local_output_directory, "ruta_escape.zip")
+                    crear_zip_si_existen("ruta_escape", local_output_directory, [".shp", ".prj", ".shx", ".dbf"])
                     key = f"{uuid.uuid4()}"
                     file_key = 'escape_routes/' + str(key) 
-                    upload_to_minio_path('minio_conn', 'tmp', file_key, outputTiff)
-                    file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}/out_ruta_escape.tiff"
+                    upload_to_minio_path('minio_conn', 'tmp', file_key, outputZip)
+                    file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}/ruta_escape.zip"
                     print(f" URL: {file_url}")
                 except Exception as e:
                     print(f"Error al subir archivos a MinIO: {str(e)}")
+                    raise e
     
 
 
@@ -393,7 +398,7 @@ def process_escape_routes_data(**context):
                         }
                         },
                         {
-                        "type": "paintTiff",
+                        "type": "paintShp",
                         "data": {
                             "url": file_url
                         }

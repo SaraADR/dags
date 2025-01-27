@@ -4,6 +4,7 @@ from jinja2 import Template
 from airflow.operators.email import EmailOperator
 import boto3
 import os
+import zipfile
 from sqlalchemy import create_engine, Table, MetaData, text
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
@@ -38,8 +39,29 @@ def prepare_and_send_notification(conn_id, message, destination='ignis'):
         print(f"Error al enviar notificación: {str(e)}")
         raise
 
-
-
+# Función para crear un archivo ZIP si existen los archivos requeridos por extensión y nombre de fichero
+def crear_zip_si_existen(nombre_fichero, directorio, extensiones):
+    # Extensiones necesarias
+    #extensiones = ['.shp', '.prj', '.shx', '.dbf']
+    archivos_encontrados = []
+    
+    # Buscar archivos con las extensiones requeridas
+    for ext in extensiones:
+        archivo = os.path.join(directorio, f"{nombre_fichero}{ext}")
+        if os.path.exists(archivo):
+            archivos_encontrados.append(archivo)
+        else:
+            print(f"Falta el archivo: {archivo}")
+            raise RuntimeError(f"Falta el archivo: {archivo}")  # Salir si falta algún archivo
+    
+    # Crear el archivo ZIP
+    zip_path = os.path.join(directorio, f"{nombre_fichero}.zip")
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for archivo in archivos_encontrados:
+            zipf.write(archivo, os.path.basename(archivo))
+            print(f"Archivo añadido al ZIP: {archivo}")
+    
+    print(f"ZIP creado exitosamente: {zip_path}")
 
 def get_db_session(connection_id: str = 'biobd'):
     
