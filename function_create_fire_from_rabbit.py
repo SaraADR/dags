@@ -93,7 +93,7 @@ default_args = {
 }
 
 dag = DAG(
-    'function_create_fire_from_rabbit_with_events',
+    'function_create_fire_from_rabbit',
     default_args=default_args,
     description='DAG que procesa diferentes eventos relacionados con incendios desde RabbitMQ',
     schedule_interval=None,
