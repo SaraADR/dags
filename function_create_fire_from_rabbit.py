@@ -10,7 +10,7 @@ from dag_utils import update_job_status, throw_job_error, get_db_session
 
 
 
-def receive_data_and_process_event(**context):
+def receive_data_and_create_fire(**context):
     message = context['dag_run'].conf
     if not message:
         print("No se encontró el campo 'message' en los datos recibidos.")
@@ -310,7 +310,7 @@ dag = DAG(
 
 receive_data_process = PythonOperator(
     task_id='receive_and_process_event',
-    python_callable=receive_data_and_process_event,
+    python_callable=receive_data_and_create_fire,
     provide_context=True,
     dag=dag,
 )
