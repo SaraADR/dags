@@ -17,15 +17,20 @@ def receive_data_and_process_event(**context):
         return
 
     try:
-        # Extraer el campo 'data' del mensaje
+        # Extraer el campo 'eventName' y 'data' del mensaje
+        event_name = message.get('eventName')
         data_str = message.get('data')
+        
+        if not event_name:
+            print("Advertencia: No se encontró el campo 'eventName' en el mensaje.")
+            event_name = "UnknownEvent"  # Asignar un valor predeterminado si falta
+        
         if not data_str:
             print("No se encontró el campo 'data' en el mensaje.")
             return
-
+        
         # Decodificar el campo 'data' (suponiendo que es un JSON)
         data = json.loads(data_str) if isinstance(data_str, str) else data_str
-        event_name = data.get('eventName')  # Identificar el tipo de evento
         print(f"Datos del mensaje recibidos: {data}")
         print(f"Evento recibido: {event_name}")
 
@@ -42,7 +47,7 @@ def receive_data_and_process_event(**context):
             'FirePerimeterRiskCreatedOrUpdatedEvent'
         ):
             # Ejecutar la lógica nueva para los otros eventos
-            handle_additional_event(data)
+            handle_additional_event(data, event_name)
         else:
             print(f"Evento no reconocido: {event_name}")
             return
@@ -101,7 +106,7 @@ def notify_frontend(mission_id, user):
         raise
 
 
-def handle_additional_event(data):
+def handle_additional_event(data, event_name):
     """
     Lógica para manejar los eventos adicionales como FirePerimeterCreatedOrUpdatedEvent,
     WaterDischargeCreatedOrUpdatedEvent, etc.
@@ -110,15 +115,13 @@ def handle_additional_event(data):
         session = get_db_session()
 
         # Insertar los nuevos datos en la base de datos o procesarlos según la lógica específica
-        print("Procesando evento adicional...")
-        event_type = data.get('eventName')
-        associated_data = data.get('associatedData', {})
-        mission_id = associated_data.get('missionId')
-        
-        print(f"Procesando el evento {event_type} para la misión ID: {mission_id}")
+        print(f"Procesando evento adicional '{event_name}'...")
+        mission_id = data.get('missionId')  # Obtener ID de misión si está disponible
+
+        print(f"Procesando el evento {event_name} para la misión ID: {mission_id}")
 
         # Notificar al front-end sobre los cambios
-        notify_frontend_additional_event(mission_id, event_type)
+        notify_frontend_additional_event(mission_id, event_name)
 
     except Exception as e:
         print(f"Error procesando el evento adicional: {e}")
@@ -126,7 +129,7 @@ def handle_additional_event(data):
 
 
 
-def notify_frontend_additional_event(mission_id, event_type):
+def notify_frontend_additional_event(mission_id, event_name):
     """
     Notificar al sistema front-end sobre los eventos adicionales.
     """
@@ -142,12 +145,12 @@ def notify_frontend_additional_event(mission_id, event_type):
                         "type": "updateMission",
                         "data": {
                             "missionId": mission_id,
-                            "eventType": event_type
+                            "eventType": event_name
                         }
                     },
                     {
                         "type": "notify",
-                        "data": {"message": f"Evento {event_type} procesado para la misión ID: {mission_id}"}
+                        "data": {"message": f"Evento {event_name} procesado para la misión ID: {mission_id}"}
                     }
                 ]
             }, ensure_ascii=False)
@@ -168,11 +171,12 @@ def notify_frontend_additional_event(mission_id, event_type):
             })
             session.commit()
 
-            print(f"Notificación enviada para la misión con ID: {mission_id} y evento {event_type}")
+            print(f"Notificación enviada para la misión con ID: {mission_id} y evento {event_name}")
 
     except Exception as e:
         print(f"Error al insertar la notificación: {str(e)}")
         raise
+
 
 def createMissionMissionFireAndHistoryStatus(msg_json):
     try:
