@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
@@ -8,173 +8,33 @@ from sqlalchemy.orm import sessionmaker
 from dag_utils import update_job_status, throw_job_error, get_db_session
 
 
-
-
-def receive_data_and_process_event(**context):
+def receive_data_and_create_fire(**context):
     message = context['dag_run'].conf
     if not message:
-        print("No se encontró el campo 'message' en los datos recibidos.")
+        print("No 'message' field found in the received data.")
         return
 
     try:
-        # Extraer el campo 'eventName' y 'data' del mensaje
-        event_name = message.get('eventName')
+        # Extract 'data' field from the message
         data_str = message.get('data')
-        
-        if not event_name:
-            print("Advertencia: No se encontró el campo 'eventName' en el mensaje.")
-            event_name = "UnknownEvent"  # Asignar un valor predeterminado si falta
-        
         if not data_str:
-            print("No se encontró el campo 'data' en el mensaje.")
+            print("No 'data' field found in the 'message'.")
             return
-        
-        # Decodificar el campo 'data' (suponiendo que es un JSON)
-        data = json.loads(data_str) if isinstance(data_str, str) else data_str
-        print(f"Datos del mensaje recibidos: {data}")
-        print(f"Evento recibido: {event_name}")
 
-        # Determinar la acción en función del tipo de evento
-        if event_name == 'FireCreatedOrUpdatedEvent':
-            # Mantener el comportamiento original para FireCreatedOrUpdatedEvent
-            mission_id = createMissionMissionFireAndHistoryStatus(data)
-            notify_frontend(mission_id, message.get('from_user', 'sistema'))
-        elif event_name in (
-            'FirePerimeterCreatedOrUpdatedEvent',
-            'WaterDischargeCreatedOrUpdatedEvent',
-            'FireEvolutionVectorCreatedOrUpdatedEvent',
-            'CarouselCreatedOrUpdatedEvent',
-            'FirePerimeterRiskCreatedOrUpdatedEvent'
-        ):
-            # Ejecutar la lógica nueva para los otros eventos
-            handle_additional_event(data, event_name)
-        else:
-            print(f"Evento no reconocido: {event_name}")
-            return
+        # Decode 'data' field (assuming it is mostly JSON)
+        data = json.loads(data_str) if isinstance(data_str, str) else data_str
+        print(f"Received message data: {data}")
+        
+        # Call function to create mission, fire, and history
+        mission_id = createMissionMissionFireAndHistoryStatus(data)
+        
+        # Push mission_id to XCom for downstream tasks
+        context['task_instance'].xcom_push(key='mission_id', value=mission_id)
 
     except json.JSONDecodeError as e:
-        print(f"Error al decodificar el JSON: {e}")
+        print(f"Error decoding JSON: {e}")
     except Exception as e:
-        print(f"Error no manejado: {e}")
-        raise
-
-
-def notify_frontend(mission_id, user):
-    """
-    Notificar al sistema front-end sobre la creación o actualización de una misión.
-    """
-    try:
-        if mission_id is not None:
-            session = get_db_session()
-
-            # Crear la carga útil para la notificación
-            data_json = json.dumps({
-                "to": str(user),
-                "actions": [
-                    {
-                        "type": "loadMission",
-                        "data": {"missionId": mission_id}
-                    },
-                    {
-                        "type": "notify",
-                        "data": {"message": f"Misión creada o actualizada con ID: {mission_id}"}
-                    }
-                ]
-            }, ensure_ascii=False)
-
-            # Obtener la hora actual con zona horaria
-            time = datetime.now().replace(tzinfo=timezone.utc)
-
-            # Insertar la notificación en la base de datos
-            query = text("""
-                INSERT INTO public.notifications
-                (destination, "data", "date", status)
-                VALUES (:destination, :data, :date, NULL);
-            """)
-            session.execute(query, {
-                'destination': 'ignis',
-                'data': data_json,
-                'date': time
-            })
-            session.commit()
-
-            print(f"Notificación enviada para la misión con ID: {mission_id}")
-
-    except Exception as e:
-        session.rollback()
-        print(f"Error al insertar la notificación: {str(e)}")
-        raise
-
-
-def handle_additional_event(data, event_name):
-    """
-    Lógica para manejar los eventos adicionales como FirePerimeterCreatedOrUpdatedEvent,
-    WaterDischargeCreatedOrUpdatedEvent, etc.
-    """
-    try:
-        session = get_db_session()
-
-        # Insertar los nuevos datos en la base de datos o procesarlos según la lógica específica
-        print(f"Procesando evento adicional '{event_name}'...")
-        mission_id = data.get('missionId')  # Obtener ID de misión si está disponible
-
-        print(f"Procesando el evento {event_name} para la misión ID: {mission_id}")
-
-        # Notificar al front-end sobre los cambios
-        notify_frontend_additional_event(mission_id, event_name)
-
-    except Exception as e:
-        print(f"Error procesando el evento adicional: {e}")
-        raise
-
-
-
-def notify_frontend_additional_event(mission_id, event_name):
-    """
-    Notificar al sistema front-end sobre los eventos adicionales.
-    """
-    try:
-        if mission_id is not None:
-            session = get_db_session()
-
-            # Crear la carga útil para la notificación
-            data_json = json.dumps({
-                "to": "ignis",
-                "actions": [
-                    {
-                        "type": "updateMission",
-                        "data": {
-                            "missionId": mission_id,
-                            "eventType": event_name
-                        }
-                    },
-                    {
-                        "type": "notify",
-                        "data": {"message": f"Evento {event_name} procesado para la misión ID: {mission_id}"}
-                    }
-                ]
-            }, ensure_ascii=False)
-
-            # Obtener la hora actual con zona horaria
-            time = datetime.now().replace(tzinfo=timezone.utc)
-
-            # Insertar la notificación en la base de datos
-            query = text("""
-                INSERT INTO public.notifications
-                (destination, "data", "date", status)
-                VALUES (:destination, :data, :date, NULL);
-            """)
-            session.execute(query, {
-                'destination': 'ignis',
-                'data': data_json,
-                'date': time
-            })
-            session.commit()
-
-            print(f"Notificación enviada para la misión con ID: {mission_id} y evento {event_name}")
-
-    except Exception as e:
-        print(f"Error al insertar la notificación: {str(e)}")
+        print(f"Unhandled error: {e}")
         raise
 
 
@@ -291,7 +151,7 @@ def obtenerCustomerId(session, latitude, longitude, epsg=4326):
 
 
 default_args = {
-    'owner': 'oscar',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2023, 1, 1),
     'email_on_failure': False,
@@ -303,14 +163,14 @@ default_args = {
 dag = DAG(
     'function_create_fire_from_rabbit',
     default_args=default_args,
-    description='DAG que maneja eventos de incendios y misiones desde RabbitMQ',
+    description='DAG that creates fire missions from RabbitMQ events',
     schedule_interval=None,
     catchup=False
 )
 
 receive_data_process = PythonOperator(
-    task_id='receive_and_process_event',
-    python_callable=receive_data_and_process_event,
+    task_id='receive_and_create_fire',
+    python_callable=receive_data_and_create_fire,
     provide_context=True,
     dag=dag,
 )
