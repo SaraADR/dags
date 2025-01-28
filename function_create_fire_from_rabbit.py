@@ -53,34 +53,6 @@ def receive_data_and_process_event(**context):
         print(f"Error no manejado: {e}")
         raise
 
-# def receive_data_and_create_fire(**context):
-#     message = context['dag_run'].conf
-#     if not message:
-#         print("No 'message' field found in the received data.")
-#         return
-
-#     try:
-#         # Extract 'data' field from the message
-#         data_str = message.get('data')
-#         if not data_str:
-#             print("No 'data' field found in the 'message'.")
-#             return
-
-#         # Decode 'data' field (assuming it is mostly JSON)
-#         data = json.loads(data_str) if isinstance(data_str, str) else data_str
-#         print(f"Received message data: {data}")
-        
-#         # Call function to create mission, fire, and history
-#         mission_id = createMissionMissionFireAndHistoryStatus(data)
-        
-#         # Push mission_id to XCom for downstream tasks
-#         context['task_instance'].xcom_push(key='mission_id', value=mission_id)
-
-#     except json.JSONDecodeError as e:
-#         print(f"Error decoding JSON: {e}")
-#     except Exception as e:
-#         print(f"Unhandled error: {e}")
-#         raise
 
 def notify_frontend(mission_id, user):
     """
@@ -315,7 +287,7 @@ def obtenerCustomerId(session, latitude, longitude, epsg=4326):
 
 
 default_args = {
-    'owner': 'sadr',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime(2023, 1, 1),
     'email_on_failure': False,
@@ -327,14 +299,14 @@ default_args = {
 dag = DAG(
     'function_create_fire_from_rabbit',
     default_args=default_args,
-    description='DAG that creates fire missions from RabbitMQ events',
+    description='DAG que maneja eventos de incendios y misiones desde RabbitMQ',
     schedule_interval=None,
     catchup=False
 )
 
 receive_data_process = PythonOperator(
-    task_id='receive_and_create_fire',
-    python_callable=receive_data_and_create_fire,
+    task_id='receive_and_process_event',
+    python_callable=receive_data_and_process_event,
     provide_context=True,
     dag=dag,
 )
