@@ -267,13 +267,7 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-# DAG Operator
-update_mission_task = PythonOperator(
-    task_id='update_mission_task',
-    python_callable=process_new_elements,
-    provide_context=True,
-    dag=dag,
-)
+
 
 # Modifica la secuencia de tareas
-print_message_task >> create_mission_task >> update_mission_task
+print_message_task >> create_mission_task 
