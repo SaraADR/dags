@@ -7,6 +7,7 @@ from jinja2 import Template
 from airflow.hooks.base_hook import BaseHook
 from sqlalchemy import create_engine, Table, MetaData
 from sqlalchemy.orm import sessionmaker
+from dag_utils import get_db_session
 
 
 PLANTILLA_1 = './dags/repo/recursos/plantillaid1.html'
@@ -116,11 +117,8 @@ def change_state_noti(**context):
     try:
    
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        session = get_db_session()
+        engine = session.get_bind()
 
         
         # Update job status to 'FINISHED'

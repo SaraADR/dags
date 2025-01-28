@@ -9,6 +9,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, text
 import boto3
 from botocore.client import Config
+from dag_utils import get_db_session
 
 def convert_ts_to_mp4(**kwargs):
     """
@@ -109,11 +110,9 @@ def update_job_status(job_id, status, output_data=None):
     Actualiza el estado del trabajo en la tabla `jobs`.
     """
     print(f"Iniciando actualización de estado para Job ID: {job_id}...")
-    db_conn = BaseHook.get_connection('biobd')
-    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-    print(f"Conexión a la base de datos: {connection_string}")
-
-    engine = create_engine(connection_string)
+    session = get_db_session()
+    engine = session.get_bind()
+  
     with engine.connect() as connection:
         query = text("""
             UPDATE public.jobs
