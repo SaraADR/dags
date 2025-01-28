@@ -9,7 +9,6 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from sqlalchemy.orm import sessionmaker
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
-from dag_utils import update_job_status, throw_job_error,get_db_session
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -28,8 +27,11 @@ def create_mission(**context):
 
     try:
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        session = get_db_session()
-        engine = session.get_bind()
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
         result = session.execute(f"SELECT status_id FROM missions.mss_mission_initial_status WHERE mission_type_id = {input_data['type_id']}")
         if result.length() > 0:
@@ -123,8 +125,11 @@ def create_fire(input_data):
 def insert_relation_mission_fire(id_mission, id_fire):
     try:
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        session = get_db_session()
-        engine = session.get_bind()
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
         values_to_insert = {
             'mission_id': id_mission,

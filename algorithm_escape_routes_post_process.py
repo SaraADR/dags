@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, Table, MetaData, text
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
-from dag_utils import get_db_session
+
 
 
 def process_escape_routes_data(**context):
@@ -127,6 +127,8 @@ def process_escape_routes_data(**context):
             destino = None
     elif isinstance(destino, dict):
         pass
+
+
 
 
     #Crear geojson con el incendio
@@ -304,6 +306,9 @@ def process_escape_routes_data(**context):
             sftp.close()
 
 
+
+
+
             #Cerramos el algoritmo, leemos el resultado
             print_directory_contents(local_output_directory)
 
@@ -317,7 +322,49 @@ def process_escape_routes_data(**context):
 
             if(shapefile_path is not None):
 
-                
+                # gdf = gpd.read_file(shapefile_path)
+
+
+                # crs = CRS.from_string(gdf.crs.to_string())
+
+
+                # bounds = gdf.total_bounds  
+                # resolution = 0.0001  
+                # width = int((bounds[2] - bounds[0]) / resolution)
+                # height = int((bounds[3] - bounds[1]) / resolution)
+
+                # transform = rasterio.transform.from_bounds(
+                #     bounds[0], bounds[1], bounds[2], bounds[3], width, height
+                # )
+
+                # # Crear el GeoTIFF
+                # with rasterio.open(
+                #     tiff_output_path,
+                #     'w',
+                #     driver='GTiff',
+                #     height=height,
+                #     width=width,
+                #     count=1,
+                #     dtype='uint8',
+                #     crs=crs.to_string(),
+                #     transform=transform,
+                # ) as dst:
+                #     # Rasterizar las geometrías
+                #     rasterized = rasterize(
+                #         ((shape(geom), 1) for geom in gdf.geometry),
+                #         out_shape=(height, width),
+                #         transform=transform,
+                #         fill=0,
+                #         all_touched=True,
+                #         dtype='uint8',
+                #     )
+                #     dst.write(rasterized, 1)
+
+                # print(f"GeoTIFF creado en: {tiff_output_path}")
+                # outputTiff = os.path.join(local_output_directory, "out_ruta_escape.tiff")
+                # reproject_tiff(tiff_output_path, outputTiff)
+
+                # print_directory_contents(local_output_directory)
 
                 try:
                     outputZip = os.path.join(local_output_directory, "ruta_escape.zip")
@@ -335,8 +382,12 @@ def process_escape_routes_data(**context):
 
         #Creamos la notificación de vuelta  
                 try:
-                    session = get_db_session()
-                    engine = session.get_bind()
+                    db_conn = BaseHook.get_connection('biobd')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                    engine = create_engine(connection_string)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
+
                     data_json = json.dumps({
                         "to": from_user,
                         "actions": [
