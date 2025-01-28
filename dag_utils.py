@@ -224,6 +224,23 @@ def execute_query(conn_id, query, params=None):
         raise
 
 
+def get_minio_client():
+    """
+    Obtiene un cliente de MinIO utilizando la conexión configurada en Airflow.
+    """
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
+    
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
+    
+    return s3_client
+
 
 def duration_to_seconds(duration: str) -> int:
     """

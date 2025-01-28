@@ -20,7 +20,7 @@ import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 from dag_utils import update_job_status, throw_job_error
-from dag_utils import get_db_session
+from dag_utils import get_db_session, get_minio_client
 
 def process_heatmap_data(**context):
 
@@ -233,16 +233,7 @@ def up_to_minio(local_output_directory, from_user, temp_dir,context):
     key = f"{uuid.uuid4()}"
 
     try:
-        # Conexión a MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
+        s3_client = get_minio_client()
         bucket_name = 'temp'
         
         # Listar todos los archivos en el directorio local de salida
@@ -449,9 +440,6 @@ def create_json(params):
     print("INPUT DATA")
     print(input_data)
     return input_data
-
-
-
 
 # Configuración del DAG
 default_args = {
