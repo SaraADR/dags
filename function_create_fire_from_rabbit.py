@@ -117,16 +117,27 @@ def handle_additional_event(data, event_name):
 
         # Insertar los nuevos datos en la base de datos o procesarlos según la lógica específica
         print(f"Procesando evento adicional '{event_name}'...")
-        mission_id = data.get('missionId')  # Obtener ID de misión si está disponible
+        fire_id = data.get('id')
+        # aquí hay que hacer una select de mission id en mss.mission_fire por fire id y tipo 3 --> te devuelve mission id
+                # Check if an existing mission needs updating
+        existing_mission = session.execute(f"""
+            SELECT m.id
+            FROM missions.mss_mission_fire mf
+            JOIN missions.mss_mission m ON mf.mission_id = m.id
+            WHERE mf.fire_id = {fire_id} AND m.type_id = 3
+        """).fetchone()
 
-        print(f"Procesando el evento {event_name} para la misión ID: {mission_id}")
-
-        # Notificar al front-end sobre los cambios
-        notify_frontend_additional_event(mission_id, event_name)
+        if existing_mission:
+            mission_id = existing_mission['id']  # Obtener ID de misión si está disponible
+            print(f"Procesando el evento {event_name} para la misión ID: {mission_id}")
+            # Notificar al front-end sobre los cambios
+            notify_frontend_additional_event(mission_id, event_name)
+        else:
+            raise RuntimeError("Misión no encontrada en base de datos por FireId")
 
     except Exception as e:
         print(f"Error procesando el evento adicional: {e}")
-        raise
+        raise e
 
 
 
@@ -143,11 +154,11 @@ def notify_frontend_additional_event(mission_id, event_name):
                 "to": "ignis",
                 "actions": [
                     {
-                        "type": "reloadMissionElements", # TODO para después: "reloadMissionElements"
+                        "type": "reloadMission", # TODO para después: "reloadMissionElements"
                         "data": {
                             "missionId": mission_id,
-                            "elementType": ["perimeters","waterDischarges","vectors","norias","riskElements"]
-                    
+                            # TODO: "elementType": ["perimeters","waterDischarges","vectors","norias","riskElements"]
+                        
                         }
                     },
                     # TODO: Para entregas Abril: la de texto se quiere?
@@ -180,7 +191,7 @@ def notify_frontend_additional_event(mission_id, event_name):
         print(f"Error al insertar la notificación: {str(e)}")
         raise
 
-
+# Función para crear una misión, una relación misión-incendio y un historial de estado de misión
 def createMissionMissionFireAndHistoryStatus(msg_json):
     try:
         fire_id = msg_json.get('id')
