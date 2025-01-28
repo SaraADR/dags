@@ -54,9 +54,10 @@ def receive_data_and_create_fire(**context):
 
     except json.JSONDecodeError as e:
         print(f"Error al decodificar el JSON: {e}")
+        raise e
     except Exception as e:
         print(f"Error no manejado: {e}")
-        raise
+        raise e
 
 
 def notify_frontend(mission_id, user):
@@ -142,12 +143,14 @@ def notify_frontend_additional_event(mission_id, event_name):
                 "to": "ignis",
                 "actions": [
                     {
-                        "type": "updateMission",
+                        "type": "reloadMissionElements", # TODO para después: "reloadMissionElements"
                         "data": {
                             "missionId": mission_id,
-                            "eventType": event_name
+                            "elementType": ["perimeters","waterDischarges","vectors","norias","riskElements"]
+                    
                         }
                     },
+                    # TODO: Para entregas Abril: la de texto se quiere?
                     {
                         "type": "notify",
                         "data": {"message": f"Evento {event_name} procesado para la misión ID: {mission_id}"}
