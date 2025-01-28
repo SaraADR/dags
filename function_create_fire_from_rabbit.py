@@ -151,7 +151,7 @@ def notify_frontend_additional_event(mission_id, event_name):
 
             # Crear la carga útil para la notificación
             data_json = json.dumps({
-                "to": "ignis",
+                "to": "all_users",
                 "actions": [
                     {
                         "type": "reloadMission", # TODO para después: "reloadMissionElements"
