@@ -229,7 +229,7 @@ def process_heatmap_data(**context):
 
 
 
-def up_to_minio(local_output_directory, from_user, temp_dir,context):
+def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir,context):
     key = f"{uuid.uuid4()}"
 
     try:
