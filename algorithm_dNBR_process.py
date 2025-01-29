@@ -64,13 +64,11 @@ dag = DAG(
     concurrency=1
 )
 
-
 process_element_task = PythonOperator(
     task_id='process_message',
     python_callable=process_element,
     provide_context=True,
     dag=dag,
 )
-
 
 process_element_task 
