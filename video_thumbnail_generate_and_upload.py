@@ -8,7 +8,7 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.hooks.base import BaseHook
 import boto3
 from botocore.client import Config
-from moviepy import VideoFileClip, ImageSequenceClip
+from moviepy.editor import VideoFileClip, ImageClip
 
 # ----------- FUNCIONES AUXILIARES -----------
 
@@ -147,8 +147,8 @@ def process_and_generate_image_thumbnail(**kwargs):
             s3_client.download_file(bucket_name, image_key, image_path)
 
             # Generar miniatura con moviepy
-            clip = ImageSequenceClip([image_path], fps=1)
-            clip.save_frame(thumbnail_path, t=0)
+            clip = ImageClip(image_path)
+            clip.save_frame(thumbnail_path)
 
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
 
@@ -176,24 +176,24 @@ default_args = {
 dag = DAG(
     'scan_minio_and_generate_thumbnails',
     default_args=default_args,
-    description='Escanea MinIO y genera miniaturas',
+    description='Escanea MinIO y genera miniaturas para videos e imágenes',
     schedule_interval='*/1 * * * *',
     catchup=False,
 )
 
-scan_images_task = PythonOperator(
-    task_id='scan_images',
+scan_task = PythonOperator(
+    task_id='scan_minio',
     python_callable=scan_minio_for_files,
-    op_kwargs={'file_extensions': ['.png', '.jpg', '.jpeg', '.tiff'], 'processed_key': 'processed_images.json', 'xcom_key': 'new_images'},
+    op_kwargs={'file_extensions': ['.mp4', '.png', '.jpg', '.jpeg', '.tiff'], 'processed_key': 'processed_files.json', 'xcom_key': 'new_files'},
     provide_context=True,
     dag=dag,
 )
 
-process_images_task = PythonOperator(
-    task_id='process_images',
-    python_callable=process_and_generate_image_thumbnail,
+process_task = PythonOperator(
+    task_id='process_files',
+    python_callable=process_and_generate_video_thumbnail,
     provide_context=True,
     dag=dag,
 )
 
-scan_images_task >> process_images_task
+scan_task >> process_task
