@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, Table, MetaData
 from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import json
-from dag_utils import get_db_session
+
 
 
 def process_element(**context):
@@ -145,8 +145,12 @@ def find_the_folder(**context):
                 try:
 
                     # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-                    session = get_db_session()
-                    engine = session.get_bind()
+                    db_conn = BaseHook.get_connection('biobd')
+                    db_name = db_conn.extra_dejson.get('database', 'postgres')
+                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
+                    engine = create_engine(connection_string)
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
                     metadata = MetaData(bind=engine)
                     jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
                     
@@ -242,8 +246,12 @@ def change_state_job(**context):
     try:
    
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        session = get_db_session()
-        engine = session.get_bind()
+        db_conn = BaseHook.get_connection('biobd')
+        db_name = db_conn.extra_dejson.get('database', 'postgres')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
         # Update job status to 'FINISHED'
         metadata = MetaData(bind=engine)
@@ -287,6 +295,8 @@ process_element_task = PythonOperator(
     provide_context=True,
     dag=dag,
 )
+
+
 
 #Cambia estado de job
 find_the_folder_task = PythonOperator(

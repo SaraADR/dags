@@ -13,7 +13,6 @@ import io
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 from collections import defaultdict
-from dag_utils import get_db_session
 
 
 def process_extracted_files(**kwargs):
@@ -160,8 +159,11 @@ def process_extracted_files(**kwargs):
 
     #Buscamos el mission_inspection correspondiente a estos archivos
     try:
-        session = get_db_session()
-        engine = session.get_bind()
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
         query = text("""
             SELECT *
@@ -197,8 +199,11 @@ def process_extracted_files(**kwargs):
 
         #Guardamos el padre en mss_inspection_vegetation_parent
         try:
-            session = get_db_session()
-            engine = session.get_bind()
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
         
             query = text("""
                 INSERT INTO missions.mss_inspection_vegetation_parent
@@ -373,8 +378,11 @@ def generate_notify_job(**context):
     if id_mission is not None:
         #Añadimos notificacion
         try:
-            session = get_db_session()
-            engine = session.get_bind()
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
 
             data_json = json.dumps({
                 "to":"all_users",

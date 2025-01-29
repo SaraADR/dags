@@ -31,7 +31,6 @@ def process_element(**context):
             sftp.chdir(output_directory)
             print(f"Cambiando al directorio de salida: {output_directory}")
             sftp.close()
-            
     except Exception as e:
         print(f"Error: {str(e)}")    
         sftp.close()
@@ -59,11 +58,13 @@ dag = DAG(
     concurrency=1
 )
 
+
 process_element_task = PythonOperator(
     task_id='process_message',
     python_callable=process_element,
     provide_context=True,
     dag=dag,
 )
+
 
 process_element_task 
