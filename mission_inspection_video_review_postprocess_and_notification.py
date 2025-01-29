@@ -10,7 +10,6 @@ from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
 import datetime
-from dag_utils import get_db_session
 
 
 def process_element(**context):
@@ -88,8 +87,11 @@ def process_element(**context):
 
             #Actualizamos la base de datos
             try:
-                session = get_db_session()
-                engine = session.get_bind()
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
 
                 query = text("""
                    INSERT INTO missions.mss_inspection_detection_frame_incidence
@@ -135,8 +137,11 @@ def change_state_job(**context):
     try:
    
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        session = get_db_session()
-        engine = session.get_bind()
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
 
         # Update job status to 'FINISHED'
@@ -162,8 +167,11 @@ def generate_notify_job(**context):
 
     #Buscamos la carpeta correspondiente
     try:
-        session = get_db_session()
-        engine = session.get_bind()
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
         query = text("""
             SELECT mi.mission_id
@@ -191,8 +199,11 @@ def generate_notify_job(**context):
         #Añadimos notificacion
         
         try:
-            session = get_db_session()
-            engine = session.get_bind()
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
 
             data_json = json.dumps({
                 "to":"all_users",
@@ -222,6 +233,8 @@ def generate_notify_job(**context):
             print(f"Error durante la inserción de la notificación: {str(e)}")
         finally:
             session.close()
+
+
 
 
 

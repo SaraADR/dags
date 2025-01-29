@@ -14,7 +14,6 @@ from moviepy import VideoFileClip
 import tempfile
 import os
 from test_recogida_metadatos import is_visible_or_ter
-from dag_utils import get_db_session
 
 def process_extracted_files(**kwargs):
     video = kwargs['dag_run'].conf.get('otros', [])
@@ -36,8 +35,11 @@ def process_extracted_files(**kwargs):
 
     # Conexión a la base de datos para buscar Mission Inspection
     try:
-        session = get_db_session()
-        engine = session.get_bind()
+        db_conn = BaseHook.get_connection('biobd')
+        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+        engine = create_engine(connection_string)
+        Session = sessionmaker(bind=engine)
+        session = Session()
 
         query = text("""
             SELECT *
@@ -208,8 +210,11 @@ def generate_notify_job(**context):
 
     if id_mission:
         try:
-            session = get_db_session()
-            engine = session.get_bind()
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
 
             data_json = json.dumps({
                 "to": "all_users",

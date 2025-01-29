@@ -39,8 +39,13 @@ def updateMission(msg_json):
         print(f"Actualizar {msg_json}")
 
         try:
-            session = get_db_session()
-            engine = session.get_bind()
+            # Establecer conexión a la base de datos
+            db_conn = BaseHook.get_connection('biobd')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session() 
+
             print("Conexión a la base de datos establecida correctamente")
 
             # Definir la consulta SQL cruda
@@ -127,8 +132,11 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
         #Query para extraer el customer_id
         try:
             # Establecer conexión a la base de datos
-            session = get_db_session()
-            engine = session.get_bind()
+            db_conn = BaseHook.get_connection('einforex_db')
+            connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/einforex"
+            engine = create_engine(connection_string)
+            Session = sessionmaker(bind=engine)
+            session = Session()
 
             print("Conexión a la base de datos establecida correctamente")
 
@@ -214,8 +222,11 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
         try:
             if (mission_id is not None):
                 #Insertamos la mision_fire
-                session = get_db_session()
-                engine = session.get_bind()
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
 
                 mss_mission_fire_insert = {
                     'mission_id': mission_id,
@@ -240,8 +251,11 @@ def createMissionMissionFireAndHistoryStatus(msg_json):
         try:
             if (mission_id is not None):
                 #Insertamos la mision_fire
-                session = get_db_session()
-                engine = session.get_bind()
+                db_conn = BaseHook.get_connection('biobd')
+                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
+                engine = create_engine(connection_string)
+                Session = sessionmaker(bind=engine)
+                session = Session()
 
                 mss_mission_history_state_insert = {
                     'mission_id': mission_id,
