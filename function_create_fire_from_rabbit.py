@@ -142,9 +142,21 @@ def handle_additional_event(data, event_name):
 
 
 def notify_frontend_additional_event(mission_id, event_name):
-    """
-    Notificar al sistema front-end sobre los eventos adicionales.
-    """
+    """Notificar al sistema front-end sobre los eventos adicionales."""
+
+    element = ""
+
+    if event_name == 'FirePerimeterCreatedOrUpdatedEvent':
+        element = "perimeters"
+    elif event_name == 'WaterDischargeCreatedOrUpdatedEvent':
+        element = "waterDischarges"
+    elif event_name == 'FireEvolutionVectorCreatedOrUpdatedEvent':
+        element = "vectors"
+    elif event_name == 'CarouselCreatedOrUpdatedEvent':
+        element = "norias"
+    elif event_name == 'FirePerimeterRiskCreatedOrUpdatedEvent':
+        element = "riskElements"
+    
     try:
         if mission_id is not None:
             session = get_db_session()
@@ -154,10 +166,10 @@ def notify_frontend_additional_event(mission_id, event_name):
                 "to": "all_users",
                 "actions": [
                     {
-                        "type": "reloadMission", # TODO para después: "reloadMissionElements"
+                        "type": "reloadMissionElements", 
                         "data": {
                             "missionId": mission_id,
-                            # TODO: "elementType": ["perimeters","waterDischarges","vectors","norias","riskElements"]
+                            "elements": [element]
                         
                         }
                     },
