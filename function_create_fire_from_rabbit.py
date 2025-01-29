@@ -38,7 +38,7 @@ def receive_data_and_create_fire(**context):
         if event_name == 'FireCreatedOrUpdatedEvent':
             # Mantener el comportamiento original para FireCreatedOrUpdatedEvent
             mission_id = createMissionMissionFireAndHistoryStatus(data)
-            notify_frontend(mission_id, message.get('from_user', 'sistema'))
+            notify_frontend(mission_id, message.get('from_user', 'all_users'))
         elif event_name in (
             'FirePerimeterCreatedOrUpdatedEvent',
             'WaterDischargeCreatedOrUpdatedEvent',
