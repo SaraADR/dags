@@ -5,36 +5,42 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.hooks.base_hook import BaseHook
 import json
-
+import pytz
 
 def process_element(**context):
-    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
-    try:
-        # Conectarse al servidor SSH
-        with ssh_hook.get_conn() as ssh_client:
-            sftp = ssh_client.open_sftp()
-            print(f"Sftp abierto")
+    madrid_tz = pytz.timezone('Europe/Madrid')
+    fechaHoraActual = datetime.datetime.now(madrid_tz)  # Fecha y hora con zona horaria
+
+    print(f"Este algoritmo se está ejecutando a las {fechaHoraActual.strftime('%Y-%m-%d %H:%M:%S')} en Madrid, España")
+
+    # ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+
+    # try:
+    #     # Conectarse al servidor SSH
+    #     with ssh_hook.get_conn() as ssh_client:
+    #         sftp = ssh_client.open_sftp()
+    #         print(f"Sftp abierto")
 
 
-            remote_directory = '/home/admin3/algoritmo-calculo-dNBR/input'
-            remote_file_name = 'Test_2_1.json'
-            remote_file_path = os.path.join(remote_directory, remote_file_name)
-            sftp.chdir(remote_directory)
-            print(f"Cambiando al directorio: {remote_directory}")
+    #         remote_directory = '/home/admin3/algoritmo-calculo-dNBR/input'
+    #         remote_file_name = 'Test_2_1.json'
+    #         remote_file_path = os.path.join(remote_directory, remote_file_name)
+    #         sftp.chdir(remote_directory)
+    #         print(f"Cambiando al directorio: {remote_directory}")
 
-            output_directory = '/home/admin3/algoritmo-calculo-dNBR/output/test_2_1'
-            local_output_directory = '/tmp'
+    #         output_directory = '/home/admin3/algoritmo-calculo-dNBR/output/test_2_1'
+    #         local_output_directory = '/tmp'
 
-            # Crear el directorio local si no existe
-            os.makedirs(local_output_directory, exist_ok=True)
-            sftp.chdir(output_directory)
-            print(f"Cambiando al directorio de salida: {output_directory}")
-            sftp.close()
-    except Exception as e:
-        print(f"Error: {str(e)}")    
-        sftp.close()
-    return
+    #         # Crear el directorio local si no existe
+    #         os.makedirs(local_output_directory, exist_ok=True)
+    #         sftp.chdir(output_directory)
+    #         print(f"Cambiando al directorio de salida: {output_directory}")
+    #         sftp.close()
+    # except Exception as e:
+    #     print(f"Error: {str(e)}")    
+    #     sftp.close()
+    # return
 
 
 default_args = {
@@ -52,7 +58,7 @@ dag = DAG(
     'algorithm_dNBR_process',
     default_args=default_args,
     description='Algoritmo dNBR',
-    schedule_interval=None,
+    schedule_interval='*/2 * * * *',
     catchup=False,
     max_active_runs=1,
     concurrency=1
