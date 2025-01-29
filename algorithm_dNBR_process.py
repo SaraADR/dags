@@ -6,6 +6,7 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.hooks.base_hook import BaseHook
 import json
 import pytz
+from airflow.models import Variable
 
 def process_element(**context):
 
@@ -13,6 +14,9 @@ def process_element(**context):
     fechaHoraActual = datetime.datetime.now(madrid_tz)  # Fecha y hora con zona horaria
 
     print(f"Este algoritmo se está ejecutando a las {fechaHoraActual.strftime('%Y-%m-%d %H:%M:%S')} en Madrid, España")
+
+    mi_variable = Variable.get("dNBR_diasFinIncendio", default_var="10")
+    print(f"Valor de la variable en Airflow: {mi_variable}")
 
     # ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
