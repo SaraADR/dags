@@ -8,7 +8,7 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.hooks.base import BaseHook
 import boto3
 from botocore.client import Config
-from moviepy.editor import VideoFileClip, ImageSequenceClip
+from moviepy import VideoFileClip, ImageSequenceClip
 
 # ----------- FUNCIONES AUXILIARES -----------
 
