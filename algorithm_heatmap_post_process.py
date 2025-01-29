@@ -20,7 +20,7 @@ import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 from dag_utils import update_job_status, throw_job_error
-
+from dag_utils import get_db_session
 
 def process_heatmap_data(**context):
 
@@ -154,11 +154,8 @@ def process_heatmap_data(**context):
                 try:
 
                     # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-                    db_conn = BaseHook.get_connection('biobd')
-                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                    engine = create_engine(connection_string)
-                    Session = sessionmaker(bind=engine)
-                    session = Session()
+                    session = get_db_session()
+                    engine = session.get_bind()
                     metadata = MetaData(bind=engine)
                     jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
                     
@@ -213,28 +210,7 @@ def process_heatmap_data(**context):
                 print(f"Error en el proceso: {str(e)}")
                 throw_job_error(message['message']['id'], e)
                 raise e
-                # try:
-
-                #     # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-                #     db_conn = BaseHook.get_connection('biobd')
-                #     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                #     engine = create_engine(connection_string)
-                #     Session = sessionmaker(bind=engine)
-                #     session = Session()
-                #     metadata = MetaData(bind=engine)
-                #     jobs = Table('jobs', metadata, schema='public', autoload_with=engine)
-                    
-                #     # Actualizar el estado del trabajo a "ERROR"
-                #     update_stmt = jobs.update().where(jobs.c.id == job_id).values(status='ERROR')
-                #     session.execute(update_stmt)
-                #     session.commit()
-                #     print(f"Job ID {job_id} status updated to ERROR")
-
-                # except Exception as e:
-                #     session.rollback()
-                #     print(f"Error durante el guardado del estado del job")
-
-            #Una vez tenemos lo que ha salido lo subimos a minio
+              
             try:
                 up_to_minio(local_output_directory, from_user, isIncendio, '/tmp' , context)
             except Exception as e:
@@ -253,7 +229,7 @@ def process_heatmap_data(**context):
 
 
 
-def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir,context):
+def up_to_minio(local_output_directory, from_user, temp_dir,context):
     key = f"{uuid.uuid4()}"
 
     try:
@@ -317,11 +293,8 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir,context)
 
 
     try:
-        db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        session = get_db_session()
+        engine = session.get_bind()
 
         data_json = json.dumps({
             "to": from_user,
@@ -367,25 +340,6 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir,context)
         
     finally:
         session.close()
-
-
-
-
-    # Subir el archivo TIFF a MinIO
-
-    # cambiar_proyeccion_tiff(input_tiff=TIFF,output_tiff=TIFF2)
-    # output_tiff = crear el directorio del output tiff con uuid 
-
-
-
-    # tiff_key = f"{uuid.uuid4()}.tiff"
-    # with tempfile.TemporaryDirectory() as temp_dir:
-    #     temp_dir_file = os.path.join(temp_dir, tiff_key)
-
-    #     reproject_tiff(algorithm_output_tiff, temp_dir_file)
-    #     # input_data["temp_tiff_path"] = output_tiff
-    
-
 
 
 def change_state_job(**context):

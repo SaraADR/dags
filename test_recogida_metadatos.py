@@ -14,7 +14,7 @@ from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 from dag_utils import dms_to_decimal, duration_to_seconds, parse_output_to_json, upload_to_minio, upload_to_minio_path
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-
+from dag_utils import get_db_session
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
@@ -162,11 +162,8 @@ def process_ts_job(output, message, local_zip_path):
         time_now = datetime.now(timezone.utc)
 
         # Conectar a la base de datos
-        db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        session = get_db_session()
+        engine = session.get_bind()
 
         # Crear JSON de entrada con el nombre del archivo como resource_id
         data_json = f'{{"resource_id": "{resource_id}"}}'
@@ -245,11 +242,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
     # Buscar los metadatos en captura
     try:
-        db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        session = get_db_session()
+        engine = session.get_bind()
 
         #QUERY PARA BUSQUEDAS
         query = text(f"""
@@ -497,13 +491,6 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         return
 
 
-
-
-
-
-
-
-
 def resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session):
     print(os.path.basename(message))
     if(type == -1): #ES UN VIDEO
@@ -549,9 +536,6 @@ def resultByType(type, message, output, output_json, query, SensorId, timestamp_
             'fecha_dada': timestamp_naive
         })
     return result
-
-
-
 
 
 #--------------------------- METODOS AUXILIARES ------------------------------------------------
@@ -720,7 +704,6 @@ dag = DAG(
     max_active_runs=1,
     concurrency=1,
 )
-
 
     # Tarea de limpieza
 cleanup_task = PythonOperator(

@@ -14,6 +14,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
+from dag_utils import get_db_session
 
 def process_element(**context):
     message = context['dag_run'].conf
@@ -34,11 +35,8 @@ def process_element(**context):
 
             #Buscamos la carpeta del conflicto correspondiente
             try:
-                db_conn = BaseHook.get_connection('biobd')
-                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                engine = create_engine(connection_string)
-                Session = sessionmaker(bind=engine)
-                session = Session()
+                session = get_db_session()
+                engine = session.get_bind()
 
                 query = text("""
                     SELECT vc.resource_id
@@ -106,11 +104,8 @@ def process_element(**context):
 
                 #Actualizamos el review_status
                 try:
-                    db_conn = BaseHook.get_connection('biobd')
-                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                    engine = create_engine(connection_string)
-                    Session = sessionmaker(bind=engine)
-                    session = Session()
+                    session = get_db_session()
+                    engine = session.get_bind()
 
                     query = text("""
                         UPDATE missions.mss_inspection_vegetation_conflict
@@ -154,11 +149,8 @@ def change_state_job(**context):
     try:
    
         # Conexión a la base de datos usando las credenciales almacenadas en Airflow
-        db_conn = BaseHook.get_connection('biobd')
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-        engine = create_engine(connection_string)
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        session = get_db_session()
+        engine = session.get_bind()
 
 
         # Update job status to 'FINISHED'
@@ -190,11 +182,8 @@ def generate_notify_job(**context):
 
             #Buscamos la carpeta del conflicto correspondiente
             try:
-                db_conn = BaseHook.get_connection('biobd')
-                connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                engine = create_engine(connection_string)
-                Session = sessionmaker(bind=engine)
-                session = Session()
+                session = get_db_session()
+                engine = session.get_bind()
 
                 query = text("""
                     SELECT mi.mission_id
@@ -224,11 +213,8 @@ def generate_notify_job(**context):
                 #Añadimos notificacion
                 
                 try:
-                    db_conn = BaseHook.get_connection('biobd')
-                    connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/postgres"
-                    engine = create_engine(connection_string)
-                    Session = sessionmaker(bind=engine)
-                    session = Session()
+                    session = get_db_session()
+                    engine = session.get_bind()
 
                     data_json = json.dumps({
                         "to":"all_users",
