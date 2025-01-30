@@ -7,7 +7,8 @@ from airflow.hooks.base_hook import BaseHook
 import json
 import pytz
 from airflow.models import Variable
-
+from dag_utils import execute_query
+from sqlalchemy import text
 def process_element(**context):
 
     madrid_tz = pytz.timezone('Europe/Madrid')
@@ -15,8 +16,26 @@ def process_element(**context):
 
     print(f"Este algoritmo se está ejecutando a las {fechaHoraActual.strftime('%Y-%m-%d %H:%M:%S')} en Madrid, España")
 
-    mi_variable = Variable.get("dNBR_diasFinIncendio", default_var="10")
-    print(f"Valor de la variable en Airflow: {mi_variable}")
+    tipo1diasincendio = Variable.get("dNBR_diasFinIncendio", default_var="10")
+    print(f"Valor de la variable tipo1diasincendio en Airflow: {tipo1diasincendio}")
+
+    tipo2mesesminimo = Variable.get("dNBR_mesesFinIncendioMinimo", default_var="3")
+    print(f"Valor de la variable tipo2mesesminimo en Airflow: {tipo2mesesminimo}")
+
+    tipo2mesesmaximo = Variable.get("dNBR_mesesFinIncendioMaximo", default_var="10000")
+    print(f"Valor de la variable tipo2mesesmaximo en Airflow: {tipo2mesesmaximo}")
+
+    interval_value = f'{tipo1diasincendio} days'
+    query = f"""
+        SELECT m.id, mf.fire_id, m.start_date, m.end_date
+        FROM missions.mss_mission m
+        JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
+        WHERE m.end_date <= NOW() - INTERVAL '{interval_value}'
+    """
+
+    result = execute_query('biobd', query)
+    print(result)
+
 
     # ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
