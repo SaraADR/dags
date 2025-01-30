@@ -263,7 +263,10 @@ def update_job_status(job_id, status, output_data = None, execution_date=None):
 
         # Actualizar el estado del trabajo
         with engine.connect() as connection:
-            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status, execution_date=execution_date, output_data=output_data)
+            if(execution_date is not None):
+                update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status, execution_date=execution_date, output_data=output_data)
+            else:
+                update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status, output_data=output_data)
             connection.execute(update_stmt)
             print(f"Job ID {job_id} status updated to {status}")
     except Exception as e:
