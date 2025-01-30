@@ -8,7 +8,7 @@ import json
 import pytz
 from airflow.models import Variable
 from dag_utils import execute_query
-from sqlalchemy import create_engine, Table, MetaData, text
+from sqlalchemy import text
 def process_element(**context):
 
     madrid_tz = pytz.timezone('Europe/Madrid')
