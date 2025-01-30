@@ -118,8 +118,8 @@ def handle_additional_event(data, event_name):
         # Insertar los nuevos datos en la base de datos o procesarlos según la lógica específica
         print(f"Procesando evento adicional '{event_name}'...")
         fire_id = data.get('id')
-        # aquí hay que hacer una select de mission id en mss.mission_fire por fire id y tipo 3 --> te devuelve mission id
-                # Check if an existing mission needs updating
+
+        # Buscar el mission_id en la base de datos para el fire_id con type_id = 3
         existing_mission = session.execute(f"""
             SELECT m.id
             FROM missions.mss_mission_fire mf
@@ -133,11 +133,11 @@ def handle_additional_event(data, event_name):
             # Notificar al front-end sobre los cambios
             notify_frontend_additional_event(mission_id, event_name)
         else:
-            raise RuntimeError("Misión no encontrada en base de datos por FireId")
+            print(f"Advertencia: No se encontró una misión en BD para fire_id {fire_id}. "
+                  f"Evento {event_name} ignorado.")
 
     except Exception as e:
-        print(f"Error procesando el evento adicional: {e}")
-        raise e
+        print(f"Error procesando el evento adicional '{event_name}': {e}")
 
 
 
