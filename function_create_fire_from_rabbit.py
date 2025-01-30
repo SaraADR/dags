@@ -117,7 +117,7 @@ def handle_additional_event(data, event_name):
 
         # Insertar los nuevos datos en la base de datos o procesarlos según la lógica específica
         print(f"Procesando evento adicional '{event_name}'...")
-        fire_id = data.get('id')
+        fire_id = data.get('fireId')
 
         # Buscar el mission_id en la base de datos para el fire_id con type_id = 3
         existing_mission = session.execute(f"""
