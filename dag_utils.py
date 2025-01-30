@@ -64,25 +64,22 @@ def crear_zip_si_existen(nombre_fichero, directorio, extensiones):
     print(f"ZIP creado exitosamente: {zip_path}")
 
 
-def get_db_session(connection_id: str = 'biobd'):
-    
-    # Obtiene la conexión desde Airflow
+# Configuración global del engine para reutilizarlo
+def get_engine(connection_id: str = 'biobd'):
+    """Crea y devuelve un engine reutilizable para la base de datos."""
     db_conn = BaseHook.get_connection(connection_id)
-
-    # Obtiene el nombre de la base de datos, si no está, usa 'postgres' como valor predeterminado
     db_name = db_conn.extra_dejson.get('database', 'postgres')
-
-    # Crea la cadena de conexión
     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
+    return create_engine(connection_string)
 
-    # Crea el motor de SQLAlchemy
-    engine = create_engine(connection_string)
+# Crear un engine global para que sea reutilizado
+engine = get_engine()
 
-    # Crea la sesión de SQLAlchemy
+# Función para obtener sesiones sin recrear el engine cada vez
+def get_db_session():
+    """Devuelve una nueva sesión de SQLAlchemy utilizando el engine global."""
     Session = sessionmaker(bind=engine)
     return Session()
-
-
 
 # Función para enviar emails
 
@@ -231,7 +228,7 @@ def duration_to_seconds(duration: str) -> int:
 
 # Función para actualizar estados
 
-def update_job_status(job_id, status, output_data = None):
+def update_job_status(job_id, status, output_data = None, execution_date=None):
     try:
         # Conexión a la base de datos usando las credenciales de Airflow
         db_conn = BaseHook.get_connection('biobd')
@@ -244,7 +241,10 @@ def update_job_status(job_id, status, output_data = None):
 
         # Actualizar el estado del trabajo
         with engine.connect() as connection:
-            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status, output_data=output_data)
+            if(execution_date is not None):
+                update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status, execution_date=execution_date, output_data=output_data)
+            else:
+                update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status, output_data=output_data)
             connection.execute(update_stmt)
             print(f"Job ID {job_id} status updated to {status}")
     except Exception as e:

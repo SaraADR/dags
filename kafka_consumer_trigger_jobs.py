@@ -8,13 +8,15 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
+from dag_utils import update_job_status
+from zoneinfo import ZoneInfo
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
         msg_value = message.value().decode('utf-8')
         print("Esto es el mensaje")
         print(f"{msg_value}")
-        
+
         if msg_value:
             process_message(msg_value)
         else:
@@ -31,6 +33,7 @@ def process_message(msg_value, **kwargs):
             
             job = msg_json.get('job')
             id_sesion = msg_json.get('id')
+            update_job_status(id_sesion, 'IN PROGRESS' , None , datetime.now(ZoneInfo("Europe/Madrid")))
             conf = {'message': msg_json}
             
             if job == 'automaps':

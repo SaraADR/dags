@@ -5,6 +5,8 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 import uuid
+from dag_utils import update_job_status
+from zoneinfo import ZoneInfo
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
@@ -27,6 +29,8 @@ def sendEmail(message, **kwargs):
 
         try:
             msg_json = json.loads(message)
+            id_sesion = msg_json.get('id')
+            update_job_status(id_sesion, 'IN PROGRESS' , None)
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
 
