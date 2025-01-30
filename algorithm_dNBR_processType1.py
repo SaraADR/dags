@@ -19,12 +19,6 @@ def process_element(**context):
     tipo1diasincendio = Variable.get("dNBR_diasFinIncendio", default_var="10")
     print(f"Valor de la variable tipo1diasincendio en Airflow: {tipo1diasincendio}")
 
-    tipo2mesesminimo = Variable.get("dNBR_mesesFinIncendioMinimo", default_var="3")
-    print(f"Valor de la variable tipo2mesesminimo en Airflow: {tipo2mesesminimo}")
-
-    tipo2mesesmaximo = Variable.get("dNBR_mesesFinIncendioMaximo", default_var="10000")
-    print(f"Valor de la variable tipo2mesesmaximo en Airflow: {tipo2mesesmaximo}")
-
     interval_value = f'{tipo1diasincendio} days'
     query = f"""
         SELECT m.id, mf.fire_id, m.start_date, m.end_date
