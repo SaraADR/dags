@@ -63,25 +63,23 @@ def crear_zip_si_existen(nombre_fichero, directorio, extensiones):
     
     print(f"ZIP creado exitosamente: {zip_path}")
 
-def get_db_session(connection_id: str = 'biobd'):
-    
-    # Obtiene la conexión desde Airflow
+
+# Configuración global del engine para reutilizarlo
+def get_engine(connection_id: str = 'biobd'):
+    """Crea y devuelve un engine reutilizable para la base de datos."""
     db_conn = BaseHook.get_connection(connection_id)
-
-    # Obtiene el nombre de la base de datos, si no está, usa 'postgres' como valor predeterminado
     db_name = db_conn.extra_dejson.get('database', 'postgres')
-
-    # Crea la cadena de conexión
     connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_name}"
+    return create_engine(connection_string)
 
-    # Crea el motor de SQLAlchemy
-    engine = create_engine(connection_string)
+# Crear un engine global para que sea reutilizado
+engine = get_engine()
 
-    # Crea la sesión de SQLAlchemy
+# Función para obtener sesiones sin recrear el engine cada vez
+def get_db_session():
+    """Devuelve una nueva sesión de SQLAlchemy utilizando el engine global."""
     Session = sessionmaker(bind=engine)
     return Session()
-
-
 
 # Función para enviar emails
 
@@ -201,26 +199,6 @@ def send_email(to, cc=None, bcc=None, subject=None, template_path=None, template
         print("Email enviado correctamente")
     except Exception as e:
         print(f"Error al enviar el email: {str(e)}")
-        raise
-
-
-# Función para ejecutar consultas SQL
-
-def execute_query(conn_id, query, params=None):
-    """
-    Ejecuta una consulta SQL en la base de datos especificada.
-    """
-    try:
-        db_conn = BaseHook.get_connection(conn_id)
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_conn.schema or 'postgres'}"
-        engine = create_engine(connection_string)
-
-        with engine.connect() as connection:
-            result = connection.execute(text(query), params or {})
-            print("Consulta ejecutada correctamente")
-            return result.fetchall()
-    except Exception as e:
-        print(f"Error al ejecutar la consulta: {str(e)}")
         raise
 
 
