@@ -25,13 +25,14 @@ def process_element(**context):
     tipo2mesesmaximo = Variable.get("dNBR_mesesFinIncendioMaximo", default_var="10000")
     print(f"Valor de la variable tipo2mesesmaximo en Airflow: {tipo2mesesmaximo}")
 
-    query = """
+    query = text("""
         SELECT m.id , mf.fire_id, m.start_date , m.end_date
         FROM missions.mss_mission m
         JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
-        WHERE m.end_date <= NOW() - INTERVAL '{tipo1diasincendio} days'
-    """
-    result = execute_query('biobd', query)
+        WHERE m.end_date <= NOW() - INTERVAL :days days'
+    """)
+    params = {'days': int(tipo1diasincendio)}
+    result = execute_query('biobd', query, params)
     print(result)
 
 
