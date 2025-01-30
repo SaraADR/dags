@@ -30,7 +30,7 @@ def sendEmail(message, **kwargs):
         try:
             msg_json = json.loads(message)
             id_sesion = msg_json.get('id')
-            update_job_status(id_sesion, 'IN PROGRESS' , None , datetime.now(ZoneInfo("Europe/Madrid")))
+            update_job_status(id_sesion, 'IN PROGRESS' , None)
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
 
