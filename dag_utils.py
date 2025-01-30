@@ -63,6 +63,7 @@ def crear_zip_si_existen(nombre_fichero, directorio, extensiones):
     
     print(f"ZIP creado exitosamente: {zip_path}")
 
+
 def get_db_session(connection_id: str = 'biobd'):
     
     # Obtiene la conexión desde Airflow
@@ -201,26 +202,6 @@ def send_email(to, cc=None, bcc=None, subject=None, template_path=None, template
         print("Email enviado correctamente")
     except Exception as e:
         print(f"Error al enviar el email: {str(e)}")
-        raise
-
-
-# Función para ejecutar consultas SQL
-
-def execute_query(conn_id, query, params=None):
-    """
-    Ejecuta una consulta SQL en la base de datos especificada.
-    """
-    try:
-        db_conn = BaseHook.get_connection(conn_id)
-        connection_string = f"postgresql://{db_conn.login}:{db_conn.password}@{db_conn.host}:{db_conn.port}/{db_conn.schema or 'postgres'}"
-        engine = create_engine(connection_string)
-
-        with engine.connect() as connection:
-            result = connection.execute(text(query), params or {})
-            print("Consulta ejecutada correctamente")
-            return result.fetchall()
-    except Exception as e:
-        print(f"Error al ejecutar la consulta: {str(e)}")
         raise
 
 
