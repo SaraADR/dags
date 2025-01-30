@@ -319,7 +319,7 @@ def obtenerCustomerId(session, latitude, longitude, epsg=4326):
     
     except Exception as e:
         print(f"Error fetching customer ID: {e}")
-        return 'BABCOCK'  # En caso de error, devolver 'BABCOCK' también
+        return None
 
 
 
