@@ -17,9 +17,6 @@ def consumer_function(message, prefix, **kwargs):
         print("Esto es el mensaje")
         print(f"{msg_value}")
 
-        job_id = message['message']['id']
-        update_job_status(job_id, 'IN PROGRESS' , None , datetime.now(ZoneInfo("Europe/Madrid")))
-
         if msg_value:
             process_message(msg_value)
         else:
@@ -36,6 +33,7 @@ def process_message(msg_value, **kwargs):
             
             job = msg_json.get('job')
             id_sesion = msg_json.get('id')
+            update_job_status(id_sesion, 'IN PROGRESS' , None , datetime.now(ZoneInfo("Europe/Madrid")))
             conf = {'message': msg_json}
             
             if job == 'automaps':
