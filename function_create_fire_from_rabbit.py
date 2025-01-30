@@ -117,7 +117,7 @@ def handle_additional_event(data, event_name):
 
         # Insertar los nuevos datos en la base de datos o procesarlos según la lógica específica
         print(f"Procesando evento adicional '{event_name}'...")
-        fire_id = data.get('id')
+        fire_id = data.get('fireId')
 
         # Buscar el mission_id en la base de datos para el fire_id con type_id = 3
         existing_mission = session.execute(f"""
@@ -206,7 +206,7 @@ def notify_frontend_additional_event(mission_id, event_name):
 # Función para crear una misión, una relación misión-incendio y un historial de estado de misión
 def createMissionMissionFireAndHistoryStatus(msg_json):
     try:
-        fire_id = msg_json.get('fireId')
+        fire_id = msg_json.get('id')
         position = msg_json.get('position', {})
         latitude = position.get('y', None)
         longitude = position.get('x', None)
