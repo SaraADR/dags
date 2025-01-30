@@ -43,9 +43,9 @@ default_args = {
 }
 
 dag = DAG(
-    'algorithm_dNBR_process',
+    'algorithm_dNBR_process_Type1',
     default_args=default_args,
-    description='Algoritmo dNBR',
+    description='Algoritmo dNBR Type 1',
     schedule_interval='*/2 * * * *',
     catchup=False,
     max_active_runs=1,
