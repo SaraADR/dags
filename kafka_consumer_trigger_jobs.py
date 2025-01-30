@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 from dag_utils import update_job_status
+from zoneinfo import ZoneInfo
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
@@ -17,7 +18,7 @@ def consumer_function(message, prefix, **kwargs):
         print(f"{msg_value}")
 
         job_id = message['message']['id']
-        update_job_status(job_id, 'IN PROGRESS')
+        update_job_status(job_id, 'IN PROGRESS' , None , datetime.now(ZoneInfo("Europe/Madrid")))
 
         if msg_value:
             process_message(msg_value)

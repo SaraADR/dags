@@ -250,7 +250,7 @@ def duration_to_seconds(duration: str) -> int:
 
 # Función para actualizar estados
 
-def update_job_status(job_id, status, output_data = None):
+def update_job_status(job_id, status, output_data = None, execution_date=None):
     try:
         # Conexión a la base de datos usando las credenciales de Airflow
         db_conn = BaseHook.get_connection('biobd')
@@ -263,7 +263,7 @@ def update_job_status(job_id, status, output_data = None):
 
         # Actualizar el estado del trabajo
         with engine.connect() as connection:
-            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status, output_data=output_data)
+            update_stmt = jobs.update().where(jobs.c.id == job_id).values(status=status, execution_date=execution_date, output_data=output_data)
             connection.execute(update_stmt)
             print(f"Job ID {job_id} status updated to {status}")
     except Exception as e:
