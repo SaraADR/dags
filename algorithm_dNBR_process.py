@@ -29,10 +29,9 @@ def process_element(**context):
         SELECT m.id , mf.fire_id, m.start_date , m.end_date
         FROM public.mss_mission m
         JOIN public.mss_mission_fire mf ON m.id = mf.mission_id
-        WHERE m.end_date <= NOW() - INTERVAL ':days days'
+        WHERE m.end_date <= NOW() - INTERVAL '{tipo1diasincendio} days'
     """
-    params = {'days': tipo1diasincendio}
-    result = execute_query('biobd', query, params)
+    result = execute_query('biobd', query)
     print(result)
 
 
