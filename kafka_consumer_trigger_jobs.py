@@ -8,13 +8,17 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
+from dag_utils import update_job_status
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
         msg_value = message.value().decode('utf-8')
         print("Esto es el mensaje")
         print(f"{msg_value}")
-        
+
+        job_id = message['message']['id']
+        update_job_status(job_id, 'IN PROGRESS')
+
         if msg_value:
             process_message(msg_value)
         else:
