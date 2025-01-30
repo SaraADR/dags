@@ -206,7 +206,7 @@ def notify_frontend_additional_event(mission_id, event_name):
 # Función para crear una misión, una relación misión-incendio y un historial de estado de misión
 def createMissionMissionFireAndHistoryStatus(msg_json):
     try:
-        fire_id = msg_json.get('id')
+        fire_id = msg_json.get('fireId')
         position = msg_json.get('position', {})
         latitude = position.get('y', None)
         longitude = position.get('x', None)
