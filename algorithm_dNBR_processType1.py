@@ -24,7 +24,7 @@ def process_element(**context):
         SELECT m.id, mf.fire_id, m.start_date, m.end_date
         FROM missions.mss_mission m
         JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
-        WHERE m.end_date <= NOW() - INTERVAL '{interval_value}'
+        WHERE m.end_date::DATE = (CURRENT_DATE - INTERVAL '{interval_value}')
     """
 
     result = execute_query('biobd', query)
