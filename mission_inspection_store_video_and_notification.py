@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from moviepy import VideoFileClip
 import tempfile
 import os
-from test_recogida_metadatos import is_visible_or_ter
+from metadatos_process_and_cleanup import is_visible_or_ter
 from dag_utils import get_db_session
 
 def process_extracted_files(**kwargs):
