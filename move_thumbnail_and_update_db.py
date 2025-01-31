@@ -15,25 +15,34 @@ def process_thumbnail_message(message, **kwargs):
     print(f"Mensaje recibido: {message}")
 
     try:
-        # Validar que el mensaje tenga contenido
+        # Extraer el mensaje del contexto
         raw_message = message.value()
         if not raw_message:
-            raise ValueError("El mensaje recibido está vacío.")
+            print("No se encontró contenido en el mensaje.")
+            return
 
-        # Convertir la cadena JSON a un objeto JSON
+        # Decodificar el mensaje como JSON
         try:
             msg = json.loads(raw_message.decode('utf-8'))
         except json.JSONDecodeError as e:
-            raise ValueError(f"El mensaje no es un JSON válido: {raw_message}")
+            print(f"Error al decodificar el JSON: {e}")
+            return
 
-        # Validar que los campos requeridos estén presentes
-        if "value" not in msg or not all(k in msg['value'] for k in ["RutaImagen", "IdDeTabla", "TablaGuardada"]):
-            raise ValueError(f"Mensaje incompleto o inválido: {msg}")
+        # Validar que los campos necesarios estén presentes
+        value = msg.get("value")
+        if not value:
+            print("El mensaje no contiene el campo 'value'.")
+            return
 
-        # Extraer datos del mensaje
-        ruta_imagen_original = msg['value']['RutaImagen']
-        id_tabla = msg['value']['IdDeTabla']
-        tabla_guardada = msg['value']['TablaGuardada']
+        ruta_imagen_original = value.get("RutaImagen")
+        id_tabla = value.get("IdDeTabla")
+        tabla_guardada = value.get("TablaGuardada")
+
+        if not ruta_imagen_original or not id_tabla or not tabla_guardada:
+            print(f"El mensaje está incompleto: {msg}")
+            return
+
+        print(f"Datos procesados: RutaImagen={ruta_imagen_original}, IdDeTabla={id_tabla}, TablaGuardada={tabla_guardada}")
 
         # Configuración de MinIO
         connection = BaseHook.get_connection('minio_conn')
@@ -47,7 +56,7 @@ def process_thumbnail_message(message, **kwargs):
         )
         bucket_name = "tmp"
 
-        # Generar la nueva ruta de la miniatura
+        # Generar la nueva ruta para la miniatura
         nombre_archivo = os.path.basename(ruta_imagen_original)
         carpeta_original = os.path.dirname(ruta_imagen_original)
         thumbnail_key = f"/thumbs/{nombre_archivo.replace('.mp4', '_thumb.jpg')}"
@@ -76,7 +85,8 @@ def process_thumbnail_message(message, **kwargs):
         elif "video" in tabla_guardada:
             tabla_actualizar = "observation_captura_video"
         else:
-            raise ValueError(f"Tipo de tabla no reconocido: {tabla_guardada}")
+            print(f"Tabla no reconocida en el mensaje: {tabla_guardada}")
+            return
 
         # Actualizar la base de datos
         session = get_db_session()
@@ -91,11 +101,10 @@ def process_thumbnail_message(message, **kwargs):
 
         print(f"Base de datos actualizada en {tabla_actualizar}, ID: {id_tabla}")
 
-    except ValueError as e:
-        print(f"Error en los datos del mensaje: {e}")
     except Exception as e:
-        print(f"Error inesperado: {e}")
-        raise
+        print(f"Error no manejado: {e}")
+        raise e
+
 
 
 # Configuración del DAG
