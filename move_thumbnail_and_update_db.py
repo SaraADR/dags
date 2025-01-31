@@ -10,14 +10,24 @@ from sqlalchemy import text
 from dag_utils import get_db_session
 
 
-# Función para procesar mensajes del tópico `thumbs`
 def process_thumbnail_message(message, **kwargs):
     """Procesa el mensaje del tópico `thumbs`."""
     print(f"Mensaje recibido: {message}")
 
     try:
-        # Decodificar el mensaje
-        msg = json.loads(message.value().decode('utf-8'))
+        # Validar que el mensaje tenga contenido
+        raw_message = message.value()
+        if not raw_message:
+            raise ValueError("El mensaje recibido está vacío.")
+
+        # Intentar decodificar el mensaje como JSON
+        msg = json.loads(raw_message.decode('utf-8'))
+        
+        # Validar que los campos requeridos estén presentes
+        if "value" not in msg or not all(k in msg['value'] for k in ["RutaImagen", "IdDeTabla", "TablaGuardada"]):
+            raise ValueError(f"Mensaje incompleto o inválido: {msg}")
+
+        # Extraer datos del mensaje
         ruta_imagen_original = msg['value']['RutaImagen']
         id_tabla = msg['value']['IdDeTabla']
         tabla_guardada = msg['value']['TablaGuardada']
@@ -78,9 +88,14 @@ def process_thumbnail_message(message, **kwargs):
 
         print(f"Base de datos actualizada en {tabla_actualizar}, ID: {id_tabla}")
 
+    except json.JSONDecodeError as e:
+        print(f"Error al decodificar JSON: {e}")
+    except ValueError as e:
+        print(f"Error en los datos del mensaje: {e}")
     except Exception as e:
-        print(f"Error procesando el mensaje: {e}")
+        print(f"Error inesperado: {e}")
         raise
+
 
 
 
