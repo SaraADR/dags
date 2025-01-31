@@ -17,6 +17,9 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from dag_utils import get_db_session
 
+
+mensaje_final: None
+
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
     try:
@@ -681,6 +684,9 @@ def generalizacionDatosMetadatos(output_json, output):
     return new_json
 
 def my_producer_function():
+    if mensaje_final is None:
+        return []  # No enviará ningún mensaje
+       
     return [
         {
             "key": "Imagen1",
