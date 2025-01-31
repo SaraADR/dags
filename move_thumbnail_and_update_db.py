@@ -84,19 +84,19 @@ def process_thumbnail_message(message, **kwargs):
         # Determinar la tabla correcta
         print("[INFO] Determinando la tabla correcta para actualizar.")
         if "visible" in tabla_guardada:
-            tabla_actualizar = "observation_captura_imagen_visible"
+            tabla_actualizar = "observacion_aerea.observation_captura_imagen_visible"
         elif "infrarroja" in tabla_guardada:
-            tabla_actualizar = "observation_captura_imagen_infrarroja"
+            tabla_actualizar = "observacion_aerea.observation_captura_imagen_infrarroja"
         elif "multiespectral" in tabla_guardada:
-            tabla_actualizar = "observation_captura_imagen_multiespectral"
+            tabla_actualizar = "observacion_aerea.observation_captura_imagen_multiespectral"
         elif "rafaga" in tabla_guardada and "visible" in tabla_guardada:
-            tabla_actualizar = "observation_captura_rafaga_visible"
+            tabla_actualizar = "observacion_aerea.observation_captura_rafaga_visible"
         elif "rafaga" in tabla_guardada and "infrarroja" in tabla_guardada:
-            tabla_actualizar = "observation_captura_rafaga_infrarroja"
+            tabla_actualizar = "observacion_aerea.observation_captura_rafaga_infrarroja"
         elif "rafaga" in tabla_guardada and "multiespectral" in tabla_guardada:
-            tabla_actualizar = "observation_captura_rafaga_multiespectral"
+            tabla_actualizar = "observacion_aerea.observation_captura_rafaga_multiespectral"
         elif "video" in tabla_guardada:
-            tabla_actualizar = "observation_captura_video"
+            tabla_actualizar = "observacion_aerea.observation_captura_video"
         else:
             print(f"[ERROR] Tabla no reconocida en el mensaje: {tabla_guardada}")
             return
