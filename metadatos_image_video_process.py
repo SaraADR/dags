@@ -682,8 +682,12 @@ def generalizacionDatosMetadatos(output_json, output):
         "Camera Model Name": "FA1080"  # Igualmente, esto puede cambiar si tienes información de la cámara.
     }
     return new_json
-
+def set_mensaje_final(valor):
+    global mensaje_final
+    mensaje_final = valor
+    
 def my_producer_function():
+    global mensaje_final
     if mensaje_final is None:
         return []  # No enviará ningún mensaje
        
