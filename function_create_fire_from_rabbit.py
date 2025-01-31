@@ -317,16 +317,13 @@ def obtenerCustomerId(session, latitude, longitude, epsg=4326):
             if customer_id is not None:
                 return customer_id
         
-        # Default value if no customer_id is found
+        # Default value if customer_id not is found
         print("No se encontró un customer_id en la tabla, asignando 'BABCOCK' como valor predeterminado.")
         return 'BABCOCK'
     
     except Exception as e:
         print(f"Error fetching customer ID: {e}")
         return 'BABCOCK'  # Default value in case of an error
-
-
-
 
 
 default_args = {
