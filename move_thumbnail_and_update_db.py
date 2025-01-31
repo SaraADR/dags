@@ -88,7 +88,7 @@ def process_thumbnail_message(message, **kwargs):
 
         if tabla_guardada == "observacion_aerea.observation_captura_video":
             update_query = text("""
-                UPDATE observation_captura_video
+                UPDATE observacion_aerea.observation_captura_video
                 SET video = :video
                 WHERE fid = :fid
             """)
