@@ -738,7 +738,7 @@ consume_from_topic = ConsumeFromTopicOperator(
 # Operador para enviar mensajes al topic "mi_topic"
 produce_task = ProduceToTopicOperator(
     task_id="produce_to_kafka",
-    topic=["thumbs"],
+    topic="thumbs",
     kafka_config_id="kafka_connection",  # Debes definir esta conexión en Airflow
     dag=dag,
     producer_function=my_producer_function
