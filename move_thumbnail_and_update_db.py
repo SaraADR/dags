@@ -86,7 +86,7 @@ def process_thumbnail_message(message, **kwargs):
 
 # Configuración del DAG
 default_args = {
-    'owner': 'thumbnail_processor',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
     'retries': 1,
