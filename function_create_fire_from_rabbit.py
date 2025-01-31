@@ -311,7 +311,8 @@ def obtenerCustomerId(session, latitude, longitude, epsg=4326):
         """
         result = session.execute(query).fetchone()
 
-        if result:
+        # Verificar si result es None o si customer_id es None
+        if result and result['customer_id'] is not None:
             return result['customer_id']
         else:
             print("No se encontró un customer_id en la tabla, asignando 'BABCOCK' como valor predeterminado.")
@@ -319,7 +320,8 @@ def obtenerCustomerId(session, latitude, longitude, epsg=4326):
     
     except Exception as e:
         print(f"Error fetching customer ID: {e}")
-        return None
+        return 'BABCOCK'  # Valor por defecto en caso de error
+
 
 
 
