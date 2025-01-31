@@ -14,6 +14,7 @@ from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 from dag_utils import dms_to_decimal, duration_to_seconds, parse_output_to_json, upload_to_minio, upload_to_minio_path
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
+from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from dag_utils import get_db_session
 
 def consumer_function(message, prefix, **kwargs):
@@ -711,5 +712,25 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
+messages = [
+    {
+        "key": "Imagen1",  # Clave principal del mensaje
+        "value": {
+            "RutaImagen": "Aqui ira un path",
+            "IdDeTabla": "Aqui ira un numero",
+            "TablaGuardada": "Nombre de la tabla"
+        }
+    }
+]
 
-consume_from_topic
+# Operador para enviar mensajes al topic "mi_topic"
+produce_task = ProduceToTopicOperator(
+    task_id="produce_to_kafka",
+    topic=["thumbs"],
+    messages=messages,
+    kafka_config_id="kafka_connection",  # Debes definir esta conexión en Airflow
+    dag=dag,
+)
+
+
+consume_from_topic >> produce_task
