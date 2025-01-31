@@ -432,6 +432,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             table_name_observacion = "observacion_aerea.observation_captura_video"
 
         print("Insertamos en observación")
+        set_mensaje_final(None, None, table_name_observacion)
         
         outputt , outputcomment = parse_output_to_json(output)
 
@@ -502,6 +503,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         try:
             key = f"{uuid.uuid4()}"
             upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + str(key) + file_name, local_zip_path)
+            set_mensaje_final('sin_mision_id' + '/' + str(key) + file_name, None, None)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
@@ -690,6 +692,8 @@ def generalizacionDatosMetadatos(output_json, output):
         "Camera Model Name": "FA1080"  # Igualmente, esto puede cambiar si tienes información de la cámara.
     }
     return new_json
+
+
 def set_mensaje_final(ruta_imagen, id_de_tabla, tabla_guardada):
     global mensaje_final
     if mensaje_final["value"]["RutaImagen"] is not None:
@@ -699,7 +703,7 @@ def set_mensaje_final(ruta_imagen, id_de_tabla, tabla_guardada):
     if mensaje_final["value"]["TablaGuardada"] is not None:
         mensaje_final["value"]["TablaGuardada"] = tabla_guardada
 
-        
+
 
 def my_producer_function():
     global mensaje_final
