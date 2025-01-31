@@ -132,7 +132,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         # Es termodinamica
         is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
     elif "-mul" in message:
-        # Es termodinamica
+        # Es multiespectral
         is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 2)
     else:
         if output_json.get("sensor_id") == 1:
@@ -232,9 +232,10 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
 
     if SensorId is None : 
+        key = f"{uuid.uuid4()}"
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
         try:
-            upload_to_minio_path('minio_conn', 'cuarentena', 'sin_sensor' + '/', local_zip_path)
+            upload_to_minio_path('minio_conn', 'cuarentena', 'sin_sensor' + '/' + str(key), local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
@@ -422,6 +423,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         
         outputt , outputcomment = parse_output_to_json(output)
 
+        #ES UNA IMAGEN
         if(type != -1):
             insert_query = text(f"""
                 INSERT INTO {table_name_observacion}
@@ -479,13 +481,15 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
     mission_id = output_json.get("MissionID", -1)
     if mission_id != -1 :
         try:
-            upload_to_minio_path('minio_conn', 'missions', mission_id + '/', local_zip_path)
+            key = f"{uuid.uuid4()}"
+            upload_to_minio_path('minio_conn', 'missions', mission_id + '/' + str(key) , local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
     else : 
         try:
-            upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + file_name, local_zip_path)
+            key = f"{uuid.uuid4()}"
+            upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + str(key) + file_name, local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
@@ -676,15 +680,6 @@ def generalizacionDatosMetadatos(output_json, output):
     return new_json
 
 
-def clean_temp_directory():
-    temp_dir = "temp"
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-        print(f"Directorio {temp_dir} limpiado exitosamente.")
-    else:
-        print(f"El directorio {temp_dir} no existe, no se requiere limpieza.")
-        
-
 default_args = {
     'owner': 'sadr',
     'depends_onpast': False,
@@ -696,7 +691,7 @@ default_args = {
 }
 
 dag = DAG(
-    'test_metadatos_mock',
+    'metadatos_image_video_process',
     default_args=default_args,
     description='DAG procesa metadatos',
     schedule_interval='*/1 * * * *',
@@ -705,11 +700,6 @@ dag = DAG(
     concurrency=1,
 )
 
-    # Tarea de limpieza
-cleanup_task = PythonOperator(
-        task_id='cleanup_temp',
-        python_callable=clean_temp_directory,
-)
 
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
@@ -722,4 +712,4 @@ consume_from_topic = ConsumeFromTopicOperator(
 )
 
 
-consume_from_topic >> cleanup_task
+consume_from_topic
