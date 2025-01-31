@@ -232,9 +232,10 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
 
     if SensorId is None : 
+        key = f"{uuid.uuid4()}"
         print("El recurso proporcionado no tiene id de sensor, no se guardarán metadatos.")
         try:
-            upload_to_minio_path('minio_conn', 'cuarentena', 'sin_sensor' + '/', local_zip_path)
+            upload_to_minio_path('minio_conn', 'cuarentena', 'sin_sensor' + '/' + str(key), local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
@@ -479,13 +480,15 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
     mission_id = output_json.get("MissionID", -1)
     if mission_id != -1 :
         try:
-            upload_to_minio_path('minio_conn', 'missions', mission_id + '/', local_zip_path)
+            key = f"{uuid.uuid4()}"
+            upload_to_minio_path('minio_conn', 'missions', mission_id + '/' + str(key) , local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
     else : 
         try:
-            upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + file_name, local_zip_path)
+            key = f"{uuid.uuid4()}"
+            upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + str(key) + file_name, local_zip_path)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
