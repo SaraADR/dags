@@ -685,9 +685,10 @@ def generalizacionDatosMetadatos(output_json, output):
 def set_mensaje_final(valor):
     global mensaje_final
     mensaje_final = valor
-    
+
 def my_producer_function():
     global mensaje_final
+    mensaje_final = "ah"
     if mensaje_final is None:
         return []  # No enviará ningún mensaje
        
