@@ -680,6 +680,9 @@ def generalizacionDatosMetadatos(output_json, output):
     }
     return new_json
 
+def my_producer_function():
+    return {"key": "value"}
+
 
 default_args = {
     'owner': 'sadr',
@@ -730,6 +733,7 @@ produce_task = ProduceToTopicOperator(
     messages=messages,
     kafka_config_id="kafka_connection",  # Debes definir esta conexión en Airflow
     dag=dag,
+    producer_function=my_producer_function
 )
 
 
