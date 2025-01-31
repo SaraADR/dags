@@ -18,7 +18,15 @@ from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOpera
 from dag_utils import get_db_session
 
 
-mensaje_final: None
+mensaje_final = {
+    "key": "Imagen1",
+    "value": {
+        "RutaImagen": None,
+        "IdDeTabla": None,
+        "TablaGuardada": None
+    }
+}
+
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
@@ -424,6 +432,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             table_name_observacion = "observacion_aerea.observation_captura_video"
 
         print("Insertamos en observación")
+        set_mensaje_final(None, None, table_name_observacion)
         
         outputt , outputcomment = parse_output_to_json(output)
 
@@ -494,6 +503,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         try:
             key = f"{uuid.uuid4()}"
             upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + str(key) + file_name, local_zip_path)
+            set_mensaje_final('sin_mision_id' + '/' + str(key) + file_name, None, None)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
@@ -682,27 +692,30 @@ def generalizacionDatosMetadatos(output_json, output):
         "Camera Model Name": "FA1080"  # Igualmente, esto puede cambiar si tienes información de la cámara.
     }
     return new_json
-def set_mensaje_final(valor):
+
+
+def set_mensaje_final(ruta_imagen, id_de_tabla, tabla_guardada):
     global mensaje_final
-    mensaje_final = valor
+    if mensaje_final["value"]["RutaImagen"] is not None:
+        mensaje_final["value"]["RutaImagen"] = ruta_imagen
+    if mensaje_final["value"]["IdDeTabla"] is not None:    
+        mensaje_final["value"]["IdDeTabla"] = id_de_tabla
+    if mensaje_final["value"]["TablaGuardada"] is not None:
+        mensaje_final["value"]["TablaGuardada"] = tabla_guardada
+
+
 
 def my_producer_function():
     global mensaje_final
-    mensaje_final = "ah"
-    if mensaje_final is None:
+    if mensaje_final["value"]["RutaImagen"] is None:
         return []  # No enviará ningún mensaje
        
     return [
         {
-            "key": "Imagen1",
-            "value": {
-                "RutaImagen": "Aqui ira un path",
-                "IdDeTabla": "Aqui ira un numero",
-                "TablaGuardada": "Nombre de la tabla"
-            }
+            "key": mensaje_final["key"],
+            "value": mensaje_final["value"]
         }
     ]
-
 
 default_args = {
     'owner': 'sadr',
