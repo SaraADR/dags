@@ -17,6 +17,9 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from dag_utils import get_db_session
 
+
+mensaje_final: None
+
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
     try:
@@ -679,8 +682,16 @@ def generalizacionDatosMetadatos(output_json, output):
         "Camera Model Name": "FA1080"  # Igualmente, esto puede cambiar si tienes información de la cámara.
     }
     return new_json
+def set_mensaje_final(valor):
+    global mensaje_final
+    mensaje_final = valor
 
 def my_producer_function():
+    global mensaje_final
+    mensaje_final = "ah"
+    if mensaje_final is None:
+        return []  # No enviará ningún mensaje
+       
     return [
         {
             "key": "Imagen1",
