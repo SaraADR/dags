@@ -15,14 +15,14 @@ def process_thumbnail_message(message, **kwargs):
     print(f"[INFO] Mensaje recibido: {message}")
 
     try:
-        # Extraer el mensaje del contexto
+        # Extraer el mensaje
         raw_message = message.value()
         print(f"[DEBUG] Raw message: {raw_message}")
         if not raw_message:
             print("[ERROR] No se encontró contenido en el mensaje.")
             return
 
-        # Decodificar el mensaje como JSON
+        # Decodificar el JSON
         try:
             msg = json.loads(raw_message.decode('utf-8'))
             print(f"[INFO] Mensaje decodificado como JSON: {msg}")
@@ -30,7 +30,7 @@ def process_thumbnail_message(message, **kwargs):
             print(f"[ERROR] Error al decodificar el JSON: {e}")
             return
 
-        # Validar que los campos necesarios estén presentes
+        # Extraer valores
         value = msg.get("value")
         if not value:
             print("[ERROR] El mensaje no contiene el campo 'value'.")
@@ -63,63 +63,68 @@ def process_thumbnail_message(message, **kwargs):
         # Generar la nueva ruta para la miniatura
         nombre_archivo = os.path.basename(ruta_imagen_original)
         carpeta_original = os.path.dirname(ruta_imagen_original)
-        thumbnail_key = f"thumbs/{nombre_archivo.replace('.mp4', 'thumb.jpg')}"
-        nueva_ruta_thumbnail = f"{carpeta_original}/{nombre_archivo.replace('.mp4', 'thumb.jpg')}"
+        thumbnail_key = f"thumbs/{nombre_archivo}"
+        nueva_ruta_thumbnail = f"{carpeta_original}/{nombre_archivo}"
+
         print(f"[DEBUG] Thumbnail key: {thumbnail_key}")
         print(f"[DEBUG] Nueva ruta de thumbnail: {nueva_ruta_thumbnail}")
 
-        # Mover la miniatura en MinIO
+        # Verificar existencia del archivo en MinIO antes de moverlo
         print("[INFO] Verificando existencia del archivo en MinIO.")
         response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=thumbnail_key)
         if 'Contents' not in response:
             print(f"[ERROR] El archivo '{thumbnail_key}' no existe en el bucket '{bucket_name}'.")
             return
 
+        # Mover la miniatura en MinIO
         print(f"[INFO] Archivo encontrado. Procediendo a mover la miniatura.")
         copy_source = {"Bucket": bucket_name, "Key": thumbnail_key}
         s3_client.copy_object(Bucket=bucket_name, CopySource=copy_source, Key=nueva_ruta_thumbnail)
         s3_client.delete_object(Bucket=bucket_name, Key=thumbnail_key)
         print(f"[INFO] Miniatura movida a: {nueva_ruta_thumbnail}")
 
-        # Determinar la tabla correcta
-        print("[INFO] Determinando la tabla correcta para actualizar.")
-        if "visible" in tabla_guardada:
-            tabla_actualizar = "observacion_aerea.observation_captura_imagen_visible"
-        elif "infrarroja" in tabla_guardada:
-            tabla_actualizar = "observacion_aerea.observation_captura_imagen_infrarroja"
-        elif "multiespectral" in tabla_guardada:
-            tabla_actualizar = "observacion_aerea.observation_captura_imagen_multiespectral"
-        elif "rafaga" in tabla_guardada and "visible" in tabla_guardada:
-            tabla_actualizar = "observacion_aerea.observation_captura_rafaga_visible"
-        elif "rafaga" in tabla_guardada and "infrarroja" in tabla_guardada:
-            tabla_actualizar = "observacion_aerea.observation_captura_rafaga_infrarroja"
-        elif "rafaga" in tabla_guardada and "multiespectral" in tabla_guardada:
-            tabla_actualizar = "observacion_aerea.observation_captura_rafaga_multiespectral"
-        elif "video" in tabla_guardada:
-            tabla_actualizar = "observacion_aerea.observation_captura_video"
+        # Determinar la acción según el tipo de evento (tabla)
+        session = get_db_session()
+
+        if tabla_guardada == "observacion_aerea.observation_captura_video":
+            update_query = text("""
+                UPDATE observation_captura_video
+                SET video = :video
+                WHERE fid = :fid
+            """)
+            video_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
+            session.execute(update_query, {"video": video_metadata, "fid": id_tabla})
+
+        elif tabla_guardada in ["observacion_aerea.observation_captura_imagen_visible", "observacion_aerea.observation_captura_imagen_infrarroja", "observacion_aerea.observation_captura_imagen_multiespectral"]:
+            update_query = text(f"""
+                UPDATE {tabla_guardada}
+                SET imagen = :imagen
+                WHERE fid = :fid
+            """)
+            imagen_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
+            session.execute(update_query, {"imagen": imagen_metadata, "fid": id_tabla})
+
+        elif tabla_guardada in ["observacion_aerea.observation_captura_rafaga_visible", "observacion_aerea.observation_captura_rafaga_infrarroja", "observacion_aereaobservation_captura_rafaga_multiespectral"]:
+            update_query = text(f"""
+                UPDATE {tabla_guardada}
+                SET temporal_subsamples = :temporal_subsamples
+                WHERE fid = :fid
+            """)
+            temporal_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
+            session.execute(update_query, {"temporal_subsamples": temporal_metadata, "fid": id_tabla})
+
         else:
-            print(f"[ERROR] Tabla no reconocida en el mensaje: {tabla_guardada}")
+            print(f"[ERROR] Tipo de evento no reconocido: {tabla_guardada}")
             return
 
-        print(f"[INFO] Tabla seleccionada: {tabla_actualizar}")
-
-        # Actualizar la base de datos
-        print("[INFO] Actualizando la base de datos.")
-        session = get_db_session()
-        update_query = text(f"""
-            UPDATE {tabla_actualizar}
-            SET imagen = :imagen
-            WHERE id = :id
-        """)
-        print(f"[DEBUG] Ejecutando query: {update_query}")
-        session.execute(update_query, {"imagen": nueva_ruta_thumbnail, "id": id_tabla})
         session.commit()
         session.close()
-        print(f"[INFO] Base de datos actualizada en {tabla_actualizar}, ID: {id_tabla}")
+        print(f"[INFO] Base de datos actualizada en {tabla_guardada}, ID: {id_tabla}")
 
     except Exception as e:
         print(f"[ERROR] Error no manejado: {e}")
         raise e
+
 
 
 # Configuración del DAG
