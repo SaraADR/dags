@@ -9,6 +9,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import text
 from dag_utils import get_db_session
 
+
 # Función para procesar mensajes del tópico `thumbs`
 def process_thumbnail_message(message, **kwargs):
     """Procesa el mensaje del tópico `thumbs`."""
