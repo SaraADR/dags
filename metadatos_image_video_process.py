@@ -679,15 +679,6 @@ def generalizacionDatosMetadatos(output_json, output):
     return new_json
 
 
-def clean_temp_directory():
-    temp_dir = "temp"
-    if os.path.exists(temp_dir):
-        shutil.rmtree(temp_dir)
-        print(f"Directorio {temp_dir} limpiado exitosamente.")
-    else:
-        print(f"El directorio {temp_dir} no existe, no se requiere limpieza.")
-        
-
 default_args = {
     'owner': 'sadr',
     'depends_onpast': False,
@@ -708,11 +699,6 @@ dag = DAG(
     concurrency=1,
 )
 
-    # Tarea de limpieza
-cleanup_task = PythonOperator(
-        task_id='cleanup_temp',
-        python_callable=clean_temp_directory,
-)
 
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
@@ -725,4 +711,4 @@ consume_from_topic = ConsumeFromTopicOperator(
 )
 
 
-consume_from_topic >> cleanup_task
+consume_from_topic
