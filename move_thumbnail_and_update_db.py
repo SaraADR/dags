@@ -95,7 +95,11 @@ def process_thumbnail_message(message, **kwargs):
             video_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
             session.execute(update_query, {"video": video_metadata, "fid": id_tabla})
 
-        elif tabla_guardada in ["observacion_aerea.observation_captura_imagen_visible", "observacion_aerea.observation_captura_imagen_infrarroja", "observacion_aerea.observation_captura_imagen_multiespectral"]:
+        elif tabla_guardada in [
+            "observacion_aerea.observation_captura_imagen_visible",
+            "observacion_aerea.observation_captura_imagen_infrarroja",
+            "observacion_aerea.observation_captura_imagen_multiespectral"
+        ]:
             update_query = text(f"""
                 UPDATE {tabla_guardada}
                 SET imagen = :imagen
@@ -104,7 +108,11 @@ def process_thumbnail_message(message, **kwargs):
             imagen_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
             session.execute(update_query, {"imagen": imagen_metadata, "fid": id_tabla})
 
-        elif tabla_guardada in ["observacion_aerea.observation_captura_rafaga_visible", "observacion_aerea.observation_captura_rafaga_infrarroja", "observacion_aereaobservation_captura_rafaga_multiespectral"]:
+        elif tabla_guardada in [
+            "observacion_aerea.observation_captura_rafaga_visible",
+            "observacion_aerea.observation_captura_rafaga_infrarroja",
+            "observacion_aerea.observation_captura_rafaga_multiespectral"
+        ]:
             update_query = text(f"""
                 UPDATE {tabla_guardada}
                 SET temporal_subsamples = :temporal_subsamples
@@ -124,7 +132,6 @@ def process_thumbnail_message(message, **kwargs):
     except Exception as e:
         print(f"[ERROR] Error no manejado: {e}")
         raise e
-
 
 
 # Configuración del DAG
