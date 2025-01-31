@@ -47,8 +47,8 @@ def scan_minio_for_files(**kwargs):
 
     bucket_name = 'tmp'
     
-    processed_videos = load_processed_files_from_minio(s3_client, bucket_name,"/thumbs", 'processed_videos.json')
-    processed_images = load_processed_files_from_minio(s3_client, bucket_name,"/thumbs", 'processed_images.json')
+    processed_videos = load_processed_files_from_minio(s3_client, bucket_name, 'processed_videos.json')
+    processed_images = load_processed_files_from_minio(s3_client, bucket_name, 'processed_images.json')
 
     processed_video_keys = [entry['key'] for entry in processed_videos]
     processed_image_keys = [entry['key'] for entry in processed_images]
