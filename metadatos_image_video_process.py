@@ -681,7 +681,16 @@ def generalizacionDatosMetadatos(output_json, output):
     return new_json
 
 def my_producer_function():
-    return {"key": "value"}
+    return [
+        {
+            "key": "Imagen1",
+            "value": {
+                "RutaImagen": "Aqui ira un path",
+                "IdDeTabla": "Aqui ira un numero",
+                "TablaGuardada": "Nombre de la tabla"
+            }
+        }
+    ]
 
 
 default_args = {
@@ -715,22 +724,21 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-messages = [
-    {
-        "key": "Imagen1",  # Clave principal del mensaje
-        "value": {
-            "RutaImagen": "Aqui ira un path",
-            "IdDeTabla": "Aqui ira un numero",
-            "TablaGuardada": "Nombre de la tabla"
-        }
-    }
-]
+# messages = [
+#     {
+#         "key": "Imagen1",  # Clave principal del mensaje
+#         "value": {
+#             "RutaImagen": "Aqui ira un path",
+#             "IdDeTabla": "Aqui ira un numero",
+#             "TablaGuardada": "Nombre de la tabla"
+#         }
+#     }
+# ]
 
 # Operador para enviar mensajes al topic "mi_topic"
 produce_task = ProduceToTopicOperator(
     task_id="produce_to_kafka",
     topic=["thumbs"],
-    messages=messages,
     kafka_config_id="kafka_connection",  # Debes definir esta conexión en Airflow
     dag=dag,
     producer_function=my_producer_function
