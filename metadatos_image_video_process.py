@@ -132,7 +132,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         # Es termodinamica
         is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
     elif "-mul" in message:
-        # Es termodinamica
+        # Es multiespectral
         is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 2)
     else:
         if output_json.get("sensor_id") == 1:
@@ -423,6 +423,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         
         outputt , outputcomment = parse_output_to_json(output)
 
+        #ES UNA IMAGEN
         if(type != -1):
             insert_query = text(f"""
                 INSERT INTO {table_name_observacion}
