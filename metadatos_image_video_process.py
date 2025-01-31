@@ -691,7 +691,7 @@ default_args = {
 }
 
 dag = DAG(
-    'test_metadatos_mock',
+    'metadatos_image_video_process',
     default_args=default_args,
     description='DAG procesa metadatos',
     schedule_interval='*/1 * * * *',
