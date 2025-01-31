@@ -45,7 +45,7 @@ def scan_minio_for_files(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
-    bucket_name = 'temp'
+    bucket_name = 'tmp'
     
     processed_videos = load_processed_files_from_minio(s3_client, bucket_name, 'processed_videos.json')
     processed_images = load_processed_files_from_minio(s3_client, bucket_name, 'processed_images.json')
@@ -90,7 +90,7 @@ def process_and_generate_video_thumbnails(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
-    bucket_name = 'temp'
+    bucket_name = 'tmp'
     processed_file_key = 'processed_videos.json'
     processed_videos = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
 
@@ -100,7 +100,7 @@ def process_and_generate_video_thumbnails(**kwargs):
         temp_dir = tempfile.mkdtemp()
         video_path = os.path.join(temp_dir, "video.mp4")
         thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
-        thumbnail_key = os.path.join(os.path.dirname(video_key), "thumbs.jpg")
+        thumbnail_key = os.path.join("/thumbs", os.path.basename(video_key).replace('.mp4', 'thumb.jpg'))
 
         try:
             s3_client.download_file(bucket_name, video_key, video_path)
@@ -138,7 +138,7 @@ def process_and_generate_image_thumbnails(**kwargs):
         config=Config(signature_version='s3v4')
     )
 
-    bucket_name = 'temp'
+    bucket_name = 'tmp'
     processed_file_key = 'processed_images.json'
     processed_images = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
 
@@ -148,7 +148,7 @@ def process_and_generate_image_thumbnails(**kwargs):
         temp_dir = tempfile.mkdtemp()
         image_path = os.path.join(temp_dir, "image")
         thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
-        thumbnail_key = os.path.join(os.path.dirname(image_key), "thumbs.jpg")
+        thumbnail_key = os.path.join("/thumbs", os.path.basename(image_key).replace('.jpg', 'thumb.jpg'))
 
         try:
             s3_client.download_file(bucket_name, image_key, image_path)
