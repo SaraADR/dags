@@ -706,6 +706,7 @@ def set_mensaje_final(ruta_imagen, id_de_tabla, tabla_guardada):
 
 
 def my_producer_function():
+    print("Se envía el mensaje al topic")
     global mensaje_final
     if mensaje_final["value"]["RutaImagen"] is None:
         return []  # No enviará ningún mensaje
