@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import boto3
 from botocore.client import Config
 from datetime import datetime, timedelta
@@ -10,6 +11,30 @@ from sqlalchemy import text
 from dag_utils import get_db_session
 
 
+# Función para cargar archivos pendientes desde MinIO
+def load_pending_files_from_minio(s3_client, bucket_name, key):
+    """Carga la lista de miniaturas pendientes desde MinIO."""
+    try:
+        response = s3_client.get_object(Bucket=bucket_name, Key=key)
+        return json.loads(response['Body'].read().decode('utf-8'))
+    except s3_client.exceptions.NoSuchKey:
+        return []  # Si no existe, devuelve una lista vacía
+    except Exception as e:
+        print(f"[ERROR] Error al cargar miniaturas pendientes: {e}")
+        return []
+
+
+# Función para guardar archivos pendientes en MinIO
+def save_pending_files_to_minio(s3_client, bucket_name, key, pending_files):
+    """Guarda la lista de miniaturas pendientes en MinIO."""
+    try:
+        json_data = json.dumps(pending_files, indent=4)
+        s3_client.put_object(Bucket=bucket_name, Key=key, Body=json_data)
+    except Exception as e:
+        print(f"[ERROR] Error al guardar miniaturas pendientes: {e}")
+
+
+# Procesa la miniatura y actualiza la base de datos
 def process_thumbnail_message(message, **kwargs):
     """Procesa el mensaje del tópico `thumbs`."""
     print(f"[INFO] Mensaje recibido: {message}")
@@ -59,6 +84,7 @@ def process_thumbnail_message(message, **kwargs):
             config=Config(signature_version='s3v4')
         )
         bucket_name = "tmp"
+        pending_file_key = "pending_thumbnails.json"
 
         # Generar la nueva ruta para la miniatura
         nombre_archivo = os.path.basename(ruta_imagen_original)
@@ -69,11 +95,29 @@ def process_thumbnail_message(message, **kwargs):
         print(f"[DEBUG] Thumbnail key: {thumbnail_key}")
         print(f"[DEBUG] Nueva ruta de thumbnail: {nueva_ruta_thumbnail}")
 
-        # Verificar existencia del archivo en MinIO antes de moverlo
-        print("[INFO] Verificando existencia del archivo en MinIO.")
-        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=thumbnail_key)
-        if 'Contents' not in response:
-            print(f"[ERROR] El archivo '{thumbnail_key}' no existe en el bucket '{bucket_name}'.")
+        # Reintento automático en caso de que la miniatura aún no esté disponible
+        max_retries = 5
+        retry_delay = 10  # Segundos
+
+        for attempt in range(max_retries):
+            response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=thumbnail_key)
+            if 'Contents' in response:
+                print(f"[INFO] Miniatura encontrada en MinIO en el intento {attempt + 1}.")
+                break
+            print(f"[INFO] Miniatura aún no está lista, reintentando ({attempt + 1}/{max_retries})...")
+            time.sleep(retry_delay)
+        else:
+            # Si después de los intentos la miniatura aún no está, guardarla en pendientes
+            print(f"[WARNING] Miniatura no encontrada. Guardando en la lista de pendientes.")
+            pending_thumbnails = load_pending_files_from_minio(s3_client, bucket_name, pending_file_key)
+
+            pending_thumbnails.append({
+                "RutaImagen": ruta_imagen_original,
+                "IdDeTabla": id_tabla,
+                "TablaGuardada": tabla_guardada
+            })
+
+            save_pending_files_to_minio(s3_client, bucket_name, pending_file_key, pending_thumbnails)
             return
 
         # Mover la miniatura en MinIO
@@ -149,7 +193,7 @@ dag = DAG(
     description='Procesa miniaturas y actualiza la base de datos',
     schedule_interval='*/3 * * * *',
     catchup=False,
-    max_active_runs=1,  
+    max_active_runs=1,
     concurrency=3  
 )
 
