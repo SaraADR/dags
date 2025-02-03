@@ -144,7 +144,7 @@ default_args = {
 }
 
 dag = DAG(
-    'process_thumbnail_and_update_db',
+    'oscar',
     default_args=default_args,
     description='Procesa miniaturas y actualiza la base de datos',
     schedule_interval='*/3 * * * *',
