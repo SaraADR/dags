@@ -159,7 +159,7 @@ dag = DAG(
     'process_thumbnail_and_update_db',
     default_args=default_args,
     description='Procesa miniaturas y actualiza la base de datos',
-    schedule_interval='*/6 * * * *',
+    schedule_interval='*/5 * * * *',
     catchup=False,
       
 )
