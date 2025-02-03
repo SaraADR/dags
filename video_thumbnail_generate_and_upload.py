@@ -181,10 +181,8 @@ dag = DAG(
     'scan_minio_and_generate_thumbnails',
     default_args=default_args,
     description='Escanea MinIO y genera miniaturas',
-    schedule_interval='*/3 * * * *',
+    schedule_interval='*/1 * * * *',
     catchup=False,
-    max_active_runs=1,  
-    concurrency=3  
 )
 
 scan_task = PythonOperator(
