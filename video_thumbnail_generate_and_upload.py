@@ -100,7 +100,14 @@ def process_and_generate_video_thumbnails(**kwargs):
         temp_dir = tempfile.mkdtemp()
         video_path = os.path.join(temp_dir, "video.mp4")
         thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
-        thumbnail_key = os.path.join("/thumbs", os.path.basename(video_key).replace('.mp4', 'thumb.jpg'))
+
+        base_name = os.path.basename(video_key).replace('.mp4', '')
+
+        # Evita que "thumb" se repita si ya está presente
+        if "thumb" not in base_name:
+            base_name += "_thumb"
+
+        thumbnail_key = os.path.join("/thumbs", base_name + ".jpg")
 
         try:
             s3_client.download_file(bucket_name, video_key, video_path)
@@ -148,7 +155,14 @@ def process_and_generate_image_thumbnails(**kwargs):
         temp_dir = tempfile.mkdtemp()
         image_path = os.path.join(temp_dir, "image")
         thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
-        thumbnail_key = os.path.join("/thumbs", os.path.basename(image_key).replace('.jpg', 'thumb.jpg'))
+
+        base_name = os.path.basename(image_key).replace('.jpg', '')
+
+        # Evita que "thumb" se repita si ya está presente
+        if "thumb" not in base_name:
+            base_name += "_thumb"
+
+        thumbnail_key = os.path.join("/thumbs", base_name + ".jpg")
 
         try:
             s3_client.download_file(bucket_name, image_key, image_path)
@@ -201,11 +215,4 @@ process_videos_task = PythonOperator(
     dag=dag,
 )
 
-process_images_task = PythonOperator(
-    task_id='process_images',
-    python_callable=process_and_generate_image_thumbnails,
-    provide_context=True,
-    dag=dag,
-)
-
-scan_task >> [process_videos_task, process_images_task]
+scan_task >> process_videos_task
