@@ -24,27 +24,10 @@ def process_thumbnail_message(message, **kwargs):
 
         # Decodificar el JSON del mensaje
         try:
-            msg = json.loads(raw_message.decode('utf-8'))
-            print(f"[INFO] Mensaje decodificado como JSON: {msg}")
+            value = json.loads(raw_message.decode('utf-8'))
+            print(f"[INFO] Mensaje decodificado como JSON: {value}")
         except json.JSONDecodeError as e:
             print(f"[ERROR] Error al decodificar el JSON: {e}")
-            return
-
-        # Extraer la clave "value"
-        if isinstance(msg, list) and len(msg) > 0:
-            msg = msg[0]  # Tomar el primer elemento de la lista
-
-        value_str = msg.get("value")
-        if not value_str:
-            print("[ERROR] El mensaje no contiene el campo 'value'.")
-            return
-
-        # Decodificar el JSON dentro de "value"
-        try:
-            value = json.loads(value_str)
-            print(f"[INFO] 'value' decodificado: {value}")
-        except json.JSONDecodeError as e:
-            print(f"[ERROR] Error al decodificar el campo 'value': {e}")
             return
 
         # Extraer valores
@@ -53,7 +36,7 @@ def process_thumbnail_message(message, **kwargs):
         tabla_guardada = value.get("TablaGuardada")
 
         if not ruta_imagen_original or not id_tabla or not tabla_guardada:
-            print(f"[ERROR] El mensaje está incompleto: {msg}")
+            print(f"[ERROR] El mensaje está incompleto: {value}")
             return
 
         print(f"[INFO] Datos procesados: RutaImagen={ruta_imagen_original}, IdDeTabla={id_tabla}, TablaGuardada={tabla_guardada}")
