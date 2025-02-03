@@ -19,7 +19,7 @@ from dag_utils import get_db_session
 from airflow.models import Variable
 
 mensaje_final = {
-    "key": "Imagen1",
+    "key": "ImagenMetadatos",
     "value": {
         "RutaImagen": None,
         "IdDeTabla": None,
