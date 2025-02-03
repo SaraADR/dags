@@ -16,7 +16,7 @@ from dag_utils import dms_to_decimal, duration_to_seconds, parse_output_to_json,
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from dag_utils import get_db_session
-
+from airflow.models import Variable
 
 mensaje_final = {
     "key": "Imagen1",
@@ -483,7 +483,9 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 "video": json.dumps(combined_json),
             }
 
-        session.execute(insert_query, insert_values)
+        result = session.execute(insert_query, insert_values)
+        new_id = result.scalar()
+        set_mensaje_final(None, new_id, None)
         session.commit()
         session.close()
 
@@ -705,12 +707,14 @@ def set_mensaje_final(ruta_imagen, id_de_tabla, tabla_guardada):
     if tabla_guardada:
         mensaje_final["value"]["TablaGuardada"] = tabla_guardada
     print("Actualización de mensaje final")
+    Variable.set("mensaje_final", json.dumps(mensaje_final))
     print(mensaje_final)
 
 
 
 def my_producer_function():
     global mensaje_final
+    mensaje_final = json.loads(Variable.get("mensaje_final", "{}"))
     print(f"Se envía el mensaje al topic {mensaje_final}")
     if mensaje_final["value"]["RutaImagen"] is None:
         print("No se envia ningun mensaje pues no se ha proporcionado nueva información")
@@ -723,7 +727,7 @@ def my_producer_function():
         }
     ]
     print(valorFinal)
-    return valorFinal 
+    return mensaje_final 
 
 default_args = {
     'owner': 'sadr',
