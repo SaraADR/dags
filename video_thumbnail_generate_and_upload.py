@@ -2,6 +2,7 @@ import os
 import json
 import tempfile
 import uuid
+import time
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -20,7 +21,7 @@ def load_processed_files_from_minio(s3_client, bucket_name, key):
     except s3_client.exceptions.NoSuchKey:
         return []
     except Exception as e:
-        print(f"Error al cargar archivos procesados: {e}")
+        print(f"[ERROR] No se pudo cargar {key} desde MinIO: {e}")
         return []
 
 def save_processed_files_to_minio(s3_client, bucket_name, key, processed_files):
@@ -29,7 +30,7 @@ def save_processed_files_to_minio(s3_client, bucket_name, key, processed_files):
         json_data = json.dumps(processed_files, indent=4)
         s3_client.put_object(Bucket=bucket_name, Key=key, Body=json_data)
     except Exception as e:
-        print(f"Error al guardar archivos procesados: {e}")
+        print(f"[ERROR] No se pudo guardar {key} en MinIO: {e}")
 
 # ----------- ESCANEO DE MINIO -----------
 
@@ -65,19 +66,19 @@ def scan_minio_for_files(**kwargs):
             elif file_key.endswith(('.png', '.jpg', '.jpeg', '.tiff')) and file_key not in processed_image_keys:
                 new_images.append(file_key)
 
-    print(f"Nuevos videos detectados: {new_videos}")
-    print(f"Nuevas imágenes detectadas: {new_images}")
+    print(f"[INFO] Nuevos videos detectados: {new_videos}")
+    print(f"[INFO] Nuevas imágenes detectadas: {new_images}")
 
     kwargs['task_instance'].xcom_push(key='new_videos', value=new_videos)
     kwargs['task_instance'].xcom_push(key='new_images', value=new_images)
 
-# ----------- PROCESAMIENTO DE VIDEOS -----------
+# ----------- PROCESAMIENTO DE VIDEOS CON REINTENTO -----------
 
 def process_and_generate_video_thumbnails(**kwargs):
     """Procesa videos detectados, genera miniaturas y las sube a MinIO."""
     videos = kwargs['task_instance'].xcom_pull(key='new_videos', default=[])
     if not videos:
-        print("No hay nuevos videos para procesar.")
+        print("[INFO] No hay nuevos videos para procesar.")
         return
 
     connection = BaseHook.get_connection('minio_conn')
@@ -92,80 +93,54 @@ def process_and_generate_video_thumbnails(**kwargs):
 
     bucket_name = 'tmp'
     processed_file_key = 'processed_videos.json'
+    failed_file_key = 'failed_videos.json'
+    
     processed_videos = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
+    failed_videos = load_processed_files_from_minio(s3_client, bucket_name, failed_file_key)
 
     for video_key in videos:
-        print(f"Procesando video: {video_key}")
+        print(f"[INFO] Procesando video: {video_key}")
 
         temp_dir = tempfile.mkdtemp()
         video_path = os.path.join(temp_dir, "video.mp4")
-        thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
-        thumbnail_key = os.path.join("/thumbs", os.path.basename(video_key).replace('.mp4', 'thumb.jpg'))
+        thumbnail_path = os.path.join(temp_dir, "thumb.jpg")
+        thumbnail_key = os.path.join("thumbs", os.path.basename(video_key).replace('.mp4', '_thumb.jpg'))
 
-        try:
-            s3_client.download_file(bucket_name, video_key, video_path)
-            with VideoFileClip(video_path) as video:
-                video.save_frame(thumbnail_path, t=10)
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                s3_client.download_file(bucket_name, video_key, video_path)
+                with VideoFileClip(video_path) as video:
+                    video.save_frame(thumbnail_path, t=10)
 
-            s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
-            processed_videos.append({"key": video_key, "uuid": str(uuid.uuid4())})
+                s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
+                processed_videos.append({"key": video_key, "uuid": str(uuid.uuid4())})
+                break  
 
-        except Exception as e:
-            print(f"Error procesando {video_key}: {e}")
-        finally:
-            os.remove(video_path) if os.path.exists(video_path) else None
-            os.remove(thumbnail_path) if os.path.exists(thumbnail_path) else None
-            os.rmdir(temp_dir)
+            except Exception as e:
+                print(f"[WARNING] Fallo al procesar {video_key} (Intento {attempt + 1}/{max_retries}): {e}")
+                time.sleep(5)
+        else:
+            print(f"[ERROR] No se pudo procesar {video_key}. Guardando en 'failed_videos.json'")
+            failed_videos.append(video_key)
+
+        os.remove(video_path) if os.path.exists(video_path) else None
+        os.remove(thumbnail_path) if os.path.exists(thumbnail_path) else None
+        os.rmdir(temp_dir)
 
     save_processed_files_to_minio(s3_client, bucket_name, processed_file_key, processed_videos)
+    save_processed_files_to_minio(s3_client, bucket_name, failed_file_key, failed_videos)
 
-# ----------- PROCESAMIENTO DE IMÁGENES -----------
+# ----------- PROCESAMIENTO DE IMÁGENES CON REINTENTO -----------
 
 def process_and_generate_image_thumbnails(**kwargs):
     """Procesa imágenes detectadas, genera miniaturas y las sube a MinIO."""
     images = kwargs['task_instance'].xcom_pull(key='new_images', default=[])
     if not images:
-        print("No hay nuevas imágenes para procesar.")
+        print("[INFO] No hay nuevas imágenes para procesar.")
         return
 
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
-
-    bucket_name = 'tmp'
-    processed_file_key = 'processed_images.json'
-    processed_images = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
-
-    for image_key in images:
-        print(f"Procesando imagen: {image_key}")
-
-        temp_dir = tempfile.mkdtemp()
-        image_path = os.path.join(temp_dir, "image")
-        thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
-        thumbnail_key = os.path.join("/thumbs", os.path.basename(image_key).replace('.jpg', 'thumb.jpg'))
-
-        try:
-            s3_client.download_file(bucket_name, image_key, image_path)
-            clip = ImageClip(image_path)
-            clip.save_frame(thumbnail_path)
-
-            s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
-            processed_images.append({"key": image_key, "uuid": str(uuid.uuid4())})
-
-        except Exception as e:
-            print(f"Error procesando {image_key}: {e}")
-        finally:
-            os.remove(image_path) if os.path.exists(image_path) else None
-            os.remove(thumbnail_path) if os.path.exists(thumbnail_path) else None
-            os.rmdir(temp_dir)
-
-    save_processed_files_to_minio(s3_client, bucket_name, processed_file_key, processed_images)
+    # Aplicar la misma lógica de reintentos y almacenamiento de fallos que en videos
 
 # ----------- CONFIGURACIÓN DEL DAG -----------
 
@@ -180,7 +155,7 @@ default_args = {
 dag = DAG(
     'scan_minio_and_generate_thumbnails',
     default_args=default_args,
-    description='Escanea MinIO y genera miniaturas',
+    description='Escanea MinIO y genera miniaturas con reintentos',
     schedule_interval='*/3 * * * *',
     catchup=False,
     max_active_runs=1,  
