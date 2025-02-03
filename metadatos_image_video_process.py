@@ -444,6 +444,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 ( shape, sampled_feature, procedure, result_time, phenomenon_time, imagen)
                 VALUES ( :shape, :sampled_feature, :procedure, :result_time, 
                     :phenomenon_time, :imagen)
+                RETURNING id;
             """)
 
             shape = generar_shape_con_offsets(output_json)
@@ -464,6 +465,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 ( procedure, sampled_feature, shape, result_time, phenomenon_time, video)
                 VALUES ( :procedure, :sampled_feature, :shape, :result_time, 
                     tsrange(:valid_time_start, :valid_time_end, '[)'), :video)
+                RETURNING id;
             """)
 
             shape = generar_shape(output_json)
