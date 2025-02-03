@@ -722,12 +722,11 @@ def my_producer_function():
         print("No se envia ningun mensaje pues no se ha proporcionado nueva información")
         return []  # No enviará ningún mensaje
     
-    valorFinal = [
-    {
+    valorFinal = {
         "key": mensaje_final["key"],
         "value": json.dumps(mensaje_final["value"]).encode("utf-8")  # Codifica a bytes
     }
-    ]
+    
 
     print(json.loads(valorFinal))
     return valorFinal   
