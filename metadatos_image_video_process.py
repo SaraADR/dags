@@ -728,7 +728,7 @@ def my_producer_function():
     }
     valorFinal_str = json.dumps(valorFinal) 
 
-    print(valorFinal_str)  # Esto imprimirá una cadena JSON válida
+    print(valorFinal_str)
     return valorFinal_str 
 
 
