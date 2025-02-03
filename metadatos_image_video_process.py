@@ -497,15 +497,15 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         try:
             key = f"{uuid.uuid4()}"
             upload_to_minio_path('minio_conn', 'missions', mission_id + '/' + str(key) , local_zip_path)
-            set_mensaje_final(mission_id + '/' + str(key) + file_name, None, None)
+            set_mensaje_final(mission_id + '/' + str(key) + '/' + file_name, None, None)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
     else : 
         try:
             key = f"{uuid.uuid4()}"
-            upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + str(key) + file_name, local_zip_path)
-            set_mensaje_final('sin_mision_id' + '/' + str(key) + file_name, None, None)
+            upload_to_minio('minio_conn', 'missions', 'sin_mision_id' + '/' + str(key) + '/' + file_name, local_zip_path)
+            set_mensaje_final('sin_mision_id' + '/' + str(key) + '/' + file_name, None, None)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
@@ -710,8 +710,8 @@ def set_mensaje_final(ruta_imagen, id_de_tabla, tabla_guardada):
 
 
 def my_producer_function():
-    print("Se envía el mensaje al topic")
     global mensaje_final
+    print(f"Se envía el mensaje al topic {mensaje_final}")
     if mensaje_final["value"]["RutaImagen"] is None:
         print("No se envia ningun mensaje pues no se ha proporcionado nueva información")
         return []  # No enviará ningún mensaje
