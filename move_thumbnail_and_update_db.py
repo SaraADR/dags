@@ -11,8 +11,11 @@ from sqlalchemy import text
 from dag_utils import get_db_session
 from airflow.operators.python_operator import PythonOperator
 
+# Máximo número de intentos para procesar una miniatura
+MAX_RETRIES = 5
 
-# Función para cargar archivos pendientes desde MinIO
+# ----------- FUNCIONES AUXILIARES -----------
+
 def load_pending_files_from_minio(s3_client, bucket_name, key):
     """Carga la lista de miniaturas pendientes desde MinIO."""
     try:
@@ -21,19 +24,19 @@ def load_pending_files_from_minio(s3_client, bucket_name, key):
     except s3_client.exceptions.NoSuchKey:
         return []
     except Exception as e:
-        print(f"[ERROR] Error al cargar miniaturas pendientes: {e}")
+        print(f"[ERROR] No se pudo cargar {key} desde MinIO: {e}")
         return []
 
-# Función para guardar archivos pendientes en MinIO
 def save_pending_files_to_minio(s3_client, bucket_name, key, pending_files):
     """Guarda la lista de miniaturas pendientes en MinIO."""
     try:
         json_data = json.dumps(pending_files, indent=4)
         s3_client.put_object(Bucket=bucket_name, Key=key, Body=json_data)
     except Exception as e:
-        print(f"[ERROR] Error al guardar miniaturas pendientes: {e}")
+        print(f"[ERROR] No se pudo guardar {key} en MinIO: {e}")
 
-# Procesa miniaturas pendientes antes de Kafka
+# ----------- PROCESAMIENTO DE MINIATURAS PENDIENTES -----------
+
 def process_pending_thumbnails():
     """Revisa `pending_thumbnails.json` e intenta procesar las miniaturas pendientes."""
     print("[INFO] Revisando miniaturas pendientes...")
@@ -47,17 +50,14 @@ def process_pending_thumbnails():
         aws_secret_access_key=extra['aws_secret_access_key'],
         config=Config(signature_version='s3v4')
     )
-    
+
     bucket_name = "tmp"
     pending_file_key = "pending_thumbnails.json"
 
-    # Cargar miniaturas pendientes
     pending_thumbnails = load_pending_files_from_minio(s3_client, bucket_name, pending_file_key)
     if not pending_thumbnails:
         print("[INFO] No hay miniaturas pendientes.")
         return
-
-    print(f"[INFO] Miniaturas pendientes detectadas: {len(pending_thumbnails)}")
 
     updated_pending_thumbnails = []
 
@@ -65,6 +65,7 @@ def process_pending_thumbnails():
         ruta_imagen_original = thumbnail["RutaImagen"]
         id_tabla = thumbnail["IdDeTabla"]
         tabla_guardada = thumbnail["TablaGuardada"]
+        intentos = thumbnail.get("intentos", 0)
 
         nombre_archivo = os.path.basename(ruta_imagen_original)
         thumbnail_key = f"thumbs/{nombre_archivo}"
@@ -97,14 +98,16 @@ def process_pending_thumbnails():
 
             print(f"[INFO] Base de datos actualizada en {tabla_guardada}, ID: {id_tabla}")
         else:
-            print(f"[WARNING] Miniatura aún no está disponible. Manteniéndola en pendientes.")
-            updated_pending_thumbnails.append(thumbnail)
+            print(f"[WARNING] Miniatura aún no está disponible. Intento {intentos + 1}/{MAX_RETRIES}.")
+            if intentos < MAX_RETRIES:
+                thumbnail["intentos"] = intentos + 1
+                updated_pending_thumbnails.append(thumbnail)
 
-    # Guardar solo las miniaturas que siguen pendientes
     save_pending_files_to_minio(s3_client, bucket_name, pending_file_key, updated_pending_thumbnails)
     print("[INFO] Procesamiento de miniaturas pendientes finalizado.")
 
-# Procesa el mensaje de Kafka
+# ----------- PROCESAMIENTO DE MENSAJES KAFKA -----------
+
 def process_thumbnail_message(message, **kwargs):
     """Procesa el mensaje del tópico `thumbs`."""
     print(f"[INFO] Mensaje recibido: {message}")
@@ -131,7 +134,7 @@ def process_thumbnail_message(message, **kwargs):
 
         print(f"[INFO] Datos procesados: RutaImagen={ruta_imagen_original}, IdDeTabla={id_tabla}, TablaGuardada={tabla_guardada}")
 
-        # Guardar en pendientes
+        # Guardar en pendientes solo si no está ya en la lista
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
         s3_client = boto3.client(
@@ -141,29 +144,30 @@ def process_thumbnail_message(message, **kwargs):
             aws_secret_access_key=extra['aws_secret_access_key'],
             config=Config(signature_version='s3v4')
         )
-        
+
         bucket_name = "tmp"
         pending_file_key = "pending_thumbnails.json"
-        
+
         pending_thumbnails = load_pending_files_from_minio(s3_client, bucket_name, pending_file_key)
-        pending_thumbnails.append({
-            "RutaImagen": ruta_imagen_original,
-            "IdDeTabla": id_tabla,
-            "TablaGuardada": tabla_guardada
-        })
 
-        save_pending_files_to_minio(s3_client, bucket_name, pending_file_key, pending_thumbnails)
-        print("[INFO] Miniatura agregada a la lista de pendientes.")
-
-        # Esperar 10 segundos antes de continuar para evitar sobrecarga
-        time.sleep(10)
+        if not any(t["RutaImagen"] == ruta_imagen_original for t in pending_thumbnails):
+            pending_thumbnails.append({
+                "RutaImagen": ruta_imagen_original,
+                "IdDeTabla": id_tabla,
+                "TablaGuardada": tabla_guardada,
+                "intentos": 0
+            })
+            save_pending_files_to_minio(s3_client, bucket_name, pending_file_key, pending_thumbnails)
+            print("[INFO] Miniatura agregada a la lista de pendientes.")
+        else:
+            print("[INFO] Miniatura ya en lista de pendientes, evitando duplicados.")
 
     except Exception as e:
         print(f"[ERROR] Error no manejado: {e}")
         raise e
 
+# ----------- CONFIGURACIÓN DEL DAG -----------
 
-# Configuración del DAG
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
@@ -193,8 +197,6 @@ consume_thumbs_topic = ConsumeFromTopicOperator(
     task_id="consume_thumbs_topic",
     topics=["thumbs"],
     apply_function=process_thumbnail_message,
-    apply_function_kwargs={},
-    commit_cadence="end_of_operator",
     dag=dag,
 )
 
