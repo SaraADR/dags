@@ -718,18 +718,14 @@ def my_producer_function():
     global mensaje_final
     mensaje_final = json.loads(Variable.get("mensaje_final", "{}"))
     print(f"Se envía el mensaje al topic {mensaje_final}")
+
     if not mensaje_final:
         print("No se envia ningun mensaje pues no se ha proporcionado nueva información")
         return []  # No enviará ningún mensaje
     
-    valorFinal = {
-        "key": mensaje_final["key"],
-        "value": json.dumps(mensaje_final["value"])  # Codifica a bytes
-    }
-    valorFinal_str = json.dumps(valorFinal["value"]) 
-
-    print(valorFinal_str)
-    return valorFinal_str 
+    valorFinal = json.dumps(mensaje_final["value"])  
+    print(valorFinal)  
+    return [valorFinal] 
 
 
 default_args = {
