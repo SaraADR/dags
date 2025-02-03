@@ -721,7 +721,7 @@ def my_producer_function():
 
     if not mensaje_final:
         print("No se envia ningun mensaje pues no se ha proporcionado nueva información")
-        return []  # No enviará ningún mensaje
+        return [] 
     
     valorFinal = json.dumps(mensaje_final["value"])  
     print(valorFinal)  
@@ -759,11 +759,11 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-# Operador para enviar mensajes al topic "mi_topic"
+
 produce_task = ProduceToTopicOperator(
     task_id="produce_to_kafka",
     topic="thumbs",
-    kafka_config_id="kafka_connection",  # Debes definir esta conexión en Airflow
+    kafka_config_id="kafka_connection", 
     dag=dag,
     producer_function=my_producer_function
 )
