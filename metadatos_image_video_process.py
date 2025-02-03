@@ -698,11 +698,11 @@ def generalizacionDatosMetadatos(output_json, output):
 
 def set_mensaje_final(ruta_imagen, id_de_tabla, tabla_guardada):
     global mensaje_final
-    if mensaje_final["value"]["RutaImagen"] is not None:
+    if ruta_imagen:
         mensaje_final["value"]["RutaImagen"] = ruta_imagen
-    if mensaje_final["value"]["IdDeTabla"] is not None:    
+    if id_de_tabla:    
         mensaje_final["value"]["IdDeTabla"] = id_de_tabla
-    if mensaje_final["value"]["TablaGuardada"] is not None:
+    if tabla_guardada:
         mensaje_final["value"]["TablaGuardada"] = tabla_guardada
     print("Actualización de mensaje final")
     print(mensaje_final)
