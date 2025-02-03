@@ -78,13 +78,14 @@ def process_thumbnail_message(message, **kwargs):
         s3_client.delete_object(Bucket=bucket_name, Key=thumbnail_key)
         print(f"[INFO] Miniatura movida a: {nueva_ruta_thumbnail}")
 
-        # Determinar la acción según el tipo de evento (tabla)
+        # Conectar a la base de datos
         session = get_db_session()
 
+        # Determinar la acción según el tipo de evento (tabla)
         if tabla_guardada == "observacion_aerea.observation_captura_video":
             update_query = text("""
                 UPDATE observacion_aerea.observation_captura_video
-                SET video = :video
+                SET video = video || :video
                 WHERE fid = :fid
             """)
             video_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
@@ -97,7 +98,7 @@ def process_thumbnail_message(message, **kwargs):
         ]:
             update_query = text(f"""
                 UPDATE {tabla_guardada}
-                SET imagen = :imagen
+                SET imagen = imagen || :imagen
                 WHERE fid = :fid
             """)
             imagen_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
@@ -110,7 +111,7 @@ def process_thumbnail_message(message, **kwargs):
         ]:
             update_query = text(f"""
                 UPDATE {tabla_guardada}
-                SET temporal_subsamples = :temporal_subsamples
+                SET temporal_subsamples = temporal_subsamples || :temporal_subsamples
                 WHERE fid = :fid
             """)
             temporal_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
@@ -127,6 +128,7 @@ def process_thumbnail_message(message, **kwargs):
     except Exception as e:
         print(f"[ERROR] Error no manejado: {e}")
         raise e
+
 
 
 # Configuración del DAG
