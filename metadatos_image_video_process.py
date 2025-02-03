@@ -713,7 +713,7 @@ def my_producer_function():
     return [
         {
             "key": mensaje_final["key"],
-            "value": mensaje_final["value"]
+            "value": json.dumps(mensaje_final["value"])
         }
     ]
 
@@ -747,17 +747,6 @@ consume_from_topic = ConsumeFromTopicOperator(
     commit_cadence="end_of_operator",
     dag=dag,
 )
-
-# messages = [
-#     {
-#         "key": "Imagen1",  # Clave principal del mensaje
-#         "value": {
-#             "RutaImagen": "Aqui ira un path",
-#             "IdDeTabla": "Aqui ira un numero",
-#             "TablaGuardada": "Nombre de la tabla"
-#         }
-#     }
-# ]
 
 # Operador para enviar mensajes al topic "mi_topic"
 produce_task = ProduceToTopicOperator(
