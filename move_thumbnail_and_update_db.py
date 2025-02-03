@@ -78,70 +78,43 @@ def process_thumbnail_message(message, **kwargs):
         s3_client.delete_object(Bucket=bucket_name, Key=thumbnail_key)
         print(f"[INFO] Miniatura movida a: {nueva_ruta_thumbnail}")
 
-                # Determinar la acción según el tipo de evento (tabla)
+        # Determinar la acción según el tipo de evento (tabla)
         session = get_db_session()
 
         if tabla_guardada == "observacion_aerea.observation_captura_video":
-            # Obtener el valor actual de 'video'
-            existing_data = session.execute(
-                text(f"SELECT video FROM {tabla_guardada} WHERE fid = :fid"), {"fid": id_tabla}
-            ).scalar()
-
-            # Convertir a JSON y agregar nuevo thumbnail
-            existing_json = json.loads(existing_data) if existing_data else {}
-            existing_json["thumbnail"] = nueva_ruta_thumbnail
-
-            # Actualizar en la base de datos
-            update_query = text(f"""
-                UPDATE {tabla_guardada}
+            update_query = text("""
+                UPDATE observacion_aerea.observation_captura_video
                 SET video = :video
                 WHERE fid = :fid
             """)
-            session.execute(update_query, {"video": json.dumps(existing_json), "fid": id_tabla})
+            video_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
+            session.execute(update_query, {"video": video_metadata, "fid": id_tabla})
 
         elif tabla_guardada in [
             "observacion_aerea.observation_captura_imagen_visible",
             "observacion_aerea.observation_captura_imagen_infrarroja",
             "observacion_aerea.observation_captura_imagen_multiespectral"
         ]:
-            # Obtener el valor actual de 'imagen'
-            existing_data = session.execute(
-                text(f"SELECT imagen FROM {tabla_guardada} WHERE fid = :fid"), {"fid": id_tabla}
-            ).scalar()
-
-            # Convertir a JSON y agregar nuevo thumbnail
-            existing_json = json.loads(existing_data) if existing_data else {}
-            existing_json["thumbnail"] = nueva_ruta_thumbnail
-
-            # Actualizar en la base de datos
             update_query = text(f"""
                 UPDATE {tabla_guardada}
                 SET imagen = :imagen
                 WHERE fid = :fid
             """)
-            session.execute(update_query, {"imagen": json.dumps(existing_json), "fid": id_tabla})
+            imagen_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
+            session.execute(update_query, {"imagen": imagen_metadata, "fid": id_tabla})
 
         elif tabla_guardada in [
             "observacion_aerea.observation_captura_rafaga_visible",
             "observacion_aerea.observation_captura_rafaga_infrarroja",
             "observacion_aerea.observation_captura_rafaga_multiespectral"
         ]:
-            # Obtener el valor actual de 'temporal_subsamples'
-            existing_data = session.execute(
-                text(f"SELECT temporal_subsamples FROM {tabla_guardada} WHERE fid = :fid"), {"fid": id_tabla}
-            ).scalar()
-
-            # Convertir a JSON y agregar nuevo thumbnail
-            existing_json = json.loads(existing_data) if existing_data else {}
-            existing_json["thumbnail"] = nueva_ruta_thumbnail
-
-            # Actualizar en la base de datos
             update_query = text(f"""
                 UPDATE {tabla_guardada}
                 SET temporal_subsamples = :temporal_subsamples
                 WHERE fid = :fid
             """)
-            session.execute(update_query, {"temporal_subsamples": json.dumps(existing_json), "fid": id_tabla})
+            temporal_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
+            session.execute(update_query, {"temporal_subsamples": temporal_metadata, "fid": id_tabla})
 
         else:
             print(f"[ERROR] Tipo de evento no reconocido: {tabla_guardada}")
@@ -152,8 +125,9 @@ def process_thumbnail_message(message, **kwargs):
         print(f"[INFO] Base de datos actualizada en {tabla_guardada}, ID: {id_tabla}")
 
     except Exception as e:
-        print(f"[ERROR] Error al procesar el mensaje: {e}")
-        return
+        print(f"[ERROR] Error no manejado: {e}")
+        raise e
+
 
 # Configuración del DAG
 default_args = {
