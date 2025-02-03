@@ -183,6 +183,8 @@ dag = DAG(
     description='Escanea MinIO y genera miniaturas',
     schedule_interval='*/1 * * * *',
     catchup=False,
+    max_active_runs=1,    
+    
 )
 
 scan_task = PythonOperator(
