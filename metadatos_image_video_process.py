@@ -725,7 +725,7 @@ def my_producer_function():
     
     valorFinal = json.dumps(mensaje_final["value"])  
     print(valorFinal)  
-    return [valorFinal] 
+    return [("ImagenMetadatos", valorFinal)] 
 
 
 default_args = {
