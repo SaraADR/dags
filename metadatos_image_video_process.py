@@ -726,10 +726,10 @@ def my_producer_function():
         "key": mensaje_final["key"],
         "value": json.dumps(mensaje_final["value"]).encode("utf-8")  # Codifica a bytes
     }
-    
+    valorFinal_str = json.dumps(valorFinal) 
 
-    print(json.loads(valorFinal))
-    return valorFinal   
+    print(valorFinal_str)  # Esto imprimirá una cadena JSON válida
+    return valorFinal_str 
 
 
 default_args = {
