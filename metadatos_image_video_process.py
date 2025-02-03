@@ -710,12 +710,14 @@ def my_producer_function():
     if mensaje_final["value"]["RutaImagen"] is None:
         return []  # No enviará ningún mensaje
        
-    return [
+    valorFinal = [
         {
             "key": mensaje_final["key"],
             "value": json.dumps(mensaje_final["value"])
         }
     ]
+    print(valorFinal)
+    return valorFinal 
 
 default_args = {
     'owner': 'sadr',
