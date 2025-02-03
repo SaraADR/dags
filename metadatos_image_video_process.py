@@ -496,6 +496,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         try:
             key = f"{uuid.uuid4()}"
             upload_to_minio_path('minio_conn', 'missions', mission_id + '/' + str(key) , local_zip_path)
+            set_mensaje_final('missions', mission_id + '/' + str(key) + file_name, None, None)
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
@@ -709,6 +710,7 @@ def my_producer_function():
     print("Se envía el mensaje al topic")
     global mensaje_final
     if mensaje_final["value"]["RutaImagen"] is None:
+        print("No se envia ningun mensaje pues no se ha proporcionado nueva información")
         return []  # No enviará ningún mensaje
        
     valorFinal = [
