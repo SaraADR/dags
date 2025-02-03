@@ -170,7 +170,7 @@ def process_and_generate_image_thumbnails(**kwargs):
 # ----------- CONFIGURACIÓN DEL DAG -----------
 
 default_args = {
-    'owner': 'thumbnail_generator',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
     'retries': 1,
@@ -181,8 +181,10 @@ dag = DAG(
     'scan_minio_and_generate_thumbnails',
     default_args=default_args,
     description='Escanea MinIO y genera miniaturas',
-    schedule_interval='*/1 * * * *',
+    schedule_interval='*/3 * * * *',
     catchup=False,
+    max_active_runs=1,  
+    concurrency=3  
 )
 
 scan_task = PythonOperator(
