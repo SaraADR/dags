@@ -144,11 +144,13 @@ default_args = {
 }
 
 dag = DAG(
-    'process_thumbnail_and_update_db',
+    'oscar',
     default_args=default_args,
     description='Procesa miniaturas y actualiza la base de datos',
-    schedule_interval='*/1 * * * *',
+    schedule_interval='*/3 * * * *',
     catchup=False,
+    max_active_runs=1,  
+    concurrency=3  
 )
 
 consume_thumbs_topic = ConsumeFromTopicOperator(
