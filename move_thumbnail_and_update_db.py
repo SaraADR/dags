@@ -9,6 +9,7 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.hooks.base import BaseHook
 from sqlalchemy import text
 from dag_utils import get_db_session
+from airflow.operators.python_operator import PythonOperator
 
 
 # Función para cargar archivos pendientes desde MinIO
@@ -18,7 +19,7 @@ def load_pending_files_from_minio(s3_client, bucket_name, key):
         response = s3_client.get_object(Bucket=bucket_name, Key=key)
         return json.loads(response['Body'].read().decode('utf-8'))
     except s3_client.exceptions.NoSuchKey:
-        return []  # Si no existe, devuelve una lista vacía
+        return []
     except Exception as e:
         print(f"[ERROR] Error al cargar miniaturas pendientes: {e}")
         return []
@@ -34,28 +35,90 @@ def save_pending_files_to_minio(s3_client, bucket_name, key, pending_files):
         print(f"[ERROR] Error al guardar miniaturas pendientes: {e}")
 
 
-# Procesa la miniatura y actualiza la base de datos
+# Función para procesar miniaturas pendientes
+def process_pending_thumbnails():
+    """Revisa `pending_thumbnails.json` e intenta procesar las miniaturas pendientes."""
+    print("[INFO] Revisando miniaturas pendientes...")
+
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
+    s3_client = boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
+    
+    bucket_name = "tmp"
+    pending_file_key = "pending_thumbnails.json"
+
+    # Cargar miniaturas pendientes
+    pending_thumbnails = load_pending_files_from_minio(s3_client, bucket_name, pending_file_key)
+    if not pending_thumbnails:
+        print("[INFO] No hay miniaturas pendientes.")
+        return
+
+    print(f"[INFO] Miniaturas pendientes detectadas: {len(pending_thumbnails)}")
+
+    updated_pending_thumbnails = []
+
+    for thumbnail in pending_thumbnails:
+        ruta_imagen_original = thumbnail["RutaImagen"]
+        id_tabla = thumbnail["IdDeTabla"]
+        tabla_guardada = thumbnail["TablaGuardada"]
+
+        nombre_archivo = os.path.basename(ruta_imagen_original)
+        thumbnail_key = f"thumbs/{nombre_archivo}"
+        nueva_ruta_thumbnail = f"{os.path.dirname(ruta_imagen_original)}/{nombre_archivo}"
+
+        print(f"[INFO] Verificando disponibilidad de {thumbnail_key} en MinIO...")
+
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=thumbnail_key)
+        if 'Contents' in response:
+            print(f"[INFO] Miniatura encontrada en MinIO. Moviendo archivo...")
+
+            # Mover la miniatura
+            copy_source = {"Bucket": bucket_name, "Key": thumbnail_key}
+            s3_client.copy_object(Bucket=bucket_name, CopySource=copy_source, Key=nueva_ruta_thumbnail)
+            s3_client.delete_object(Bucket=bucket_name, Key=thumbnail_key)
+
+            print(f"[INFO] Miniatura movida a: {nueva_ruta_thumbnail}")
+
+            # Actualizar la base de datos
+            session = get_db_session()
+            update_query = text(f"""
+                UPDATE {tabla_guardada}
+                SET imagen = :imagen
+                WHERE fid = :fid
+            """)
+            imagen_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
+            session.execute(update_query, {"imagen": imagen_metadata, "fid": id_tabla})
+            session.commit()
+            session.close()
+
+            print(f"[INFO] Base de datos actualizada en {tabla_guardada}, ID: {id_tabla}")
+        else:
+            print(f"[WARNING] Miniatura aún no está disponible. Manteniéndola en pendientes.")
+            updated_pending_thumbnails.append(thumbnail)
+
+    # Guardar solo las miniaturas que siguen pendientes
+    save_pending_files_to_minio(s3_client, bucket_name, pending_file_key, updated_pending_thumbnails)
+    print("[INFO] Procesamiento de miniaturas pendientes finalizado.")
+
+
+# Procesa el mensaje de Kafka
 def process_thumbnail_message(message, **kwargs):
     """Procesa el mensaje del tópico `thumbs`."""
     print(f"[INFO] Mensaje recibido: {message}")
 
     try:
-        # Extraer el mensaje
         raw_message = message.value()
-        print(f"[DEBUG] Raw message: {raw_message}")
         if not raw_message:
             print("[ERROR] No se encontró contenido en el mensaje.")
             return
 
-        # Decodificar el JSON
-        try:
-            msg = json.loads(raw_message.decode('utf-8'))
-            print(f"[INFO] Mensaje decodificado como JSON: {msg}")
-        except json.JSONDecodeError as e:
-            print(f"[ERROR] Error al decodificar el JSON: {e}")
-            return
-
-        # Extraer valores
+        msg = json.loads(raw_message.decode('utf-8'))
         value = msg.get("value")
         if not value:
             print("[ERROR] El mensaje no contiene el campo 'value'.")
@@ -71,11 +134,9 @@ def process_thumbnail_message(message, **kwargs):
 
         print(f"[INFO] Datos procesados: RutaImagen={ruta_imagen_original}, IdDeTabla={id_tabla}, TablaGuardada={tabla_guardada}")
 
-        # Configuración de MinIO
-        print("[INFO] Configurando conexión con MinIO.")
+        # Guardar en pendientes para ser procesado
         connection = BaseHook.get_connection('minio_conn')
         extra = json.loads(connection.extra)
-        print(f"[DEBUG] MinIO extra config: {extra}")
         s3_client = boto3.client(
             's3',
             endpoint_url=extra['endpoint_url'],
@@ -83,95 +144,19 @@ def process_thumbnail_message(message, **kwargs):
             aws_secret_access_key=extra['aws_secret_access_key'],
             config=Config(signature_version='s3v4')
         )
+        
         bucket_name = "tmp"
         pending_file_key = "pending_thumbnails.json"
+        
+        pending_thumbnails = load_pending_files_from_minio(s3_client, bucket_name, pending_file_key)
+        pending_thumbnails.append({
+            "RutaImagen": ruta_imagen_original,
+            "IdDeTabla": id_tabla,
+            "TablaGuardada": tabla_guardada
+        })
 
-        # Generar la nueva ruta para la miniatura
-        nombre_archivo = os.path.basename(ruta_imagen_original)
-        carpeta_original = os.path.dirname(ruta_imagen_original)
-        thumbnail_key = f"thumbs/{nombre_archivo}"
-        nueva_ruta_thumbnail = f"{carpeta_original}/{nombre_archivo}"
-
-        print(f"[DEBUG] Thumbnail key: {thumbnail_key}")
-        print(f"[DEBUG] Nueva ruta de thumbnail: {nueva_ruta_thumbnail}")
-
-        # Reintento automático en caso de que la miniatura aún no esté disponible
-        max_retries = 5
-        retry_delay = 10  # Segundos
-
-        for attempt in range(max_retries):
-            response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=thumbnail_key)
-            if 'Contents' in response:
-                print(f"[INFO] Miniatura encontrada en MinIO en el intento {attempt + 1}.")
-                break
-            print(f"[INFO] Miniatura aún no está lista, reintentando ({attempt + 1}/{max_retries})...")
-            time.sleep(retry_delay)
-        else:
-            # Si después de los intentos la miniatura aún no está, guardarla en pendientes
-            print(f"[WARNING] Miniatura no encontrada. Guardando en la lista de pendientes.")
-            pending_thumbnails = load_pending_files_from_minio(s3_client, bucket_name, pending_file_key)
-
-            pending_thumbnails.append({
-                "RutaImagen": ruta_imagen_original,
-                "IdDeTabla": id_tabla,
-                "TablaGuardada": tabla_guardada
-            })
-
-            save_pending_files_to_minio(s3_client, bucket_name, pending_file_key, pending_thumbnails)
-            return
-
-        # Mover la miniatura en MinIO
-        print(f"[INFO] Archivo encontrado. Procediendo a mover la miniatura.")
-        copy_source = {"Bucket": bucket_name, "Key": thumbnail_key}
-        s3_client.copy_object(Bucket=bucket_name, CopySource=copy_source, Key=nueva_ruta_thumbnail)
-        s3_client.delete_object(Bucket=bucket_name, Key=thumbnail_key)
-        print(f"[INFO] Miniatura movida a: {nueva_ruta_thumbnail}")
-
-        # Determinar la acción según el tipo de evento (tabla)
-        session = get_db_session()
-
-        if tabla_guardada == "observacion_aerea.observation_captura_video":
-            update_query = text("""
-                UPDATE observacion_aerea.observation_captura_video
-                SET video = :video
-                WHERE fid = :fid
-            """)
-            video_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
-            session.execute(update_query, {"video": video_metadata, "fid": id_tabla})
-
-        elif tabla_guardada in [
-            "observacion_aerea.observation_captura_imagen_visible",
-            "observacion_aerea.observation_captura_imagen_infrarroja",
-            "observacion_aerea.observation_captura_imagen_multiespectral"
-        ]:
-            update_query = text(f"""
-                UPDATE {tabla_guardada}
-                SET imagen = :imagen
-                WHERE fid = :fid
-            """)
-            imagen_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
-            session.execute(update_query, {"imagen": imagen_metadata, "fid": id_tabla})
-
-        elif tabla_guardada in [
-            "observacion_aerea.observation_captura_rafaga_visible",
-            "observacion_aerea.observation_captura_rafaga_infrarroja",
-            "observacion_aerea.observation_captura_rafaga_multiespectral"
-        ]:
-            update_query = text(f"""
-                UPDATE {tabla_guardada}
-                SET temporal_subsamples = :temporal_subsamples
-                WHERE fid = :fid
-            """)
-            temporal_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
-            session.execute(update_query, {"temporal_subsamples": temporal_metadata, "fid": id_tabla})
-
-        else:
-            print(f"[ERROR] Tipo de evento no reconocido: {tabla_guardada}")
-            return
-
-        session.commit()
-        session.close()
-        print(f"[INFO] Base de datos actualizada en {tabla_guardada}, ID: {id_tabla}")
+        save_pending_files_to_minio(s3_client, bucket_name, pending_file_key, pending_thumbnails)
+        print("[INFO] Miniatura agregada a la lista de pendientes.")
 
     except Exception as e:
         print(f"[ERROR] Error no manejado: {e}")
@@ -190,11 +175,17 @@ default_args = {
 dag = DAG(
     'process_thumbnail_and_update_db',
     default_args=default_args,
-    description='Procesa miniaturas y actualiza la base de datos',
+    description='Procesa miniaturas y actualiza la base de datos, revisando miniaturas pendientes',
     schedule_interval='*/3 * * * *',
     catchup=False,
     max_active_runs=1,
     concurrency=3  
+)
+
+check_pending_task = PythonOperator(
+    task_id='check_pending_thumbnails',
+    python_callable=process_pending_thumbnails,
+    dag=dag,
 )
 
 consume_thumbs_topic = ConsumeFromTopicOperator(
@@ -207,4 +198,4 @@ consume_thumbs_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-consume_thumbs_topic
+check_pending_task >> consume_thumbs_topic
