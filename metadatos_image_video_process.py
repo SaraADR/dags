@@ -729,7 +729,7 @@ def my_producer_function():
         }
     ]
     print(valorFinal)
-    return mensaje_final 
+    return valorFinal   
 
 default_args = {
     'owner': 'sadr',
