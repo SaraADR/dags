@@ -1,5 +1,3 @@
-import datetime
-import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -9,10 +7,30 @@ import pytz
 from airflow.models import Variable
 from dag_utils import execute_query
 from sqlalchemy import text
+from datetime import datetime, timedelta
+import calendar
+
+class FechaProxima:
+    def __init__(self):
+        self.hoy = datetime.today()
+
+    def sumar_meses(self, fecha, meses):
+        mes = fecha.month - 1 + meses
+        año = fecha.year + mes // 12
+        mes = mes % 12 + 1
+        dia = min(fecha.day, calendar.monthrange(año, mes)[1])
+        return fecha.replace(year=año, month=mes, day=dia)
+
+    def obtener_fechas(self, meses_minimo, meses_maximo):
+        fechas = []
+        for meses in range(int(meses_minimo), int(meses_maximo) + 1, int(meses_minimo)):
+            fechas.append(self.sumar_meses(self.hoy, meses).strftime("%Y-%m-%d"))
+        return fechas
+
 def process_element(**context):
 
     madrid_tz = pytz.timezone('Europe/Madrid')
-    fechaHoraActual = datetime.datetime.now(madrid_tz)  # Fecha y hora con zona horaria
+    fechaHoraActual = datetime.now(madrid_tz)  # Fecha y hora con zona horaria
 
     print(f"Este algoritmo se está ejecutando a las {fechaHoraActual.strftime('%Y-%m-%d %H:%M:%S')} en Madrid, España")
 
@@ -22,58 +40,30 @@ def process_element(**context):
     tipo2mesesmaximo = Variable.get("dNBR_mesesFinIncendioMaximo", default_var="1200")
     print(f"Valor de la variable tipo2mesesmaximo en Airflow: {tipo2mesesmaximo}")
 
-    interval_value_max = f'{tipo2mesesmaximo} months'
-    interval_value_min = f'{tipo2mesesminimo} months'
+    # Obtener fechas usando la clase FechaProxima
+    fechas = FechaProxima()
+    fechas_a_buscar = fechas.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo)
+    print(f"Fechas calculadas: {fechas_a_buscar}")
+
+    fechas_query = "','".join(fechas_a_buscar)
     query = f"""
         SELECT m.id, mf.fire_id, m.start_date, m.end_date
         FROM missions.mss_mission m
         JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
-        WHERE m.end_date::DATE BETWEEN (CURRENT_DATE - INTERVAL '{interval_value_max} ')
-                                AND (CURRENT_DATE - INTERVAL '{interval_value_min}')
+        WHERE m.end_date::DATE IN ('{fechas_query}')
     """
 
     result = execute_query('biobd', query)
     print(result)
 
-
-    # ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
-
-    # try:
-    #     # Conectarse al servidor SSH
-    #     with ssh_hook.get_conn() as ssh_client:
-    #         sftp = ssh_client.open_sftp()
-    #         print(f"Sftp abierto")
-
-
-    #         remote_directory = '/home/admin3/algoritmo-calculo-dNBR/input'
-    #         remote_file_name = 'Test_2_1.json'
-    #         remote_file_path = os.path.join(remote_directory, remote_file_name)
-    #         sftp.chdir(remote_directory)
-    #         print(f"Cambiando al directorio: {remote_directory}")
-
-    #         output_directory = '/home/admin3/algoritmo-calculo-dNBR/output/test_2_1'
-    #         local_output_directory = '/tmp'
-
-    #         # Crear el directorio local si no existe
-    #         os.makedirs(local_output_directory, exist_ok=True)
-    #         sftp.chdir(output_directory)
-    #         print(f"Cambiando al directorio de salida: {output_directory}")
-    #         sftp.close()
-    # except Exception as e:
-    #     print(f"Error: {str(e)}")    
-    #     sftp.close()
-    # return
-
-
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
-    'start_date': datetime.datetime(2024, 8, 8),
+    'start_date': datetime(2024, 8, 8),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': datetime.timedelta(minutes=1),
-
+    'retry_delay': timedelta(minutes=1),
 }
 
 dag = DAG(
@@ -93,4 +83,4 @@ process_element_task = PythonOperator(
     dag=dag,
 )
 
-process_element_task 
+process_element_task
