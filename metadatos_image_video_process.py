@@ -724,7 +724,7 @@ def my_producer_function():
     
     valorFinal = {
         "key": mensaje_final["key"],
-        "value": json.dumps(mensaje_final["value"]).encode("utf-8")  # Codifica a bytes
+        "value": json.dumps(mensaje_final["value"])  # Codifica a bytes
     }
     valorFinal_str = json.dumps(valorFinal) 
 
