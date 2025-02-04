@@ -25,6 +25,7 @@ import boto3
 from botocore.config import Config
 from airflow.hooks.base_hook import BaseHook
 from PIL import Image
+from airflow.hooks.base_hook import BaseHook
 
 
 
@@ -191,7 +192,7 @@ def generate_xml(**kwargs):
     organization_name = 'Avincis'
     email_address = ' admin@einforex.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
+    wms_link_conn =  BaseHook.get_connection('geonetwork_conn')
     wms_link = wms_link_conn.host
             
      
@@ -299,7 +300,7 @@ def generate_xml(**kwargs):
 def get_geonetwork_credentials():
     try:
 
-        conn = BaseHook.get_connection('geonetwork_credentials')
+        conn = BaseHook.get_connection('geonetwork_update_conn')
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
