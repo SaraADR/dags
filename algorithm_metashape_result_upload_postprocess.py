@@ -1,4 +1,7 @@
-
+import base64
+import json
+import os
+import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from airflow import DAG
@@ -7,13 +10,14 @@ from flask import Config
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
-from dag_utils import get_minio_client
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
 import boto3
 from PIL import Image
 import os
+import os
+import base64
 import tempfile
 import uuid
 import json
@@ -21,11 +25,7 @@ import boto3
 from botocore.config import Config
 from airflow.hooks.base_hook import BaseHook
 from PIL import Image
-import base64
-import io
-import logging
-import requests
-from airflow.hooks.base import BaseHook
+
 
 
 
@@ -66,8 +66,15 @@ def convertir_coords(epsg_input,south, west, north, east):
 def up_to_minio(temp_dir, filename):
     try:
         # Conexión a MinIO
-        s3_client = get_minio_client()
-
+        connection = BaseHook.get_connection('minio_conn')
+        extra = json.loads(connection.extra)
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
+            config=Config(signature_version='s3v4')
+        )
         bucket_name = 'metashapetiffs'
         
         # Ruta completa del archivo local a subir
@@ -81,7 +88,7 @@ def up_to_minio(temp_dir, filename):
             print(f"Archivo {filename} subido correctamente a MinIO.")
             
             # Generar la URL del archivo subido
-            file_url = f"http://minio.swarm-training.biodiversidad.einforex.net/{bucket_name}/{filename}"
+            file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{filename}"
             print(f"URL: {file_url}")
             return file_url
 
@@ -185,7 +192,7 @@ def generate_xml(**kwargs):
     organization_name = 'Avincis'
     email_address = ' admin@einforex.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link_conn =  BaseHook.get_connection('geonetwork_update_conn')
+    wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
     wms_link = wms_link_conn.host
             
      
@@ -293,7 +300,7 @@ def generate_xml(**kwargs):
 def get_geonetwork_credentials():
     try:
 
-        conn = BaseHook.get_connection('geonetwork_conn')
+        conn = BaseHook.get_connection('geonetwork_credentials')
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
@@ -320,15 +327,10 @@ def get_geonetwork_credentials():
         raise Exception(f"Error al obtener credenciales: {e}")
 
 
-# Función para subir el XML utilizando las credenciales obtenidas de la conexión de Airflow
+
+# Función para subir el XML utilizando las credenciales obtenidas
 def upload_to_geonetwork(**context):
     try:
-        # Obtener la conexión configurada en Airflow
-        connection = BaseHook.get_connection("geonetwork_update_conn")
-        
-        # Extraer el host y construir la URL de subida
-        upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
-        
         # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
@@ -336,8 +338,11 @@ def upload_to_geonetwork(**context):
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
 
         for xml_data in xml_data_array:
-            # Decodificar el XML de base64 a texto
+        
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
+
+            # # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
+            # xml_file_stream = io.StringIO(xml_decoded)
 
             logging.info(f"XML DATA: {xml_data}")
             logging.info(xml_decoded)
@@ -355,8 +360,12 @@ def upload_to_geonetwork(**context):
                 'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
             }
 
+            # URL de GeoNetwork para subir el archivo XML
+            upload_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records"
+
             # Encabezados que incluyen los tokens
             headers = {
+                # 'Content-Type': 'multipart/form-data',
                 'Authorization': f"Bearer {access_token}",
                 'x-xsrf-token': str(xsrf_token),
                 'Cookie': str(set_cookie_header[0]),
@@ -365,22 +374,20 @@ def upload_to_geonetwork(**context):
 
             # Realizar la solicitud POST para subir el archivo XML
             logging.info(f"Subiendo XML a la URL: {upload_url}")
-            response = requests.post(upload_url, files=files, data=data, headers=headers)
+            response = requests.post(upload_url,files=files,data=data, headers=headers)
+            logging.info(response)
 
             # Verificar si hubo algún error en la solicitud
             response.raise_for_status()
 
             logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
-
     except Exception as e:
-
-        # Verificar si existe un objeto de respuesta y extraer su información
-        if 'response' in locals() and response is not None:
+        if response is not None:
             logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
 
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
-    
+
 
 # Función para crear el XML metadata
 def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
@@ -445,9 +452,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
     linkage = ET.SubElement(gmd_CI_OnlineResource, "gmd:linkage")
     linkageUrl = ET.SubElement(linkage, "gmd:URL")
-
-    #TODO EXTRA AIRFLOW
-    linkageUrl.text = "https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/test_geonetwork/wms"
+    linkageUrl.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
 
     protocol = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
     protocolCharacterString = ET.SubElement(protocol, "gco:CharacterString")
