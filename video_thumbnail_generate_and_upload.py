@@ -9,6 +9,7 @@ from airflow.hooks.base import BaseHook
 import boto3
 from botocore.client import Config
 from moviepy import VideoFileClip, ImageClip
+from dag_utils import get_minio_client
 
 # ----------- FUNCIONES AUXILIARES -----------
 
@@ -34,16 +35,9 @@ def save_processed_files_to_minio(s3_client, bucket_name, key, processed_files):
 # ----------- ESCANEO DE MINIO -----------
 
 def scan_minio_for_files(**kwargs):
-    """Escanea MinIO en busca de nuevos videos e imágenes."""
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
+
+    # Import de la función get_s3_client
+    s3_client = get_minio_client()
 
     bucket_name = 'tmp'
     
@@ -55,6 +49,7 @@ def scan_minio_for_files(**kwargs):
 
     paginator = s3_client.get_paginator('list_objects_v2')
     result = paginator.paginate(Bucket=bucket_name)
+    
 
     new_videos, new_images = [], []
     for page in result:
@@ -80,15 +75,8 @@ def process_and_generate_video_thumbnails(**kwargs):
         print("No hay nuevos videos para procesar.")
         return
 
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
+    # Import de la función get_s3_client
+    s3_client = get_minio_client()
 
     bucket_name = 'tmp'
     processed_file_key = 'processed_videos.json'
@@ -128,15 +116,8 @@ def process_and_generate_image_thumbnails(**kwargs):
         print("No hay nuevas imágenes para procesar.")
         return
 
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
+    s3_client = get_minio_client()
+
 
     bucket_name = 'tmp'
     processed_file_key = 'processed_images.json'

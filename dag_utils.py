@@ -202,6 +202,18 @@ def send_email(to, cc=None, bcc=None, subject=None, template_path=None, template
         raise
 
 
+def get_minio_client():
+    """Devuelve un cliente de MinIO reutilizable."""
+    connection = BaseHook.get_connection('minio_conn')
+    extra = json.loads(connection.extra)
+    return boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        aws_access_key_id=extra['aws_access_key_id'],
+        aws_secret_access_key=extra['aws_secret_access_key'],
+        config=Config(signature_version='s3v4')
+    )
+
 
 def duration_to_seconds(duration: str) -> int:
     """
