@@ -329,7 +329,7 @@ def get_geonetwork_credentials():
 def upload_to_geonetwork(**context):
     try:
         # Obtener la conexión configurada en Airflow
-        connection = BaseHook.get_connection("geonetwork_connection")
+        connection = BaseHook.get_connection("geonetwork_conn")
         
         # Extraer el host y construir la URL de subida
         upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
