@@ -71,15 +71,8 @@ def convertir_coords(epsg_input,south, west, north, east):
 def up_to_minio(temp_dir, filename):
     try:
         # Conexión a MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
+        s3_client = get_minio_client()
+
         bucket_name = 'metashapetiffs'
         
         # Ruta completa del archivo local a subir
@@ -332,10 +325,15 @@ def get_geonetwork_credentials():
         raise Exception(f"Error al obtener credenciales: {e}")
 
 
-
-# Función para subir el XML utilizando las credenciales obtenidas
+# Función para subir el XML utilizando las credenciales obtenidas de la conexión de Airflow
 def upload_to_geonetwork(**context):
     try:
+        # Obtener la conexión configurada en Airflow
+        connection = BaseHook.get_connection("geonetwork_update_conn")
+        
+        # Extraer el host y construir la URL de subida
+        upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
+        
         # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
@@ -345,9 +343,6 @@ def upload_to_geonetwork(**context):
         for xml_data in xml_data_array:
         
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
-
-            # # Convertir el contenido XML a un objeto de tipo stream (equivalente a createReadStream en Node.js)
-            # xml_file_stream = io.StringIO(xml_decoded)
 
             logging.info(f"XML DATA: {xml_data}")
             logging.info(xml_decoded)
@@ -365,12 +360,8 @@ def upload_to_geonetwork(**context):
                 'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
             }
 
-            # URL de GeoNetwork para subir el archivo XML
-            upload_url = "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records"
-
             # Encabezados que incluyen los tokens
             headers = {
-                # 'Content-Type': 'multipart/form-data',
                 'Authorization': f"Bearer {access_token}",
                 'x-xsrf-token': str(xsrf_token),
                 'Cookie': str(set_cookie_header[0]),
@@ -386,13 +377,16 @@ def upload_to_geonetwork(**context):
             response.raise_for_status()
 
             logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
+
     except Exception as e:
-        if response is not None:
+
+        # Verificar si existe un objeto de respuesta y extraer su información
+        if 'response' in locals() and response is not None:
             logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
 
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
-
+    
 
 # Función para crear el XML metadata
 def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
@@ -457,7 +451,9 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
     linkage = ET.SubElement(gmd_CI_OnlineResource, "gmd:linkage")
     linkageUrl = ET.SubElement(linkage, "gmd:URL")
-    linkageUrl.text = "https://geoserver.dev.cuatrodigital.com/geoserver/tests-geonetwork/wms"
+
+    #TODO EXTRA AIRFLOW
+    linkageUrl.text = "https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/test_geonetwork/wms"
 
     protocol = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
     protocolCharacterString = ET.SubElement(protocol, "gco:CharacterString")
@@ -589,6 +585,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
+    gco_characterString.text = miniature_url
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
     fileType = ET.SubElement(md_browse_graphic, "gmd:fileType")
@@ -597,6 +594,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 
     # Añadir descriptiveKeywords (primero)
     descriptiveKeywords = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
+    descriptiveKeywords.text = "Ortomosáico"
     md_keywords = ET.SubElement(descriptiveKeywords, "gmd:MD_Keywords")
     keywords = ["photogrametry", "burst", "orthomosaic", "RGB", "aerial-photography", "Opendata"]
 
@@ -731,6 +729,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     distance = ET.SubElement(md_resolution, "gmd:distance")
     gco_distance = ET.SubElement(distance, "gco:Distance", {"uom": "metros"})
     gco_distance.text = "0.026"
+    
 
     # Añadir categories (categoría) dentro de MD_DataIdentification
     topicCategory = ET.SubElement(md_data_identification, "gmd:topicCategory")
