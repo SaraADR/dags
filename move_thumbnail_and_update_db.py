@@ -135,7 +135,7 @@ def insert_notification(id_mission, message):
             engine = session.get_bind()
 
             data_json = json.dumps({
-                "to": "ignis",
+                "to": "all_users",
                 "actions": [
                     {
                         "type": "reloadMissionElements",
@@ -174,7 +174,6 @@ def insert_notification(id_mission, message):
             print(f"[ERROR] Error al insertar notificación: {str(e)}")
         finally:
             session.close()
-
 
 
 # Configuración del DAG

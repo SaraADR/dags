@@ -291,9 +291,6 @@ def generate_xml(**kwargs):
     # Store the base64 encoded XML content in XCom
     return xml_encoded
 
-
-
-
 # Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
     try:
