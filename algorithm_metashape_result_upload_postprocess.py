@@ -28,7 +28,6 @@ from PIL import Image
 
 
 
-
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
 
@@ -584,7 +583,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     md_browse_graphic = ET.SubElement(graphicOverview, "gmd:MD_BrowseGraphic")
     fileName = ET.SubElement(md_browse_graphic, "gmd:fileName")
     gco_characterString = ET.SubElement(fileName, "gco:CharacterString")
-    gco_characterString.text = miniature_url
     fileDescription = ET.SubElement(md_browse_graphic, "gmd:fileDescription")
     gco_characterString = ET.SubElement(fileDescription, "gco:CharacterString")
     fileType = ET.SubElement(md_browse_graphic, "gmd:fileType")
@@ -593,7 +591,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 
     # Añadir descriptiveKeywords (primero)
     descriptiveKeywords = ET.SubElement(md_data_identification, "gmd:descriptiveKeywords")
-    descriptiveKeywords.text = "Ortomosáico"
     md_keywords = ET.SubElement(descriptiveKeywords, "gmd:MD_Keywords")
     keywords = ["photogrametry", "burst", "orthomosaic", "RGB", "aerial-photography", "Opendata"]
 
@@ -728,7 +725,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     distance = ET.SubElement(md_resolution, "gmd:distance")
     gco_distance = ET.SubElement(distance, "gco:Distance", {"uom": "metros"})
     gco_distance.text = "0.026"
-    
 
     # Añadir categories (categoría) dentro de MD_DataIdentification
     topicCategory = ET.SubElement(md_data_identification, "gmd:topicCategory")
