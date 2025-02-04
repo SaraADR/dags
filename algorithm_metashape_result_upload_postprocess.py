@@ -298,7 +298,7 @@ def generate_xml(**kwargs):
 def get_geonetwork_credentials():
     try:
 
-        conn = BaseHook.get_connection('geonetwork_credentials')
+        conn = BaseHook.get_connection('geonetwork_conn')
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
@@ -329,7 +329,7 @@ def get_geonetwork_credentials():
 def upload_to_geonetwork(**context):
     try:
         # Obtener la conexión configurada en Airflow
-        connection = BaseHook.get_connection("geonetwork_conn")
+        connection = BaseHook.get_connection("geonetwork_update_conn")
         
         # Extraer el host y construir la URL de subida
         upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
