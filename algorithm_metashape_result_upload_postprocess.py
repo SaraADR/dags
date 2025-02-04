@@ -10,6 +10,7 @@ from flask import Config
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
+from dag_utils import get_minio_client
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
@@ -25,7 +26,11 @@ import boto3
 from botocore.config import Config
 from airflow.hooks.base_hook import BaseHook
 from PIL import Image
-from airflow.hooks.base_hook import BaseHook
+import base64
+import io
+import logging
+import requests
+from airflow.hooks.base import BaseHook
 
 
 
@@ -300,7 +305,7 @@ def generate_xml(**kwargs):
 def get_geonetwork_credentials():
     try:
 
-        conn = BaseHook.get_connection('geonetwork_update_conn')
+        conn = BaseHook.get_connection('geonetwork_conn')
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
