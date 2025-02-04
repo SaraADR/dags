@@ -138,9 +138,10 @@ def insert_notification(id_mission, message):
                 "to": "ignis",
                 "actions": [
                     {
-                        "type": "updateMission",
+                        "type": "reloadMissionElements",
                         "data": {
-                            "missionId": id_mission
+                            "missionId": id_mission,
+                            "elements": ["multimedia"]
                         }
                     },
                     {
