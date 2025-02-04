@@ -298,7 +298,7 @@ def generate_xml(**kwargs):
 def get_geonetwork_credentials():
     try:
 
-        conn = BaseHook.get_connection('geonetwork_conn')
+        conn = BaseHook.get_connection('geonetwork_update_conn')
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
