@@ -1,7 +1,4 @@
-import base64
-import json
-import os
-import uuid
+
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from airflow import DAG
@@ -17,8 +14,6 @@ from airflow.hooks.base import BaseHook
 import boto3
 from PIL import Image
 import os
-import os
-import base64
 import tempfile
 import uuid
 import json
@@ -298,7 +293,7 @@ def generate_xml(**kwargs):
 def get_geonetwork_credentials():
     try:
 
-        conn = BaseHook.get_connection('geonetwork_update_conn')
+        conn = BaseHook.get_connection('geonetwork_conn')
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
