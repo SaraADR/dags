@@ -7,7 +7,7 @@ from airflow import DAG
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.hooks.base import BaseHook
 from sqlalchemy import text
-from dag_utils import get_db_session
+from dag_utils import get_db_session, get_minio_client
 
 
 def process_thumbnail_message(message, **kwargs):
@@ -43,16 +43,7 @@ def process_thumbnail_message(message, **kwargs):
 
         # Configuración de MinIO
         print("[INFO] Configurando conexión con MinIO.")
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        print(f"[DEBUG] MinIO extra config: {extra}")
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
+        s3_client = get_minio_client()
         bucket_name = "tmp"
 
         # Generar la nueva ruta para la miniatura

@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 from moviepy import VideoFileClip
 import tempfile
 import os
-from dag_utils import get_db_session
+from dag_utils import get_db_session, get_minio_client
 
 def process_extracted_files(**kwargs):
     video = kwargs['dag_run'].conf.get('otros', [])
@@ -63,15 +63,9 @@ def process_extracted_files(**kwargs):
         video_content = base64.b64decode(videos['content'])
 
         # Subir videos a MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
+        
+        s3_client = get_minio_client()
+
 
         bucket_name = 'missions'
         video_key = str(uuid_key) + '/' + video_file_name
@@ -177,15 +171,8 @@ def convert_ts_files(**kwargs):
             bucket_name = 'missions'
             mp4_file_name = file_name.replace('.ts', '.mp4')
             with open(mp4_path, 'rb') as f:
-                connection = BaseHook.get_connection('minio_conn')
-                extra = json.loads(connection.extra)
-                s3_client = boto3.client(
-                    's3',
-                    endpoint_url=extra['endpoint_url'],
-                    aws_access_key_id=extra['aws_access_key_id'],
-                    aws_secret_access_key=extra['aws_secret_access_key'],
-                    config=Config(signature_version='s3v4')
-                )
+                
+                s3_client = get_minio_client()
 
                 s3_client.put_object(
                     Bucket=bucket_name,

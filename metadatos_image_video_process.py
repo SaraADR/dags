@@ -12,7 +12,7 @@ from airflow.operators.python_operator import PythonOperator
 from botocore.exceptions import ClientError
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
-from dag_utils import dms_to_decimal, duration_to_seconds, parse_output_to_json, upload_to_minio, upload_to_minio_path
+from dag_utils import dms_to_decimal, duration_to_seconds, get_minio_client, parse_output_to_json, upload_to_minio, upload_to_minio_path
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from dag_utils import get_db_session
@@ -38,16 +38,8 @@ def consumer_function(message, prefix, **kwargs):
 
     file_path_in_minio =  msg_value  
         
-    # Establecer conexión con MinIO
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
+    s3_client = get_minio_client()
+
 
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'tmp'

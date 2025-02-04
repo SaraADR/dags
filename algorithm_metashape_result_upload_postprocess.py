@@ -10,6 +10,7 @@ from flask import Config
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
+from dag_utils import get_minio_client
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
@@ -70,15 +71,8 @@ def convertir_coords(epsg_input,south, west, north, east):
 def up_to_minio(temp_dir, filename):
     try:
         # Conexión a MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
+        s3_client = get_minio_client()
+
         bucket_name = 'metashapetiffs'
         
         # Ruta completa del archivo local a subir
