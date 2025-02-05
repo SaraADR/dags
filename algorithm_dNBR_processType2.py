@@ -51,20 +51,23 @@ def process_element(**context):
 
 
     # Ejemplo de uso con el 30 de mayo
-    fecha_proxima_mayo = FechaProxima("2023-05-30")
-    print("Fechas a partir del 30 de mayo:", fecha_proxima_mayo.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
+    fecha_proxima_mayo = FechaProxima("2024-05-30")
+    print("Fechas a partir del 30 de mayo de 2025:", fecha_proxima_mayo.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
 
     # Ejemplo de uso con el 31 de agosto
-    fecha_proxima_agosto = FechaProxima("2023-08-31")
-    print("Fechas a partir del 31 de agosto:", fecha_proxima_agosto.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
+    fecha_proxima_agosto = FechaProxima("2024-08-31")
+    print("Fechas a partir del 31 de agosto de 2025:", fecha_proxima_agosto.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
 
     # Ejemplo de uso con el 30 de mayo fechas exactas
-    fecha_proxima_mayo = FechaProxima("2023-05-30")
-    print("Fechas a partir del 30 de mayo:", fecha_proxima_mayo.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+    fecha_proxima_mayo = FechaProxima("2024-05-30")
+    print("Fechas a partir del 30 de mayo de 2025:", fecha_proxima_mayo.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
 
     # Ejemplo de uso con el 31 de agosto fechas exactas
-    fecha_proxima_agosto = FechaProxima("2023-08-31")
-    print("Fechas a partir del 31 de agosto:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+    fecha_proxima_agosto = FechaProxima("2024-08-31")
+    print("Fechas a partir del 31 de agosto de 2025:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+
+    fecha_proxima_agosto = FechaProxima("2025-02-05")
+    print("Fechas a partir del 31 de agosto de 2025:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
 
 
     # # Obtener fechas usando la clase FechaProxima
@@ -72,16 +75,16 @@ def process_element(**context):
     # fechas_a_buscar = fechas.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo)
     # print(f"Fechas calculadas: {fechas_a_buscar}")
 
-    # fechas_query = "','".join(fechas_a_buscar)
-    # query = f"""
-    #     SELECT m.id, mf.fire_id, m.start_date, m.end_date
-    #     FROM missions.mss_mission m
-    #     JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
-    #     WHERE m.end_date::DATE IN ('{fechas_query}')
-    # """
+    fechas_query = "','".join(fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+    query = f"""
+        SELECT m.id, mf.fire_id, m.start_date, m.end_date
+        FROM missions.mss_mission m
+        JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
+        WHERE m.end_date::DATE IN ('{fechas_query}')
+    """
 
-    # result = execute_query('biobd', query)
-    # print(result)
+    result = execute_query('biobd', query)
+    print(result)
 
 default_args = {
     'owner': 'sadr',
