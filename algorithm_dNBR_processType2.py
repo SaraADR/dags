@@ -11,9 +11,8 @@ from datetime import datetime, timedelta
 import calendar
 
 class FechaProxima:
-    def __init__(self, fecha_str):
-        # self.hoy = datetime.today()
-        self.hoy = datetime.strptime(fecha_str, "%Y-%m-%d")
+    def __init__(self):
+        self.hoy = datetime.today()
 
     def restar_meses(self, fecha, meses):
         mes = fecha.month - 1 - meses
@@ -29,6 +28,7 @@ class FechaProxima:
             if fecha_resta.day == self.hoy.day:
                 fechas.append(fecha_resta.strftime("%Y-%m-%d"))
         return fechas
+
 
 def process_element(**context):
 
@@ -48,7 +48,7 @@ def process_element(**context):
 
     # Obtener fechas usando la clase FechaProxima
     fechas = FechaProxima()
-    fechas_a_buscar = fechas.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo)
+    fechas_a_buscar = fechas.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo)
     print(f"Fechas calculadas: {fechas_a_buscar}")
     fechas_query = "','".join(fechas_a_buscar)
 
