@@ -9,7 +9,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, text
 import boto3
 from botocore.client import Config
-from dag_utils import get_db_session
+from dag_utils import get_db_session, get_minio_client
 
 def convert_ts_to_mp4(**kwargs):
     """
@@ -40,15 +40,8 @@ def convert_ts_to_mp4(**kwargs):
 
     # Configuración del bucket y directorios
     print("Configurando conexión con MinIO...")
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
+    s3_client = get_minio_client()
+
 
     # Nuevos valores para el bucket y directorios
     bucket_name = 'temp'  # Bucket donde está el archivo .ts

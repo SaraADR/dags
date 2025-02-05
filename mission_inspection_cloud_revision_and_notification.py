@@ -14,7 +14,7 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
-from dag_utils import get_db_session
+from dag_utils import get_db_session, get_minio_client
 
 def process_element(**context):
     message = context['dag_run'].conf
@@ -68,16 +68,7 @@ def process_element(**context):
                 if data:
                     #Subimos a esa carpeta los nuevos elementos
                     try:
-                        connection = BaseHook.get_connection('minio_conn')
-                        extra = json.loads(connection.extra)
-                        s3_client = boto3.client(
-                            's3',
-                            endpoint_url=extra['endpoint_url'],
-                            aws_access_key_id=extra['aws_access_key_id'],
-                            aws_secret_access_key=extra['aws_secret_access_key'],
-                            config=Config(signature_version='s3v4')
-                        )
-
+                        s3_client = get_minio_client()
                         bucket_name = 'missions'  
                         pdf_key = str(uuid_key) + '/' + 'mission_inspection_cloud_revision_and_notification' + str(index) + '.png'
                         index = index + 1

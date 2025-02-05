@@ -2,12 +2,12 @@ import json
 import os
 import boto3
 from botocore.client import Config
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.hooks.base import BaseHook
 from sqlalchemy import text
-from dag_utils import get_db_session
+from dag_utils import get_db_session, get_minio_client
 
 
 def process_thumbnail_message(message, **kwargs):
@@ -43,16 +43,7 @@ def process_thumbnail_message(message, **kwargs):
 
         # Configuración de MinIO
         print("[INFO] Configurando conexión con MinIO.")
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        print(f"[DEBUG] MinIO extra config: {extra}")
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
+        s3_client = get_minio_client()
         bucket_name = "tmp"
 
         # Generar la nueva ruta para la miniatura
@@ -122,13 +113,67 @@ def process_thumbnail_message(message, **kwargs):
             return
 
         session.commit()
+
+        # Enviar notificación al sistema de misiones
+        notification_message = f"Un nuevo recurso multimedia ha sido agregado a la misión {id_tabla}."
+        insert_notification(id_tabla, notification_message)
+
+
         session.close()
         print(f"[INFO] Base de datos actualizada en {tabla_guardada}, ID: {id_tabla}")
 
     except Exception as e:
         print(f"[ERROR] Error no manejado: {e}")
         raise e
+    
+    
+def insert_notification(id_mission, message):
+    """Inserta una notificación en la base de datos para actualizar la misión en el front-end."""
+    if id_mission is not None:
+        try:
+            session = get_db_session()           
+            engine = session.get_bind()
 
+            data_json = json.dumps({
+                "to": "all_users",
+                "actions": [
+                    {
+                        "type": "reloadMissionElements",
+                        "data": {
+                            "missionId": id_mission,
+                            "elements": ["multimedia"]
+                        }
+                    },
+                    {
+                        "type": "notify",
+                        "data": {
+                            "message": message
+                        }
+                    }
+                ]
+            }, ensure_ascii=False)
+
+            time = datetime.now().replace(tzinfo=timezone.utc)
+
+            query = text("""
+                INSERT INTO public.notifications
+                (destination, "data", "date", status)
+                VALUES (:destination, :data, :date, NULL);
+            """)
+            session.execute(query, {
+                'destination': 'ignis',
+                'data': data_json,
+                'date': time
+            })
+            session.commit()
+
+            print(f"[INFO] Notificación enviada para la misión {id_mission}")
+
+        except Exception as e:
+            session.rollback()
+            print(f"[ERROR] Error al insertar notificación: {str(e)}")
+        finally:
+            session.close()
 
 
 # Configuración del DAG

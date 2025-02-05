@@ -13,7 +13,7 @@ import io
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 from collections import defaultdict
-from dag_utils import get_db_session
+from dag_utils import get_db_session, get_minio_client
 
 
 def process_extracted_files(**kwargs):
@@ -71,15 +71,8 @@ def process_extracted_files(**kwargs):
             else:
                 parent = unique_id_child
 
-            connection = BaseHook.get_connection('minio_conn')
-            extra = json.loads(connection.extra)
-            s3_client = boto3.client(
-                's3',
-                endpoint_url=extra['endpoint_url'],
-                aws_access_key_id=extra['aws_access_key_id'],
-                aws_secret_access_key=extra['aws_secret_access_key'],
-                config=Config(signature_version='s3v4')
-            )
+            s3_client = get_minio_client()
+
             bucket_name = 'missions'
 
             print(f"Subiendo archivos de la carpeta: {folder}")
@@ -102,16 +95,7 @@ def process_extracted_files(**kwargs):
 
     # Subir el JSON (algorithm_result) al padre en MinIO
     try:
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
-
+        s3_client = get_minio_client()
         bucket_name = 'missions'
         json_key = f"{parent}/algorithm_result.json"
         json_str = json.dumps(json_content).encode('utf-8')
@@ -131,16 +115,7 @@ def process_extracted_files(**kwargs):
 
     #Subimos el algorithm_result a la carpeta del padre
     try:
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
-
+        s3_client = get_minio_client()
         bucket_name = 'missions'  
         json_key = parent +'/' + 'algorithm_result.json'
 

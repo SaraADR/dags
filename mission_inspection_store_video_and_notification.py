@@ -10,11 +10,12 @@ from airflow.hooks.base import BaseHook
 import io
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from dag_utils import get_db_session, get_minio_client
 from moviepy import VideoFileClip
 import tempfile
 import os
-from dag_utils import get_db_session
 
+# Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
     video = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
@@ -33,7 +34,6 @@ def process_extracted_files(**kwargs):
 
     print(f"MissionID: {id_mission}")
 
-    # Conexión a la base de datos para buscar Mission Inspection
     try:
         session = get_db_session()
         engine = session.get_bind()
@@ -56,22 +56,15 @@ def process_extracted_files(**kwargs):
     print(f"Mission Inspection ID: {mission_inspection_id}")
 
     uuid_key = uuid.uuid4()
-    print(f"UUID generado para almacenamiento: {uuid_key}")
+    print(f"UUID generado para almacenamiento: {uuid_key}")  
+
 
     for videos in video:
         video_file_name = videos['file_name']
         video_content = base64.b64decode(videos['content'])
 
-        # Subir videos a MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
+        s3_client = get_minio_client()
+
 
         bucket_name = 'missions'
         video_key = str(uuid_key) + '/' + video_file_name
@@ -83,36 +76,6 @@ def process_extracted_files(**kwargs):
         )
         print(f'{video_file_name} subido correctamente a MinIO.')
 
-         # Procesar video con is_visible_or_ter
-        print(f"Procesando metadatos del video {video_file_name} con is_visible_or_ter.")
-        print(f"Extrayendo datos clave...")
-
-            # Extraer datos clave del JSON
-        metadata = {item['name']: item['value'] for item in json_content['metadata']}
-
-        mission_id = metadata.get("MissionID", "Desconocido")
-        aircraft_number_plate = metadata.get("AircraftNumberPlate", "No disponible")
-        pilot_name = metadata.get("PilotName", "No disponible")
-        operator_name = metadata.get("OperatorName", "No disponible")
-        reference_system = metadata.get("ReferenceSystem", "No disponible")
-
-        # Mostrar los datos clave extraídos
-        print(f"Datos clave extraídos del JSON:")
-        print(f"- Misión (MissionID): {mission_id}")
-        print(f"- Matrícula (AircraftNumberPlate): {aircraft_number_plate}")
-        print(f"- Piloto (PilotName): {pilot_name}")
-        print(f"- Operador (OperatorName): {operator_name}")
-        print(f"- Sistema de Referencia Geográfica (ReferenceSystem): {reference_system}")
-
-        is_visible_or_ter(
-            message=video_file_name,
-            local_zip_path="temp/" + video_file_name,
-            output=json.dumps(json_content),  # Usa json_content para metadatos
-            output_json=json_content,
-            type=-1  # Tipo -1 para videos
-        )
-
-    # Subir JSON a MinIO
     json_str = json.dumps(json_content).encode('utf-8')
     json_key = str(uuid_key) + '/' + 'algorithm_result.json'
 
@@ -124,8 +87,8 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
-    # Registrar el video en la base de datos
     try:
+
         id_resource_uuid = uuid.UUID(video_key.split('/')[0])
 
         query = text("""
@@ -139,11 +102,14 @@ def process_extracted_files(**kwargs):
     except Exception as e:
         session.rollback()
         print(f"Error al insertar video en mss_inspection_video: {str(e)}")
+
+
     finally:
         session.close()
         print("Conexión a la base de datos cerrada correctamente")
 
     return str(uuid_key)
+
 
 # Función para convertir archivos TS a MP4
 def convert_ts_files(**kwargs):
@@ -177,15 +143,8 @@ def convert_ts_files(**kwargs):
             bucket_name = 'missions'
             mp4_file_name = file_name.replace('.ts', '.mp4')
             with open(mp4_path, 'rb') as f:
-                connection = BaseHook.get_connection('minio_conn')
-                extra = json.loads(connection.extra)
-                s3_client = boto3.client(
-                    's3',
-                    endpoint_url=extra['endpoint_url'],
-                    aws_access_key_id=extra['aws_access_key_id'],
-                    aws_secret_access_key=extra['aws_secret_access_key'],
-                    config=Config(signature_version='s3v4')
-                )
+                
+                s3_client = get_minio_client()
 
                 s3_client.put_object(
                     Bucket=bucket_name,
@@ -208,7 +167,6 @@ def generate_notify_job(**context):
     if id_mission:
         try:
             session = get_db_session()
-            engine = session.get_bind()
 
             data_json = json.dumps({
                 "to": "all_users",

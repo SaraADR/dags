@@ -18,6 +18,8 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
 
+from dag_utils import get_minio_client
+
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
     try:
@@ -30,15 +32,8 @@ def consumer_function(message, prefix, **kwargs):
     file_path_in_minio =  msg_value  
         
     # Establecer conexión con MinIO
-    connection = BaseHook.get_connection('minio_conn')
-    extra = json.loads(connection.extra)
-    s3_client = boto3.client(
-        's3',
-        endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
-        config=Config(signature_version='s3v4')
-    )
+    s3_client = get_minio_client()
+
 
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'temp'

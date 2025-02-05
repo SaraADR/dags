@@ -10,6 +10,7 @@ from flask import Config
 import requests
 import logging
 import io  # Para manejar el archivo XML en memoria
+from dag_utils import get_minio_client
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
@@ -70,15 +71,8 @@ def convertir_coords(epsg_input,south, west, north, east):
 def up_to_minio(temp_dir, filename):
     try:
         # Conexión a MinIO
-        connection = BaseHook.get_connection('minio_conn')
-        extra = json.loads(connection.extra)
-        s3_client = boto3.client(
-            's3',
-            endpoint_url=extra['endpoint_url'],
-            aws_access_key_id=extra['aws_access_key_id'],
-            aws_secret_access_key=extra['aws_secret_access_key'],
-            config=Config(signature_version='s3v4')
-        )
+        s3_client = get_minio_client()
+
         bucket_name = 'metashapetiffs'
         
         # Ruta completa del archivo local a subir
@@ -92,7 +86,7 @@ def up_to_minio(temp_dir, filename):
             print(f"Archivo {filename} subido correctamente a MinIO.")
             
             # Generar la URL del archivo subido
-            file_url = f"http://minio.swarm-training.biodiversidad.einforex.net/{bucket_name}/{filename}"
+            file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{filename}"
             print(f"URL: {file_url}")
             return file_url
 
@@ -196,7 +190,7 @@ def generate_xml(**kwargs):
     organization_name = 'Avincis'
     email_address = ' admin@einforex.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link_conn =  BaseHook.get_connection('geoserver_capabilites')
+    wms_link_conn =  BaseHook.get_connection('geonetwork_conn')
     wms_link = wms_link_conn.host
             
      
@@ -297,14 +291,11 @@ def generate_xml(**kwargs):
     # Store the base64 encoded XML content in XCom
     return xml_encoded
 
-
-
-
 # Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
     try:
 
-        conn = BaseHook.get_connection('geonetwork_credentials')
+        conn = BaseHook.get_connection('geonetwork_conn')
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
@@ -335,7 +326,7 @@ def get_geonetwork_credentials():
 def upload_to_geonetwork(**context):
     try:
         # Obtener la conexión configurada en Airflow
-        connection = BaseHook.get_connection("geonetwork_connection")
+        connection = BaseHook.get_connection("geonetwork_update_conn")
         
         # Extraer el host y construir la URL de subida
         upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
@@ -347,7 +338,7 @@ def upload_to_geonetwork(**context):
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
 
         for xml_data in xml_data_array:
-            # Decodificar el XML de base64 a texto
+        
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
             logging.info(f"XML DATA: {xml_data}")
@@ -376,7 +367,8 @@ def upload_to_geonetwork(**context):
 
             # Realizar la solicitud POST para subir el archivo XML
             logging.info(f"Subiendo XML a la URL: {upload_url}")
-            response = requests.post(upload_url, files=files, data=data, headers=headers)
+            response = requests.post(upload_url,files=files,data=data, headers=headers)
+            logging.info(response)
 
             # Verificar si hubo algún error en la solicitud
             response.raise_for_status()
