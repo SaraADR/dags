@@ -11,9 +11,8 @@ from datetime import datetime, timedelta
 import calendar
 
 class FechaProxima:
-    def __init__(self, fecha_str):
-        # self.hoy = datetime.today()
-        self.hoy = datetime.strptime(fecha_str, "%Y-%m-%d")
+    def __init__(self):
+        self.hoy = datetime.today()
 
     def restar_meses(self, fecha, meses):
         mes = fecha.month - 1 - meses
