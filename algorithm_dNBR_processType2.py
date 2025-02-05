@@ -14,8 +14,8 @@ class FechaProxima:
     def __init__(self):
         self.hoy = datetime.today()
 
-    def sumar_meses(self, fecha, meses):
-        mes = fecha.month - 1 + meses
+    def restar_meses(self, fecha, meses):
+        mes = fecha.month - 1 - meses
         año = fecha.year + mes // 12
         mes = mes % 12 + 1
         dia = min(fecha.day, calendar.monthrange(año, mes)[1])
@@ -24,7 +24,7 @@ class FechaProxima:
     def obtener_fechas(self, meses_minimo, meses_maximo):
         fechas = []
         for meses in range(int(meses_minimo), int(meses_maximo) + 1, int(meses_minimo)):
-            fechas.append(self.sumar_meses(self.hoy, meses).strftime("%Y-%m-%d"))
+            fechas.append(self.restar_meses(self.hoy, meses).strftime("%Y-%m-%d"))
         return fechas
 
 def process_element(**context):
