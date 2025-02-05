@@ -27,6 +27,14 @@ class FechaProxima:
         for meses in range(int(meses_minimo), int(meses_maximo) + 1, int(meses_minimo)):
             fechas.append(self.restar_meses(self.hoy, meses).strftime("%Y-%m-%d"))
         return fechas
+    
+    def obtener_fechas_exactas(self, meses_minimo, meses_maximo):
+        fechas = []
+        for meses in range(int(meses_minimo), int(meses_maximo) + 1, int(meses_minimo)):
+            fecha_resta = self.restar_meses(self.hoy, meses)
+            if fecha_resta.day == self.hoy.day:
+                fechas.append(fecha_resta.strftime("%Y-%m-%d"))
+        return fechas
 
 def process_element(**context):
 
@@ -42,7 +50,6 @@ def process_element(**context):
     print(f"Valor de la variable tipo2mesesmaximo en Airflow: {tipo2mesesmaximo}")
 
 
-
     # Ejemplo de uso con el 30 de mayo
     fecha_proxima_mayo = FechaProxima("2023-05-30")
     print("Fechas a partir del 30 de mayo:", fecha_proxima_mayo.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
@@ -51,22 +58,30 @@ def process_element(**context):
     fecha_proxima_agosto = FechaProxima("2023-08-31")
     print("Fechas a partir del 31 de agosto:", fecha_proxima_agosto.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
 
+    # Ejemplo de uso con el 30 de mayo fechas exactas
+    fecha_proxima_mayo = FechaProxima("2023-05-30")
+    print("Fechas a partir del 30 de mayo:", fecha_proxima_mayo.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+
+    # Ejemplo de uso con el 31 de agosto fechas exactas
+    fecha_proxima_agosto = FechaProxima("2023-08-31")
+    print("Fechas a partir del 31 de agosto:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+
 
     # # Obtener fechas usando la clase FechaProxima
     # fechas = FechaProxima()
     # fechas_a_buscar = fechas.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo)
     # print(f"Fechas calculadas: {fechas_a_buscar}")
 
-    fechas_query = "','".join(fecha_proxima_mayo)
-    query = f"""
-        SELECT m.id, mf.fire_id, m.start_date, m.end_date
-        FROM missions.mss_mission m
-        JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
-        WHERE m.end_date::DATE IN ('{fechas_query}')
-    """
+    # fechas_query = "','".join(fechas_a_buscar)
+    # query = f"""
+    #     SELECT m.id, mf.fire_id, m.start_date, m.end_date
+    #     FROM missions.mss_mission m
+    #     JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
+    #     WHERE m.end_date::DATE IN ('{fechas_query}')
+    # """
 
-    result = execute_query('biobd', query)
-    print(result)
+    # result = execute_query('biobd', query)
+    # print(result)
 
 default_args = {
     'owner': 'sadr',
