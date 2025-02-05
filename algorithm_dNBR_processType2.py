@@ -11,8 +11,9 @@ from datetime import datetime, timedelta
 import calendar
 
 class FechaProxima:
-    def __init__(self):
-        self.hoy = datetime.today()
+    def __init__(self, fecha_str):
+        # self.hoy = datetime.today()
+        self.hoy = datetime.strptime(fecha_str, "%Y-%m-%d")
 
     def restar_meses(self, fecha, meses):
         mes = fecha.month - 1 - meses
@@ -40,12 +41,23 @@ def process_element(**context):
     tipo2mesesmaximo = Variable.get("dNBR_mesesFinIncendioMaximo", default_var="1200")
     print(f"Valor de la variable tipo2mesesmaximo en Airflow: {tipo2mesesmaximo}")
 
-    # Obtener fechas usando la clase FechaProxima
-    fechas = FechaProxima()
-    fechas_a_buscar = fechas.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo)
-    print(f"Fechas calculadas: {fechas_a_buscar}")
 
-    fechas_query = "','".join(fechas_a_buscar)
+
+    # Ejemplo de uso con el 30 de mayo
+    fecha_proxima_mayo = FechaProxima("2023-05-30")
+    print("Fechas a partir del 30 de mayo:", fecha_proxima_mayo.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
+
+    # Ejemplo de uso con el 31 de agosto
+    fecha_proxima_agosto = FechaProxima("2023-08-31")
+    print("Fechas a partir del 31 de agosto:", fecha_proxima_agosto.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
+
+
+    # # Obtener fechas usando la clase FechaProxima
+    # fechas = FechaProxima()
+    # fechas_a_buscar = fechas.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo)
+    # print(f"Fechas calculadas: {fechas_a_buscar}")
+
+    fechas_query = "','".join(fecha_proxima_mayo)
     query = f"""
         SELECT m.id, mf.fire_id, m.start_date, m.end_date
         FROM missions.mss_mission m
