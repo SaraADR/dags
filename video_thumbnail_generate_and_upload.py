@@ -110,9 +110,8 @@ def process_and_generate_video_thumbnails(**kwargs):
 
 # ----------- PROCESAMIENTO DE IMÁGENES -----------
 
-
 def process_and_generate_image_thumbnails(**kwargs):
-    """Procesa imágenes detectadas, genera miniaturas y las sube a MinIO, manteniendo el original."""
+    """Procesa imágenes detectadas, genera miniaturas y mueve ambas a la carpeta /thumbs en MinIO."""
     images = kwargs['task_instance'].xcom_pull(key='new_images', default=[])
     if not images:
         print("No hay nuevas imágenes para procesar.")
@@ -136,21 +135,26 @@ def process_and_generate_image_thumbnails(**kwargs):
         image_path = os.path.join(temp_dir, f"image{original_extension}")
         thumbnail_path = os.path.join(temp_dir, "thumb.jpg")
 
-        # Generar un nombre único para la miniatura
+        # Generar rutas para la carpeta /thumbs
         base_name = os.path.splitext(os.path.basename(image_key))[0]
-        thumbnail_key = os.path.join(os.path.dirname(image_key), f"{base_name}_thumb.jpg")
+        original_in_thumbs_key = os.path.join("thumbs", os.path.basename(image_key))  # Original en /thumbs
+        thumbnail_key = os.path.join("thumbs", f"{base_name}_thumb.jpg")  # Miniatura en /thumbs
 
         try:
             # Descargar archivo original desde MinIO
             s3_client.download_file(bucket_name, image_key, image_path)
 
-            # Procesar la imagen para generar una miniatura (si es TIFF, se convierte a JPG)
-            clip = ImageClip(image_path)
-            clip.save_frame(thumbnail_path)  # Genera la miniatura
+            # Subir el archivo original a la carpeta /thumbs
+            s3_client.upload_file(image_path, bucket_name, original_in_thumbs_key)
+            print(f"Archivo original movido a /thumbs: {original_in_thumbs_key}")
 
-            # Subir la miniatura al bucket (junto al original)
+            # Procesar la imagen para generar una miniatura
+            clip = ImageClip(image_path)
+            clip.save_frame(thumbnail_path)  # Generar miniatura
+
+            # Subir la miniatura a la carpeta /thumbs
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
-            print(f"Miniatura subida: {thumbnail_key}")
+            print(f"Miniatura subida a /thumbs: {thumbnail_key}")
 
             # Registrar el archivo procesado
             processed_images.append({"key": image_key, "uuid": str(uuid.uuid4())})
