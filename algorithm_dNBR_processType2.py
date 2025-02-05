@@ -21,12 +21,6 @@ class FechaProxima:
         mes = mes % 12 + 1
         dia = min(fecha.day, calendar.monthrange(año, mes)[1])
         return fecha.replace(year=año, month=mes, day=dia)
-
-    def obtener_fechas(self, meses_minimo, meses_maximo):
-        fechas = []
-        for meses in range(int(meses_minimo), int(meses_maximo) + 1, int(meses_minimo)):
-            fechas.append(self.restar_meses(self.hoy, meses).strftime("%Y-%m-%d"))
-        return fechas
     
     def obtener_fechas_exactas(self, meses_minimo, meses_maximo):
         fechas = []
@@ -50,45 +44,19 @@ def process_element(**context):
     print(f"Valor de la variable tipo2mesesmaximo en Airflow: {tipo2mesesmaximo}")
 
 
-    # Ejemplo de uso con el 30 de mayo fechas exactas
-    fecha_proxima_mayo = FechaProxima("2024-05-28")
-    print("Fechas a partir del 28 de mayo de 2025:", fecha_proxima_mayo.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
-
-    # Ejemplo de uso con el 31 de agosto fechas exactas
-    fecha_proxima_agosto = FechaProxima("2024-05-29")
-    print("Fechas a partir del 29 de mayo de 2025:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
-
-    # Ejemplo de uso con el 30 de mayo fechas exactas
-    fecha_proxima_mayo = FechaProxima("2024-05-30")
-    print("Fechas a partir del 30 de mayo de 2025:", fecha_proxima_mayo.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
-
-    # Ejemplo de uso con el 31 de agosto fechas exactas
-    fecha_proxima_agosto = FechaProxima("2024-05-31")
-    print("Fechas a partir del 31 de mayo de 2025:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
-
-    print("----------------------------------------------------")
 
 
+    # Obtener fechas usando la clase FechaProxima
+    fechas = FechaProxima()
+    fechas_a_buscar = fechas.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo)
+    print(f"Fechas calculadas: {fechas_a_buscar}")
+    fechas_query = "','".join(fechas_a_buscar)
 
-
-
-
-
-    fecha_proxima_agosto = FechaProxima("2025-02-05")
-    print("Hoy:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
-
-
-    # # Obtener fechas usando la clase FechaProxima
-    # fechas = FechaProxima()
-    # fechas_a_buscar = fechas.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo)
-    # print(f"Fechas calculadas: {fechas_a_buscar}")
-
-    fechas_query = "','".join(fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
     query = f"""
         SELECT m.id, mf.fire_id, m.start_date, m.end_date
         FROM missions.mss_mission m
         JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
-        WHERE m.end_date::DATE IN ('{fechas_query}')
+        WHERE mf.extinguishing_timestamp::DATE IN ('{fechas_query}')
     """
 
     result = execute_query('biobd', query)
