@@ -87,8 +87,9 @@ def process_and_generate_video_thumbnails(**kwargs):
 
         temp_dir = tempfile.mkdtemp()
         video_path = os.path.join(temp_dir, "video.mp4")
-        thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
-        thumbnail_key = os.path.join("/thumbs", os.path.basename(video_key).replace('.mp4', 'thumb.jpg'))
+        base_name = os.path.splitext(os.path.basename(video_key))[0]
+        thumbnail_path = os.path.join(temp_dir, f"{base_name}_thumb.jpg")
+        thumbnail_key = os.path.join("/thumbs", f"{base_name}_thumb.jpg")
 
         try:
             s3_client.download_file(bucket_name, video_key, video_path)
@@ -109,44 +110,74 @@ def process_and_generate_video_thumbnails(**kwargs):
 
 # ----------- PROCESAMIENTO DE IMÁGENES -----------
 
+
 def process_and_generate_image_thumbnails(**kwargs):
-    """Procesa imágenes detectadas, genera miniaturas y las sube a MinIO."""
+    """Procesa imágenes detectadas, genera miniaturas y mueve ambas a la carpeta /thumbs en MinIO."""
     images = kwargs['task_instance'].xcom_pull(key='new_images', default=[])
     if not images:
         print("No hay nuevas imágenes para procesar.")
         return
 
     s3_client = get_minio_client()
-
-
     bucket_name = 'tmp'
     processed_file_key = 'processed_images.json'
     processed_images = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
 
     for image_key in images:
+        # Evitar procesar miniaturas dentro de /thumbs
+        if "/thumbs/" in image_key or "_thumb" in image_key:
+            print(f"Omitiendo archivo en bucle: {image_key}")
+            continue
+
+        # Verificar si la imagen ya ha sido procesada
+        if image_key in [img['key'] for img in processed_images]:
+            print(f"Imagen ya procesada, omitiendo: {image_key}")
+            continue
+
         print(f"Procesando imagen: {image_key}")
 
         temp_dir = tempfile.mkdtemp()
-        image_path = os.path.join(temp_dir, "image")
-        thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
-        thumbnail_key = os.path.join("/thumbs", os.path.basename(image_key).replace('.jpg', 'thumb.jpg'))
+        original_extension = os.path.splitext(image_key)[-1].lower()
+        image_path = os.path.join(temp_dir, f"image{original_extension}")
+        thumbnail_path = os.path.join(temp_dir, "thumb.jpg")
+
+        # Generar rutas para la carpeta /thumbs
+        base_name = os.path.splitext(os.path.basename(image_key))[0]
+        original_in_thumbs_key = os.path.join("thumbs", os.path.basename(image_key))  # Original en /thumbs
+        thumbnail_key = os.path.join("thumbs", f"{base_name}_thumb.jpg")  # Miniatura en /thumbs
 
         try:
+            # Descargar archivo original desde MinIO
             s3_client.download_file(bucket_name, image_key, image_path)
-            clip = ImageClip(image_path)
-            clip.save_frame(thumbnail_path)
 
+            # Subir el archivo original a la carpeta /thumbs (si aún no existe)
+            if not any(img['key'] == original_in_thumbs_key for img in processed_images):
+                s3_client.upload_file(image_path, bucket_name, original_in_thumbs_key)
+                print(f"Archivo original movido a /thumbs: {original_in_thumbs_key}")
+
+            # Procesar la imagen para generar una miniatura
+            clip = ImageClip(image_path)
+            clip.save_frame(thumbnail_path)  # Generar miniatura
+
+            # Subir la miniatura a la carpeta /thumbs
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
+            print(f"Miniatura subida a /thumbs: {thumbnail_key}")
+
+            # Registrar el archivo procesado
             processed_images.append({"key": image_key, "uuid": str(uuid.uuid4())})
 
         except Exception as e:
             print(f"Error procesando {image_key}: {e}")
         finally:
+            # Limpieza de archivos temporales
             os.remove(image_path) if os.path.exists(image_path) else None
             os.remove(thumbnail_path) if os.path.exists(thumbnail_path) else None
             os.rmdir(temp_dir)
 
+    # Guardar el registro actualizado de archivos procesados en MinIO
     save_processed_files_to_minio(s3_client, bucket_name, processed_file_key, processed_images)
+
+
 
 # ----------- CONFIGURACIÓN DEL DAG -----------
 
