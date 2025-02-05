@@ -110,6 +110,7 @@ def process_and_generate_video_thumbnails(**kwargs):
 
 # ----------- PROCESAMIENTO DE IMÁGENES -----------
 
+
 def process_and_generate_image_thumbnails(**kwargs):
     """Procesa imágenes detectadas, genera miniaturas y las sube a MinIO."""
     images = kwargs['task_instance'].xcom_pull(key='new_images', default=[])
@@ -118,12 +119,16 @@ def process_and_generate_image_thumbnails(**kwargs):
         return
 
     s3_client = get_minio_client()
-
     bucket_name = 'tmp'
     processed_file_key = 'processed_images.json'
     processed_images = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
 
     for image_key in images:
+        # Evitar procesar archivos de miniaturas ya generadas
+        if "/thumbs/" in image_key:
+            print(f"Omitiendo miniatura ya generada: {image_key}")
+            continue
+
         print(f"Procesando imagen: {image_key}")
 
         temp_dir = tempfile.mkdtemp()
@@ -131,18 +136,18 @@ def process_and_generate_image_thumbnails(**kwargs):
         image_path = os.path.join(temp_dir, f"image{original_extension}")
         thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
 
-        # Genera una miniatura con el mismo nombre base pero en .jpg
+        # Nombre único de la miniatura basado en el archivo original
         base_name = os.path.splitext(os.path.basename(image_key))[0]
-        thumbnail_key = os.path.join("/thumbs", f"{base_name}_thumb.jpg")
+        thumbnail_key = os.path.join("thumbs", f"{base_name}_thumb.jpg")
 
         try:
             s3_client.download_file(bucket_name, image_key, image_path)
 
             # Procesar imagen con MoviePy
             clip = ImageClip(image_path)
-            clip.save_frame(thumbnail_path, withmask=False)  # Guarda como JPG
+            clip.save_frame(thumbnail_path)  # **Corregido: Se eliminó withmask=False**
 
-            # Subir miniatura convertida
+            # Subir miniatura convertida a MinIO
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
             processed_images.append({"key": image_key, "uuid": str(uuid.uuid4())})
 
@@ -154,6 +159,7 @@ def process_and_generate_image_thumbnails(**kwargs):
             os.rmdir(temp_dir)
 
     save_processed_files_to_minio(s3_client, bucket_name, processed_file_key, processed_images)
+
 # ----------- CONFIGURACIÓN DEL DAG -----------
 
 default_args = {
