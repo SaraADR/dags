@@ -110,7 +110,6 @@ def process_and_generate_video_thumbnails(**kwargs):
 # ----------- PROCESAMIENTO DE IMÁGENES -----------
 
 
-from moviepy.editor import ImageClip
 
 def process_and_generate_image_thumbnails(**kwargs):
     """Procesa imágenes detectadas, genera miniaturas y las sube a MinIO."""
