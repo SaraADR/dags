@@ -47,10 +47,13 @@ def process_thumbnail_message(message, **kwargs):
         bucket_name = "tmp"
 
         # Generar la nueva ruta para la miniatura
+        # Generar la nueva ruta para la miniatura
         nombre_archivo = os.path.basename(ruta_imagen_original)
         carpeta_original = os.path.dirname(ruta_imagen_original)
-        thumbnail_key = f"thumbs/{nombre_archivo}"
-        nueva_ruta_thumbnail = f"{carpeta_original}/{nombre_archivo}"
+
+        # Cambia la extensión a .jpg
+        thumbnail_key = f"thumbs/{os.path.splitext(nombre_archivo)[0]}.jpg"
+        nueva_ruta_thumbnail = f"{carpeta_original}/{os.path.splitext(nombre_archivo)[0]}.jpg"
 
         print(f"[DEBUG] Thumbnail key: {thumbnail_key}")
         print(f"[DEBUG] Nueva ruta de thumbnail: {nueva_ruta_thumbnail}")
@@ -61,6 +64,7 @@ def process_thumbnail_message(message, **kwargs):
         if 'Contents' not in response:
             print(f"[ERROR] El archivo '{thumbnail_key}' no existe en el bucket '{bucket_name}'.")
             return
+
 
         # Mover la miniatura en MinIO
         print(f"[INFO] Archivo encontrado. Procediendo a mover la miniatura.")
