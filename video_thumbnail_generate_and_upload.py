@@ -68,44 +68,56 @@ def scan_minio_for_files(**kwargs):
 
 # ----------- PROCESAMIENTO DE VIDEOS -----------
 
-def process_and_generate_video_thumbnails(**kwargs):
-    """Procesa videos detectados, genera miniaturas y las sube a MinIO."""
-    videos = kwargs['task_instance'].xcom_pull(key='new_videos', default=[])
-    if not videos:
-        print("No hay nuevos videos para procesar.")
+from moviepy.video.io.ImageSequenceClip import ImageClip  # Manteniendo moviepy
+
+def process_and_generate_image_thumbnails(**kwargs):
+    """Procesa imágenes detectadas, genera miniaturas y las sube a MinIO."""
+    images = kwargs['task_instance'].xcom_pull(key='new_images', default=[])
+    if not images:
+        print("No hay nuevas imágenes para procesar.")
         return
 
-    # Import de la función get_s3_client
     s3_client = get_minio_client()
-
     bucket_name = 'tmp'
-    processed_file_key = 'processed_videos.json'
-    processed_videos = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
+    processed_file_key = 'processed_images.json'
+    processed_images = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
 
-    for video_key in videos:
-        print(f"Procesando video: {video_key}")
+    for image_key in images:
+        print(f"Procesando imagen: {image_key}")
 
         temp_dir = tempfile.mkdtemp()
-        video_path = os.path.join(temp_dir, "video.mp4")
-        thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
-        thumbnail_key = os.path.join("/thumbs", os.path.basename(video_key).replace('.mp4', 'thumb.jpg'))
+        original_ext = os.path.splitext(image_key)[1].lower()
+        image_path = os.path.join(temp_dir, f"image{original_ext}")
+        converted_image_path = os.path.join(temp_dir, "image_converted.jpg")
+        thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")  # Siempre guardar como .jpg
+        thumbnail_key = os.path.join("/thumbs", os.path.basename(image_key).rsplit('.', 1)[0] + '_thumb.jpg')
 
         try:
-            s3_client.download_file(bucket_name, video_key, video_path)
-            with VideoFileClip(video_path) as video:
-                video.save_frame(thumbnail_path, t=10)
+            s3_client.download_file(bucket_name, image_key, image_path)
+            
+            if original_ext in ['.tiff', '.tif']:  # Convertir TIFF a JPG usando moviepy
+                with ImageClip(image_path) as clip:
+                    clip.save_frame(converted_image_path)  # Guardar como JPG
+                image_path = converted_image_path  # Usar la imagen convertida
+            
+            # Generar la miniatura
+            with ImageClip(image_path) as clip:
+                clip.save_frame(thumbnail_path)
 
+            # Subir la miniatura a MinIO
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
-            processed_videos.append({"key": video_key, "uuid": str(uuid.uuid4())})
+            processed_images.append({"key": image_key, "uuid": str(uuid.uuid4())})
 
         except Exception as e:
-            print(f"Error procesando {video_key}: {e}")
+            print(f"Error procesando {image_key}: {e}")
         finally:
-            os.remove(video_path) if os.path.exists(video_path) else None
+            os.remove(image_path) if os.path.exists(image_path) else None
+            os.remove(converted_image_path) if os.path.exists(converted_image_path) else None
             os.remove(thumbnail_path) if os.path.exists(thumbnail_path) else None
             os.rmdir(temp_dir)
 
-    save_processed_files_to_minio(s3_client, bucket_name, processed_file_key, processed_videos)
+    save_processed_files_to_minio(s3_client, bucket_name, processed_file_key, processed_images)
+
 
 # ----------- PROCESAMIENTO DE IMÁGENES -----------
 
