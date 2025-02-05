@@ -110,6 +110,7 @@ def process_and_generate_video_thumbnails(**kwargs):
 
 # ----------- PROCESAMIENTO DE IMÁGENES -----------
 
+
 def process_and_generate_image_thumbnails(**kwargs):
     """Procesa imágenes detectadas, genera miniaturas y mueve ambas a la carpeta /thumbs en MinIO."""
     images = kwargs['task_instance'].xcom_pull(key='new_images', default=[])
@@ -123,6 +124,11 @@ def process_and_generate_image_thumbnails(**kwargs):
     processed_images = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
 
     for image_key in images:
+        # Evitar procesar miniaturas dentro de /thumbs
+        if "/thumbs/" in image_key or "_thumb" in image_key:
+            print(f"Omitiendo archivo en bucle: {image_key}")
+            continue
+
         # Verificar si la imagen ya ha sido procesada
         if image_key in [img['key'] for img in processed_images]:
             print(f"Imagen ya procesada, omitiendo: {image_key}")
@@ -144,9 +150,10 @@ def process_and_generate_image_thumbnails(**kwargs):
             # Descargar archivo original desde MinIO
             s3_client.download_file(bucket_name, image_key, image_path)
 
-            # Subir el archivo original a la carpeta /thumbs
-            s3_client.upload_file(image_path, bucket_name, original_in_thumbs_key)
-            print(f"Archivo original movido a /thumbs: {original_in_thumbs_key}")
+            # Subir el archivo original a la carpeta /thumbs (si aún no existe)
+            if not any(img['key'] == original_in_thumbs_key for img in processed_images):
+                s3_client.upload_file(image_path, bucket_name, original_in_thumbs_key)
+                print(f"Archivo original movido a /thumbs: {original_in_thumbs_key}")
 
             # Procesar la imagen para generar una miniatura
             clip = ImageClip(image_path)
@@ -169,6 +176,7 @@ def process_and_generate_image_thumbnails(**kwargs):
 
     # Guardar el registro actualizado de archivos procesados en MinIO
     save_processed_files_to_minio(s3_client, bucket_name, processed_file_key, processed_images)
+
 
 
 # ----------- CONFIGURACIÓN DEL DAG -----------
