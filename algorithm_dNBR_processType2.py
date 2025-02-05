@@ -29,6 +29,7 @@ class FechaProxima:
                 fechas.append(fecha_resta.strftime("%Y-%m-%d"))
         return fechas
 
+
 def process_element(**context):
 
     madrid_tz = pytz.timezone('Europe/Madrid')
