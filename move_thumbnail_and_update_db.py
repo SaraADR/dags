@@ -52,8 +52,9 @@ def process_thumbnail_message(message, **kwargs):
         carpeta_original = os.path.dirname(ruta_imagen_original)
 
         # Cambia la extensión a .jpg
-        thumbnail_key = f"thumbs/{os.path.splitext(nombre_archivo)[0]}.jpg"
-        nueva_ruta_thumbnail = f"{carpeta_original}/{os.path.splitext(nombre_archivo)[0]}.jpg"
+        thumbnail_key = f"thumbs/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
+        nueva_ruta_thumbnail = f"{carpeta_original}/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
+
 
         print(f"[DEBUG] Thumbnail key: {thumbnail_key}")
         print(f"[DEBUG] Nueva ruta de thumbnail: {nueva_ruta_thumbnail}")
