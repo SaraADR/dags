@@ -51,26 +51,29 @@ def process_element(**context):
 
 
     # Ejemplo de uso con el 30 de mayo fechas exactas
+    fecha_proxima_mayo = FechaProxima("2024-05-28")
+    print("Fechas a partir del 28 de mayo de 2025:", fecha_proxima_mayo.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+
+    # Ejemplo de uso con el 31 de agosto fechas exactas
+    fecha_proxima_agosto = FechaProxima("2024-05-29")
+    print("Fechas a partir del 29 de agosto de 2025:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+
+    # Ejemplo de uso con el 30 de mayo fechas exactas
     fecha_proxima_mayo = FechaProxima("2024-05-30")
     print("Fechas a partir del 30 de mayo de 2025:", fecha_proxima_mayo.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
 
     # Ejemplo de uso con el 31 de agosto fechas exactas
-    fecha_proxima_agosto = FechaProxima("2024-08-31")
-    print("Fechas a partir del 31 de agosto de 2025:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+    fecha_proxima_agosto = FechaProxima("2024-05-31")
+    print("Fechas a partir del 31 de mayo de 2025:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
 
     print("----------------------------------------------------")
 
-    # Ejemplo de uso con el 30 de mayo
-    fecha_proxima_mayo = FechaProxima("2024-05-30")
-    print("Fechas a partir del 30 de mayo de 2025:", fecha_proxima_mayo.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
-
-    # Ejemplo de uso con el 31 de agosto
-    fecha_proxima_agosto = FechaProxima("2024-08-31")
-    print("Fechas a partir del 31 de agosto de 2025:", fecha_proxima_agosto.obtener_fechas(tipo2mesesminimo, tipo2mesesmaximo))
 
 
-    print("----------------------------------------------------")
-    
+
+
+
+
     fecha_proxima_agosto = FechaProxima("2025-02-05")
     print("Hoy:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
 
