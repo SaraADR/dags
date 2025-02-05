@@ -76,7 +76,7 @@ dag = DAG(
     'algorithm_dNBR_process_Type2',
     default_args=default_args,
     description='Algoritmo dNBR Type2',
-    schedule_interval='*/2 * * * *',
+    schedule_interval='@daily', 
     catchup=False,
     max_active_runs=1,
     concurrency=1
