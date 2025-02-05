@@ -67,7 +67,7 @@ def process_element(**context):
     print("Fechas a partir del 31 de agosto de 2025:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
 
     fecha_proxima_agosto = FechaProxima("2025-02-05")
-    print("Fechas a partir del 31 de agosto de 2025:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
+    print("Hoy:", fecha_proxima_agosto.obtener_fechas_exactas(tipo2mesesminimo, tipo2mesesmaximo))
 
 
     # # Obtener fechas usando la clase FechaProxima
