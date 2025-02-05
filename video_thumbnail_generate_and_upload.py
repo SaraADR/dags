@@ -110,6 +110,8 @@ def process_and_generate_video_thumbnails(**kwargs):
 # ----------- PROCESAMIENTO DE IMÁGENES -----------
 
 
+from moviepy.editor import ImageClip
+
 def process_and_generate_image_thumbnails(**kwargs):
     """Procesa imágenes detectadas, genera miniaturas y las sube a MinIO."""
     images = kwargs['task_instance'].xcom_pull(key='new_images', default=[])
@@ -118,6 +120,7 @@ def process_and_generate_image_thumbnails(**kwargs):
         return
 
     s3_client = get_minio_client()
+
     bucket_name = 'tmp'
     processed_file_key = 'processed_images.json'
     processed_images = load_processed_files_from_minio(s3_client, bucket_name, processed_file_key)
@@ -126,25 +129,29 @@ def process_and_generate_image_thumbnails(**kwargs):
         print(f"Procesando imagen: {image_key}")
 
         temp_dir = tempfile.mkdtemp()
-        original_ext = os.path.splitext(image_key)[1].lower()
-        image_path = os.path.join(temp_dir, f"image{original_ext}")
-        converted_image_path = os.path.join(temp_dir, "image_converted.jpg")
-        thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")  # Siempre guardar como .jpg
-        thumbnail_key = os.path.join("/thumbs", os.path.basename(image_key).rsplit('.', 1)[0] + '_thumb.jpg')
+        original_extension = os.path.splitext(image_key)[-1].lower()
+        image_path = os.path.join(temp_dir, f"image{original_extension}")
+        thumbnail_path = os.path.join(temp_dir, "thumbs.jpg")
+
+        # Asegurar que todas las miniaturas sean JPG
+        if original_extension == '.tiff':
+            thumbnail_key = os.path.join("/thumbs", os.path.basename(image_key).replace('.tiff', 'thumb.jpg'))
+        else:
+            thumbnail_key = os.path.join("/thumbs", os.path.basename(image_key))
 
         try:
             s3_client.download_file(bucket_name, image_key, image_path)
-            
-            if original_ext in ['.tiff', '.tif']:  # Convertir TIFF a JPG usando moviepy
-                with ImageClip(image_path) as clip:
-                    clip.save_frame(converted_image_path)  # Guardar como JPG
-                image_path = converted_image_path  # Usar la imagen convertida
-            
-            # Generar la miniatura
-            with ImageClip(image_path) as clip:
-                clip.save_frame(thumbnail_path)
 
-            # Subir la miniatura a MinIO
+            # Procesar TIFF y convertirlo a JPG
+            if original_extension == '.tiff':
+                clip = ImageClip(image_path)
+                clip.save_frame(thumbnail_path, withmask=False)  # Guarda como JPG
+            else:
+                # Procesar imágenes normales
+                clip = ImageClip(image_path)
+                clip.save_frame(thumbnail_path, withmask=False)
+
+            # Subir miniatura convertida
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
             processed_images.append({"key": image_key, "uuid": str(uuid.uuid4())})
 
@@ -152,12 +159,14 @@ def process_and_generate_image_thumbnails(**kwargs):
             print(f"Error procesando {image_key}: {e}")
         finally:
             os.remove(image_path) if os.path.exists(image_path) else None
-            os.remove(converted_image_path) if os.path.exists(converted_image_path) else None
             os.remove(thumbnail_path) if os.path.exists(thumbnail_path) else None
             os.rmdir(temp_dir)
 
     save_processed_files_to_minio(s3_client, bucket_name, processed_file_key, processed_images)
 
+
+
+# ----------- CONFIGURACIÓN DEL DAG -----------
 
 default_args = {
     'owner': 'oscar',
