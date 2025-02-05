@@ -68,7 +68,6 @@ def scan_minio_for_files(**kwargs):
 
 # ----------- PROCESAMIENTO DE VIDEOS -----------
 
-from moviepy.video.io.ImageSequenceClip import ImageClip  # Manteniendo moviepy
 
 def process_and_generate_image_thumbnails(**kwargs):
     """Procesa imágenes detectadas, genera miniaturas y las sube a MinIO."""
