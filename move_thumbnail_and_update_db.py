@@ -47,13 +47,16 @@ def process_thumbnail_message(message, **kwargs):
         bucket_name = "tmp"
 
         # Generar la nueva ruta para la miniatura
-        # Generar la nueva ruta para la miniatura
         nombre_archivo = os.path.basename(ruta_imagen_original)
         carpeta_original = os.path.dirname(ruta_imagen_original)
 
+
+        bucket_destino = ruta_imagen_original.split("/")[0];
+        ruta_destino = ruta_imagen_original.substring(bucker_destino.length() + 1, ruta_imagen_original.lastIndexOf("/") + 1);
+
         # Cambia la extensión a .jpg
         thumbnail_key = f"thumbs/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
-        nueva_ruta_thumbnail = f"{carpeta_original}/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
+        nueva_ruta_thumbnail = f"{ruta_destino}/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
 
 
         print(f"[DEBUG] Thumbnail key: {thumbnail_key}")
@@ -70,7 +73,7 @@ def process_thumbnail_message(message, **kwargs):
         # Mover la miniatura en MinIO
         print(f"[INFO] Archivo encontrado. Procediendo a mover la miniatura.")
         copy_source = {"Bucket": bucket_name, "Key": thumbnail_key}
-        s3_client.copy_object(Bucket=bucket_name, CopySource=copy_source, Key=nueva_ruta_thumbnail)
+        s3_client.copy_object(Bucket=bucket_destino, CopySource=copy_source, Key=nueva_ruta_thumbnail)
         s3_client.delete_object(Bucket=bucket_name, Key=thumbnail_key)
         print(f"[INFO] Miniatura movida a: {nueva_ruta_thumbnail}")
 
