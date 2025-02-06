@@ -719,7 +719,7 @@ def my_producer_function():
     print(valorFinal)  
     return [("ImagenMetadatos", valorFinal)] 
 
-def process_extracted_files(**kwargs):
+def delete_variable_global(**kwargs):
     global mensaje_final
     mensaje_final = {}
 
