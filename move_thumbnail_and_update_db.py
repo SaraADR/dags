@@ -52,7 +52,7 @@ def process_thumbnail_message(message, **kwargs):
 
 
         bucket_destino = ruta_imagen_original.split("/")[0];
-        ruta_destino = ruta_imagen_original.substring(bucker_destino.length() + 1, ruta_imagen_original.lastIndexOf("/") + 1);
+        ruta_destino = ruta_imagen_original.substring(bucket_destino.length() + 1, ruta_imagen_original.lastIndexOf("/") + 1);
 
         # Cambia la extensión a .jpg
         thumbnail_key = f"thumbs/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
