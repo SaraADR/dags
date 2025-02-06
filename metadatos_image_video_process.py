@@ -719,6 +719,10 @@ def my_producer_function():
     print(valorFinal)  
     return [("ImagenMetadatos", valorFinal)] 
 
+def process_extracted_files(**kwargs):
+    global mensaje_final
+    mensaje_final = {}
+
 
 default_args = {
     'owner': 'sadr',
@@ -760,5 +764,12 @@ produce_task = ProduceToTopicOperator(
     producer_function=my_producer_function
 )
 
+delete_global_task = PythonOperator(
+    task_id='delete_global_task',
+    python_callable=delete_variable_global,
+    provide_context=True,
+    dag=dag,
+)
 
-consume_from_topic >> produce_task
+
+consume_from_topic >> produce_task >> delete_global_task
