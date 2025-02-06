@@ -51,9 +51,9 @@ def process_thumbnail_message(message, **kwargs):
         carpeta_original = os.path.dirname(ruta_imagen_original)
 
 
-        bucket_destino = ruta_imagen_original.split("/")[0];
-        ruta_destino = ruta_imagen_original.substring(bucket_destino.length() + 1, ruta_imagen_original.lastIndexOf("/") + 1);
-
+        bucket_destino = ruta_imagen_original.split("/")[0]
+        ruta_destino = ruta_imagen_original[len(bucket_destino) + 1:ruta_imagen_original.rfind("/") + 1]
+                                            
         # Cambia la extensión a .jpg
         thumbnail_key = f"thumbs/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
         nueva_ruta_thumbnail = f"{ruta_destino}/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
