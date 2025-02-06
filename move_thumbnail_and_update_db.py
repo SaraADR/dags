@@ -87,7 +87,7 @@ def process_thumbnail_message(message, **kwargs):
                 SET video = video || :video
                 WHERE fid = :fid
             """)
-            video_metadata = json.dumps({"thumbnail": nueva_ruta_thumbnail})
+            video_metadata = json.dumps({"thumbnail": bucket_destino +'/' + nueva_ruta_thumbnail , "original": ruta_imagen_original})
             session.execute(update_query, {"video": video_metadata, "fid": id_tabla})
 
         elif tabla_guardada in [
