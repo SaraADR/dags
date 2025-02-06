@@ -721,7 +721,7 @@ def my_producer_function():
 
 def delete_variable_global(**kwargs):
     global mensaje_final
-    mensaje_final = {}
+    Variable.set("mensaje_final", {})
 
 
 default_args = {
