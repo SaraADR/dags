@@ -56,7 +56,7 @@ def process_thumbnail_message(message, **kwargs):
                                             
         # Cambia la extensión a .jpg
         thumbnail_key = f"thumbs/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
-        nueva_ruta_thumbnail = f"{ruta_destino}/{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
+        nueva_ruta_thumbnail = f"{ruta_destino}{os.path.splitext(nombre_archivo)[0]}_thumb.jpg"
 
 
         print(f"[DEBUG] Thumbnail key: {thumbnail_key}")
