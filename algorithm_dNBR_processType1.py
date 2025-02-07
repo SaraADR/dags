@@ -24,7 +24,7 @@ def process_element(**context):
         SELECT m.id, mf.fire_id, m.start_date, m.end_date
         FROM missions.mss_mission m
         JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
-        WHERE m.end_date::DATE = (CURRENT_DATE - INTERVAL '{interval_value}')
+        WHERE mf.extinguishing_timestamp::DATE = (CURRENT_DATE - INTERVAL '{interval_value}')
     """
 
     result = execute_query('biobd', query)
@@ -46,7 +46,7 @@ dag = DAG(
     'algorithm_dNBR_process_Type1',
     default_args=default_args,
     description='Algoritmo dNBR Type 1',
-    schedule_interval='*/2 * * * *',
+    schedule_interval='@daily', 
     catchup=False,
     max_active_runs=1,
     concurrency=1
