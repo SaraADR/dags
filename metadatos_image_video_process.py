@@ -83,7 +83,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
                 f'cd /home/admin3/exiftool/exiftool && '
                 f'docker run --rm -v /home/admin3/exiftool/exiftool:/images '
                 f'--name exiftool-container-{name_short.replace(".", "-")} '
-                f'exiftool-image -config /images/example1.0.5.txt -b -Version /images/images/{name_short}'
+                f'exiftool-image -config /images/configs/example1.0.5.txt -b -Version /images/images/{name_short}'
             )
             stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
             output = ""
@@ -92,17 +92,20 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             print(f"Versión del metadato para la imagen {file_name}:")
             print(output)
 
-            version = '/images/example3.0.0_20250206.txt'
+            version = '/images/configs/example3.0.0_20250206.txt'
             if(version == '3.0.0'):
-                version = '/images/example3.0.0_20250206.txt'
+                version = '/images/configs/example3.0.0_20250206.txt'
             elif(version == '1.0.5'):
-                version = '/images/example1.0.5.txt'
+                version = '/images/configs/example1.0.5.txt'
             elif(version == '1.0.8'):
-                version = '/images/example1.0.8.txt'
+                version = '/images/configs/example1.0.8.txt'
             elif(version == '1.1.0'):
-                version = '/images/example1.1.0.txt'
+                version = '/images/configs/example1.1.0.txt'
             elif(version == ''):
-                version = '/images/example1.0.5.txt'
+                version = '/images/configs/example1.0.5.txt'
+                #En este caso enviar email
+
+            print(f"La version seleccionada es: {version}")
 
             # Clean up Docker container after each run
             cleanup_command = f'docker rm exiftool-container-{name_short.replace(".", "-")}'
