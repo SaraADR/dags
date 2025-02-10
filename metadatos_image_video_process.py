@@ -78,6 +78,24 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             sftp.put(file_name, shared_volume_path)
             print(f"Copied {file_name} to {shared_volume_path}")
 
+            #Comprobamos el dato Version para ver si esta disponible
+            docker_command = (
+                f'cd /home/admin3/exiftool/exiftool && '
+                f'docker run --rm -v /home/admin3/exiftool/exiftool:/images '
+                f'--name exiftool-container-{name_short.replace(".", "-")} '
+                f'exiftool-image -config /images/example3.0.0_20250206.txt -b -Version /images/images/{name_short}'
+            )
+            stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
+            output = ""
+            for line in stdout:
+                output += line.strip() + "\n"
+            print(f"Versión del metadato para la imagen {file_name}:")
+            print(output)
+
+            # Clean up Docker container after each run
+            cleanup_command = f'docker rm exiftool-container-{name_short.replace(".", "-")}'
+            ssh_client.exec_command(cleanup_command)
+            
             # Execute Docker command for each file
             docker_command = (
                 f'cd /home/admin3/exiftool/exiftool && '
@@ -103,50 +121,50 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         print(f"Error en la conexión SSH o en el procesamiento Docker: {str(e)}")
         return
 
-    #CONTROL DEL TIPO ENCONTRADO
-    output_json_noload, comment_json = parse_output_to_json(output)
-    print(output_json_noload)
-    print(comment_json)
-    output_json = json.loads(output_json_noload)
+    # #CONTROL DEL TIPO ENCONTRADO
+    # output_json_noload, comment_json = parse_output_to_json(output)
+    # print(output_json_noload)
+    # print(comment_json)
+    # output_json = json.loads(output_json_noload)
     
 
 
-    idRafaga = output_json.get("IdentificadorRafaga", '0')
-    if(idRafaga != '0' and idRafaga != '' and idRafaga != None):
-        #Es una rafaga
-        is_rafaga(output, output_json)
+    # idRafaga = output_json.get("IdentificadorRafaga", '0')
+    # if(idRafaga != '0' and idRafaga != '' and idRafaga != None):
+    #     #Es una rafaga
+    #     is_rafaga(output, output_json)
 
 
 
-    #SON VIDEOS
-    elif message.endswith(".mp4"):
-        comments = json.loads(comment_json)
-        is_visible_or_ter(message, local_zip_path, output_json_noload, comments, -1)
-    elif message.endswith(".ts"):
-        process_ts_job(output, message, local_zip_path)
-        print(f"Archivo {message} procesado con éxito.")
+    # #SON VIDEOS
+    # elif message.endswith(".mp4"):
+    #     comments = json.loads(comment_json)
+    #     is_visible_or_ter(message, local_zip_path, output_json_noload, comments, -1)
+    # elif message.endswith(".ts"):
+    #     process_ts_job(output, message, local_zip_path)
+    #     print(f"Archivo {message} procesado con éxito.")
     
 
 
-    #SON IMAGENES
-    elif "-vis" in message:
-        #Es imagen visible
-        is_visible_or_ter(message,local_zip_path, output_json_noload, output_json, 0)
-    elif "-ter" in message:
-        # Es termodinamica
-        is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
-    elif "-mul" in message:
-        # Es multiespectral
-        is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 2)
-    else:
-        if output_json.get("sensor_id") == 1:
-             is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 0)
-        elif output_json.get("sensor_id") == 2:
-             is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
-        else:
-            is_visible_or_ter(message,local_zip_path, output_json_noload,output_json, 0)
-            print("No se reconoce el tipo de imagen o video aportado")
-        return 
+    # #SON IMAGENES
+    # elif "-vis" in message:
+    #     #Es imagen visible
+    #     is_visible_or_ter(message,local_zip_path, output_json_noload, output_json, 0)
+    # elif "-ter" in message:
+    #     # Es termodinamica
+    #     is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
+    # elif "-mul" in message:
+    #     # Es multiespectral
+    #     is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 2)
+    # else:
+    #     if output_json.get("sensor_id") == 1:
+    #          is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 0)
+    #     elif output_json.get("sensor_id") == 2:
+    #          is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
+    #     else:
+    #         is_visible_or_ter(message,local_zip_path, output_json_noload,output_json, 0)
+    #         print("No se reconoce el tipo de imagen o video aportado")
+    #     return 
     return
 
 
