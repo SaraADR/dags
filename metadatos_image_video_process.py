@@ -108,8 +108,6 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
 
 
-
-
             print(f"La version seleccionada es: {version}")
 
             # Clean up Docker container after each run
@@ -123,6 +121,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
                 f'--name exiftool-container-{name_short.replace(".", "-")} '
                 f'exiftool-image -config {version} -u -s /images/images/{name_short}'
             )
+            print(docker_command)
 
             stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
             output = ""
