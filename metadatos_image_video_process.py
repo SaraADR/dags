@@ -94,7 +94,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
                 "3.0.0": "/images/configs/example3.0.0_20250206.txt",
                 "1.0.5": "/images/configs/example1.0.5.txt",
                 "1.0.8": "/images/configs/example1.0.8.txt",
-                "1.1.0": "example1.1.0.txt"
+                "1.1.0": "/images/images/example1.1.0.txt"
             }
             # Lógica para determinar la versión correcta
             if not output:  # Si el metadato no está presente
