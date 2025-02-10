@@ -86,23 +86,23 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
                 f'exiftool-image -u -s -b -Exif_0xd059 /images/images/{name_short}'
             )
             stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
-            output = ""
-            for line in stdout:
-                output += line.strip() + "\n"
+            output = stdout.read().decode().strip()
             print(f"Versión del metadato para la imagen {file_name}:")
             print(output)
 
-            version = '/images/configs/example3.0.0_20250206.txt'
-            if(output == '3.0.0'):
-                version = '/images/configs/example3.0.0_20250206.txt'
-            elif(output == '1.0.5'):
-                version = '/images/configs/example1.0.5.txt'
-            elif(output == '1.0.8'):
-                version = '/images/configs/example1.0.8.txt'
-            elif(output == '1.1.0'):
-                version = '/images/configs/example1.1.0.txt'
-            elif(output == ''):
-                version = '/images/configs/example1.0.5.txt'
+            version_map = {
+                "3.0.0": "/images/configs/example3.0.0_20250206.txt",
+                "1.0.5": "/images/configs/example1.0.5.txt",
+                "1.0.8": "/images/configs/example1.0.8.txt",
+                "1.1.0": "/images/configs/example1.1.0.txt"
+            }
+            # Lógica para determinar la versión correcta
+            if not output:  # Si el metadato no está presente
+                version = "/images/configs/example1.0.5.txt"
+            elif output in version_map:  # Si el metadato coincide con una versión conocida
+                version = version_map[output]
+            else:  # Si el metadato está presente pero no es ninguna versión conocida
+                version = "/images/configs/example3.0.0_20250206.txt"
                 #En este caso enviar email
 
             print(f"La version seleccionada es: {version}")
