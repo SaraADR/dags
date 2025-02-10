@@ -83,7 +83,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
                 f'cd /home/admin3/exiftool/exiftool && '
                 f'docker run --rm -v /home/admin3/exiftool/exiftool:/images '
                 f'--name exiftool-container-{name_short.replace(".", "-")} '
-                f'exiftool-image -config /images/configs/example1.0.5.txt -b -Version /images/images/{name_short}'
+                f'exiftool-image -u -s -b -Exif_0xd059 /images/images/{name_short}'
             )
             stdin, stdout, stderr = ssh_client.exec_command(docker_command , get_pty=True)
             output = ""
