@@ -181,7 +181,9 @@ def send_email(to, cc=None, bcc=None, subject=None, template_path=None, template
                 template_str = file.read()
                 jinja_template = Template(template_str)
             email_body = jinja_template.render(template_data)
-        else:
+        elif template_data is not None and template_path is None:
+             email_body = template_data
+        else:      
             email_body = "Sin contenido"
 
         email_operator = EmailOperator(

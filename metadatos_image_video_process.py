@@ -12,7 +12,7 @@ from airflow.operators.python_operator import PythonOperator
 from botocore.exceptions import ClientError
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
-from dag_utils import dms_to_decimal, duration_to_seconds, get_minio_client, parse_output_to_json, upload_to_minio, upload_to_minio_path
+from dag_utils import dms_to_decimal, duration_to_seconds, get_minio_client, parse_output_to_json, upload_to_minio, upload_to_minio_path, send_email
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from dag_utils import get_db_session
@@ -103,7 +103,12 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
                 version = version_map[output]
             else:  # Si el metadato está presente pero no es ninguna versión conocida
                 version = "/images/configs/example3.0.0_20250206.txt"
-                #En este caso enviar email
+                textoEmail = (f"Se ha encontrado la version {output} que no corresponde con ninguna de las que tenemos")
+                send_email('ejemplo@gmail.com', None, None, "Versión encontrada no reconocida", None, textoEmail)
+
+
+
+
 
             print(f"La version seleccionada es: {version}")
 
