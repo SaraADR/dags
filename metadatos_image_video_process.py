@@ -93,15 +93,15 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
             print(output)
 
             version = '/images/configs/example3.0.0_20250206.txt'
-            if(version == '3.0.0'):
+            if(output == '3.0.0'):
                 version = '/images/configs/example3.0.0_20250206.txt'
-            elif(version == '1.0.5'):
+            elif(output == '1.0.5'):
                 version = '/images/configs/example1.0.5.txt'
-            elif(version == '1.0.8'):
+            elif(output == '1.0.8'):
                 version = '/images/configs/example1.0.8.txt'
-            elif(version == '1.1.0'):
+            elif(output == '1.1.0'):
                 version = '/images/configs/example1.1.0.txt'
-            elif(version == ''):
+            elif(output == ''):
                 version = '/images/configs/example1.0.5.txt'
                 #En este caso enviar email
 
