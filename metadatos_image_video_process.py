@@ -151,40 +151,45 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     idRafaga = output_json.get("IdentificadorRafaga", '0')
     if(idRafaga != '0' and idRafaga != '' and idRafaga != None):
         #Es una rafaga
-        is_rafaga(output, output_json)
+        is_rafaga(output, output_json , version)
 
 
 
     #SON VIDEOS
     elif message.endswith(".mp4"):
         comments = json.loads(comment_json)
-        is_visible_or_ter(message, local_zip_path, output_json_noload, comments, -1)
+        is_visible_or_ter(message, local_zip_path, output_json_noload, comments, -1, version)
     elif message.endswith(".ts"):
         process_ts_job(output, message, local_zip_path)
         print(f"Archivo {message} procesado con éxito.")
     
 
-
     #SON IMAGENES
     elif "-vis" in message:
         #Es imagen visible
-        is_visible_or_ter(message,local_zip_path, output_json_noload, output_json, 0)
+        is_visible_or_ter(message,local_zip_path, output_json_noload, output_json, 0, version)
     elif "-ter" in message:
         # Es termodinamica
-        is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
+        is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1, version)
     elif "-mul" in message:
         # Es multiespectral
-        is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 2)
+        is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 2, version)
     else:
         if output_json.get("sensor_id") == 1:
-             is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 0)
+             is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 0, version)
         elif output_json.get("sensor_id") == 2:
-             is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1)
+             is_visible_or_ter(message,local_zip_path,output_json_noload,output_json, 1, version)
         else:
-            is_visible_or_ter(message,local_zip_path, output_json_noload,output_json, 0)
+            is_visible_or_ter(message,local_zip_path, output_json_noload,output_json, 0, version)
             print("No se reconoce el tipo de imagen o video aportado")
         return 
     return
+
+
+
+
+
+
 
 
 
@@ -247,22 +252,23 @@ def is_rafaga(output, message):
 ##--------------------------- PROCEDIMIENTO DE IMAGENES Y VIDEOS ---------------------------------------
 def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
+    #Recogemos el sensor
+    sensor_key = "SensorID" if type != 2 else "SensorId"
+    SensorId = output_json.get(sensor_key)
+
+    #Seleccionamos la tabla adecuada
     if(type == 0):
         print("Vamos a ejecutar el sistema de guardados de imagenes visibles")
-        table_name = "observacion_aerea.captura_imagen_visible"
-        SensorId = output_json.get("SensorID")    
+        table_name = "observacion_aerea.captura_imagen_visible" 
     if(type == 1):
         print("Vamos a ejecutar el sistema de guardados de imagenes infrarrojas")
-        table_name = "observacion_aerea.captura_imagen_infrarroja"
-        SensorId = output_json.get("SensorID")    
+        table_name = "observacion_aerea.captura_imagen_infrarroja"  
     if(type == 2):
         print("Vamos a ejecutar el sistema de guardados de imagenes multiespectral")
-        table_name = "observacion_aerea.captura_imagen_multiespectral"
-        SensorId = output_json.get("SensorId")                       
+        table_name = "observacion_aerea.captura_imagen_multiespectral"                   
     if(type == -1):
         print("Vamos a ejecutar el sistema de guardados de videos")
         table_name = "observacion_aerea.captura_video"   
-        SensorId = output_json.get("SensorID")  
         if(SensorId == None):
             SensorId = output_json.get("general", {}).get("SM", None)  
             if(SensorId != None):
@@ -270,6 +276,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 return
                 #Normalizamos el json de general para que coincida con los tipo videos
                 #output_json = generalizacionDatosMetadatos(output_json, output)
+
 
 
     if SensorId is None : 
@@ -282,6 +289,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
     
+
+
 
     # Buscar los metadatos en captura
     try:
@@ -307,25 +316,24 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         """)
 
         
+        #Buscamos la fecha del recurso
         try:
             if(type == 2): #Multiespectral
                 date_time_str = output_json.get("DateTimeOriginal")
                 timestamp_naive = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
-            elif(type == -1):
+            elif(type == -1): #Video
                 date_time_str = output_json.get("xmp:dateTimeOriginal")
                 timestamp_naive = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
             else:
                 date_time_str = output_json.get("DateTimeOriginal")
                 date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S%z")
                 timestamp_naive = date_time_original.replace(tzinfo=None)
-
         except ValueError as ve:
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
             raise
 
 
-
-
+        # SE HACE BUSQUEDA POR FECHA Y TIPO
         result = resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session)
         row = result.fetchone()
 
@@ -341,11 +349,24 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                 if timestamp_naive < valid_time.lower:  # Fecha antes del inicio del rango
                     diferencia = valid_time.lower - timestamp_naive
                     print(f"Fecha dada {timestamp_naive} está antes del inicio ({valid_time.lower}) en {diferencia} (h:m:s), se actualiza el inicio del rango.")
+                    update_column, update_value = "lower(valid_time)", "new_start"
+                    query_param = {"new_start": timestamp_naive}
 
+                elif timestamp_naive > valid_time.upper: # Fecha despues del inicio del rango
+                    diferencia = timestamp_naive - valid_time.upper
+                    print(f"Fecha dada {timestamp_naive} está después del final ({valid_time.upper}) en {diferencia} (h:m:s), se actualiza el final del rango.")
+                    update_column, update_value = "upper(valid_time)", "new_end"
+                    query_param = {"new_end": timestamp_naive}
+                else:
+                    # Si la fecha está dentro del rango, no se necesita actualización
+                    update_column, update_value, query_param = None, None, None
+
+
+                if update_column:
                     # Actualizar el inicio del rango
                     update_query = text(f"""
                         UPDATE {table_name}
-                        SET valid_time = tsrange(:new_start, upper(valid_time), '[)')
+                        SET valid_time = tsrange({update_value}, {update_column}, '[)')  
                         WHERE payload_id = :payload_id
                         AND multisim_id = :multisim_id
                         AND ground_control_station_id = :ground_control_station_id
@@ -356,51 +377,20 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         AND platform = :platform
                         AND fid = :fid
                     """)
-                    session.execute(update_query, {
-                        "new_start": timestamp_naive,
-                        'fid' :  SensorId,   
-                        'payload_id': output_json.get("PayloadSN"),
-                        'multisim_id': output_json.get("MultisimSN"),
-                        'ground_control_station_id': output_json.get("GroundControlStationSN"),
-                        'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
-                        'operator_name': output_json.get("OperatorName"),
-                        'pilot_name': output_json.get("PilotName"),
-                        'sensor': output_json.get("Model"),
-                        'platform': output_json.get("AircraftNumberPlate")
+                    query_param.update({
+                        "fid": SensorId,
+                        "payload_id": output_json.get("PayloadSN"),
+                        "multisim_id": output_json.get("MultisimSN"),
+                        "ground_control_station_id": output_json.get("GroundControlStationSN"),
+                        "pc_embarcado_id": output_json.get("PCEmbarcadoSN"),
+                        "operator_name": output_json.get("OperatorName"),
+                        "pilot_name": output_json.get("PilotName"),
+                        "sensor": output_json.get("Model"),
+                        "platform": output_json.get("AircraftNumberPlate")
                     })
-
-                elif timestamp_naive > valid_time.upper:  # Fecha después del final del rango
-                    diferencia = timestamp_naive - valid_time.upper
-                    print(f"Fecha dada {timestamp_naive} está después del final ({valid_time.upper}) en {diferencia} (h:m:s), se actualiza el final del rango.")
-
-                    # Actualizar el final del rango
-                    update_query = text(f"""
-                        UPDATE {table_name}
-                        SET valid_time = tsrange(lower(valid_time), :new_end, '[)')
-                        WHERE payload_id = :payload_id
-                        AND multisim_id = :multisim_id
-                        AND ground_control_station_id = :ground_control_station_id
-                        AND pc_embarcado_id = :pc_embarcado_id
-                        AND operator_name = :operator_name
-                        AND pilot_name = :pilot_name
-                        AND sensor = :sensor
-                        AND platform = :platform
-                        AND fid = :fid
-                    """)
-                    session.execute(update_query, {
-                        "new_end": timestamp_naive,
-                        'fid' :  SensorId,   
-                        'payload_id': output_json.get("PayloadSN"),
-                        'multisim_id': output_json.get("MultisimSN"),
-                        'ground_control_station_id': output_json.get("GroundControlStationSN"),
-                        'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
-                        'operator_name': output_json.get("OperatorName"),
-                        'pilot_name': output_json.get("PilotName"),
-                        'sensor': output_json.get("Model"),
-                        'platform': output_json.get("AircraftNumberPlate")
-                    })
-            else:
-                print(f"Fecha dada {timestamp_naive} está dentro del rango {valid_time}, no se realiza actualización.")
+                    session.execute(update_query, query_param)
+                else:
+                   print(f"Fecha dada {timestamp_naive} está dentro del rango {valid_time}, no se realiza actualización.")
 
 
         else:
@@ -416,35 +406,23 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
                         :sensor, :platform)
             """)
 
-            if(type == -1):
-                # Generar los valores de inserción
-                insert_values = {
-                    'fid': int(SensorId),
-                    'valid_time_start': timestamp_naive,
-                    'valid_time_end': timestamp_naive + timedelta(minutes=1),  # Ajusta el rango inicial
-                    'payload_id': output_json.get("PayloadSN"),
-                    'multisim_id': output_json.get("MultisimSN"),
-                    'ground_control_station_id': output_json.get("GroundControlStationSN"),
-                    'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
-                    'operator_name': output_json.get("OperatorName"),
-                    'pilot_name': output_json.get("PilotName"),
-                    'sensor': output_json.get("Camera Model Name"),
-                    'platform': output_json.get("AircraftNumberPlate")
-                }
-            if(type != -1):
-                   insert_values = {
-                    'fid': int(SensorId),
-                    'valid_time_start': timestamp_naive,
-                    'valid_time_end': timestamp_naive + timedelta(minutes=1),  # Ajusta el rango inicial
-                    'payload_id': output_json.get("PayloadSN"),
-                    'multisim_id': output_json.get("MultisimSN"),
-                    'ground_control_station_id': output_json.get("GroundControlStationSN"),
-                    'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
-                    'operator_name': output_json.get("OperatorName"),
-                    'pilot_name': output_json.get("PilotName"),
-                    'sensor': output_json.get("Model"),
-                    'platform': output_json.get("AircraftNumberPlate")
-                }
+
+            sensor_key = "Camera Model Name" if type == -1 else "Model"
+
+            # Generar los valores de inserción
+            insert_values = {
+                'fid': int(SensorId),
+                'valid_time_start': timestamp_naive,
+                'valid_time_end': timestamp_naive + timedelta(minutes=1),  # Ajusta el rango inicial
+                'payload_id': output_json.get("PayloadSN"),
+                'multisim_id': output_json.get("MultisimSN"),
+                'ground_control_station_id': output_json.get("GroundControlStationSN"),
+                'pc_embarcado_id': output_json.get("PCEmbarcadoSN"),
+                'operator_name': output_json.get("OperatorName"),
+                'pilot_name': output_json.get("PilotName"),
+                'sensor': output_json.get(sensor_key),
+                'platform': output_json.get("AircraftNumberPlate")
+            }
 
             session.execute(insert_query, insert_values)
             session.commit()
@@ -545,7 +523,8 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
 
 
 def resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session):
-    print(os.path.basename(message))
+
+
     if(type == -1): #ES UN VIDEO
             if(os.path.basename(message).startswith('EC')):
                 print("Video tipo EC")
@@ -589,6 +568,8 @@ def resultByType(type, message, output, output_json, query, SensorId, timestamp_
             'fecha_dada': timestamp_naive
         })
     return result
+
+
 
 
 #--------------------------- METODOS AUXILIARES ------------------------------------------------
