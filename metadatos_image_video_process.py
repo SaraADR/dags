@@ -250,7 +250,7 @@ def is_rafaga(output, message):
 
 
 ##--------------------------- PROCEDIMIENTO DE IMAGENES Y VIDEOS ---------------------------------------
-def is_visible_or_ter(message, local_zip_path, output, output_json, type):
+def is_visible_or_ter(message, local_zip_path, output, output_json, type, versionConfigExiftool):
 
     #Recogemos el sensor
     sensor_key = "SensorID" if type != 2 else "SensorId"
@@ -443,6 +443,12 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type):
         set_mensaje_final(None, None, table_name_observacion)
         
         outputt , outputcomment = parse_output_to_json(output)
+
+        #Le añadimos la version
+        metadata_dict = json.loads(outputt)
+        metadata_dict["ReadedFromVersion"] = versionConfigExiftool  
+        outputt = json.dumps(metadata_dict, ensure_ascii=False, indent=4)
+
 
         #ES UNA IMAGEN
         if(type != -1):
