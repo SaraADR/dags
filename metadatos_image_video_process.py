@@ -318,16 +318,17 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type, versio
         
         #Buscamos la fecha del recurso
         try:
-            if(type == 2): #Multiespectral
+            if(type != -1): #Multiespectral
                 date_time_str = output_json.get("DateTimeOriginal")
-                timestamp_naive = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+                try:
+                    date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S%z")
+                except ValueError:
+                    date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+                timestamp_naive = date_time_original.replace(tzinfo=None)
             elif(type == -1): #Video
                 date_time_str = output_json.get("xmp:dateTimeOriginal")
                 timestamp_naive = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
-            else:
-                date_time_str = output_json.get("DateTimeOriginal")
-                date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S%z")
-                timestamp_naive = date_time_original.replace(tzinfo=None)
+
         except ValueError as ve:
             print(f"Error al parsear la fecha '{date_time_str}': {ve}")
             raise
