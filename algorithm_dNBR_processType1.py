@@ -47,7 +47,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
             print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de voluemnes")
             stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/algoritmo_dNBR/launch && docker-compose down --volumes')
-            
+            stdout.channel.recv_exit_status()  # Esperar a que el comando termine
+
             for dato in datos:
                 print(f"dato: {dato}")
                 json_Incendio = busqueda_datos_incendio(dato)
@@ -90,7 +91,7 @@ def busqueda_datos_incendio(idIncendio):
             auth = (conn.login, conn.password)
             url = f"{conn.host}/rest/FireService/get?id={idIncendio}"
 
-            response = requests.post(url, auth=auth)
+            response = requests.get(url, auth=auth)
 
             if response.status_code == 200:
                 print("Incendio encontrado con exito.")
