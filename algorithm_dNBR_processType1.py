@@ -39,6 +39,8 @@ def process_element(**context):
 
 def ejecutar_algoritmo(datos, fechaHoraActual):
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    fecha = datetime.strptime(fechaHoraActual, "%d %m %Y %H:%M:%S").strftime("%d%m%Y")
+
     try:
         # Conectarse al servidor SSH
         with ssh_hook.get_conn() as ssh_client:
@@ -57,20 +59,50 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 print(json_Incendio)
                 print(json_Perimetro)
 
-                # params = {
-                #     "directorio_alg":  '.',
-                #     "directorio_output" : '/share_data/output/' + fechaHoraActual,
-                #     "obj_incendio":  None,
-                #     "obj_perimetro":  None,
-                #     "service_account" : "auth-algoritmos-bio@algoritmos-bio.iam.gserviceaccount.com", #Variable de airflow
-                #     "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
-                #     "dias_pre" :  input_data.get('sigma', None),
-                #     "dias_post" : input_data.get('codigo', None),
-                #     "pdefect" : input_data.get('codigo', None),
-                #     "dia_fin" : input_data.get('codigo', None),
-                #     "buffer" : input_data.get('codigo', None),
-                #     "combustibles" : '/share_data/input/galicia_mod_com_filt.tif'
-                # }
+                idFire = dato.get('fireId')
+
+                if json_Incendio is not None:
+                    archivo_incendio = f"/home/admin3/algoritmo_dNBR/input/ob_incendio/incendio_{idFire}_{fecha}.json"
+                    with open(archivo_incendio , 'w') as file:
+                        json.dump(json_Incendio, file)
+                        print(f"Guardado archivo {archivo_incendio }")
+
+                if json_Perimetro is not None:                                    
+                    archivo_perimetro = f"/home/admin3/algoritmo_dNBR/input/perimetros/perimetro_{idFire}_{fecha}.json"
+                    with open(archivo_perimetro, 'w') as file:
+                        json.dump(json_Perimetro, file)
+                        print(f"Guardado archivo {archivo_perimetro}")
+                              
+
+                params = {
+                    "directorio_alg":  '.',
+                    "directorio_output" : '/share_data/output/' + idFire + "_" + fecha,
+                    "obj_incendio":  archivo_incendio,
+                    "obj_perimetro":  archivo_perimetro,
+                    "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
+                    "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
+                    "dias_pre" :  Variable.get("dNBR_diasPre", default_var="10"),
+                    "dias_post" : Variable.get("dNBR_diasPost", default_var="10"),
+                    "pdefect" : None,
+                    "dia_fin" :  None,
+                    "buffer" : None ,
+                    "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
+                }
+                print(params)
+
+                if params is not None:                                    
+                    archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{idFire}_{fecha}.json"
+                    with open(archivo_params, 'w') as file:
+                        json.dump(params, file)
+                        print(f"Guardado archivo {archivo_params}")
+
+
+                    stdin, stdout, stderr = ssh_client.exec_command(f'cd /home/admin3/algoritmo_dNBR/launch && CONFIGURATION_PATH={archivo_params} docker-compose -f compose.yaml up --build')              
+                    output = stdout.read().decode()
+                    error_output = stderr.read().decode()
+
+                    print("Salida de run.sh:")
+                    print(output)
 
 
             sftp.close()
