@@ -342,8 +342,8 @@ dag = DAG(
     description='DAG que maneja eventos de incendios y misiones desde RabbitMQ',
     schedule_interval=None,  # Solo se ejecuta cuando se activa manualmente
     catchup=False,  # No procesa tareas atrasadas
-    max_active_runs=1,  # Solo una ejecución activa a la vez
-    concurrency=1,  # Solo una tarea ejecutándose simultáneamente
+    max_active_runs=3,  # Solo una ejecución activa a la vez
+    concurrency=3,  # Solo una tarea ejecutándose simultáneamente
 )
 
 receive_data_process = PythonOperator(
@@ -352,5 +352,6 @@ receive_data_process = PythonOperator(
     provide_context=True,
     dag=dag,
 )
+
 
 receive_data_process
