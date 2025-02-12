@@ -14,8 +14,12 @@ from sqlalchemy import text
 
 
 # Función para obtener datos climáticos desde Meteomatics API
-def get_weather_data(lat, lon, **kwargs):
+def get_weather_data(**kwargs):
     ti = kwargs['ti']  # Para compartir datos con XCom
+
+    # Definir coordenadas directamente dentro de la función
+    lat = 42.56103  # Puedes cambiar esto por otra fuente dinámica
+    lon = -8.618725
 
     # Cargar credenciales desde el JSON de configuración
     with open("/home/admin3/gifs_project/conf.d/api_keys.json") as f:
