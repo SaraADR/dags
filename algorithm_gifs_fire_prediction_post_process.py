@@ -6,7 +6,6 @@ import json
 import requests
 import pandas as pd
 import geopandas as gpd
-import ee
 from shapely.geometry import Point
 import os
 import subprocess

@@ -8,7 +8,6 @@ from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 import os
 from airflow.providers.postgres.operators.postgres import PostgresOperator
-import os
 from airflow.hooks.base import BaseHook
 from sqlalchemy import create_engine, Table, MetaData, text
 from airflow.providers.postgres.operators.postgres import PostgresOperator
