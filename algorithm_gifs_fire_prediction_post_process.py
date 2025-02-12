@@ -22,7 +22,7 @@ def get_weather_data(**kwargs):
     lon = -8.618725
 
     # Cargar credenciales desde el JSON de configuración
-    with open("/home/admin3/gifs_project/conf.d/api_keys.json") as f:
+    with open("/home/admin3/grandes-incendios-forestales/project/conf.d/api_keys.json") as f:
         api_keys = json.load(f)
         meteomatics_user = api_keys["api_keys"]["meteomatics_user"]
         meteomatics_password = api_keys["api_keys"]["meteomatics_password"]
@@ -47,7 +47,7 @@ def get_fitoclima(lat, lon, **kwargs):
     ti = kwargs['ti']
 
     # Cargar el shapefile de zonas fitoclimáticas
-    zonas_fitoclima = gpd.read_file("/home/admin3/gifs_project/data/zonas_fitoclima_galicia.shp")
+    zonas_fitoclima = gpd.read_file("/home/admin3/grandes-incendios-forestales/data/zonas_fitoclima_galicia.shp")
     gdf_punto = gpd.GeoDataFrame(geometry=[Point(lon, lat)], crs="EPSG:4326")
 
     # Reproyectar al CRS del shapefile
@@ -87,7 +87,7 @@ def run_prediction(**kwargs):
     }
 
     # Guardar JSON en la carpeta compartida del contenedor
-    input_file_path = "/home/admin3/gifs_project/share_data/inputs/input_auto.json"
+    input_file_path = "/home/admin3/grandes-incendios-forestales/share_data/inputs/input_auto.json"
     with open(input_file_path, "w") as f:
         json.dump([input_data], f, indent=4)
 
@@ -105,7 +105,7 @@ def run_prediction(**kwargs):
 def save_results(**kwargs):
     ti = kwargs['ti']
 
-    output_file_path = "/home/admin3/gifs_project/share_data/expected/output.json"
+    output_file_path = "/home/admin3/grandes-incendios-forestales/share_data/expected/output.json"
     with open(output_file_path, "r") as f:
         output_data = json.load(f)
 
