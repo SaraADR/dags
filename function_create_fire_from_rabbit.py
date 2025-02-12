@@ -328,22 +328,22 @@ def obtenerCustomerId(session, latitude, longitude, epsg=4326):
 
 default_args = {
     'owner': 'oscar',
-    'depends_on_past': False,
+    'depends_on_past': True,  # Evita que se solapen ejecuciones anteriores
     'start_date': datetime(2023, 1, 1),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=1),
+    'retries': 2,  # Mayor tolerancia a fallos
+    'retry_delay': timedelta(minutes=5),  # Aumenta el tiempo entre reintentos
 }
 
 dag = DAG(
     'function_create_fire_from_rabbit',
     default_args=default_args,
     description='DAG que maneja eventos de incendios y misiones desde RabbitMQ',
-    schedule_interval=None,
-    catchup=False,
-    max_active_runs=3,  # Máximo 3 ejecuciones activas en paralelo
-    concurrency=3,  # Máximo 3 tareas ejecutándose simultáneamente
+    schedule_interval=None,  # Solo se ejecuta cuando se activa manualmente
+    catchup=False,  # No procesa tareas atrasadas
+    max_active_runs=1,  # Solo una ejecución activa a la vez
+    concurrency=1,  # Solo una tarea ejecutándose simultáneamente
 )
 
 receive_data_process = PythonOperator(
