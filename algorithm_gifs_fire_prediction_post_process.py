@@ -1,34 +1,31 @@
-import os
-import json
-import requests
-from datetime import datetime, timedelta
+# Importamos las librerías necesarias
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from shapely.geometry import Point
+from datetime import datetime, timedelta
+import json
+import requests
+import pandas as pd
 import geopandas as gpd
+from shapely.geometry import Point
+import os
 import subprocess
 from dag_utils import get_db_session  
 from sqlalchemy import text
 
-# Definir la nueva ruta de configuración
-CONF_PATH = os.path.join(os.path.expanduser("~"), "grandes-incendios-forestales", "project", "conf.d", "api_keys.json")
 
 # Función para obtener datos climáticos desde Meteomatics API
 def get_weather_data(**kwargs):
     ti = kwargs['ti']  # Para compartir datos con XCom
 
-    # Verificar si el archivo de credenciales existe
-    if not os.path.exists(CONF_PATH):
-        raise FileNotFoundError(f"No se encontró el archivo de credenciales en {CONF_PATH}")
+    # Definir coordenadas directamente dentro de la función
+    lat = 42.56103  # Puedes cambiar esto por otra fuente dinámica
+    lon = -8.618725
 
     # Cargar credenciales desde el JSON de configuración
-    with open(CONF_PATH) as f:
+    with open("/home/admin3/grandes-incendios-forestales/project/conf.d/api_keys.json") as f:
         api_keys = json.load(f)
         meteomatics_user = api_keys["api_keys"]["meteomatics_user"]
         meteomatics_password = api_keys["api_keys"]["meteomatics_password"]
-
-    # Definir coordenadas
-    lat, lon = 42.56103, -8.618725
 
     # Parámetros meteorológicos requeridos
     parameters = [
@@ -46,12 +43,12 @@ def get_weather_data(**kwargs):
         raise Exception(f"Error en Meteomatics: {response.text}")
 
 # Función para obtener la zona fitoclimática desde un shapefile
-def get_fitoclima(**kwargs):
+def get_fitoclima(lat, lon, **kwargs):
     ti = kwargs['ti']
 
     # Cargar el shapefile de zonas fitoclimáticas
-    zonas_fitoclima = gpd.read_file(os.path.join(os.path.expanduser("~"), "grandes-incendios-forestales", "project", "data", "zonas_fitoclima_galicia.shp"))
-    gdf_punto = gpd.GeoDataFrame(geometry=[Point(-8.618725, 42.56103)], crs="EPSG:4326")
+    zonas_fitoclima = gpd.read_file("/home/admin3/grandes-incendios-forestales/data/zonas_fitoclima_galicia.shp")
+    gdf_punto = gpd.GeoDataFrame(geometry=[Point(lon, lat)], crs="EPSG:4326")
 
     # Reproyectar al CRS del shapefile
     gdf_punto = gdf_punto.to_crs(zonas_fitoclima.crs)
@@ -64,6 +61,7 @@ def get_fitoclima(**kwargs):
             break
 
     ti.xcom_push(key='fitoclima', value=zona_fitoclimatica)
+    
 
 # Función para ejecutar la predicción en Docker
 def run_prediction(**kwargs):
@@ -89,7 +87,7 @@ def run_prediction(**kwargs):
     }
 
     # Guardar JSON en la carpeta compartida del contenedor
-    input_file_path = os.path.join(os.path.expanduser("~"), "grandes-incendios-forestales", "project", "share_data", "inputs", "input_auto.json")
+    input_file_path = "/home/admin3/grandes-incendios-forestales/share_data/inputs/input_auto.json"
     with open(input_file_path, "w") as f:
         json.dump([input_data], f, indent=4)
 
@@ -107,7 +105,7 @@ def run_prediction(**kwargs):
 def save_results(**kwargs):
     ti = kwargs['ti']
 
-    output_file_path = os.path.join(os.path.expanduser("~"), "grandes-incendios-forestales", "project", "share_data", "expected", "output.json")
+    output_file_path = "/home/admin3/grandes-incendios-forestales/share_data/expected/output.json"
     with open(output_file_path, "r") as f:
         output_data = json.load(f)
 
@@ -135,6 +133,7 @@ def save_results(**kwargs):
         raise e
     finally:
         session.close()
+
 
 # Configuración general del DAG
 default_args = {
