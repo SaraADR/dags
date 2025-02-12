@@ -52,10 +52,10 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             for dato in datos:
                 print(f"dato: {dato}")
                 json_Incendio = busqueda_datos_incendio(dato)
-                # json_Perimetro = busqueda_datos_perimetro(dato)
+                json_Perimetro = busqueda_datos_perimetro(dato)
 
                 print(json_Incendio)
-                # print(json_Perimetro)
+                print(json_Perimetro)
 
                 # params = {
                 #     "directorio_alg":  '.',
