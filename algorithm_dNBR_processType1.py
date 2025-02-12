@@ -9,6 +9,8 @@ import pytz
 from airflow.models import Variable
 from dag_utils import execute_query
 from sqlalchemy import text
+import requests
+
 def process_element(**context):
 
     madrid_tz = pytz.timezone('Europe/Madrid')
@@ -29,6 +31,104 @@ def process_element(**context):
 
     result = execute_query('biobd', query)
     print(result)
+    for record in result:
+        print(record)
+        ejecutar_algoritmo(record, fechaHoraActual)
+
+
+
+def ejecutar_algoritmo(datos, fechaHoraActual):
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    try:
+        # Conectarse al servidor SSH
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            print(f"Sftp abierto")
+
+            print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de voluemnes")
+            stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/algoritmo_dNBR/launch && docker-compose down --volumes')
+            
+            for dato in datos:
+                print(f"dato: {dato}")
+                json_Incendio = busqueda_datos_incendio(dato)
+                # json_Perimetro = busqueda_datos_perimetro(dato)
+
+                print(json_Incendio)
+                # print(json_Perimetro)
+
+                # params = {
+                #     "directorio_alg":  '.',
+                #     "directorio_output" : '/share_data/output/' + fechaHoraActual,
+                #     "obj_incendio":  None,
+                #     "obj_perimetro":  None,
+                #     "service_account" : "auth-algoritmos-bio@algoritmos-bio.iam.gserviceaccount.com", #Variable de airflow
+                #     "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
+                #     "dias_pre" :  input_data.get('sigma', None),
+                #     "dias_post" : input_data.get('codigo', None),
+                #     "pdefect" : input_data.get('codigo', None),
+                #     "dia_fin" : input_data.get('codigo', None),
+                #     "buffer" : input_data.get('codigo', None),
+                #     "combustibles" : '/share_data/input/galicia_mod_com_filt.tif'
+                # }
+
+
+            sftp.close()
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")    
+        raise        
+
+    return None
+
+
+
+
+def busqueda_datos_incendio(idIncendio):
+        try:
+            print("Buscando el incendio en einforex")
+            # Conexión al servicio ATC usando las credenciales almacenadas en Airflow
+            conn = BaseHook.get_connection('atc_services_connection')
+            auth = (conn.login, conn.password)
+            url = f"{conn.host}/rest/FireService/get?id={idIncendio}"
+
+            response = requests.post(url, auth=auth)
+
+            if response.status_code == 200:
+                print("Incendio encontrado con exito.")
+                fire_data = response.json()
+                return fire_data
+            else:
+                print(f"Error en la busqueda del incendio: {response.status_code}")
+                print(response.text)
+                raise Exception(f"Error en la busqueda del incendio: {response.status_code}")
+
+        except Exception as e:
+            print(e)
+            raise
+
+
+
+def busqueda_datos_perimetro(idIncendio):
+        try:
+            print("Buscando el perimetro del incendio en einforex")
+            # Conexión al servicio ATC usando las credenciales almacenadas en Airflow
+            conn = BaseHook.get_connection('atc_services_connection')
+            auth = (conn.login, conn.password)
+            url = f"{conn.host}/rest/FireAlgorithm_FirePerimeterService/getByFire?id={idIncendio}"
+
+            response = requests.post(url, auth=auth)
+
+            if response.status_code == 200:
+                print("Perimetros del incendio encontrados con exito.")
+                fire_data = response.json()
+                return fire_data
+            else:
+                print(f"Error en la busqueda del incendio: {response.status_code}")
+                print(response.text)
+                raise Exception(f"Error en la busqueda del incendio: {response.status_code}")
+
+        except Exception as e:
+            print(e)
+            raise
 
 
 default_args = {
