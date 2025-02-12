@@ -116,7 +116,7 @@ def busqueda_datos_perimetro(idIncendio):
             auth = (conn.login, conn.password)
             url = f"{conn.host}/rest/FireAlgorithm_FirePerimeterService/getByFire?id={idIncendio}"
 
-            response = requests.post(url, auth=auth)
+            response = requests.get(url, auth=auth)
 
             if response.status_code == 200:
                 print("Perimetros del incendio encontrados con exito.")
