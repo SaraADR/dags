@@ -66,7 +66,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     ssh_client.exec_command(f"touch {archivo_incendio}")
                     ssh_client.exec_command(f"chmod 644 {archivo_incendio}")
                     with sftp.file(archivo_incendio, 'w') as json_file:
-                        json_file.write(json.dumps(json_Incendio, indent=4).encode('utf-8'))
+                        json.dump(json_Incendio, json_file, ensure_ascii=False, indent=4)
 
                 if json_Perimetro is not None:                                    
                     archivo_perimetro = f"/home/admin3/algoritmo_dNBR/input/perimetros/perimetro_{idFire}_{fecha}.json"
@@ -78,7 +78,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
                 params = {
                     "directorio_alg":  '.',
-                    "directorio_output" : '/share_data/output/' + idFire + "_" + fecha,
+                    "directorio_output" : '/share_data/output/' + str(idFire) + "_" + str(fecha),
                     "obj_incendio":  archivo_incendio,
                     "obj_perimetro":  archivo_perimetro,
                     "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
