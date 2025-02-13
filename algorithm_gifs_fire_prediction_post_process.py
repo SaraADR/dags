@@ -59,7 +59,7 @@ def get_fitoclima(**kwargs):
     ti = kwargs['ti']
     lat, lon = 42.56103, -8.618725
 
-    zonas_fitoclima = gpd.read_file("/home/admin3/grandes-incendios-forestales/data/zonas_fitoclima_galicia.shp")
+    zonas_fitoclima = gpd.read_file("/home/admin3/grandes-incendios-forestales/project/data/zonas_fitoclima_galicia.shp")
     gdf_punto = gpd.GeoDataFrame(geometry=[Point(lon, lat)], crs="EPSG:4326")
     gdf_punto = gdf_punto.to_crs(zonas_fitoclima.crs)
 
