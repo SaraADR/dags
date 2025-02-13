@@ -291,109 +291,99 @@ def generate_xml(**kwargs):
     # Store the base64 encoded XML content in XCom
     return xml_encoded
 
-
-# Usuario y grupo HARDCODEADO por ahora
-TEST_USER = "luis"
-TEST_GROUP = "100"  
-
 # Función para obtener las credenciales de GeoNetwork
 def get_geonetwork_credentials():
-    """Obtiene credenciales para GeoNetwork"""
     try:
-        connection = BaseHook.get_connection("geonetwork_update_conn")
-        auth_url = f"{connection.schema}://{connection.host}/geonetwork/credentials"
-        auth_data = {
-            "username": connection.login,
-            "password": connection.password
+
+        conn = BaseHook.get_connection('geonetwork_conn')
+        credential_dody = {
+            "username" : conn.login,
+            "password" : conn.password
         }
-        session = requests.Session()
-        auth_response = session.post(auth_url, json=auth_data)
-        auth_response.raise_for_status()
 
-        # Extraer tokens de autenticación
-        access_token = auth_response.json().get("accessToken")
-        xsrf_token = auth_response.json().get("xsrfToken")
-        set_cookie_header = auth_response.json().get("setCookieHeader")[0]
+        # Hacer la solicitud para obtener las credenciales
+        logging.info(f"Obteniendo credenciales de: {conn.host}")
+        response = requests.post(conn.host,json= credential_dody)
 
-        if not access_token:
-            raise ValueError("No se obtuvo token de autenticación en GeoNetwork")
+        # Verificar que la respuesta sea exitosa
+        response.raise_for_status()
 
-        return access_token, xsrf_token, set_cookie_header
+        # Extraer los headers y tokens necesarios
+        response_object = response.json()
+        access_token = response_object['accessToken']
+        xsrf_token = response_object['xsrfToken']
+        set_cookie_header = response_object['setCookieHeader']
+    
 
-    except Exception as e:
-        logging.error(f"Error obteniendo credenciales de GeoNetwork: {e}")
-        raise
+        return [access_token, xsrf_token, set_cookie_header]
+    
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error al obtener credenciales: {e}")
+        raise Exception(f"Error al obtener credenciales: {e}")
 
 
+# Función para subir el XML utilizando las credenciales obtenidas de la conexión de Airflow
 def upload_to_geonetwork(**context):
-    """Sube los archivos ZIP/XML a GeoNetwork y asigna un usuario harcodeado"""
     try:
-        connection = BaseHook.get_connection("geonetwork_update_conn")
-        upload_url = f"{connection.schema}://{connection.host}/geonetwork/srv/api/records"
-
-        # Obtener credenciales de GeoNetwork
+        # Obtener la conexión configurada en Airflow
+        connection = BaseHook.get_connection("geonetwork_connection")
+        
+        # Extraer el host y construir la URL de subida
+        upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
+        
+        # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
-        # Obtener XMLs
+        # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
-        
+
         for xml_data in xml_data_array:
+            # Decodificar el XML de base64 a texto
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
-            files = {'file': ('metadata.xml', xml_decoded, 'text/xml')}
+            logging.info(f"XML DATA: {xml_data}")
+            logging.info(xml_decoded)
+
             data = {
                 'metadataType': (None, 'METADATA'),
                 'uuidProcessing': (None, 'NOTHING'),
                 'transformWith': (None, '_none_'),
-                'group': (None, TEST_GROUP),  # Grupo HARDCODEADO
+                'group': (None, 2),
                 'category': (None, ''),
+                'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
+            }
+            
+            files = {
+                'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
             }
 
+            # Encabezados que incluyen los tokens
             headers = {
                 'Authorization': f"Bearer {access_token}",
-                'x-xsrf-token': xsrf_token,
-                'Cookie': set_cookie_header,
+                'x-xsrf-token': str(xsrf_token),
+                'Cookie': str(set_cookie_header[0]),
                 'Accept': 'application/json'
             }
 
+            # Realizar la solicitud POST para subir el archivo XML
+            logging.info(f"Subiendo XML a la URL: {upload_url}")
             response = requests.post(upload_url, files=files, data=data, headers=headers)
+
+            # Verificar si hubo algún error en la solicitud
             response.raise_for_status()
 
-            # Extraer ID del recurso subido
-            resource_id = response.json().get("id")
-
-            if resource_id:
-                logging.info(f"✅ Archivo subido correctamente a GeoNetwork. ID: {resource_id}")
-                # Ahora cambiar el propietario
-                update_geonetwork_owner(resource_id, TEST_USER, TEST_GROUP, connection.host, access_token, xsrf_token, set_cookie_header)
-            else:
-                logging.warning("No se pudo obtener el ID del recurso subido.")
+            logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
 
     except Exception as e:
-        logging.error(f"❌ Error al subir el archivo a GeoNetwork: {e}")
-        raise
+
+        # Verificar si existe un objeto de respuesta y extraer su información
+        if 'response' in locals() and response is not None:
+            logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
+
+        logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
+        raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
     
-def update_geonetwork_owner(resource_id, user_id, group_id, geonetwork_host, auth_token, xsrf_token, set_cookie_header):
-    """Cambia la propiedad del recurso en GeoNetwork"""
-    try:
-        url = f"https://{geonetwork_host}/geonetwork/srv/api/records/{resource_id}/ownership"
-        headers = {
-            "Authorization": f"Bearer {auth_token}",
-            "x-xsrf-token": xsrf_token,
-            "Cookie": set_cookie_header,
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "owner": user_id,  # HARDCODEADO "Luis"
-            "group": group_id  # HARDCODEADO "100"
-        }
-
-        response = requests.put(url, json=payload, headers=headers)
-        response.raise_for_status()
-        logging.info(f"✅ Propiedad cambiada exitosamente para {resource_id}")
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"❌ Error cambiando propiedad en GeoNetwork: {e}")
+    
 
 # Función para crear el XML metadata
 def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url, organization_name, email_address, date_stamp, title, publication_date, west_bound, east_bound, south_bound, north_bound, spatial_resolution, protocol, wms_link, layer_name, layer_description):
