@@ -39,7 +39,7 @@ def process_element(**context):
 
 def ejecutar_algoritmo(datos, fechaHoraActual):
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
-    fecha = datetime.datetime(fechaHoraActual, "%d %m %Y %H:%M:%S").strftime("%d%m%Y")
+    fecha = datetime.datetime.strptime(fechaHoraActual, "%d %m %Y %H:%M:%S").strftime("%d%m%Y")
 
     try:
         # Conectarse al servidor SSH
