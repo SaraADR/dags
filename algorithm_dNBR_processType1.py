@@ -94,8 +94,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
                 if params is not None:                                    
                     archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{idFire}_{fecha}.json"
-                    with open(archivo_params, 'w') as file:
-                        json.dump(params, file)
+                    with sftp.file(archivo_params, 'w') as json_file:
+                        json.dump(params, json_file, ensure_ascii=False, indent=4)
                         print(f"Guardado archivo {archivo_params}")
 
 
