@@ -78,7 +78,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
                 params = {
                     "directorio_alg":  '.',
-                    "directorio_output" : '/share_data/output/' + idFire + "_" + fecha,
+                    "directorio_output" : '/share_data/output/' + str(idFire) + "_" + str(fecha),
                     "obj_incendio":  archivo_incendio,
                     "obj_perimetro":  archivo_perimetro,
                     "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
