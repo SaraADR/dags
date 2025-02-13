@@ -105,7 +105,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
                     print("Salida de run.sh:")
                     print(output)
-
+                    print(error_output)
 
             sftp.close()
     except Exception as e:
