@@ -122,6 +122,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     "pdefect" : None,
                     "dia_fin" :  None,
                     "buffer" : None ,
+                    "dias_fin": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d"),
                     "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
                 }
                 print(params)
@@ -133,7 +134,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                         print(f"Guardado archivo {archivo_params}")
 
                     path = f'/share_data/input/ejecucion_{idFire}_{fecha}.json' 
-                    stdin, stdout, stderr = ssh_client.exec_command(f'cd /home/admin3/algoritmo_dNBR/scripts && CONFIGURATION_PATH={path} docker-compose -f ../launch/compose.yaml up --build')              
+                    runId = f'{idFire}_{fecha}'
+                    stdin, stdout, stderr = ssh_client.exec_command(f'cd /home/admin3/algoritmo_dNBR/scripts && RUN_ID={idFire} CONFIGURATION_PATH={path} docker-compose -f ../launch/compose.yaml up --build')              
                     output = stdout.read().decode()
                     error_output = stderr.read().decode()
 

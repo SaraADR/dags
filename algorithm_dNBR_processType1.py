@@ -83,8 +83,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     "obj_perimetro":  f'/share_data/input/perimetros/perimetro_{idFire}_{fecha}.json',
                     "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
                     "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
-                    "dias_pre" :  Variable.get("dNBR_diasPre", default_var="10"),
-                    "dias_post" : Variable.get("dNBR_diasPost", default_var="10"),
+                    "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
+                    "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)),
                     "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
                 }
                 print(params)
@@ -96,7 +96,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                         print(f"Guardado archivo {archivo_params}")
 
                     path = f'/share_data/input/ejecucion_{idFire}_{fecha}.json' 
-                    stdin, stdout, stderr = ssh_client.exec_command(f'cd /home/admin3/algoritmo_dNBR/scripts && CONFIGURATION_PATH={path} docker-compose -f ../launch/compose.yaml up --build')              
+                    runId = f'{idFire}_{fecha}'
+                    stdin, stdout, stderr = ssh_client.exec_command(f'cd /home/admin3/algoritmo_dNBR/scripts && RUN_ID={idFire} CONFIGURATION_PATH={path} docker-compose -f ../launch/compose.yaml up --build')              
                     output = stdout.read().decode()
                     error_output = stderr.read().decode()
 
