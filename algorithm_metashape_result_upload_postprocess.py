@@ -1,6 +1,4 @@
 import base64
-import json
-import os
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -9,27 +7,20 @@ from airflow.operators.python_operator import PythonOperator
 from flask import Config
 import requests
 import logging
-import io  # Para manejar el archivo XML en memoria
 from dag_utils import get_minio_client
 from pyproj import Proj, transform, CRS
 import re
 from airflow.hooks.base import BaseHook
-import boto3
 from PIL import Image
-import os
 import os
 import base64
 import tempfile
-import uuid
 import json
 import boto3
 from botocore.config import Config
 from airflow.hooks.base_hook import BaseHook
 from PIL import Image
-import base64
 import io
-import logging
-import requests
 from airflow.hooks.base import BaseHook
 
 
@@ -326,7 +317,7 @@ def get_geonetwork_credentials():
 def upload_to_geonetwork(**context):
     try:
         # Obtener la conexión configurada en Airflow
-        connection = BaseHook.get_connection("geonetwork_connection")
+        connection = BaseHook.get_connection("geonetwork_update_conn")
         
         # Extraer el host y construir la URL de subida
         upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
@@ -338,7 +329,7 @@ def upload_to_geonetwork(**context):
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
 
         for xml_data in xml_data_array:
-            # Decodificar el XML de base64 a texto
+        
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
             logging.info(f"XML DATA: {xml_data}")
@@ -367,7 +358,8 @@ def upload_to_geonetwork(**context):
 
             # Realizar la solicitud POST para subir el archivo XML
             logging.info(f"Subiendo XML a la URL: {upload_url}")
-            response = requests.post(upload_url, files=files, data=data, headers=headers)
+            response = requests.post(upload_url,files=files,data=data, headers=headers)
+            logging.info(response)
 
             # Verificar si hubo algún error en la solicitud
             response.raise_for_status()
@@ -382,7 +374,6 @@ def upload_to_geonetwork(**context):
 
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
-    
     
 
 # Función para crear el XML metadata
