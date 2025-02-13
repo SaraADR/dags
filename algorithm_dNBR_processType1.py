@@ -85,9 +85,6 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
                     "dias_pre" :  Variable.get("dNBR_diasPre", default_var="10"),
                     "dias_post" : Variable.get("dNBR_diasPost", default_var="10"),
-                    "pdefect" : None,
-                    "dia_fin" :  None,
-                    "buffer" : None ,
                     "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
                 }
                 print(params)

@@ -9,6 +9,8 @@ from dag_utils import execute_query
 from sqlalchemy import text
 from datetime import datetime, timedelta
 import calendar
+import requests
+
 
 class FechaProxima:
     def __init__(self):
@@ -53,7 +55,7 @@ def process_element(**context):
     fechas_query = "','".join(fechas_a_buscar)
 
     query = f"""
-        SELECT m.id, mf.fire_id, m.start_date, m.end_date
+        SELECT mf.fire_id
         FROM missions.mss_mission m
         JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
         WHERE mf.extinguishing_timestamp::DATE IN ('{fechas_query}')
@@ -61,6 +63,140 @@ def process_element(**context):
 
     result = execute_query('biobd', query)
     print(result)
+    for record in result:
+        print(record)
+        ejecutar_algoritmo(record, fechaHoraActual)
+
+
+
+
+
+def ejecutar_algoritmo(datos, fechaHoraActual):
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    fecha = fechaHoraActual.strftime("%d%m%Y")
+
+    try:
+        # Conectarse al servidor SSH
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            print(f"Sftp abierto")
+
+            print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de volumenes")
+            stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/algoritmo_dNBR/launch && docker-compose down --volumes')
+            stdout.channel.recv_exit_status()  # Esperar a que el comando termine
+
+            for dato in datos:
+                print(f"dato: {dato}")
+                json_Incendio = busqueda_datos_incendio(dato)
+                json_Perimetro = busqueda_datos_perimetro(dato)
+
+                print(json_Incendio)
+                print(json_Perimetro)
+
+                idFire = dato
+
+                if json_Incendio is not None:
+                    archivo_incendio = f"/home/admin3/algoritmo_dNBR/input/ob_incendio/incendio_{idFire}_{fecha}.json"
+                    ssh_client.exec_command(f"touch {archivo_incendio}")
+                    ssh_client.exec_command(f"chmod 644 {archivo_incendio}")
+                    with sftp.file(archivo_incendio, 'w') as json_file:
+                        json.dump(json_Incendio, json_file, ensure_ascii=False, indent=4)
+
+                if json_Perimetro is not None:                                    
+                    archivo_perimetro = f"/home/admin3/algoritmo_dNBR/input/perimetros/perimetro_{idFire}_{fecha}.json"
+                    ssh_client.exec_command(f"touch {archivo_perimetro}")
+                    ssh_client.exec_command(f"chmod 644 {archivo_perimetro}")
+                    with sftp.file(archivo_perimetro, 'w') as json_file:
+                        json_file.write(json.dumps(json_Perimetro, indent=4).encode('utf-8'))
+                              
+
+                params = {
+                    "directorio_alg":  '.',
+                    "directorio_output" : '/share_data/output/' + str(idFire) + "_" + str(fecha),
+                    "obj_incendio":  f'/share_data/input/ob_incendio/incendio_{idFire}_{fecha}.json',
+                    "obj_perimetro":  f'/share_data/input/perimetros/perimetro_{idFire}_{fecha}.json',
+                    "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
+                    "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
+                    "dias_pre" :  Variable.get("dNBR_diasPre", default_var="10"),
+                    "dias_post" : Variable.get("dNBR_diasPost", default_var="10"),
+                    "pdefect" : None,
+                    "dia_fin" :  None,
+                    "buffer" : None ,
+                    "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
+                }
+                print(params)
+
+                if params is not None:                                    
+                    archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{idFire}_{fecha}.json"
+                    with sftp.file(archivo_params, 'w') as json_file:
+                        json.dump(params, json_file, ensure_ascii=False, indent=4)
+                        print(f"Guardado archivo {archivo_params}")
+
+                    path = f'/share_data/input/ejecucion_{idFire}_{fecha}.json' 
+                    stdin, stdout, stderr = ssh_client.exec_command(f'cd /home/admin3/algoritmo_dNBR/scripts && CONFIGURATION_PATH={path} docker-compose -f ../launch/compose.yaml up --build')              
+                    output = stdout.read().decode()
+                    error_output = stderr.read().decode()
+
+                    print("Salida de run.sh:")
+                    print(output)
+                    print(error_output)
+
+            sftp.close()
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")    
+        raise        
+
+    return None
+
+
+
+def busqueda_datos_incendio(idIncendio):
+        try:
+            print("Buscando el incendio en einforex")
+            # Conexión al servicio ATC usando las credenciales almacenadas en Airflow
+            conn = BaseHook.get_connection('atc_services_connection')
+            auth = (conn.login, conn.password)
+            url = f"{conn.host}/rest/FireService/get?id={idIncendio}"
+
+            response = requests.get(url, auth=auth)
+
+            if response.status_code == 200:
+                print("Incendio encontrado con exito.")
+                fire_data = response.json()
+                return fire_data
+            else:
+                print(f"Error en la busqueda del incendio: {response.status_code}")
+                print(response.text)
+                raise Exception(f"Error en la busqueda del incendio: {response.status_code}")
+
+        except Exception as e:
+            print(e)
+            raise
+
+
+
+def busqueda_datos_perimetro(idIncendio):
+        try:
+            print("Buscando el perimetro del incendio en einforex")
+            # Conexión al servicio ATC usando las credenciales almacenadas en Airflow
+            conn = BaseHook.get_connection('atc_services_connection')
+            auth = (conn.login, conn.password)
+            url = f"{conn.host}/rest/FireAlgorithm_FirePerimeterService/getByFire?id={idIncendio}"
+
+            response = requests.get(url, auth=auth)
+
+            if response.status_code == 200:
+                print("Perimetros del incendio encontrados con exito.")
+                fire_data = response.json()
+                return fire_data
+            else:
+                print(f"Error en la busqueda del incendio: {response.status_code}")
+                print(response.text)
+                raise Exception(f"Error en la busqueda del incendio: {response.status_code}")
+
+        except Exception as e:
+            print(e)
+            raise
 
 default_args = {
     'owner': 'sadr',
