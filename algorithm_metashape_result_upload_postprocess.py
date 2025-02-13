@@ -322,83 +322,67 @@ def get_geonetwork_credentials():
         raise Exception(f"Error al obtener credenciales: {e}")
 
 
-# FORMATO TEMPORAL HAY QUE ACTUALIZAR LA CONEXIONA A AIRFLOW CUANDO ESTE DISPONIBLE.
-def get_keycloak_group(service_id):
-   
-    try:
-        connection = BaseHook.get_connection("keycloak_conn")
-        keycloak_url = f"{connection.schema}://{connection.host}"  # URL base de Keycloak
-        client_id = connection.login
-        client_secret = connection.password
-        
-        # Obtener token de Keycloak
-        token_url = f"{keycloak_url}/protocol/openid-connect/token"
-        token_data = {
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "grant_type": "client_credentials"
-        }
-        token_response = requests.post(token_url, data=token_data)
-        token_response.raise_for_status()
-        access_token = token_response.json()["access_token"]
-        
-        # Obtener el grupo desde Keycloak
-        group_url = f"{keycloak_url}/groups?search={service_id}"
-        headers = {"Authorization": f"Bearer {access_token}"}
-        group_response = requests.get(group_url, headers=headers)
-        group_response.raise_for_status()
-        
-        groups = group_response.json()
-        if groups:
-            return groups[0]["id"]  # Devuelve el ID del grupo asociado al service_id
-        else:
-            logging.warning(f"No se encontró grupo para service_id {service_id}")
-            return None
-    except Exception as e:
-        logging.error(f"Error obteniendo grupo de Keycloak: {e}")
-        return None
-
+# Función para subir el XML utilizando las credenciales obtenidas de la conexión de Airflow
 def upload_to_geonetwork(**context):
-
     try:
-        connection = BaseHook.get_connection("geonetwork_update_conn")
-        upload_url = f"{connection.schema}://{connection.host}/geonetwork/srv/api/records"
+        # Obtener la conexión configurada en Airflow
+        connection = BaseHook.get_connection("geonetwork_connection")
         
+        # Extraer el host y construir la URL de subida
+        upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
+        
+        # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-        
+
+        # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
-        service_id = context['dag_run'].conf.get("service_id")
-        group_id = get_keycloak_group(service_id)  # Obtener grupo desde Keycloak
-        
-        if not group_id:
-            raise Exception("No se encontró grupo en Keycloak para este service_id")
-        
+
         for xml_data in xml_data_array:
+            # Decodificar el XML de base64 a texto
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
-            
-            files = {'file': ('metadata.xml', xml_decoded, 'text/xml')}
+
+            logging.info(f"XML DATA: {xml_data}")
+            logging.info(xml_decoded)
+
             data = {
                 'metadataType': (None, 'METADATA'),
                 'uuidProcessing': (None, 'NOTHING'),
                 'transformWith': (None, '_none_'),
-                'group': (None, group_id),  # Grupo dinámico desde Keycloak
+                'group': (None, 2),
                 'category': (None, ''),
+                'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
             }
             
+            files = {
+                'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
+            }
+
+            # Encabezados que incluyen los tokens
             headers = {
                 'Authorization': f"Bearer {access_token}",
                 'x-xsrf-token': str(xsrf_token),
                 'Cookie': str(set_cookie_header[0]),
                 'Accept': 'application/json'
             }
-            
+
+            # Realizar la solicitud POST para subir el archivo XML
+            logging.info(f"Subiendo XML a la URL: {upload_url}")
             response = requests.post(upload_url, files=files, data=data, headers=headers)
+
+            # Verificar si hubo algún error en la solicitud
             response.raise_for_status()
+
             logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
-    
+
     except Exception as e:
+
+        # Verificar si existe un objeto de respuesta y extraer su información
+        if 'response' in locals() and response is not None:
+            logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
+
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
-        raise
+        raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
+    
     
 
 # Función para crear el XML metadata
