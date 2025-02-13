@@ -10,29 +10,29 @@ from dag_utils import get_db_session
 from sqlalchemy import text
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
-# Configuración de conexión SSH
-ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
-# Función auxiliar para ejecutar comandos en el servidor remoto vía SSH
-def execute_remote_command(command):
-    with ssh_hook.get_conn() as ssh_client:
-        print(f"Ejecutando comando en SSH: {command}")
-        stdin, stdout, stderr = ssh_client.exec_command(command)
-        output, error = stdout.read().decode(), stderr.read().decode()
-        if error:
-            print(f"Error en SSH: {error}")
-            raise Exception(error)
-        return output
-
-# Obtener datos meteorológicos desde Meteomatics API
-def get_weather_data(**kwargs):
-    ti = kwargs['ti']
+# Función para obtener datos meteorológicos desde Meteomatics API
+def get_weather_data(**context):
+    ti = context['ti']
     lat, lon = 42.56103, -8.618725
 
-    with open("/home/admin3/grandes-incendios-forestales/project/conf.d/api_keys.json") as f:
+    # Conexión SSH
+    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
+    remote_path = "/home/admin3/grandes-incendios-forestales/project/conf.d/api_keys.json"
+    local_path = "/tmp/api_keys.json"
+
+    print("Descargando credenciales desde el servidor remoto...")
+    with ssh_hook.get_conn() as ssh_client:
+        sftp = ssh_client.open_sftp()
+        sftp.get(remote_path, local_path)  # Descarga el archivo remoto a /tmp en Airflow
+        sftp.close()
+
+    # Leer las credenciales desde el archivo descargado
+    with open(local_path, "r") as f:
         api_keys = json.load(f)
-        meteomatics_user = api_keys["api_keys"]["meteomatics_user"]
-        meteomatics_password = api_keys["api_keys"]["meteomatics_password"]
+
+    meteomatics_user = api_keys["api_keys"]["meteomatics_user"]
+    meteomatics_password = api_keys["api_keys"]["meteomatics_password"]
 
     parameters = [
         "tmax_2m_24h:C", "wind_speed_10m:ms", "relative_humidity_2m:p",
@@ -44,12 +44,13 @@ def get_weather_data(**kwargs):
     if response.status_code == 200:
         weather_data = response.json()
         ti.xcom_push(key='weather_data', value=weather_data)
+        print("Datos meteorológicos obtenidos con éxito.")
     else:
         raise Exception(f"Error en Meteomatics: {response.text}")
 
-# Determinar la zona fitoclimática desde un shapefile
-def get_fitoclima(**kwargs):
-    ti = kwargs['ti']
+# Función para determinar la zona fitoclimática desde un shapefile
+def get_fitoclima(**context):
+    ti = context['ti']
     lat, lon = 42.56103, -8.618725
 
     zonas_fitoclima = gpd.read_file("/home/admin3/grandes-incendios-forestales/data/zonas_fitoclima_galicia.shp")
@@ -59,11 +60,12 @@ def get_fitoclima(**kwargs):
     zona_fitoclimatica = next((zona["id"] for _, zona in zonas_fitoclima.iterrows() if gdf_punto.geometry.iloc[0].within(zona.geometry)), "Desconocido")
 
     ti.xcom_push(key='fitoclima', value=zona_fitoclimatica)
+    print(f"Zona fitoclimática determinada: {zona_fitoclimatica}")
 
-# Ejecutar la predicción en el servidor remoto vía SSH
-def run_prediction(**kwargs):
-    ti = kwargs['ti']
-
+# Ejecutar la predicción en el servidor remoto usando SSH
+def run_prediction(**context):
+    ti = context['ti']
+    
     weather_data = ti.xcom_pull(task_ids='get_weather_data', key='weather_data')
     fitoclima = ti.xcom_pull(task_ids='get_fitoclima', key='fitoclima')
 
@@ -81,21 +83,41 @@ def run_prediction(**kwargs):
         "tempmin_fecha_inicio": weather_data["data"][6]["value"]
     }
 
+    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
+    
     remote_input_path = "/home/admin3/grandes-incendios-forestales/share_data/inputs/input_auto.json"
-    ssh_hook.run(f"echo '{json.dumps([input_data])}' > {remote_input_path}")
+    command_upload = f"echo '{json.dumps([input_data])}' > {remote_input_path}"
 
+    print("Conectando al servidor remoto para subir los datos...")
+    with ssh_hook.get_conn() as ssh_client:
+        ssh_client.exec_command(command_upload)
+    
     container_name = "gifs_service"
     remote_output_path = "/share_data/expected/output.json"
-    command = f"docker exec {container_name} python app/src/algorithm_gifs_fire_prediction_post_process.py {remote_input_path} {remote_output_path} A"
-    execute_remote_command(command)
+    command_run = f"docker exec {container_name} python app/src/algorithm_gifs_fire_prediction_post_process.py {remote_input_path} {remote_output_path} A"
+
+    print("Ejecutando la predicción en el servidor remoto...")
+    with ssh_hook.get_conn() as ssh_client:
+        stdin, stdout, stderr = ssh_client.exec_command(command_run)
+        print(stdout.read().decode())
+        error = stderr.read().decode()
+        if error:
+            print(f"Error en ejecución remota: {error}")
+            raise Exception(error)
 
 # Guardar resultados en PostgreSQL
-def save_results(**kwargs):
-    ti = kwargs['ti']
+def save_results(**context):
+    ti = context['ti']
     remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data/expected/output.json"
     local_output_path = "/tmp/output.json"
 
-    ssh_hook.get(remote_output_path, local_output_path)
+    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
+
+    print("Descargando el archivo de resultados desde el servidor remoto...")
+    with ssh_hook.get_conn() as ssh_client:
+        sftp = ssh_client.open_sftp()
+        sftp.get(remote_output_path, local_output_path)
+        sftp.close()
 
     with open(local_output_path, "r") as f:
         output_data = json.load(f)
@@ -118,11 +140,13 @@ def save_results(**kwargs):
             })
 
         session.commit()
+        print("Resultados almacenados en la base de datos.")
     except Exception as e:
         session.rollback()
         raise e
     finally:
         session.close()
+
 
 # Configuración del DAG
 default_args = {
@@ -143,11 +167,11 @@ dag = DAG(
     catchup=False
 )
 
-# Definir tareas en Airflow
+# 🔹 Definir tareas en Airflow
 get_weather_task = PythonOperator(task_id='get_weather_data', python_callable=get_weather_data, dag=dag)
 get_fitoclima_task = PythonOperator(task_id='get_fitoclima', python_callable=get_fitoclima, dag=dag)
 run_prediction_task = PythonOperator(task_id='run_prediction', python_callable=run_prediction, dag=dag)
 save_results_task = PythonOperator(task_id='save_results', python_callable=save_results, dag=dag)
 
-# Definir flujo de ejecución
+# 🔹 Definir flujo de ejecución
 get_weather_task >> get_fitoclima_task >> run_prediction_task >> save_results_task
