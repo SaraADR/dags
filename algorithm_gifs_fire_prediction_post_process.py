@@ -53,7 +53,19 @@ def get_fitoclima(**context):
     ti = context['ti']
     lat, lon = 42.56103, -8.618725
 
-    zonas_fitoclima = gpd.read_file("/home/admin3/grandes-incendios-forestales/project/data/zonas_fitoclima_galicia.shp")
+    # Conexión SSH
+    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
+    remote_path = "/home/admin3/grandes-incendios-forestales/project/data/zonas_fitoclima_galicia.shp"
+    local_path = "/tmp/zonas_fitoclima_galicia.shp"
+
+    print("Descargando shapefile desde el servidor remoto...")
+    with ssh_hook.get_conn() as ssh_client:
+        sftp = ssh_client.open_sftp()
+        sftp.get(remote_path, local_path)  # Descarga el archivo remoto a /tmp en Airflow
+        sftp.close()
+
+    # Leer el shapefile desde la ubicación temporal
+    zonas_fitoclima = gpd.read_file(local_path)
     gdf_punto = gpd.GeoDataFrame(geometry=[Point(lon, lat)], crs="EPSG:4326")
     gdf_punto = gdf_punto.to_crs(zonas_fitoclima.crs)
 
@@ -61,6 +73,7 @@ def get_fitoclima(**context):
 
     ti.xcom_push(key='fitoclima', value=zona_fitoclimatica)
     print(f"Zona fitoclimática determinada: {zona_fitoclimatica}")
+
 
 # Ejecutar la predicción en el servidor remoto usando SSH
 def run_prediction(**context):
