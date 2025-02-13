@@ -47,7 +47,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             sftp = ssh_client.open_sftp()
             print(f"Sftp abierto")
 
-            print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de voluemnes")
+            print(f"Cambiando al directorio de lanzamiento y ejecutando limpieza de volumenes")
             stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/algoritmo_dNBR/launch && docker-compose down --volumes')
             stdout.channel.recv_exit_status()  # Esperar a que el comando termine
 
@@ -59,7 +59,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 print(json_Incendio)
                 print(json_Perimetro)
 
-                idFire = dato.get('fireId')
+                idFire = dato
 
                 if json_Incendio is not None:
                     archivo_incendio = f"/home/admin3/algoritmo_dNBR/input/ob_incendio/incendio_{idFire}_{fecha}.json"
