@@ -40,10 +40,17 @@ def get_weather_data(**kwargs):
     ]
     url = f"https://api.meteomatics.com/{datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')}/{','.join(parameters)}/{lat},{lon}/json"
 
+    print(f"Consultando Meteomatics API: {url}")
+
     response = requests.get(url, auth=(meteomatics_user, meteomatics_password))
     if response.status_code == 200:
         weather_data = response.json()
         ti.xcom_push(key='weather_data', value=weather_data)
+
+        # **Nuevo Print con los datos meteorológicos**
+        print("Datos meteorológicos obtenidos:")
+        print(json.dumps(weather_data, indent=4)) 
+
     else:
         raise Exception(f"Error en Meteomatics: {response.text}")
 
