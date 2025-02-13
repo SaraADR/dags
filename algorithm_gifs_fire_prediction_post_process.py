@@ -48,31 +48,56 @@ def get_weather_data(**context):
     else:
         raise Exception(f"Error en Meteomatics: {response.text}")
 
-# Función para determinar la zona fitoclimática desde un shapefile
 def get_fitoclima(**context):
     ti = context['ti']
     lat, lon = 42.56103, -8.618725
 
-    # Conexión SSH
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
-    remote_path = "/home/admin3/grandes-incendios-forestales/project/data/zonas_fitoclima_galicia.shp"
-    local_path = "/tmp/zonas_fitoclima_galicia.shp"
 
-    print("Descargando shapefile desde el servidor remoto...")
+    # Ruta en el servidor remoto
+    remote_dir = "/home/admin3/grandes-incendios-forestales/project/data/"
+    shapefile_base = "zonas_fitoclima_galicia"
+    local_dir = "/tmp/"
+
+    print("Descargando todos los archivos del shapefile desde el servidor remoto...")
     with ssh_hook.get_conn() as ssh_client:
         sftp = ssh_client.open_sftp()
-        sftp.get(remote_path, local_path)  # Descarga el archivo remoto a /tmp en Airflow
+
+        # Descargar los archivos esenciales del shapefile (.shp, .dbf, .shx, .prj si existe)
+        for ext in ["shp", "dbf", "shx", "prj"]:
+            remote_file = f"{remote_dir}{shapefile_base}.{ext}"
+            local_file = f"{local_dir}{shapefile_base}.{ext}"
+
+            try:
+                sftp.get(remote_file, local_file)
+                print(f"Archivo descargado: {remote_file} -> {local_file}")
+            except FileNotFoundError:
+                print(f"Advertencia: No se encontró {remote_file}. Puede que el shapefile no tenga este archivo.")
+
         sftp.close()
 
-    # Leer el shapefile desde la ubicación temporal
-    zonas_fitoclima = gpd.read_file(local_path)
+    # Intentar abrir el shapefile con GeoPandas
+    local_shapefile_path = f"{local_dir}{shapefile_base}.shp"
+    print(f"Intentando abrir {local_shapefile_path} con GeoPandas...")
+    
+    try:
+        zonas_fitoclima = gpd.read_file(local_shapefile_path)
+    except Exception as e:
+        raise Exception(f"Error al abrir el shapefile: {e}")
+
+    # Crear un GeoDataFrame con el punto de coordenadas
     gdf_punto = gpd.GeoDataFrame(geometry=[Point(lon, lat)], crs="EPSG:4326")
     gdf_punto = gdf_punto.to_crs(zonas_fitoclima.crs)
 
-    zona_fitoclimatica = next((zona["id"] for _, zona in zonas_fitoclima.iterrows() if gdf_punto.geometry.iloc[0].within(zona.geometry)), "Desconocido")
+    # Determinar en qué zona fitoclimática se encuentra el punto
+    zona_fitoclimatica = next(
+        (zona["id"] for _, zona in zonas_fitoclima.iterrows() if gdf_punto.geometry.iloc[0].within(zona.geometry)),
+        "Desconocido"
+    )
 
     ti.xcom_push(key='fitoclima', value=zona_fitoclimatica)
     print(f"Zona fitoclimática determinada: {zona_fitoclimatica}")
+
 
 
 # Ejecutar la predicción en el servidor remoto usando SSH
