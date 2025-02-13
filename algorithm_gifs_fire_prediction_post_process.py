@@ -40,17 +40,10 @@ def get_weather_data(**kwargs):
     ]
     url = f"https://api.meteomatics.com/{datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')}/{','.join(parameters)}/{lat},{lon}/json"
 
-    print(f"Consultando Meteomatics API: {url}")
-
     response = requests.get(url, auth=(meteomatics_user, meteomatics_password))
     if response.status_code == 200:
         weather_data = response.json()
         ti.xcom_push(key='weather_data', value=weather_data)
-
-        # **Nuevo Print con los datos meteorológicos**
-        print("Datos meteorológicos obtenidos:")
-        print(json.dumps(weather_data, indent=4)) 
-
     else:
         raise Exception(f"Error en Meteomatics: {response.text}")
 
@@ -59,7 +52,7 @@ def get_fitoclima(**kwargs):
     ti = kwargs['ti']
     lat, lon = 42.56103, -8.618725
 
-    zonas_fitoclima = gpd.read_file("/home/admin3/grandes-incendios-forestales/project/data/zonas_fitoclima_galicia.shp")
+    zonas_fitoclima = gpd.read_file("/home/admin3/grandes-incendios-forestales/data/zonas_fitoclima_galicia.shp")
     gdf_punto = gpd.GeoDataFrame(geometry=[Point(lon, lat)], crs="EPSG:4326")
     gdf_punto = gdf_punto.to_crs(zonas_fitoclima.crs)
 
