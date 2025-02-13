@@ -130,13 +130,17 @@ def run_prediction(**context):
     ]
 
     for param in parametros:
-        # Buscar el parámetro en los datos meteorológicos
-        valor = next((item["value"] for item in weather_data["data"] if item.get("parameter") == param), None)
+        valor = None
+        for item in weather_data["data"]:
+            if item.get("parameter") == param:
+                # Extraer el valor dentro de coordinates -> dates -> value
+                try:
+                    valor = item["coordinates"][0]["dates"][0]["value"]
+                except (IndexError, KeyError):
+                    print(f"Advertencia: No se encontró 'value' para el parámetro {param}.")
+                break
         
-        if valor is None:
-            print(f"Advertencia: No se encontró '{param}' en la respuesta de Meteomatics.")
-        
-        input_data[param] = valor  # Agregar el valor o None si no se encontró
+        input_data[param] = valor
 
     print("Datos preparados para la predicción:")
     print(json.dumps(input_data, indent=4))
