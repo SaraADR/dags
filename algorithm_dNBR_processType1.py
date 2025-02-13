@@ -98,8 +98,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                         json.dump(params, json_file, ensure_ascii=False, indent=4)
                         print(f"Guardado archivo {archivo_params}")
 
-
-                    stdin, stdout, stderr = ssh_client.exec_command(f'cd /home/admin3/algoritmo_dNBR/launch && CONFIGURATION_PATH={archivo_params} docker-compose -f compose.yaml up --build')              
+                    path = f'/share_data/input/ejecucion_{idFire}_{fecha}.json' 
+                    stdin, stdout, stderr = ssh_client.exec_command(f'cd /home/admin3/algoritmo_dNBR/input && CONFIGURATION_PATH={path} docker-compose -f --rm ../launch/compose.yaml up --build')              
                     output = stdout.read().decode()
                     error_output = stderr.read().decode()
 
