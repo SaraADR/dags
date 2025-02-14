@@ -56,16 +56,16 @@ def execute_docker_process(**context):
             time.sleep(10)
 
             # Verificar si el contenedor se ha creado
-            print("Verificando si el contenedor gifs_service se ha creado correctamente...")
+            print("Verificando si el contenedor grandes-incendios-forestales_gifs_service_1 se ha creado correctamente...")
             stdin, stdout, stderr = ssh_client.exec_command(
-                "docker ps -a --filter name=gifs_service --format '{{{{.ID}}}}'"
+                "docker ps -a --filter name=grandes-incendios-forestales_gifs_service_1 --format '{{{{.ID}}}}'"
             )
             container_id = stdout.read().decode().strip()
 
             if container_id:
-                print(f"Contenedor gifs_service encontrado: {container_id}.")
+                print(f"Contenedor grandes-incendios-forestales_gifs_service_1 encontrado: {container_id}.")
             else:
-                raise Exception("Error: No se pudo crear el contenedor gifs_service.")
+                raise Exception("Error: No se pudo crear el contenedor grandes-incendios-forestales_gifs_service_1.")
 
             # Esperar a que se genere output.json en la nueva ubicación
             print("Esperando resultado...")
