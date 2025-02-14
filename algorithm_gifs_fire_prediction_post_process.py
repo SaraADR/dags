@@ -56,14 +56,14 @@ def execute_docker_process(**context):
             print("Esperando resultado...")
             while True:
                 try:
-                    sftp.stat("/home/admin3/grandes-incendios-forestales/share_data/expected/output.json")
+                    sftp.stat("/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json")
                     print("Resultado generado en output.json")
                     break
                 except FileNotFoundError:
                     time.sleep(5)
 
             # Descargar output.json
-            sftp.get("/home/admin3/grandes-incendios-forestales/share_data/expected/output.json", "/tmp/output.json")
+            sftp.get("/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json", "/tmp/output.json")
             print("Archivo de salida descargado correctamente.")
 
             # Eliminar el contenedor después de la ejecución
