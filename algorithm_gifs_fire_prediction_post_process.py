@@ -6,12 +6,14 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 def execute_docker_process(**context):
-    # Sube input_automatic.json, ejecuta Docker Compose y gestiona el contenedor
+    """Sube input_automatic.json, ejecuta Docker Compose y gestiona el contenedor"""
+
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
+
             # Subir input_automatic.json directamente en la ruta correcta
             with sftp.file("/home/admin3/grandes-incendios-forestales/input_automatic.json", "w") as json_file:
                 json.dump(
@@ -33,29 +35,37 @@ def execute_docker_process(**context):
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose down --volumes"
             )
 
-            # Verificar si el contenedor sigue existiendo y eliminarlo si es necesario
-            container_name = "gifs_service"
+            # Construir la imagen de Docker antes de ejecutar el contenedor
+            print("Construyendo la imagen de Docker...")
             stdin, stdout, stderr = ssh_client.exec_command(
-                f"docker ps -a --filter name={container_name} --format '{{{{.ID}}}}'"
+                "cd /home/admin3/grandes-incendios-forestales && docker-compose build"
+            )
+            print(stdout.read().decode())
+            print(stderr.read().decode())
+
+            # Ejecutar Docker Compose en modo demonio para asegurarse de que el contenedor se cree
+            print("Ejecutando Docker Compose...")
+            stdin, stdout, stderr = ssh_client.exec_command(
+                "cd /home/admin3/grandes-incendios-forestales && docker-compose up -d"
+            )
+            print(stdout.read().decode())
+            print(stderr.read().decode())
+
+            # Esperar unos segundos para permitir que el contenedor arranque
+            print("Esperando 10 segundos para que el contenedor inicie correctamente...")
+            time.sleep(10)
+
+            # Verificar si el contenedor se ha creado
+            print("Verificando si el contenedor gifs_service se ha creado correctamente...")
+            stdin, stdout, stderr = ssh_client.exec_command(
+                "docker ps -a --filter name=gifs_service --format '{{{{.ID}}}}'"
             )
             container_id = stdout.read().decode().strip()
 
             if container_id:
-                print(f"Contenedor encontrado: {container_id}. Eliminándolo...")
-                ssh_client.exec_command(f"docker rm -f {container_id}")
-                print(f"Contenedor {container_name} eliminado correctamente.")
+                print(f"Contenedor gifs_service encontrado: {container_id}.")
             else:
-                print(f"No se encontró ningún contenedor con el nombre {container_name}.")
-
-            # Ejecutar Docker Compose con --rm desde la ubicación correcta
-            command_run = (
-                "cd /home/admin3/grandes-incendios-forestales && "
-                "docker-compose -f docker-compose.yml build && "
-                "docker-compose -f docker-compose.yml run --rm gifs_service"
-            )
-            print("Ejecutando Docker Compose con --rm...")
-            stdin, stdout, stderr = ssh_client.exec_command(command_run)
-            print(stdout.read().decode())
+                raise Exception("Error: No se pudo crear el contenedor gifs_service.")
 
             # Esperar a que se genere output.json en la nueva ubicación
             print("Esperando resultado...")
@@ -70,6 +80,13 @@ def execute_docker_process(**context):
             # Descargar output.json
             sftp.get("/home/admin3/grandes-incendios-forestales/share_data/expected/output.json", "/tmp/output.json")
             print("Archivo de salida descargado correctamente.")
+
+            # Eliminar el contenedor después de la ejecución
+            print("Eliminando contenedor gifs_service...")
+            ssh_client.exec_command(
+                "cd /home/admin3/grandes-incendios-forestales && docker-compose down"
+            )
+            print("Contenedor eliminado correctamente.")
 
             sftp.close()
 
