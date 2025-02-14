@@ -117,11 +117,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     "obj_perimetro":  f'/share_data/input/perimetros/perimetro_{idFire}_{fecha}.json',
                     "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
                     "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
-                    "dias_pre" :  Variable.get("dNBR_diasPre", default_var="10"),
-                    "dias_post" : Variable.get("dNBR_diasPost", default_var="10"),
-                    "pdefect" : None,
-                    "dia_fin" :  None,
-                    "buffer" : None ,
+                    "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
+                    "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)),
                     "dias_fin": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d"),
                     "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
                 }
