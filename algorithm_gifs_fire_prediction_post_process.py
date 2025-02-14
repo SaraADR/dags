@@ -1,66 +1,70 @@
 import datetime
 import json
+import time
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 def execute_docker_process(**context):
-    """Recoge los datos de entrada, valida los datos, sube input_automatic.json, ejecuta Docker Compose y gestiona el contenedor"""
+    """Sube input_automatic.json, ejecuta Docker Compose y gestiona el contenedor"""
 
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
     try:
-        # Recoger datos de entrada desde Airflow
-        dag_run_conf = context.get("dag_run").conf
-        input_data = dag_run_conf.get("incendios", [])
-
-        # Validar que los datos sean correctos
-        if not input_data or not isinstance(input_data, list):
-            raise ValueError("Los datos de entrada no son válidos o están vacíos.")
-
-        for item in input_data:
-            if "id" not in item or "lat" not in item or "long" not in item:
-                raise ValueError(f"Datos incorrectos en el incendio: {item}")
-
-        print("Datos de entrada validados correctamente:", input_data)
-
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
 
-            # Subir input_automatic.json con los datos correctos
-            input_path = "/home/admin3/grandes-incendios-forestales/input_automatic.json"
-            with sftp.file(input_path, "w") as json_file:
-                json.dump({"incendios": input_data}, json_file, ensure_ascii=False, indent=4)
-
-            print(f"Archivo de entrada subido correctamente: {input_path}")
+            # Subir input_automatic.json directamente en la ruta correcta
+            with sftp.file("/home/admin3/grandes-incendios-forestales/input_automatic.json", "w") as json_file:
+                json.dump(
+                    {
+                        "incendios": [
+                            {"id": 1, "lat": 42.56103, "long": -8.618725},
+                            {"id": 2, "lat": 43.01234, "long": -7.54321}
+                        ]
+                    },
+                    json_file,
+                    ensure_ascii=False,
+                    indent=4
+                )
+            print("Archivo de entrada subido correctamente.")
 
             # Cambiar al directorio correcto y ejecutar limpieza de volúmenes
-            print("Ejecutando limpieza de volúmenes...")
+            print("Cambiando al directorio de lanzamiento y ejecutando limpieza de volúmenes")
             ssh_client.exec_command(
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose down --volumes"
             )
 
             # Construir la imagen de Docker antes de ejecutar el contenedor
             print("Construyendo la imagen de Docker...")
-            ssh_client.exec_command(
+            stdin, stdout, stderr = ssh_client.exec_command(
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose build"
             )
+            print(stdout.read().decode())
 
-            # Ejecutar Docker Compose en modo demonio
+            # Ejecutar Docker Compose en modo demonio para asegurarse de que el contenedor se cree
             print("Ejecutando Docker Compose...")
             ssh_client.exec_command(
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose up -d"
             )
 
-            # Intentar descargar output.json si existe
-            output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
-            local_output_path = "/tmp/output.json"
+            # Esperar unos segundos para permitir que el contenedor arranque
+            print("Esperando 10 segundos para que el contenedor inicie correctamente...")
+            time.sleep(10)
 
-            try:
-                sftp.get(output_path, local_output_path)
-                print("Archivo de salida descargado correctamente.")
-            except FileNotFoundError:
-                print("output.json no encontrado. Continuando con la ejecución sin descargar.")
+            # Esperar a que se genere output.json en la nueva ubicación
+            print("Esperando resultado...")
+            while True:
+                try:
+                    sftp.stat("/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json")
+                    print("Resultado generado en output.json")
+                    break
+                except FileNotFoundError:
+                    time.sleep(5)
+
+            # Descargar output.json
+            sftp.get("/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json", "/tmp/output.json")
+            print("Archivo de salida descargado correctamente.")
 
             # Eliminar el contenedor después de la ejecución
             print("Eliminando contenedor...")
