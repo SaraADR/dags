@@ -73,8 +73,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     ssh_client.exec_command(f"touch {archivo_perimetro}")
                     ssh_client.exec_command(f"chmod 644 {archivo_perimetro}")
                     with sftp.file(archivo_perimetro, 'w') as json_file:
-                        json_file.write(json.dumps(json_Perimetro, indent=4).encode('utf-8'))
-                              
+                        json_file.write(json.dumps(json_Perimetro, separators=(',', ':'), ensure_ascii=False).encode('utf-8'))
 
                 params = {
                     "directorio_alg":  '.',
@@ -177,7 +176,8 @@ def busqueda_datos_perimetro(idIncendio):
             if response.status_code == 200:
                 print("Perimetros del incendio encontrados con exito.")
                 fire_data = response.json()
-                return fire_data
+                most_recent_obj = max(fire_data, key=lambda x: x["timestamp"])
+                return 
             else:
                 print(f"Error en la busqueda del incendio: {response.status_code}")
                 print(response.text)
