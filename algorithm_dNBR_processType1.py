@@ -87,16 +87,6 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
                 }
 
-                params = {          
-                    "directorio_alg":".",
-                    "directorio_output":'/share_data/output/' + str(idFire) + "_" + str(fecha) + 'TEST2',
-                    "obj_incendio":f'/share_data/input/ob_incendio/incendio_{idFire}_{fecha}.json',
-                    "obj_perimetro":  f'/share_data/input/perimetros/perimetro_{idFire}_{fecha}.json',
-                    "service_account": Variable.get("dNBR_path_serviceAccount", default_var=None), 
-                    "credenciales": "/share_data/input/algoritmos-bio-b40e24394020.json",
-                    "dias_pre":int(Variable.get("dNBR_diasPre", default_var=10)),
-                    "dias_post":int(Variable.get("dNBR_diasPost", default_var=10)),
-                }
                 print(params)
 
                 if params is not None:                                    
