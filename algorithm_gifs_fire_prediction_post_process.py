@@ -100,22 +100,15 @@ def get_fitoclima(**context):
 
 
 
-# Ejecutar la predicción en el servidor remoto usando SSH
+# Función para ejecutar la predicción usando Docker Compose
 def run_prediction(**context):
     ti = context['ti']
-    
-    # Obtener datos desde XCom
     weather_data = ti.xcom_pull(task_ids='get_weather_data', key='weather_data')
     fitoclima = ti.xcom_pull(task_ids='get_fitoclima', key='fitoclima')
 
-    print("Datos meteorológicos recibidos:")
-    print(json.dumps(weather_data, indent=4))  # 🔹 Mostrar estructura del JSON para depuración
-
-    # Verificar que 'data' esté en weather_data
     if "data" not in weather_data:
-        raise Exception("Error: 'data' no encontrado en la respuesta de Meteomatics. Verifica la API.")
+        raise Exception("Error: 'data' no encontrado en la respuesta de Meteomatics.")
 
-    # Crear el input_data asegurando que todas las claves existen
     input_data = {
         "id": 0,
         "lat": 42.56103,
@@ -123,42 +116,26 @@ def run_prediction(**context):
         "zona_fitoclimatica": fitoclima
     }
 
-    # Extraer los valores de los parámetros meteorológicos de forma segura
     parametros = [
         "tmax_2m_24h:C", "wind_speed_10m:ms", "relative_humidity_2m:p",
         "t_2m:C", "wind_dir_10m:d", "dew_point_2m:C", "tmin_2m_24h:C"
     ]
 
     for param in parametros:
-        valor = None
-        for item in weather_data["data"]:
-            if item.get("parameter") == param:
-                # Extraer el valor dentro de coordinates -> dates -> value
-                try:
-                    valor = item["coordinates"][0]["dates"][0]["value"]
-                except (IndexError, KeyError):
-                    print(f"Advertencia: No se encontró 'value' para el parámetro {param}.")
-                break
-        
-        input_data[param] = valor
+        input_data[param] = next((item["coordinates"][0]["dates"][0]["value"]
+                                  for item in weather_data["data"] if item["parameter"] == param), None)
 
-    print("Datos preparados para la predicción:")
-    print(json.dumps(input_data, indent=4))
-
-    # Conexión SSH para subir los datos al servidor remoto
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
     remote_input_path = "/home/admin3/grandes-incendios-forestales/share_data/inputs/input_auto.json"
-    
-    command_upload = f"echo '{json.dumps([input_data])}' > {remote_input_path}"
 
-    print("Conectando al servidor remoto para subir los datos...")
     with ssh_hook.get_conn() as ssh_client:
-        ssh_client.exec_command(command_upload)
+        ssh_client.exec_command(f"echo '{json.dumps([input_data])}' > {remote_input_path}")
     
-    # Ejecutar la predicción en el servidor Docker
-    container_name = "gifs_service"
-    remote_output_path = "/share_data/expected/output.json"
-    command_run = f"docker exec {container_name} python app/src/algorithm_gifs_fire_prediction_post_process.py {remote_input_path} {remote_output_path} A"
+    command_run = (
+        "cd /home/admin3/grandes-incendios-forestales && "
+        "docker-compose -f compose.yaml run gifs_service python app/src/algorithm_gifs_fire_prediction_post_process.py "
+        f"{remote_input_path} /share_data/expected/output.json A"
+    )
 
     print("Ejecutando la predicción en el servidor remoto...")
     with ssh_hook.get_conn() as ssh_client:
@@ -166,8 +143,7 @@ def run_prediction(**context):
         print(stdout.read().decode())
         error = stderr.read().decode()
         if error:
-            print(f"Error en ejecución remota: {error}")
-            raise Exception(error)
+            raise Exception(f"Error en ejecución remota: {error}")
 
 
 # Guardar resultados en PostgreSQL
