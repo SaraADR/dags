@@ -25,7 +25,7 @@ def process_element(**context):
 
     interval_value = f'{tipo1diasincendio} days'
     query = f"""
-        SELECT mf.fire_id, m.id
+        SELECT mf.fire_id
         FROM missions.mss_mission m
         JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
         WHERE mf.extinguishing_timestamp::DATE = (CURRENT_DATE - INTERVAL '{interval_value}')
@@ -42,6 +42,8 @@ def process_element(**context):
 def ejecutar_algoritmo(datos, fechaHoraActual):
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
     fecha = fechaHoraActual.strftime("%d%m%Y")
+    print(datos)
+
 
     try:
         # Conectarse al servidor SSH
@@ -53,99 +55,99 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             stdin, stdout, stderr = ssh_client.exec_command('cd /home/admin3/algoritmo_dNBR/launch && docker-compose down --volumes')
             stdout.channel.recv_exit_status()  # Esperar a que el comando termine
 
-            for fire_id, mission_id in datos:
-                print(f"dato: {datos}")
-                json_Incendio = busqueda_datos_incendio(fire_id)
-                json_Perimetro = busqueda_datos_perimetro(fire_id)
+            fire_id, mission_id = datos
+            print(f"dato: {datos}")
+            json_Incendio = busqueda_datos_incendio(fire_id)
+            json_Perimetro = busqueda_datos_perimetro(fire_id)
 
-                print(json_Incendio)
-                print(json_Perimetro)
+            print(json_Incendio)
+            print(json_Perimetro)
 
-                if json_Incendio is not None:
-                    archivo_incendio = f"/home/admin3/algoritmo_dNBR/input/ob_incendio/incendio_{fire_id}_{fecha}.json"
-                    ssh_client.exec_command(f"touch {archivo_incendio}")
-                    ssh_client.exec_command(f"chmod 644 {archivo_incendio}")
-                    with sftp.file(archivo_incendio, 'w') as json_file:
-                        json.dump(json_Incendio, json_file, ensure_ascii=False, indent=4)
+            if json_Incendio is not None:
+                archivo_incendio = f"/home/admin3/algoritmo_dNBR/input/ob_incendio/incendio_{fire_id}_{fecha}.json"
+                ssh_client.exec_command(f"touch {archivo_incendio}")
+                ssh_client.exec_command(f"chmod 644 {archivo_incendio}")
+                with sftp.file(archivo_incendio, 'w') as json_file:
+                    json.dump(json_Incendio, json_file, ensure_ascii=False, indent=4)
 
-                if json_Perimetro is not None:                                    
-                    archivo_perimetro = f"/home/admin3/algoritmo_dNBR/input/perimetros/perimetro_{fire_id}_{fecha}.json"
-                    ssh_client.exec_command(f"touch {archivo_perimetro}")
-                    ssh_client.exec_command(f"chmod 644 {archivo_perimetro}")
-                    with sftp.file(archivo_perimetro, 'w') as json_file:
-                        json_file.write(json.dumps(json_Perimetro, separators=(',', ':'), ensure_ascii=False).encode('utf-8'))
+            if json_Perimetro is not None:                                    
+                archivo_perimetro = f"/home/admin3/algoritmo_dNBR/input/perimetros/perimetro_{fire_id}_{fecha}.json"
+                ssh_client.exec_command(f"touch {archivo_perimetro}")
+                ssh_client.exec_command(f"chmod 644 {archivo_perimetro}")
+                with sftp.file(archivo_perimetro, 'w') as json_file:
+                    json_file.write(json.dumps(json_Perimetro, separators=(',', ':'), ensure_ascii=False).encode('utf-8'))
 
-                params = {
-                    "directorio_alg":  '.',
-                    "directorio_output" : '/share_data/output/' + str(fire_id) + "_" + str(fecha),
-                    "obj_incendio":  f'/share_data/input/ob_incendio/incendio_{fire_id}_{fecha}.json',
-                    "obj_perimetro":  f'/share_data/input/perimetros/perimetro_{fire_id}_{fecha}.json',
-                    "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
-                    "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
-                    "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
-                    "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)),
-                    "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
-                }
+            params = {
+                "directorio_alg":  '.',
+                "directorio_output" : '/share_data/output/' + str(fire_id) + "_" + str(fecha),
+                "obj_incendio":  f'/share_data/input/ob_incendio/incendio_{fire_id}_{fecha}.json',
+                "obj_perimetro":  f'/share_data/input/perimetros/perimetro_{fire_id}_{fecha}.json',
+                "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
+                "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
+                "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
+                "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)),
+                "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
+            }
 
-                print(params)
+            print(params)
 
-                if params is not None:                                    
-                    archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{fire_id}_{fecha}.json"
-                    with sftp.file(archivo_params, 'w') as json_file:
-                        json.dump(params, json_file, ensure_ascii=False, indent=4)
-                        print(f"Guardado archivo {archivo_params}")
+            if params is not None:                                    
+                archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{fire_id}_{fecha}.json"
+                with sftp.file(archivo_params, 'w') as json_file:
+                    json.dump(params, json_file, ensure_ascii=False, indent=4)
+                    print(f"Guardado archivo {archivo_params}")
 
 
-                    stdin, stdout, stderr = ssh_client.exec_command('ls -l /share_data/')
-                    output = stdout.read().decode()
-                    error_output = stderr.read().decode()
+                stdin, stdout, stderr = ssh_client.exec_command('ls -l /share_data/')
+                output = stdout.read().decode()
+                error_output = stderr.read().decode()
 
-                    print("Contenido de /share_data/ antes de la ejecución:")
-                    print(output)
+                print("Contenido de /share_data/ antes de la ejecución:")
+                print(output)
+                print(error_output)
+
+                path = f'/share_data/input/ejecucion_{fire_id}_{fecha}.json' 
+                runId = f'{fire_id}_{fecha}'
+                stdin, stdout, stderr = ssh_client.exec_command(
+                    f'cd /home/admin3/algoritmo_dNBR/scripts && '
+                    f'export RUN_ID={fire_id} && export CONFIGURATION_PATH={path} && '
+                    f'docker-compose -f ../launch/compose.yaml up --build'
+                )
+                output = stdout.read().decode()
+                error_output = stderr.read().decode()
+
+                print("Salida de run.sh:")
+                print(output)
+                if(error_output is not None):
                     print(error_output)
+                    raise
 
-                    path = f'/share_data/input/ejecucion_{fire_id}_{fecha}.json' 
-                    runId = f'{fire_id}_{fecha}'
-                    stdin, stdout, stderr = ssh_client.exec_command(
-                        f'cd /home/admin3/algoritmo_dNBR/scripts && '
-                        f'export RUN_ID={fire_id} && export CONFIGURATION_PATH={path} && '
-                        f'docker-compose -f ../launch/compose.yaml up --build'
-                    )
-                    output = stdout.read().decode()
-                    error_output = stderr.read().decode()
-
-                    print("Salida de run.sh:")
-                    print(output)
-                    if(error_output is not None):
-                        print(error_output)
-                        raise
-
-                    output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
-                    local_output_directory = '/tmp'
-                    sftp.chdir(output_directory)
-                    print(f"Cambiando al directorio de salida: {output_directory}")
-                    downloaded_files = []
-                    for filename in sftp.listdir():
-                            remote_file_path = os.path.join(output_directory, filename)
-                            local_file_path = os.path.join(local_output_directory, filename)
-
-                            # Descargar el archivo
-                            sftp.get(remote_file_path, local_file_path)
-                            print(f"Archivo {filename} descargado a {local_file_path}")
-                            downloaded_files.append(local_file_path)
-                
-                sftp.close()
-                print_directory_contents(local_output_directory)
+                output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
                 local_output_directory = '/tmp'
-                archivos_en_tmp = os.listdir(local_output_directory)
-                for archivo in archivos_en_tmp:
-                    key = uuid.uuid4()
-                    path = f'{mission_id}/{str(key)}'
-                    local_file_path = os.path.join(path, archivo)
-                    if os.path.isfile(local_file_path): 
-                        upload_to_minio_path('minio_conn', 'missions', 'missions', local_file_path)
-                    else:
-                        print(f"Omitiendo {archivo}, no es un archivo.")
+                sftp.chdir(output_directory)
+                print(f"Cambiando al directorio de salida: {output_directory}")
+                downloaded_files = []
+                for filename in sftp.listdir():
+                        remote_file_path = os.path.join(output_directory, filename)
+                        local_file_path = os.path.join(local_output_directory, filename)
+
+                        # Descargar el archivo
+                        sftp.get(remote_file_path, local_file_path)
+                        print(f"Archivo {filename} descargado a {local_file_path}")
+                        downloaded_files.append(local_file_path)
+            
+            sftp.close()
+            print_directory_contents(local_output_directory)
+            local_output_directory = '/tmp'
+            archivos_en_tmp = os.listdir(local_output_directory)
+            for archivo in archivos_en_tmp:
+                key = uuid.uuid4()
+                path = f'{mission_id}/{str(key)}'
+                local_file_path = os.path.join(path, archivo)
+                if os.path.isfile(local_file_path): 
+                    upload_to_minio_path('minio_conn', 'missions', 'missions', local_file_path)
+                else:
+                    print(f"Omitiendo {archivo}, no es un archivo.")
 
 
 
