@@ -41,31 +41,16 @@ def execute_docker_process(**context):
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose build"
             )
             print(stdout.read().decode())
-            print(stderr.read().decode())
 
             # Ejecutar Docker Compose en modo demonio para asegurarse de que el contenedor se cree
             print("Ejecutando Docker Compose...")
-            stdin, stdout, stderr = ssh_client.exec_command(
+            ssh_client.exec_command(
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose up -d"
             )
-            print(stdout.read().decode())
-            print(stderr.read().decode())
 
             # Esperar unos segundos para permitir que el contenedor arranque
             print("Esperando 10 segundos para que el contenedor inicie correctamente...")
             time.sleep(10)
-
-            # Verificar si el contenedor se ha creado
-            print("Verificando si el contenedor grandes-incendios-forestales_gifs_service_1 se ha creado correctamente...")
-            stdin, stdout, stderr = ssh_client.exec_command(
-                "docker ps -a --filter name=grandes-incendios-forestales_gifs_service_1 --format '{{{{.ID}}}}'"
-            )
-            container_id = stdout.read().decode().strip()
-
-            if container_id:
-                print(f"Contenedor grandes-incendios-forestales_gifs_service_1 encontrado: {container_id}.")
-            else:
-                raise Exception("Error: No se pudo crear el contenedor grandes-incendios-forestales_gifs_service_1.")
 
             # Esperar a que se genere output.json en la nueva ubicación
             print("Esperando resultado...")
@@ -82,7 +67,7 @@ def execute_docker_process(**context):
             print("Archivo de salida descargado correctamente.")
 
             # Eliminar el contenedor después de la ejecución
-            print("Eliminando contenedor gifs_service...")
+            print("Eliminando contenedor...")
             ssh_client.exec_command(
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose down"
             )
