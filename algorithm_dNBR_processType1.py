@@ -177,7 +177,7 @@ def busqueda_datos_perimetro(idIncendio):
                 print("Perimetros del incendio encontrados con exito.")
                 fire_data = response.json()
                 most_recent_obj = max(fire_data, key=lambda x: x["timestamp"])
-                return 
+                return most_recent_obj
             else:
                 print(f"Error en la busqueda del incendio: {response.status_code}")
                 print(response.text)
