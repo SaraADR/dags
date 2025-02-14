@@ -6,16 +6,14 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 def execute_docker_process(**context):
-    """Sube input_automatic.json, ejecuta Docker Compose y gestiona el contenedor"""
-
+    # Sube input_automatic.json, ejecuta Docker Compose y gestiona el contenedor
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
-
             # Subir input_automatic.json directamente en la ruta correcta
-            with sftp.file("/home/admin3/grandes-incendios-forestales/share_data/inputs/input_automatic.json", "w") as json_file:
+            with sftp.file("/home/admin3/grandes-incendios-forestales/input_automatic.json", "w") as json_file:
                 json.dump(
                     {
                         "incendios": [
