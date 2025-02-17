@@ -864,9 +864,9 @@ def assign_owner_to_resource(**context):
         connection = BaseHook.get_connection("geonetwork_update_conn")
         geonetwork_url = connection.host  
 
-        # Usuario y grupo hardcodeados
-        user_identifier = 114  # ID del usuario fijo (como entero)
-        group_identifier = 102  # ID del grupo fijo (como entero)
+        # Usuario y grupo hardcodeados (convertir a enteros)
+        user_identifier = 114  # ✅ Asegurar que es un entero
+        group_identifier = 102  # ✅ Asegurar que es un entero
 
         # Obtener el ID del recurso desde XCom (de la subida del XML)
         resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork', key='resource_id')
@@ -886,7 +886,7 @@ def assign_owner_to_resource(**context):
             logging.info(f"🔹 Asignando propietario {user_identifier} (Grupo: {group_identifier}) al recurso ID: {resource_id}")
 
             # Construir la URL correcta para cambiar la propiedad
-            api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership?groupIdentifier={group_identifier}"
+            api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership"
 
             # Configurar headers para autenticación
             headers = {
@@ -896,24 +896,26 @@ def assign_owner_to_resource(**context):
                 "Content-Type": "application/json"
             }
 
-            # Datos de asignación del propietario (corrigiendo `groupIdentifier`)
+            # Datos de asignación del propietario (corrigiendo `userIdentifier`)
             payload = {
-                "owner": str(user_identifier),  # Convertir a string
-               
+                "userIdentifier": user_identifier,  # ✅ Cambiado de "owner" a "userIdentifier"
+                "groupIdentifier": group_identifier  # ✅ Asegurar que es un entero
             }
 
+            logging.info(f"📩 Enviando payload: {payload}")  # ✅ Para verificar el envío de datos
 
             # Hacer la solicitud PUT para cambiar el propietario
             response = requests.put(api_url, json=payload, headers=headers)
 
             if response.status_code == 200:
-                logging.info(f"Recurso {resource_id} asignado correctamente a {user_identifier}")
+                logging.info(f"✅ Recurso {resource_id} asignado correctamente a {user_identifier}")
             else:
-                logging.error(f"Error en la asignación: {response.status_code} - {response.text}")
+                logging.error(f"⚠️ Error en la asignación: {response.status_code} - {response.text}")
 
     except Exception as e:
-        logging.error(f"Error en la llamada a la API de GeoNetwork: {str(e)}")
+        logging.error(f"❌ Error en la llamada a la API de GeoNetwork: {str(e)}")
         raise
+
 
 
 # Definición del DAG
