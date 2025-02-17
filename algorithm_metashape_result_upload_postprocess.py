@@ -13,7 +13,6 @@ import re
 from airflow.hooks.base import BaseHook
 from PIL import Image
 import os
-import base64
 import tempfile
 import json
 import boto3
@@ -862,7 +861,7 @@ def assign_owner_to_resource(**context):
         resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork')
 
         if not resource_ids:
-            logging.error(" ERROR: No se obtuvo un resource_id después de la subida del XML.")
+            logging.error("ERROR: No se obtuvo un resource_id después de la subida del XML.")
             return
         
         # Si `resource_ids` es una lista, iteramos; si es un solo ID, lo convertimos en lista
@@ -873,7 +872,7 @@ def assign_owner_to_resource(**context):
         access_token, xsrf_token, set_cookie_header, geonetwork_url = get_geonetwork_credentials()
 
         for resource_id in resource_ids:
-            logging.info(f"🔹 Asignando propietario {user_identifier} (Grupo: {group_identifier}) al recurso ID: {resource_id}")
+            logging.info(f"Asignando propietario {user_identifier} (Grupo: {group_identifier}) al recurso ID: {resource_id}")
 
             # Construir la URL correcta para cambiar la propiedad
             api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership"
@@ -921,13 +920,13 @@ dag = DAG(
     catchup=False
 )
 
-# Tarea 0: Obtener el usuario de la configuración del DAG
-get_user_task = PythonOperator(
-    task_id='get_user_from_dag_config',
-    python_callable=get_user_from_dag_config,
-    provide_context=True,
-    dag=dag
-)
+# # Tarea 0: Obtener el usuario de la configuración del DAG
+# get_user_task = PythonOperator(
+#     task_id='get_user_from_dag_config',
+#     python_callable=get_user_from_dag_config,
+#     provide_context=True,
+#     dag=dag
+# )
 
 # Tarea 1: Generar el XML
 generate_xml_task = PythonOperator(
@@ -962,4 +961,5 @@ assign_owner_task = PythonOperator(
 )
 
 # Definir el flujo de las tareas
-upload_miniature_task >> generate_xml_task >> upload_xml_task >> get_user_task >> assign_owner_task
+upload_miniature_task >> generate_xml_task >> upload_xml_task >>  assign_owner_task
+# get_user_task >>
