@@ -898,8 +898,8 @@ def assign_owner_to_resource(**context):
 
             # Datos de asignación del propietario (corrigiendo `userIdentifier`)
             payload = {
-                "userIdentifier": user_identifier,  # Cambiado de "owner" a "userIdentifier"
-                "groupIdentifier": group_identifier  #  Asegurar que es un entero
+                "userIdentifier": int(user_identifier),  # Cambiado de "owner" a "userIdentifier"
+                "groupIdentifier": int(group_identifier)  #  Asegurar que es un entero
             }
 
             logging.info(f"Enviando payload: {payload}")  # Para verificar el envío de datos
