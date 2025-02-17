@@ -297,6 +297,7 @@ def get_geonetwork_credentials():
     try:
 
         conn = BaseHook.get_connection('geonetwork_conn')
+        geonetwork_url = conn.host
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
@@ -316,7 +317,7 @@ def get_geonetwork_credentials():
         set_cookie_header = response_object['setCookieHeader']
     
 
-        return [access_token, xsrf_token, set_cookie_header]
+        return [access_token, xsrf_token, set_cookie_header, geonetwork_url]
     
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al obtener credenciales: {e}")
@@ -335,6 +336,9 @@ def upload_to_geonetwork(**context):
         
         # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
+
+
+
 
         # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
