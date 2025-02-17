@@ -297,7 +297,6 @@ def get_geonetwork_credentials():
     try:
 
         conn = BaseHook.get_connection('geonetwork_conn')
-        geonetwork_url = conn.host
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
@@ -317,7 +316,7 @@ def get_geonetwork_credentials():
         set_cookie_header = response_object['setCookieHeader']
     
 
-        return [access_token, xsrf_token, set_cookie_header, geonetwork_url]
+        return [access_token, xsrf_token, set_cookie_header]
     
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al obtener credenciales: {e}")
@@ -336,9 +335,6 @@ def upload_to_geonetwork(**context):
         
         # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-
-
-
 
         # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
@@ -864,6 +860,8 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 def assign_owner_to_resource(**context):
     """ Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow """
     try:
+        connection = BaseHook.get_connection("geonetwork_update_conn")
+
         # Usuario y grupo hardcodeados
         user_identifier = "114"  # ID del usuario fijo
         group_identifier = "102"  # ID del grupo fijo (opcional)
@@ -880,7 +878,8 @@ def assign_owner_to_resource(**context):
             resource_ids = [resource_ids]
 
         # Obtener credenciales desde Airflow
-        access_token, xsrf_token, set_cookie_header, geonetwork_url = get_geonetwork_credentials()
+        access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
+        geonetwork_url = connection.host
 
         for resource_id in resource_ids:
             logging.info(f"Asignando propietario {user_identifier} (Grupo: {group_identifier}) al recurso ID: {resource_id}")
