@@ -861,13 +861,13 @@ def assign_owner_to_resource(**context):
         resource_id = context['ti'].xcom_pull(task_ids='upload_to_geonetwork')
 
         if not resource_id:
-            logging.error("❌ ERROR: No se obtuvo un resource_id después de la subida del XML.")
+            logging.error(" ERROR: No se obtuvo un resource_id después de la subida del XML.")
             return
 
         # Obtener credenciales desde Airflow
         access_token, xsrf_token, set_cookie_header, geonetwork_url = get_geonetwork_credentials()
 
-        logging.info(f"🔹 Asignando propietario {user_id} ({user_email}) al recurso ID: {resource_id}")
+        logging.info(f" Asignando propietario {user_id} ({user_email}) al recurso ID: {resource_id}")
 
         # Construir la URL correcta para cambiar la propiedad
         api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership"
@@ -887,12 +887,12 @@ def assign_owner_to_resource(**context):
         response = requests.put(api_url, json=payload, headers=headers)
 
         if response.status_code == 200:
-            logging.info(f"✅ Recurso {resource_id} asignado correctamente a {user_id}")
+            logging.info(f"Recurso {resource_id} asignado correctamente a {user_id}")
         else:
-            logging.error(f"❌ Error en la asignación: {response.status_code} - {response.text}")
+            logging.error(f"Error en la asignación: {response.status_code} - {response.text}")
 
     except Exception as e:
-        logging.error(f"❌ Error en la llamada a la API de GeoNetwork: {str(e)}")
+        logging.error(f"Error en la llamada a la API de GeoNetwork: {str(e)}")
         raise
 
 
