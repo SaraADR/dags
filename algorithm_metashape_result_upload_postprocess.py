@@ -861,6 +861,7 @@ def assign_owner_to_resource(**context):
     """ Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow """
     try:
         connection = BaseHook.get_connection("geonetwork_update_conn")
+        geonetwork_url = connection.host
 
         # Usuario y grupo hardcodeados
         user_identifier = "114"  # ID del usuario fijo
@@ -879,7 +880,7 @@ def assign_owner_to_resource(**context):
 
         # Obtener credenciales desde Airflow
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-        geonetwork_url = connection.host
+    
 
         for resource_id in resource_ids:
             logging.info(f"Asignando propietario {user_identifier} (Grupo: {group_identifier}) al recurso ID: {resource_id}")
