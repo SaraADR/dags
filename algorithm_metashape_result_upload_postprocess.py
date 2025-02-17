@@ -863,7 +863,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 def assign_owner_to_resource(**context):
     """Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow"""
     try:
-        logging.info("===== INICIANDO PROCESO DE ASIGNACIÓN DE PROPIETARIO =====")
+        logging.info("INICIANDO PROCESO DE ASIGNACIÓN DE PROPIETARIO A RECURSO EN GEONETWORK...")
 
         # Obtener la conexión de GeoNetwork desde Airflow
         logging.info("Obteniendo conexión a GeoNetwork desde Airflow...")
