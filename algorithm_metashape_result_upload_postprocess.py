@@ -862,7 +862,7 @@ def assign_owner_to_resource(**context):
         resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork')
 
         if not resource_ids:
-            logging.error("❌ ERROR: No se obtuvo un resource_id después de la subida del XML.")
+            logging.error(" ERROR: No se obtuvo un resource_id después de la subida del XML.")
             return
         
         # Si `resource_ids` es una lista, iteramos; si es un solo ID, lo convertimos en lista
@@ -896,12 +896,12 @@ def assign_owner_to_resource(**context):
             response = requests.put(api_url, json=payload, headers=headers)
 
             if response.status_code == 200:
-                logging.info(f"✅ Recurso {resource_id} asignado correctamente a {user_identifier}")
+                logging.info(f"Recurso {resource_id} asignado correctamente a {user_identifier}")
             else:
-                logging.error(f"⚠️ Error en la asignación: {response.status_code} - {response.text}")
+                logging.error(f"Error en la asignación: {response.status_code} - {response.text}")
 
     except Exception as e:
-        logging.error(f"❌ Error en la llamada a la API de GeoNetwork: {str(e)}")
+        logging.error(f"Error en la llamada a la API de GeoNetwork: {str(e)}")
         raise
 
 
