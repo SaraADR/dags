@@ -25,7 +25,7 @@ def process_element(**context):
 
     interval_value = f'{tipo1diasincendio} days'
     query = f"""
-        SELECT mf.fire_id m.id
+        SELECT mf.fire_id, m.id
         FROM missions.mss_mission m
         JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
         WHERE mf.extinguishing_timestamp::DATE = (CURRENT_DATE - INTERVAL '{interval_value}')
