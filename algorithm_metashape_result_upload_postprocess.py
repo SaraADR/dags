@@ -29,15 +29,15 @@ from airflow.hooks.base import BaseHook
 logging.basicConfig(level=logging.INFO)
 
 
-def get_user_from_dag_config(**context):
-    """Obtiene el ID de usuario desde el DAG o usa un valor por defecto"""
-    dag_conf = context['dag_run'].conf
+# def get_user_from_dag_config(**context):
+#     """Obtiene el ID de usuario desde el DAG o usa un valor por defecto"""
+#     dag_conf = context['dag_run'].conf
 
-    user_id = dag_conf.get("user_id", "admin_default")  # Si no se pasa, usa "admin_default"
-    user_email = dag_conf.get("user_email", "admin@default.com")  # Email opcional
+#     user_id = dag_conf.get("user_id", "admin_default")  # Si no se pasa, usa "admin_default"
+#     user_email = dag_conf.get("user_email", "admin@default.com")  # Email opcional
 
-    logging.info(f"✅ Usuario asignado: {user_id} ({user_email})")
-    return user_id, user_email
+#     logging.info(f"Usuario asignado: {user_id} ({user_email})")
+#     return user_id, user_email
 
 def convertir_coords(epsg_input,south, west, north, east):
 
@@ -854,45 +854,54 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 def assign_owner_to_resource(**context):
     """ Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow """
     try:
-        # Obtener usuario desde la configuración del DAG
-        user_id, user_email = get_user_from_dag_config(**context)
+        # Usuario y grupo hardcodeados
+        user_identifier = "114"  # ID del usuario fijo
+        group_identifier = "102"  # ID del grupo fijo (opcional)
 
         # Obtener el ID del recurso desde XCom (de la subida del XML)
-        resource_id = context['ti'].xcom_pull(task_ids='upload_to_geonetwork')
+        resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork')
 
-        if not resource_id:
-            logging.error(" ERROR: No se obtuvo un resource_id después de la subida del XML.")
+        if not resource_ids:
+            logging.error("❌ ERROR: No se obtuvo un resource_id después de la subida del XML.")
             return
+        
+        # Si `resource_ids` es una lista, iteramos; si es un solo ID, lo convertimos en lista
+        if not isinstance(resource_ids, list):
+            resource_ids = [resource_ids]
 
         # Obtener credenciales desde Airflow
         access_token, xsrf_token, set_cookie_header, geonetwork_url = get_geonetwork_credentials()
 
-        logging.info(f" Asignando propietario {user_id} ({user_email}) al recurso ID: {resource_id}")
+        for resource_id in resource_ids:
+            logging.info(f"🔹 Asignando propietario {user_identifier} (Grupo: {group_identifier}) al recurso ID: {resource_id}")
 
-        # Construir la URL correcta para cambiar la propiedad
-        api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership"
+            # Construir la URL correcta para cambiar la propiedad
+            api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership"
 
-        # Configurar headers para autenticación
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "x-xsrf-token": xsrf_token,
-            "Cookie": set_cookie_header[0],
-            "Content-Type": "application/json"
-        }
+            # Configurar headers para autenticación
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "x-xsrf-token": xsrf_token,
+                "Cookie": set_cookie_header[0],
+                "Content-Type": "application/json"
+            }
 
-        # Datos de asignación del propietario
-        payload = {"owner": user_id}
+            # Datos de asignación del propietario (se puede incluir `group_identifier` si es necesario)
+            payload = {
+                "owner": user_identifier,
+                "groupOwner": group_identifier  # Opcional, si el API lo requiere
+            }
 
-        # Hacer la solicitud PUT para cambiar el propietario
-        response = requests.put(api_url, json=payload, headers=headers)
+            # Hacer la solicitud PUT para cambiar el propietario
+            response = requests.put(api_url, json=payload, headers=headers)
 
-        if response.status_code == 200:
-            logging.info(f"Recurso {resource_id} asignado correctamente a {user_id}")
-        else:
-            logging.error(f"Error en la asignación: {response.status_code} - {response.text}")
+            if response.status_code == 200:
+                logging.info(f"✅ Recurso {resource_id} asignado correctamente a {user_identifier}")
+            else:
+                logging.error(f"⚠️ Error en la asignación: {response.status_code} - {response.text}")
 
     except Exception as e:
-        logging.error(f"Error en la llamada a la API de GeoNetwork: {str(e)}")
+        logging.error(f"❌ Error en la llamada a la API de GeoNetwork: {str(e)}")
         raise
 
 
