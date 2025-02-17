@@ -324,6 +324,7 @@ def get_geonetwork_credentials():
 
 
 # Función para subir el XML utilizando las credenciales obtenidas de la conexión de Airflow
+# Función para subir el XML y devolver el ID del recurso
 def upload_to_geonetwork(**context):
     try:
         # Obtener la conexión configurada en Airflow
@@ -338,24 +339,16 @@ def upload_to_geonetwork(**context):
         # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
 
+        resource_ids = []  # Lista para almacenar los IDs de los recursos subidos
+
         for xml_data in xml_data_array:
-        
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
 
             logging.info(f"XML DATA: {xml_data}")
             logging.info(xml_decoded)
 
-            data = {
-                'metadataType': (None, 'METADATA'),
-                'uuidProcessing': (None, 'NOTHING'),
-                'transformWith': (None, '_none_'),
-                'group': (None, 2),
-                'category': (None, ''),
-                'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
-            }
-            
             files = {
-                'file': ('nombre_archivo.xml', xml_decoded, 'text/xml'),
+                'file': ('metadata.xml', xml_decoded, 'text/xml'),
             }
 
             # Encabezados que incluyen los tokens
@@ -368,22 +361,36 @@ def upload_to_geonetwork(**context):
 
             # Realizar la solicitud POST para subir el archivo XML
             logging.info(f"Subiendo XML a la URL: {upload_url}")
-            response = requests.post(upload_url,files=files,data=data, headers=headers)
-            logging.info(response)
+            response = requests.post(upload_url, files=files, headers=headers)
 
             # Verificar si hubo algún error en la solicitud
             response.raise_for_status()
 
-            logging.info(f"Archivo subido correctamente a GeoNetwork. Respuesta: {response.text}")
+            # Extraer la respuesta JSON
+            response_data = response.json()
+
+            # Obtener el ID del recurso
+            resource_id = response_data.get('uuid')  # Asegúrate de que el campo correcto es 'uuid'
+            if resource_id:
+                resource_ids.append(resource_id)
+                logging.info(f"Archivo subido correctamente a GeoNetwork. Resource ID: {resource_id}")
+            else:
+                logging.warning("La respuesta de GeoNetwork no contiene un 'uuid'. Verificar.")
+
+        if not resource_ids:
+            raise Exception("No se generó ningún resource_id en GeoNetwork.")
+
+        # Devolver el/los IDs del recurso(s) subido(s)
+        context['ti'].xcom_push(key='resource_id', value=resource_ids)  # Enviar a XCom
+        return resource_ids  # Retornar explícitamente
 
     except Exception as e:
-
-        # Verificar si existe un objeto de respuesta y extraer su información
         if 'response' in locals() and response is not None:
             logging.error(f"Código de estado: {response.status_code}, Respuesta: {response.text}")
 
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise Exception(f"Error al subir el archivo a GeoNetwork: {e}")
+
     
 
 # Función para crear el XML metadata
@@ -858,7 +865,7 @@ def assign_owner_to_resource(**context):
         group_identifier = "102"  # ID del grupo fijo (opcional)
 
         # Obtener el ID del recurso desde XCom (de la subida del XML)
-        resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork')
+        resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork', key='resource_id')
 
         if not resource_ids:
             logging.error("ERROR: No se obtuvo un resource_id después de la subida del XML.")
