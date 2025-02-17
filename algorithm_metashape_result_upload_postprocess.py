@@ -898,20 +898,21 @@ def assign_owner_to_resource(**context):
 
             # Datos de asignación del propietario (corrigiendo `groupIdentifier`)
             payload = {
-                "owner": user_identifier,
-                "groupIdentifier": group_identifier  
+                "owner": str(user_identifier),  # Convertir a string
+                "groupIdentifier": str(group_identifier)  # Convertir a string
             }
+
 
             # Hacer la solicitud PUT para cambiar el propietario
             response = requests.put(api_url, json=payload, headers=headers)
 
             if response.status_code == 200:
-                logging.info(f"✅ Recurso {resource_id} asignado correctamente a {user_identifier}")
+                logging.info(f"Recurso {resource_id} asignado correctamente a {user_identifier}")
             else:
-                logging.error(f"⚠️ Error en la asignación: {response.status_code} - {response.text}")
+                logging.error(f"Error en la asignación: {response.status_code} - {response.text}")
 
     except Exception as e:
-        logging.error(f"❌ Error en la llamada a la API de GeoNetwork: {str(e)}")
+        logging.error(f"Error en la llamada a la API de GeoNetwork: {str(e)}")
         raise
 
 
