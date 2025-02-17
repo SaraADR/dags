@@ -348,7 +348,7 @@ def upload_to_geonetwork(**context):
             logging.info(xml_decoded)
 
             files = {
-                "uuidProcessing": (None, "GENERATEUUID"), 
+                # "uuidProcessing": (None, "GENERATEUUID"), 
                 'file': ('metadata.xml', xml_decoded, 'text/xml'),
             }
 
