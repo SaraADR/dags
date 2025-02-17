@@ -339,7 +339,7 @@ def upload_to_geonetwork(**context):
         # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
 
-        resource_ids = []  # Lista para almacenar los IDs de los recursos subidos
+        resource_ids = [] 
 
         for xml_data in xml_data_array:
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
@@ -348,6 +348,7 @@ def upload_to_geonetwork(**context):
             logging.info(xml_decoded)
 
             files = {
+                'uuidProcessing':('GENERATEUUID', 'text/plain'),
                 'file': ('metadata.xml', xml_decoded, 'text/xml'),
             }
 
@@ -905,7 +906,7 @@ def assign_owner_to_resource(**context):
                 logging.info(f"Recurso {resource_id} asignado correctamente a {user_identifier}")
             else:
                 logging.error(f"Error en la asignación: {response.status_code} - {response.text}")
-
+                print(response.text)
     except Exception as e:
         logging.error(f"Error en la llamada a la API de GeoNetwork: {str(e)}")
         raise
