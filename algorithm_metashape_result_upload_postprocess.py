@@ -886,7 +886,7 @@ def assign_owner_to_resource(**context):
             logging.info(f"🔹 Asignando propietario {user_identifier} (Grupo: {group_identifier}) al recurso ID: {resource_id}")
 
             # Construir la URL correcta para cambiar la propiedad
-            api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership"
+            api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership?groupIdentifier={group_identifier}"
 
             # Configurar headers para autenticación
             headers = {
@@ -899,7 +899,7 @@ def assign_owner_to_resource(**context):
             # Datos de asignación del propietario (corrigiendo `groupIdentifier`)
             payload = {
                 "owner": str(user_identifier),  # Convertir a string
-                "groupIdentifier": str(group_identifier)  # Convertir a string
+               
             }
 
 
