@@ -140,14 +140,51 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             print_directory_contents(local_output_directory)
             local_output_directory = '/tmp'
             archivos_en_tmp = os.listdir(local_output_directory)
+            output_data = {}
             for archivo in archivos_en_tmp:
                 key = uuid.uuid4()
                 path = f'{mission_id}/{str(key)}'
                 local_file_path = os.path.join(path, archivo)
                 if os.path.isfile(local_file_path): 
                     upload_to_minio_path('minio_conn', 'missions', 'missions', local_file_path)
+                    output_data[archivo] = local_file_path
                 else:
                     print(f"Omitiendo {archivo}, no es un archivo.")
+
+
+            # Y guardamos en la tabla de historico
+            madrid_tz = pytz.timezone('Europe/Madrid')
+            tipo1diasincendio = int(Variable.get("dNBR_diasFinIncendio", default_var="10"))
+
+            # Calcular la fecha de inicio y fin
+            fecha_hoy = datetime.now()
+            fecha_inicio = fecha_hoy - datetime.timedelta(days=tipo1diasincendio)
+            phenomenon_time = f"[{fecha_inicio}, {fecha_hoy}]"
+
+            datos = {
+                'sampled_feature': mission_id,  # Ejemplo de valor
+                'result_time': datetime.datetime.now(madrid_tz),
+                'phenomenon_time': phenomenon_time,
+                'input_data': {"fire_id": fire_id},  
+                'output_data': output_data  
+            }
+
+            # Construir la consulta de inserción
+            query = f"""
+                INSERT INTO algoritmos.algoritmo_dnbr (
+                    sampled_feature, result_time, phenomenon_time, input_data, output_data
+                ) VALUES (
+                    {datos['sampled_feature']},
+                    '{datos['result_time']}',
+                    '{datos['phenomenon_time']}'::TSRANGE,
+                    '{datos['input_data']}',
+                    '{datos['output_data']}'
+                )
+            """
+
+            # Ejecutar la consulta
+            result = execute_query('biobd', query)
+            print(result)
 
 
 
