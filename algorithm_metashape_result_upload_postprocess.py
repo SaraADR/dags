@@ -850,9 +850,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 
     return ET.ElementTree(root)
 
-import logging
-import requests
-from airflow.hooks.base import BaseHook
 
 def assign_owner_to_resource(**context):
     """Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow"""
@@ -866,8 +863,8 @@ def assign_owner_to_resource(**context):
         logging.info(f"GeoNetwork URL obtenida: {geonetwork_url}")
 
         # Usuario y grupo hardcodeados
-        user_identifier = 114  
-        group_identifier = 102  
+        user_identifier = 114  # Asegurar que es un entero
+        group_identifier = 102  # Asegurar que es un entero
         logging.info(f"Usuario y grupo hardcodeados - user_identifier: {user_identifier}, group_identifier: {group_identifier}")
 
         # Obtener el ID del recurso desde XCom
@@ -875,7 +872,7 @@ def assign_owner_to_resource(**context):
         resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork', key='resource_id')
 
         if not resource_ids:
-            logging.error("ERROR: No se obtuvo un resource_id después de la subida del XML.")
+            logging.error("ERROR: No se obtuvo un resource_id después de la subida del XML. Revisar `upload_to_geonetwork`.")
             return
         
         if not isinstance(resource_ids, list):
@@ -887,11 +884,6 @@ def assign_owner_to_resource(**context):
         # Obtener credenciales desde Airflow
         logging.info("Obteniendo credenciales de autenticación para GeoNetwork...")
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-        
-        if not access_token or not xsrf_token or not set_cookie_header:
-            logging.error("❌ ERROR: No se obtuvieron credenciales válidas para GeoNetwork.")
-            return
-        
         logging.info("Credenciales obtenidas correctamente.")
 
         for resource_id in resource_ids:
@@ -902,18 +894,11 @@ def assign_owner_to_resource(**context):
             logging.info(f"Verificando existencia del recurso en GeoNetwork con URL: {check_url}")
 
             check_response = requests.get(check_url)
-            response_status = check_response.status_code
-            response_text = check_response.text
+            logging.info(f"Respuesta de verificación de recurso - Código de estado: {check_response.status_code}, Respuesta: {check_response.text}")
 
-            logging.info(f"Respuesta de verificación de recurso - Código de estado: {response_status}, Respuesta: {response_text}")
-
-            if response_status == 403:
-                logging.error(f"ERROR 403: Acceso prohibido al recurso {resource_id}. El usuario puede no tener permisos.")
-                continue  # Saltamos este recurso
-
-            if response_status == 404:
-                logging.error(f"ERROR 404: El recurso {resource_id} no existe en GeoNetwork. Saltando asignación.")
-                continue  
+            if check_response.status_code == 404:
+                logging.error(f"ERROR: El recurso {resource_id} no existe en GeoNetwork. Saltando asignación.")
+                continue  # Saltamos este recurso y seguimos con los demás
 
             # Construir la URL correcta para cambiar la propiedad
             api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership?groupIdentifier={group_identifier}&userIdentifier={user_identifier}"
@@ -923,7 +908,8 @@ def assign_owner_to_resource(**context):
             headers = {
                 "Authorization": f"Bearer {access_token}",
                 "x-xsrf-token": xsrf_token,
-                "Cookie": set_cookie_header[0]
+                "Cookie": set_cookie_header[0],
+                # "Content-Type": "application/json"
             }
 
             # Agregar logs de headers antes de la solicitud
@@ -931,7 +917,7 @@ def assign_owner_to_resource(**context):
 
             # Realizar la solicitud PUT
             logging.info("Enviando solicitud PUT para asignar propietario...")
-            response = requests.put(api_url, headers=headers, data="")
+            response = requests.put(api_url, headers=headers, data="") 
 
             # Log de respuesta de la API
             logging.info(f"Respuesta de GeoNetwork - Código de estado: {response.status_code}, Respuesta: {response.text}")
@@ -941,7 +927,8 @@ def assign_owner_to_resource(**context):
             elif response.status_code == 400:
                 logging.error(f"ERROR 400 EN ASIGNACIÓN - Respuesta: {response.text}")
                 print(f"ERROR 400: Algo falló en la asignación de propietario para {resource_id}.")
-                print(f"Respuesta detallada: {response.text}")
+                print(f"Respuesta: {response}")
+                
             else:
                 logging.error(f"ERROR EN ASIGNACIÓN - Código de estado: {response.status_code}, Respuesta: {response.text}")
                 print(f"ERROR AL ASIGNAR PROPIETARIO AL RECURSO {resource_id}: {response.text}")
@@ -949,7 +936,6 @@ def assign_owner_to_resource(**context):
     except Exception as e:
         logging.error(f"ERROR FATAL en la llamada a la API de GeoNetwork: {str(e)}")
         raise
-
 
 
 
