@@ -163,7 +163,8 @@ def execute_query(conn_id, query, params=None):
         with engine.connect() as connection:
             result = connection.execute(text(query), params or {})
             print("Consulta ejecutada correctamente")
-            return result.fetchall()
+            if(result is not None):
+                return result.fetchall()
     except Exception as e:
         print(f"Error al ejecutar la consulta: {str(e)}")
         raise
