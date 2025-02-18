@@ -139,11 +139,10 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 key = uuid.uuid4()
                 path = f'{mission_id}/{str(key)}'
                 local_file_path = os.path.join(path, archivo)
-                if os.path.isfile(local_file_path): 
-                    upload_to_minio_path('minio_conn', 'missions', 'missions', local_file_path)
-                    output_data[archivo] = local_file_path
-                else:
-                    print(f"Omitiendo {archivo}, no es un archivo.")
+
+                upload_to_minio_path('minio_conn', 'missions', 'missions', local_file_path)
+                output_data[archivo] = local_file_path
+
 
 
             # Y guardamos en la tabla de historico
@@ -159,8 +158,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 'sampled_feature': mission_id,  # Ejemplo de valor
                 'result_time': datetime.datetime.now(madrid_tz),
                 'phenomenon_time': phenomenon_time,
-                'input_data': {"fire_id": fire_id},  
-                'output_data': output_data  
+                'input_data': json.dumps({"fire_id": fire_id}),
+                'output_data': json.dumps(output_data)
             }
 
             # Construir la consulta de inserción
