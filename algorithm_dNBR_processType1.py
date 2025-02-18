@@ -103,7 +103,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 stdin, stdout, stderr = ssh_client.exec_command(
                     f'cd /home/admin3/algoritmo_dNBR/scripts && '
                     f'export RUN_ID={fire_id} && export CONFIGURATION_PATH={path} && '
-                    f'docker-compose -f ../launch/compose.yaml up --build'
+                    f'docker-compose -f ../launch/compose.yaml up --build && '
+                    f'docker-compose -f ../launch/compose.yaml down --volumes'
                 )
                 output = stdout.read().decode()
                 error_output = stderr.read().decode()
