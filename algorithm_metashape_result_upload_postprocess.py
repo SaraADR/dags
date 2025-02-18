@@ -924,8 +924,13 @@ def assign_owner_to_resource(**context):
 
             if response.status_code == 200:
                 logging.info(f"Asignación de propietario completada con éxito para resource_id: {resource_id}")
+            elif response.status_code == 400:
+                logging.error(f"ERROR 400 EN ASIGNACIÓN - Respuesta: {response.text}")
+                print(f"ERROR 400: Algo falló en la asignación de propietario para {resource_id}.")
+                print(f"La cagada de Abelardito fue: {response.text}")
             else:
                 logging.error(f"ERROR EN ASIGNACIÓN - Código de estado: {response.status_code}, Respuesta: {response.text}")
+                print(f"ERROR AL ASIGNAR PROPIETARIO AL RECURSO {resource_id}: {response.text}")
 
     except Exception as e:
         logging.error(f"ERROR FATAL en la llamada a la API de GeoNetwork: {str(e)}")
