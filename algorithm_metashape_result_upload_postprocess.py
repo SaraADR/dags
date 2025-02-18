@@ -367,21 +367,21 @@ def upload_to_geonetwork(**context):
             # Verificar si hubo algún error en la solicitud
             response.raise_for_status()
 
-            # Extraer la respuesta JSON
+            # Extraer el JSON completo de la respuesta
             response_data = response.json()
+            logging.info(f"Respuesta de GeoNetwork: {json.dumps(response_data, indent=2)}")
 
-            # Obtener el ID del recurso
-            resource_id = response_data.get('uuid')  # Asegúrate de que el campo correcto es 'uuid'
+            # Prueba diferentes claves en la respuesta para encontrar el identificador correcto
+            resource_id = response_data.get("uuid")  # Ver si usa UUID
+            if not resource_id:
+                resource_id = response_data.get("identifier")  # Algunos GeoNetwork usan "identifier"
+            if not resource_id:
+                resource_id = response_data.get("metadataId")  # Otras versiones pueden usar "metadataId"
 
+            if not resource_id:
+                raise Exception("No se encontró un identificador válido en la respuesta de GeoNetwork.")
 
-            if resource_id:
-                resource_ids.append(resource_id)
-                logging.info(f"Archivo subido correctamente a GeoNetwork. Resource ID: {resource_id}")
-            else:
-                logging.warning("La respuesta de GeoNetwork no contiene un 'uuid'. Verificar.")
-
-        if not resource_ids:
-            raise Exception("No se generó ningún resource_id en GeoNetwork.")
+            logging.info(f"Identificador del recurso en GeoNetwork: {resource_id}")
 
         # Devolver el/los IDs del recurso(s) subido(s)
         context['ti'].xcom_push(key='resource_id', value=resource_ids)  # Enviar a XCom
@@ -899,7 +899,7 @@ def assign_owner_to_resource(**context):
             logging.info(f"Iniciando asignación de propietario para resource_id: {resource_id}")
 
             # Validar si el recurso realmente existe antes de hacer la asignación
-            check_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}"
+            check_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}?_content_type=json"
             logging.info(f"Verificando existencia del recurso en GeoNetwork con URL: {check_url}")
 
             check_response = requests.get(check_url)
