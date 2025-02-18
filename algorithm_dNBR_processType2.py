@@ -5,11 +5,13 @@ from airflow.hooks.base_hook import BaseHook
 import json
 import pytz
 from airflow.models import Variable
-from dag_utils import execute_query
 from sqlalchemy import text
 from datetime import datetime, timedelta
 import calendar
 import requests
+from dag_utils import upload_to_minio_path, execute_query, print_directory_contents
+import uuid
+import os
 
 
 class FechaProxima:
@@ -55,7 +57,7 @@ def process_element(**context):
     fechas_query = "','".join(fechas_a_buscar)
 
     query = f"""
-        SELECT mf.fire_id
+        SELECT mf.fire_id, m.id
         FROM missions.mss_mission m
         JOIN missions.mss_mission_fire mf ON m.id = mf.mission_id
         WHERE mf.extinguishing_timestamp::DATE IN ('{fechas_query}')
@@ -93,7 +95,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 print(json_Incendio)
                 print(json_Perimetro)
 
-                idFire = dato
+                fire_id, mission_id = datos
 
                 if json_Incendio is not None:
                     archivo_incendio = f"/home/admin3/algoritmo_dNBR/input/ob_incendio/incendio_{idFire}_{fecha}.json"
@@ -125,20 +127,92 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 print(params)
 
                 if params is not None:                                    
-                    archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{idFire}_{fecha}.json"
+                    archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{fire_id}_{fecha}.json"
                     with sftp.file(archivo_params, 'w') as json_file:
                         json.dump(params, json_file, ensure_ascii=False, indent=4)
                         print(f"Guardado archivo {archivo_params}")
 
-                    path = f'/share_data/input/ejecucion_{idFire}_{fecha}.json' 
-                    runId = f'{idFire}_{fecha}'
-                    stdin, stdout, stderr = ssh_client.exec_command(f'cd /home/admin3/algoritmo_dNBR/scripts && RUN_ID={idFire} CONFIGURATION_PATH={path} docker-compose -f ../launch/compose.yaml up --build')              
+                    path = f'/share_data/input/ejecucion_{fire_id}_{fecha}.json' 
+                    runId = f'{fire_id}_{fecha}'
+                    stdin, stdout, stderr = ssh_client.exec_command(
+                        f'cd /home/admin3/algoritmo_dNBR/scripts && '
+                        f'export CONFIGURATION_PATH={path} && '
+                        f'docker-compose -f ../launch/compose.yaml up --build && '
+                        f'docker-compose -f ../launch/compose.yaml down --volumes'
+                    )
                     output = stdout.read().decode()
                     error_output = stderr.read().decode()
 
                     print("Salida de run.sh:")
                     print(output)
-                    print(error_output)
+                    if(error_output is not None):
+                        print("ESTO ES PARTE DEL ERROR")
+                        print(error_output)
+                    # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
+                    output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
+                    local_output_directory = '/tmp'
+                    sftp.chdir(output_directory)
+                    print(f"Cambiando al directorio de salida: {output_directory}")
+                    downloaded_files = []
+                    for filename in sftp.listdir():
+                            remote_file_path = os.path.join(output_directory, filename)
+                            local_file_path = os.path.join(local_output_directory, filename)
+
+                            # Descargar el archivo
+                            sftp.get(remote_file_path, local_file_path)
+                            print(f"Archivo {filename} descargado a {local_file_path}")
+                            downloaded_files.append(local_file_path)
+                
+                sftp.close()
+                print_directory_contents(local_output_directory)
+                local_output_directory = '/tmp'
+                archivos_en_tmp = os.listdir(local_output_directory)
+                output_data = {}
+                key = uuid.uuid4()
+                for archivo in archivos_en_tmp:
+                    archivo_path = os.path.join(local_output_directory, archivo)
+                    if not os.path.isfile(archivo_path):
+                        print(f"Skipping upload: {local_file_path} is not a file.")
+                    else:
+                        local_file_path = f"{mission_id}/{str(key)}"
+                        upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
+                        output_data[archivo] = local_file_path
+
+                # Y guardamos en la tabla de historico
+                madrid_tz = pytz.timezone('Europe/Madrid')
+
+                tipo2mesesminimo = int(Variable.get("tipo2mesesminimo", default_var="3"))
+                fecha_proxima = FechaProxima()
+                fecha_inicio = fecha_proxima.restar_meses(fecha_proxima.hoy, tipo2mesesminimo)
+                fecha_hoy = fecha_proxima.hoy
+
+                # Formatear phenomenon_time
+                phenomenon_time = f"[{fecha_inicio.strftime('%Y-%m-%dT%H:%M:%S')}, {fecha_hoy.strftime('%Y-%m-%dT%H:%M:%S')}]"
+
+
+                datos = {
+                    'sampled_feature': mission_id,  # Ejemplo de valor
+                    'result_time': datetime.datetime.now(madrid_tz),
+                    'phenomenon_time': phenomenon_time,
+                    'input_data': json.dumps({"fire_id": fire_id}),
+                    'output_data': json.dumps(output_data)
+                }
+
+                # Construir la consulta de inserción
+                query = f"""
+                    INSERT INTO algoritmos.algoritmo_dnbr (
+                        sampled_feature, result_time, phenomenon_time, input_data, output_data
+                    ) VALUES (
+                        {datos['sampled_feature']},
+                        '{datos['result_time']}',
+                        '{datos['phenomenon_time']}'::TSRANGE,
+                        '{datos['input_data']}',
+                        '{datos['output_data']}'
+                    )
+                """
+
+                # Ejecutar la consulta
+                execute_query('biobd', query)
 
             sftp.close()
     except Exception as e:
