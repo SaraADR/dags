@@ -148,41 +148,43 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     )
                     output = stdout.read().decode()
                     error_output = stderr.read().decode()
-
+                    output_data = {}
                     print("Salida de run.sh:")
                     print(output)
-                    if(error_output is not None):
-                        print("ESTO ES PARTE DEL ERROR")
-                        print(error_output)
-                    # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
-                    output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
-                    local_output_directory = f'/tmp/{str(fire_id)}'
-                    sftp.chdir(output_directory)
-                    print(f"Cambiando al directorio de salida: {output_directory}")
-                    downloaded_files = []
-                    for filename in sftp.listdir():
-                            remote_file_path = os.path.join(output_directory, filename)
-                            local_file_path = os.path.join(local_output_directory, filename)
-
-                            # Descargar el archivo
-                            sftp.get(remote_file_path, local_file_path)
-                            print(f"Archivo {filename} descargado a {local_file_path}")
-                            downloaded_files.append(local_file_path)
-                
-                sftp.close()
-                print_directory_contents(local_output_directory)
-                local_output_directory = f'/tmp/{str(fire_id)}'
-                archivos_en_tmp = os.listdir(local_output_directory)
-                output_data = {}
-                key = uuid.uuid4()
-                for archivo in archivos_en_tmp:
-                    archivo_path = os.path.join(local_output_directory, archivo)
-                    if not os.path.isfile(archivo_path):
-                        print(f"Skipping upload: {local_file_path} is not a file.")
+                    if "Valor -3" in output:
+                        print("⚠️ Se encontró el mensaje de error: Valor -3")
+                        sftp.close()
+                        return
                     else:
-                        local_file_path = f"{mission_id}/{str(key)}"
-                        upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
-                        output_data[archivo] = local_file_path
+                        # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
+                        output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
+                        local_output_directory = f'/tmp/{str(fire_id)}'
+                        sftp.chdir(output_directory)
+                        print(f"Cambiando al directorio de salida: {output_directory}")
+                        downloaded_files = []
+                        for filename in sftp.listdir():
+                                remote_file_path = os.path.join(output_directory, filename)
+                                local_file_path = os.path.join(local_output_directory, filename)
+
+                                # Descargar el archivo
+                                sftp.get(remote_file_path, local_file_path)
+                                print(f"Archivo {filename} descargado a {local_file_path}")
+                                downloaded_files.append(local_file_path)
+                
+                        sftp.close()
+                        print_directory_contents(local_output_directory)
+                        local_output_directory = f'/tmp/{str(fire_id)}'
+                        archivos_en_tmp = os.listdir(local_output_directory)
+                        
+                        key = uuid.uuid4()
+                        for archivo in archivos_en_tmp:
+                            archivo_path = os.path.join(local_output_directory, archivo)
+                            if not os.path.isfile(archivo_path):
+                                print(f"Skipping upload: {local_file_path} is not a file.")
+                            else:
+                                local_file_path = f"{mission_id}/{str(key)}"
+                                upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
+                                output_data[archivo] = local_file_path
 
                 # Y guardamos en la tabla de historico
                 madrid_tz = pytz.timezone('Europe/Madrid')
