@@ -98,14 +98,6 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     print(f"Guardado archivo {archivo_params}")
 
 
-                stdin, stdout, stderr = ssh_client.exec_command('ls -l /share_data/')
-                output = stdout.read().decode()
-                error_output = stderr.read().decode()
-
-                print("Contenido de /share_data/ antes de la ejecución:")
-                print(output)
-                print(error_output)
-
                 path = f'/share_data/input/ejecucion_{fire_id}_{fecha}.json' 
                 runId = f'{fire_id}_{fecha}'
                 stdin, stdout, stderr = ssh_client.exec_command(
