@@ -136,11 +136,11 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             archivos_en_tmp = os.listdir(local_output_directory)
             output_data = {}
             for archivo in archivos_en_tmp:
+                archivo_path = os.path.join(local_output_directory, archivo)
                 key = uuid.uuid4()
-                path = f'{mission_id}/{str(key)}'
-                local_file_path = os.path.join(path, archivo)
+                local_file_path = f"{mission_id}/{str(key)}/{archivo}"
 
-                upload_to_minio_path('minio_conn', 'missions', 'missions', local_file_path)
+                upload_to_minio_path('minio_conn', 'missions', archivo_path, local_file_path)
                 output_data[archivo] = local_file_path
 
 
