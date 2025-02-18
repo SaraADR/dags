@@ -909,7 +909,7 @@ def assign_owner_to_resource(**context):
                 "Authorization": f"Bearer {access_token}",
                 "x-xsrf-token": xsrf_token,
                 "Cookie": set_cookie_header[0],
-                "Content-Type": "application/json"
+                # "Content-Type": "application/json"
             }
 
             # Agregar logs de headers antes de la solicitud
@@ -927,7 +927,8 @@ def assign_owner_to_resource(**context):
             elif response.status_code == 400:
                 logging.error(f"ERROR 400 EN ASIGNACIÓN - Respuesta: {response.text}")
                 print(f"ERROR 400: Algo falló en la asignación de propietario para {resource_id}.")
-                print(f"La cagada de Abelardito fue: {response.text}")
+                print(f"Respuesta: {response}")
+                
             else:
                 logging.error(f"ERROR EN ASIGNACIÓN - Código de estado: {response.status_code}, Respuesta: {response.text}")
                 print(f"ERROR AL ASIGNAR PROPIETARIO AL RECURSO {resource_id}: {response.text}")
