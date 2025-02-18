@@ -917,7 +917,7 @@ def assign_owner_to_resource(**context):
 
             # Realizar la solicitud PUT
             logging.info("Enviando solicitud PUT para asignar propietario...")
-            response = requests.put(api_url, headers=headers)
+            response = requests.put(api_url, headers=headers, data="") 
 
             # Log de respuesta de la API
             logging.info(f"Respuesta de GeoNetwork - Código de estado: {response.status_code}, Respuesta: {response.text}")
