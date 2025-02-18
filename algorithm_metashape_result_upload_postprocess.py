@@ -852,16 +852,16 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 
 
 def assign_owner_to_resource(**context):
-    """Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow."""
+    """Asigna privilegios al usuario en GeoNetwork utilizando la API 0.1"""
     try:
-        logging.info("INICIANDO PROCESO DE ASIGNACIÓN DE PROPIETARIO A RECURSO EN GEONETWORK...")
+        logging.info("INICIANDO PROCESO DE ASIGNACIÓN DE PRIVILEGIOS EN GEONETWORK...")
 
-        # Obtener conexión a GeoNetwork desde Airflow
+        # Obtener conexión de GeoNetwork desde Airflow
         connection = BaseHook.get_connection("geonetwork_update_conn")
         geonetwork_url = connection.host  
         logging.info(f"GeoNetwork URL obtenida: {geonetwork_url}")
 
-        # Usuario y grupo hardcodeados
+        # Identificadores de usuario y grupo
         user_identifier = 114  
         group_identifier = 102  
         logging.info(f"Usuario y grupo hardcodeados - user_identifier: {user_identifier}, group_identifier: {group_identifier}")
@@ -886,13 +886,24 @@ def assign_owner_to_resource(**context):
         logging.info("Credenciales obtenidas correctamente.")
 
         for resource_id in resource_ids:
-            logging.info(f"Iniciando asignación de propietario para resource_id: {resource_id}")
+            logging.info(f"Iniciando asignación de privilegios para resource_id: {resource_id}")
 
-            # Construir URL para asignar propietario (mantenemos los parámetros en la URL)
-            api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership?groupIdentifier={group_identifier}&userIdentifier={user_identifier}?_content_type=json"
-            logging.info(f"URL de asignación de propietario construida: {api_url}")
+            # Construir la URL para asignar privilegios usando la API 0.1
+            api_url = f"{geonetwork_url}/geonetwork/srv/api/0.1/privileges/{resource_id}"
+            logging.info(f"URL de asignación de privilegios construida: {api_url}")
 
-            # Headers de autenticación
+            # Definir los datos JSON con los privilegios
+            data = {
+                "privileges": [
+                    {
+                        "group": str(group_identifier),
+                        "operations": ["view", "editing", "download", "notify", "dynamic", "featured"],
+                        "userId": str(user_identifier)
+                    }
+                ]
+            }
+
+            # Configurar headers de autenticación
             headers = {
                 "Authorization": f"Bearer {access_token}",
                 "x-xsrf-token": xsrf_token,
@@ -900,19 +911,19 @@ def assign_owner_to_resource(**context):
                 "Content-Type": "application/json"
             }
 
-            logging.info("Enviando solicitud PUT para asignar propietario...")
-            response = requests.put(api_url, headers=headers)
+            logging.info("Enviando solicitud PUT para asignar privilegios...")
+            response = requests.put(api_url, headers=headers, json=data)
 
             # Log de respuesta de la API
             logging.info(f"Respuesta de GeoNetwork - Código {response.status_code}, Respuesta: {response.text}")
 
             if response.status_code == 200:
-                logging.info(f"✅ Asignación de propietario completada con éxito para resource_id: {resource_id}")
+                logging.info(f"Asignación de privilegios completada con éxito para resource_id: {resource_id}")
             else:
-                logging.error(f"❌ ERROR EN ASIGNACIÓN - Código de estado: {response.status_code}, Respuesta: {response.text}")
+                logging.error(f"ERROR EN ASIGNACIÓN - Código de estado: {response.status_code}, Respuesta: {response.text}")
 
     except Exception as e:
-        logging.error(f"🚨 ERROR FATAL en la llamada a la API de GeoNetwork: {str(e)}")
+        logging.error(f"ERROR FATAL en la llamada a la API de GeoNetwork: {str(e)}")
         raise
 
 
