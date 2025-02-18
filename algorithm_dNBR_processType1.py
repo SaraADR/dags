@@ -160,6 +160,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             fecha_inicio = fecha_hoy - datetime.timedelta(days=tipo1diasincendio)
             phenomenon_time = f"[{fecha_inicio}, {fecha_hoy}]"
 
+            output_data["type"] = 1
             datos = {
                 'sampled_feature': mission_id,  # Ejemplo de valor
                 'result_time': datetime.datetime.now(madrid_tz),

@@ -195,7 +195,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 # Formatear phenomenon_time
                 phenomenon_time = f"[{fecha_inicio.strftime('%Y-%m-%dT%H:%M:%S')}, {fecha_hoy.strftime('%Y-%m-%dT%H:%M:%S')}]"
 
-
+                output_data["type"] = 2
                 datos = {
                     'sampled_feature': mission_id,  # Ejemplo de valor
                     'result_time': datetime.datetime.now(madrid_tz),
