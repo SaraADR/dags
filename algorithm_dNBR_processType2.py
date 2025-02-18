@@ -6,7 +6,7 @@ import json
 import pytz
 from airflow.models import Variable
 from sqlalchemy import text
-from datetime import datetime, timedelta
+import datetime
 import calendar
 import requests
 from dag_utils import upload_to_minio_path, execute_query, print_directory_contents
@@ -37,7 +37,7 @@ class FechaProxima:
 def process_element(**context):
 
     madrid_tz = pytz.timezone('Europe/Madrid')
-    fechaHoraActual = datetime.now(madrid_tz)  # Fecha y hora con zona horaria
+    fechaHoraActual = datetime.datetime.now(madrid_tz)  # Fecha y hora con zona horaria
 
     print(f"Este algoritmo se está ejecutando a las {fechaHoraActual.strftime('%Y-%m-%d %H:%M:%S')} en Madrid, España")
 
@@ -121,7 +121,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
                     "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
                     "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)),
-                    "dias_fin": (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d"),
+                    "dias_fin": (datetime.datetime.now() - datetime.timedelta(days=10)).strftime("%Y-%m-%d"),
                     "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
                 }
                 print(params)
@@ -279,7 +279,7 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
-    'retry_delay': timedelta(minutes=1),
+    'retry_delay': datetime.timedelta(minutes=1),
 }
 
 dag = DAG(
