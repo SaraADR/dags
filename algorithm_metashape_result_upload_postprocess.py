@@ -890,7 +890,7 @@ def assign_owner_to_resource(**context):
             logging.info(f"Iniciando asignación de propietario para resource_id: {resource_id}")
 
             # Validar si el recurso realmente existe antes de hacer la asignación
-            check_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}?_content_type=json"
+            check_url = f"{geonetwork_url}/geonetwork/srv/api/records/0.1/privileges/{resource_id}?_content_type=json"
             logging.info(f"Verificando existencia del recurso en GeoNetwork con URL: {check_url}")
 
             check_response = requests.get(check_url)
@@ -903,6 +903,17 @@ def assign_owner_to_resource(**context):
             # Construir la URL correcta para cambiar la propiedad
             api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership?groupIdentifier={group_identifier}&userIdentifier={user_identifier}"
             logging.info(f"URL de asignación de propietario construida: {api_url}")
+
+            data = {
+                "privileges": [
+                    {
+                        "group": group_identifier,
+                        "operations": ["view", "editing", "download", "notify", "dynamic", "featured"],
+                        "userId": user_identifier
+                    }
+                ]
+            }
+
 
             # Configurar headers para autenticación
             headers = {
@@ -917,7 +928,7 @@ def assign_owner_to_resource(**context):
 
             # Realizar la solicitud PUT
             logging.info("Enviando solicitud PUT para asignar propietario...")
-            response = requests.put(api_url, headers=headers)
+            response = requests.put(api_url, headers=headers, json=data)
 
             # Log de respuesta de la API
             logging.info(f"Respuesta de GeoNetwork - Código de estado: {response.status_code}, Respuesta: {response.text}")
