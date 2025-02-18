@@ -852,24 +852,20 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 
 
 def assign_owner_to_resource(**context):
-    """Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow"""
     try:
-        logging.info("INICIANDO PROCESO DE ASIGNACIÓN DE PROPIETARIO A RECURSO EN GEONETWORK...")
+        logging.info("INICIANDO ASIGNACIÓN DE PROPIETARIO EN GEONETWORK...")
 
-        # Obtener la conexión de GeoNetwork desde Airflow
         connection = BaseHook.get_connection("geonetwork_update_conn")
         geonetwork_url = connection.host  
 
-        # Obtener el ID del recurso desde XCom
         resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork', key='resource_id')
 
         if not resource_ids:
-            logging.error("ERROR: No se obtuvo un resource_id después de la subida del XML.")
+            logging.error("ERROR: No se obtuvo un resource_id.")
             return
 
         logging.info(f"Lista de resource_ids obtenida: {resource_ids}")
 
-        # Obtener credenciales desde Airflow
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
         headers = {
@@ -880,43 +876,39 @@ def assign_owner_to_resource(**context):
         }
 
         for resource_id in resource_ids:
-            logging.info(f"Iniciando asignación de propietario para resource_id: {resource_id}")
+            logging.info(f"Asignando propietario a {resource_id}...")
 
-            # Primero, verificar si el recurso realmente existe
             check_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}"
             response = requests.get(check_url, headers=headers)
 
-            if response.status_code == 403:
-                logging.error(f"ERROR: No tienes permisos para acceder al recurso {resource_id}. Revisa los permisos en GeoNetwork.")
-                continue
-            elif response.status_code != 200:
-                logging.error(f"ERROR: El recurso {resource_id} no existe en GeoNetwork. Código: {response.status_code}")
+            if response.status_code != 200:
+                logging.error(f"El recurso {resource_id} no existe en GeoNetwork (Código {response.status_code})")
                 continue
 
-            # Construir la URL y JSON para asignar el propietario
             api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership"
 
+            # **Asegurarse de enviar el JSON correcto**
             data = {
-                "groupIdentifier": 102,
-                "userIdentifier": 114
+                "groupId": 102,  # Asegúrate de que "groupId" y "userId" son correctos
+                "userId": 114
             }
 
-            logging.info(f"URL de asignación de propietario: {api_url}")
-            logging.info(f"Datos enviados en la solicitud: {data}")
+            logging.info(f"URL: {api_url}")
+            logging.info(f"Datos enviados: {data}")
 
-            # Enviar la solicitud POST en lugar de PUT
-            response = requests.post(api_url, json=data, headers=headers)
+            response = requests.put(api_url, json=data, headers=headers)
 
-            logging.info(f"Respuesta de GeoNetwork - Código de estado: {response.status_code}, Respuesta: {response.text}")
+            logging.info(f"Respuesta de GeoNetwork - Código {response.status_code}, Respuesta: {response.text}")
 
             if response.status_code == 200:
-                logging.info(f"Asignación de propietario completada con éxito para {resource_id}")
+                logging.info(f"Propietario asignado correctamente a {resource_id}")
             else:
-                logging.error(f"ERROR EN ASIGNACIÓN - Código: {response.status_code}, Respuesta: {response.text}")
+                logging.error(f"Error al asignar propietario - Código {response.status_code}, Respuesta: {response.text}")
 
     except Exception as e:
-        logging.error(f"ERROR en la asignación de propietario: {str(e)}")
+        logging.error(f"Error en la asignación de propietario: {str(e)}")
         raise
+
 
 
 
