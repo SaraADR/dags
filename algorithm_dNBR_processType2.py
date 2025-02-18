@@ -261,7 +261,8 @@ def busqueda_datos_perimetro(idIncendio):
             if response.status_code == 200:
                 print("Perimetros del incendio encontrados con exito.")
                 fire_data = response.json()
-                return fire_data
+                most_recent_obj = max(fire_data, key=lambda x: x["timestamp"])
+                return most_recent_obj
             else:
                 print(f"Error en la busqueda del incendio: {response.status_code}")
                 print(response.text)
