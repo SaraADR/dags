@@ -852,64 +852,84 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 
 
 def assign_owner_to_resource(**context):
+    """Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow"""
     try:
-        logging.info("INICIANDO ASIGNACIÓN DE PROPIETARIO EN GEONETWORK...")
+        logging.info("INICIANDO PROCESO DE ASIGNACIÓN DE PROPIETARIO A RECURSO EN GEONETWORK...")
 
+        # Obtener la conexión de GeoNetwork desde Airflow
+        logging.info("Obteniendo conexión a GeoNetwork desde Airflow...")
         connection = BaseHook.get_connection("geonetwork_update_conn")
         geonetwork_url = connection.host  
+        logging.info(f"GeoNetwork URL obtenida: {geonetwork_url}")
 
+        # Usuario y grupo hardcodeados
+        user_identifier = 114  # Asegurar que es un entero
+        group_identifier = 102  # Asegurar que es un entero
+        logging.info(f"Usuario y grupo hardcodeados - user_identifier: {user_identifier}, group_identifier: {group_identifier}")
+
+        # Obtener el ID del recurso desde XCom
+        logging.info("Obteniendo resource_id desde XCom...")
         resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork', key='resource_id')
 
         if not resource_ids:
-            logging.error("ERROR: No se obtuvo un resource_id.")
+            logging.error("ERROR: No se obtuvo un resource_id después de la subida del XML. Revisar `upload_to_geonetwork`.")
             return
+        
+        if not isinstance(resource_ids, list):
+            logging.info("El resource_id no es una lista, convirtiéndolo en lista...")
+            resource_ids = [resource_ids]
 
         logging.info(f"Lista de resource_ids obtenida: {resource_ids}")
 
+        # Obtener credenciales desde Airflow
+        logging.info("Obteniendo credenciales de autenticación para GeoNetwork...")
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "x-xsrf-token": xsrf_token,
-            "Cookie": set_cookie_header[0],
-            "Content-Type": "application/json"
-        }
+        logging.info("Credenciales obtenidas correctamente.")
 
         for resource_id in resource_ids:
-            logging.info(f"Asignando propietario a {resource_id}...")
+            logging.info(f"Iniciando asignación de propietario para resource_id: {resource_id}")
 
-            check_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}"
-            response = requests.get(check_url, headers=headers)
+            # Validar si el recurso realmente existe antes de hacer la asignación
+            check_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}?_content_type=json"
+            logging.info(f"Verificando existencia del recurso en GeoNetwork con URL: {check_url}")
 
-            if response.status_code != 200:
-                logging.error(f"El recurso {resource_id} no existe en GeoNetwork (Código {response.status_code})")
-                continue
+            check_response = requests.get(check_url)
+            logging.info(f"Respuesta de verificación de recurso - Código de estado: {check_response.status_code}, Respuesta: {check_response.text}")
 
-            api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership"
+            if check_response.status_code == 404:
+                logging.error(f"ERROR: El recurso {resource_id} no existe en GeoNetwork. Saltando asignación.")
+                continue  # Saltamos este recurso y seguimos con los demás
 
-            # **Asegurarse de enviar el JSON correcto**
-            data = {
-                "groupId": 102,  # Asegúrate de que "groupId" y "userId" son correctos
-                "userId": 114
+            # Construir la URL correcta para cambiar la propiedad
+            api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership?groupIdentifier={group_identifier}&userIdentifier={user_identifier}"
+            logging.info(f"URL de asignación de propietario construida: {api_url}")
+
+            # Configurar headers para autenticación
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "x-xsrf-token": xsrf_token,
+                "Cookie": set_cookie_header[0],
+                "Content-Type": "application/json"
             }
 
-            logging.info(f"URL: {api_url}")
-            logging.info(f"Datos enviados: {data}")
+            # Agregar logs de headers antes de la solicitud
+            logging.info(f"Headers de la solicitud: {headers}")
 
-            response = requests.put(api_url, json=data, headers=headers)
+            # Realizar la solicitud PUT
+            logging.info("Enviando solicitud PUT para asignar propietario...")
+            response = requests.put(api_url, headers=headers)
 
-            logging.info(f"Respuesta de GeoNetwork - Código {response.status_code}, Respuesta: {response.text}")
+            # Log de respuesta de la API
+            logging.info(f"Respuesta de GeoNetwork - Código de estado: {response.status_code}, Respuesta: {response.text}")
 
             if response.status_code == 200:
-                logging.info(f"Propietario asignado correctamente a {resource_id}")
+                logging.info(f"Asignación de propietario completada con éxito para resource_id: {resource_id}")
             else:
-                logging.error(f"Error al asignar propietario - Código {response.status_code}, Respuesta: {response.text}")
+                logging.error(f"ERROR EN ASIGNACIÓN - Código de estado: {response.status_code}, Respuesta: {response.text}")
 
     except Exception as e:
-        logging.error(f"Error en la asignación de propietario: {str(e)}")
+        logging.error(f"ERROR FATAL en la llamada a la API de GeoNetwork: {str(e)}")
         raise
-
-
 
 
 
