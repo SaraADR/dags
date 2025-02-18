@@ -892,18 +892,9 @@ def assign_owner_to_resource(**context):
             api_url = f"{geonetwork_url}/geonetwork/srv/api/0.1/privileges/{resource_id}"
             logging.info(f"URL de asignación de privilegios construida: {api_url}")
 
-            # Definir los datos JSON con los privilegios
-            data = {
-                "privileges": [
-                    {
-                        "group": str(group_identifier),
-                        "operations": ["view", "editing", "download", "notify", "dynamic", "featured"],
-                        "userId": str(user_identifier)
-                    }
-                ]
-            }
-
-            # Configurar headers de autenticación
+        
+            
+            # Headers de autenticación
             headers = {
                 "Authorization": f"Bearer {access_token}",
                 "x-xsrf-token": xsrf_token,
