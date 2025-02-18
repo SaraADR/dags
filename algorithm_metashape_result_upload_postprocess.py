@@ -327,19 +327,12 @@ def get_geonetwork_credentials():
 # Función para subir el XML y devolver el ID del recurso
 def upload_to_geonetwork(**context):
     try:
-        # Obtener la conexión configurada en Airflow
         connection = BaseHook.get_connection("geonetwork_update_conn")
-        
-        # Construir la URL de subida
         upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
-        
-        # Obtener los tokens de autenticación
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-
-        # Obtener el XML base64 desde XCom
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
 
-        resource_ids = [] 
+        resource_ids = []
 
         for xml_data in xml_data_array:
             xml_decoded = base64.b64decode(xml_data).decode('utf-8')
@@ -351,7 +344,6 @@ def upload_to_geonetwork(**context):
                 'file': ('metadata.xml', xml_decoded, 'text/xml'),
             }
 
-            # Encabezados de autenticación
             headers = {
                 'Authorization': f"Bearer {access_token}",
                 'x-xsrf-token': str(xsrf_token),
@@ -359,29 +351,26 @@ def upload_to_geonetwork(**context):
                 'Accept': 'application/json'
             }
 
-            # Realizar la solicitud POST para subir el XML
-            logging.info(f"Subiendo XML a la URL: {upload_url}")
             response = requests.post(upload_url, files=files, headers=headers)
-
-            # LOGS DE DEPURACIÓN
             logging.info(f"Respuesta completa de GeoNetwork: {response.status_code}, {response.text}")
 
-            # Verificar si hubo algún error en la solicitud
             response.raise_for_status()
-
-            # Extraer la respuesta JSON
             response_data = response.json()
 
-            # PROBAR DIFERENTES CAMPOS PARA ENCONTRAR EL IDENTIFICADOR CORRECTO
-            resource_id = response_data.get('uuid')  # Ver si usa UUID
-            if not resource_id:
-                resource_id = response_data.get('identifier')  # Ver si usa otro ID
-            if not resource_id:
-                resource_id = response_data.get('metadataId')  # Otro posible identificador
+            # Extraer el identificador correcto desde metadataInfos
+            metadata_infos = response_data.get("metadataInfos", {})
+            if metadata_infos:
+                metadata_values = list(metadata_infos.values())[0]  # Obtener la primera lista de metadatos
+                if metadata_values:
+                    resource_id = metadata_values[0].get("uuid")  # Extraer el verdadero identificador
+                else:
+                    resource_id = None
+            else:
+                resource_id = None
 
             if not resource_id:
                 logging.error(f"No se encontró un identificador válido en la respuesta de GeoNetwork: {response_data}")
-                continue  # Saltar este archivo si no tiene ID válido
+                continue
 
             logging.info(f"Identificador del recurso en GeoNetwork: {resource_id}")
             resource_ids.append(resource_id)
@@ -389,7 +378,6 @@ def upload_to_geonetwork(**context):
         if not resource_ids:
             raise Exception("No se generó ningún resource_id en GeoNetwork.")
 
-        # Enviar a XCom para que `assign_owner_to_resource` lo use
         context['ti'].xcom_push(key='resource_id', value=resource_ids)
         return resource_ids
 
