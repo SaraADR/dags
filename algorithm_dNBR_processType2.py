@@ -275,7 +275,7 @@ def busqueda_datos_perimetro(idIncendio):
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
-    'start_date': datetime(2024, 8, 8),
+    'start_date': datetime.datetime(2024, 8, 8),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
