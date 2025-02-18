@@ -98,14 +98,14 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 fire_id, mission_id = datos
 
                 if json_Incendio is not None:
-                    archivo_incendio = f"/home/admin3/algoritmo_dNBR/input/ob_incendio/incendio_{idFire}_{fecha}.json"
+                    archivo_incendio = f"/home/admin3/algoritmo_dNBR/input/ob_incendio/incendio_{fire_id}_{fecha}.json"
                     ssh_client.exec_command(f"touch {archivo_incendio}")
                     ssh_client.exec_command(f"chmod 644 {archivo_incendio}")
                     with sftp.file(archivo_incendio, 'w') as json_file:
                         json.dump(json_Incendio, json_file, ensure_ascii=False, indent=4)
 
                 if json_Perimetro is not None:                                    
-                    archivo_perimetro = f"/home/admin3/algoritmo_dNBR/input/perimetros/perimetro_{idFire}_{fecha}.json"
+                    archivo_perimetro = f"/home/admin3/algoritmo_dNBR/input/perimetros/perimetro_{fire_id}_{fecha}.json"
                     ssh_client.exec_command(f"touch {archivo_perimetro}")
                     ssh_client.exec_command(f"chmod 644 {archivo_perimetro}")
                     with sftp.file(archivo_perimetro, 'w') as json_file:
@@ -114,9 +114,9 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
                 params = {
                     "directorio_alg":  '.',
-                    "directorio_output" : '/share_data/output/' + str(idFire) + "_" + str(fecha),
-                    "obj_incendio":  f'/share_data/input/ob_incendio/incendio_{idFire}_{fecha}.json',
-                    "obj_perimetro":  f'/share_data/input/perimetros/perimetro_{idFire}_{fecha}.json',
+                    "directorio_output" : '/share_data/output/' + str(fire_id) + "_" + str(fecha),
+                    "obj_incendio":  f'/share_data/input/ob_incendio/incendio_{fire_id}_{fecha}.json',
+                    "obj_perimetro":  f'/share_data/input/perimetros/perimetro_{fire_id}_{fecha}.json',
                     "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
                     "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
                     "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
