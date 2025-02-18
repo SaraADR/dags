@@ -178,11 +178,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             """
 
             # Ejecutar la consulta
-            result = execute_query('biobd', query)
-            print(result)
-
-
-
+            execute_query('biobd', query)
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
