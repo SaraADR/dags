@@ -67,7 +67,13 @@ def process_element(**context):
     print(result)
     for record in result:
         print(record)
-        ejecutar_algoritmo(record, fechaHoraActual)
+        try:
+            ejecutar_algoritmo(record, fechaHoraActual)
+        except Exception as e:
+            print(f"Error en la ejecución del algoritmo para {record}: {str(e)}")
+            continue  # Continuar con la siguiente iteración
+
+
 
 
 
