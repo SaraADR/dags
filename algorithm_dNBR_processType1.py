@@ -112,8 +112,9 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 print("Salida de run.sh:")
                 print(output)
                 if(error_output is not None):
+                    print("ESTO ES PARTE DEL ERROR")
                     print(error_output)
-                    raise Exception(f"Error en la ejecución del script remoto: {error_output}")
+                    # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
 
                 output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
                 local_output_directory = '/tmp'
