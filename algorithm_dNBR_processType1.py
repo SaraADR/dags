@@ -112,8 +112,9 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 print("Salida de run.sh:")
                 print(output)
                 if(error_output is not None):
+                    print("ESTO ES PARTE DEL ERROR")
                     print(error_output)
-                    raise Exception(f"Error en la ejecución del script remoto: {error_output}")
+                    # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
 
                 output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
                 local_output_directory = '/tmp'
@@ -150,7 +151,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             tipo1diasincendio = int(Variable.get("dNBR_diasFinIncendio", default_var="10"))
 
             # Calcular la fecha de inicio y fin
-            fecha_hoy = datetime.now()
+            fecha_hoy = datetime.datetime.now()
             fecha_inicio = fecha_hoy - datetime.timedelta(days=tipo1diasincendio)
             phenomenon_time = f"[{fecha_inicio}, {fecha_hoy}]"
 
