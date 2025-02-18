@@ -151,7 +151,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             tipo1diasincendio = int(Variable.get("dNBR_diasFinIncendio", default_var="10"))
 
             # Calcular la fecha de inicio y fin
-            fecha_hoy = datetime.now()
+            fecha_hoy = datetime.datetime.now()
             fecha_inicio = fecha_hoy - datetime.timedelta(days=tipo1diasincendio)
             phenomenon_time = f"[{fecha_inicio}, {fecha_hoy}]"
 
