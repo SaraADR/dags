@@ -10,7 +10,7 @@ from airflow.models import Variable
 from dag_utils import execute_query
 from sqlalchemy import text
 import requests
-from dag_utils import upload_to_minio_path
+from dag_utils import upload_to_minio_path, print_directory_contents
 import uuid
 
 def process_element(**context):
@@ -90,7 +90,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
                 "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
                 "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)),
-                # "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
+                "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
             }
 
             print(params)
@@ -189,19 +189,6 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
         raise        
 
     return None
-
-
-def print_directory_contents(directory):
-    print(f"Contenido del directorio: {directory}")
-    for root, dirs, files in os.walk(directory):
-        level = root.replace(directory, '').count(os.sep)
-        indent = ' ' * 4 * level
-        print(f"{indent}{os.path.basename(root)}/")
-        subindent = ' ' * 4 * (level + 1)
-        for f in files:
-            print(f"{subindent}{f}")
-    print("------------------------------------------")    
-
 
 
 def busqueda_datos_incendio(idIncendio):
