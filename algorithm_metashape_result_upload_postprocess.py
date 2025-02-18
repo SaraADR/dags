@@ -909,7 +909,11 @@ def assign_owner_to_resource(**context):
                 "Authorization": f"Bearer {access_token}",
                 "x-xsrf-token": xsrf_token,
                 "Cookie": set_cookie_header[0],
-                # "Content-Type": "application/json"
+                "accept": "application/json, text/plain, /",
+                "content-length": "0",
+                "origin": "https://eiiob.dev.cuatrodigital.com/",
+                "referer": "https://eiiob.dev.cuatrodigital.com/geonetwork/srv/spa/catalog.search",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
             }
 
             # Agregar logs de headers antes de la solicitud
