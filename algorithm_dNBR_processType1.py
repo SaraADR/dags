@@ -35,7 +35,11 @@ def process_element(**context):
     print(result)
     for record in result:
         print(record)
-        ejecutar_algoritmo(record, fechaHoraActual)
+        try:
+            ejecutar_algoritmo(record, fechaHoraActual)
+        except Exception as e:
+            print(f"Error en la ejecución del algoritmo para {record}: {str(e)}")
+            continue  # Continuar con la siguiente iteración
 
 
 
@@ -135,13 +139,15 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             local_output_directory = '/tmp'
             archivos_en_tmp = os.listdir(local_output_directory)
             output_data = {}
+            key = uuid.uuid4()
             for archivo in archivos_en_tmp:
-                key = uuid.uuid4()
-                path = f'{mission_id}/{str(key)}'
-                local_file_path = os.path.join(path, archivo)
-
-                upload_to_minio_path('minio_conn', 'missions', 'missions', local_file_path)
-                output_data[archivo] = local_file_path
+                archivo_path = os.path.join(local_output_directory, archivo)
+                if not os.path.isfile(archivo_path):
+                    print(f"Skipping upload: {local_file_path} is not a file.")
+                else:
+                    local_file_path = f"{mission_id}/{str(key)}"
+                    upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
+                    output_data[archivo] = local_file_path
 
 
 
@@ -176,11 +182,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             """
 
             # Ejecutar la consulta
-            result = execute_query('biobd', query)
-            print(result)
-
-
-
+            execute_query('biobd', query)
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
