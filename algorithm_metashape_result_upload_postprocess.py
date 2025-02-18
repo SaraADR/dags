@@ -906,11 +906,12 @@ def assign_owner_to_resource(**context):
 
             # Configurar headers para autenticación
             headers = {
-                "Authorization": f"Bearer {access_token}",
-                "x-xsrf-token": xsrf_token,
-                "Cookie": set_cookie_header[0],
-                # "Content-Type": "application/json"
+                'Authorization': f"Bearer {access_token}",
+                'x-xsrf-token': str(xsrf_token),
+                'Cookie': str(set_cookie_header[0]),
+                'Accept': 'application/json'
             }
+
 
             # Agregar logs de headers antes de la solicitud
             logging.info(f"Headers de la solicitud: {headers}")
