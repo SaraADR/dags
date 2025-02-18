@@ -852,22 +852,21 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 
 
 def assign_owner_to_resource(**context):
-    """Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow"""
+    """Asigna un propietario al recurso en GeoNetwork usando la conexión de Airflow."""
     try:
         logging.info("INICIANDO PROCESO DE ASIGNACIÓN DE PROPIETARIO A RECURSO EN GEONETWORK...")
 
-        # Obtener la conexión de GeoNetwork desde Airflow
-        logging.info("Obteniendo conexión a GeoNetwork desde Airflow...")
+        # Obtener conexión a GeoNetwork desde Airflow
         connection = BaseHook.get_connection("geonetwork_update_conn")
         geonetwork_url = connection.host  
         logging.info(f"GeoNetwork URL obtenida: {geonetwork_url}")
 
         # Usuario y grupo hardcodeados
-        user_identifier = 114  # Asegurar que es un entero
-        group_identifier = 102  # Asegurar que es un entero
+        user_identifier = 114  
+        group_identifier = 102  
         logging.info(f"Usuario y grupo hardcodeados - user_identifier: {user_identifier}, group_identifier: {group_identifier}")
 
-        # Obtener el ID del recurso desde XCom
+        # Obtener resource_id desde XCom
         logging.info("Obteniendo resource_id desde XCom...")
         resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork', key='resource_id')
 
@@ -889,22 +888,11 @@ def assign_owner_to_resource(**context):
         for resource_id in resource_ids:
             logging.info(f"Iniciando asignación de propietario para resource_id: {resource_id}")
 
-            # Validar si el recurso realmente existe antes de hacer la asignación
-            check_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}?_content_type=json"
-            logging.info(f"Verificando existencia del recurso en GeoNetwork con URL: {check_url}")
-
-            check_response = requests.get(check_url)
-            logging.info(f"Respuesta de verificación de recurso - Código de estado: {check_response.status_code}, Respuesta: {check_response.text}")
-
-            if check_response.status_code == 404:
-                logging.error(f"ERROR: El recurso {resource_id} no existe en GeoNetwork. Saltando asignación.")
-                continue  # Saltamos este recurso y seguimos con los demás
-
-            # Construir la URL correcta para cambiar la propiedad
+            # Construir URL para asignar propietario (mantenemos los parámetros en la URL)
             api_url = f"{geonetwork_url}/geonetwork/srv/api/records/{resource_id}/ownership?groupIdentifier={group_identifier}&userIdentifier={user_identifier}"
             logging.info(f"URL de asignación de propietario construida: {api_url}")
 
-            # Configurar headers para autenticación
+            # Headers de autenticación
             headers = {
                 "Authorization": f"Bearer {access_token}",
                 "x-xsrf-token": xsrf_token,
@@ -912,24 +900,21 @@ def assign_owner_to_resource(**context):
                 "Content-Type": "application/json"
             }
 
-            # Agregar logs de headers antes de la solicitud
-            logging.info(f"Headers de la solicitud: {headers}")
-
-            # Realizar la solicitud PUT
             logging.info("Enviando solicitud PUT para asignar propietario...")
             response = requests.put(api_url, headers=headers)
 
             # Log de respuesta de la API
-            logging.info(f"Respuesta de GeoNetwork - Código de estado: {response.status_code}, Respuesta: {response.text}")
+            logging.info(f"Respuesta de GeoNetwork - Código {response.status_code}, Respuesta: {response.text}")
 
             if response.status_code == 200:
-                logging.info(f"Asignación de propietario completada con éxito para resource_id: {resource_id}")
+                logging.info(f"✅ Asignación de propietario completada con éxito para resource_id: {resource_id}")
             else:
-                logging.error(f"ERROR EN ASIGNACIÓN - Código de estado: {response.status_code}, Respuesta: {response.text}")
+                logging.error(f"❌ ERROR EN ASIGNACIÓN - Código de estado: {response.status_code}, Respuesta: {response.text}")
 
     except Exception as e:
-        logging.error(f"ERROR FATAL en la llamada a la API de GeoNetwork: {str(e)}")
+        logging.error(f"🚨 ERROR FATAL en la llamada a la API de GeoNetwork: {str(e)}")
         raise
+
 
 
 
