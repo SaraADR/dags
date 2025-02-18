@@ -139,11 +139,11 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             for archivo in archivos_en_tmp:
                 if not os.path.isfile(local_file_path):
                     print(f"Skipping upload: {local_file_path} is not a file.")
-                    return
-                archivo_path = os.path.join(local_output_directory, archivo)
-                local_file_path = f"{mission_id}/{str(key)}"
-                upload_to_minio_path('minio_conn', 'missions',local_file_path,archivo_path)
-                output_data[archivo] = local_file_path
+                else:
+                    archivo_path = os.path.join(local_output_directory, archivo)
+                    local_file_path = f"{mission_id}/{str(key)}"
+                    upload_to_minio_path('minio_conn', 'missions',local_file_path,archivo_path)
+                    output_data[archivo] = local_file_path
 
 
 
