@@ -16,7 +16,7 @@ import os
 
 class FechaProxima:
     def __init__(self):
-        self.hoy = datetime.today()
+        self.hoy = datetime.datetime.today()
 
     def restar_meses(self, fecha, meses):
         mes = fecha.month - 1 - meses
