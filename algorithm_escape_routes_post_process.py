@@ -374,12 +374,12 @@ def process_escape_routes_data(**context):
 
             # Y guardamos en la tabla de historico
             madrid_tz = pytz.timezone('Europe/Madrid')
-            fecha_hoy = datetime.now()
+            
 
 
             datos = {
                 'sampled_feature': input_data['mission_id'] ,  # Ejemplo de valor
-                'result_time': datetime.datetime.now(madrid_tz),
+                'result_time': datetime.now(madrid_tz),
                 'phenomenon_time': None,
                 'input_data': params,  
                 'output_data': file_url  
