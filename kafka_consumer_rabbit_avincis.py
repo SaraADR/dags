@@ -1,80 +1,46 @@
 import json
 import uuid
-import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from airflow.providers.ssh.hooks.ssh import SSHHook
 from datetime import datetime, timedelta, timezone
 
-
 def consumer_function(message, **kwargs):
-    """ Procesa el mensaje recibido desde Kafka y lo envía al DAG correspondiente. """
-    if message is not None:
-        msg_value = message.value().decode('utf-8')
-        print("Mensaje consumido:")
-        print(f"{msg_value}")
-
-        if msg_value:
-            process_message(msg_value, kwargs)
-        else:
-            print("Mensaje vacío recibido.")
-            return None
-    else:
+    """ Procesa el mensaje desde Kafka y dispara el DAG correspondiente. """
+    if not message:
         print("Mensaje vacío recibido.")
         return None
 
-def process_message(message, kwargs):
-    """ Filtra y redirige el mensaje al DAG correcto y envía el JSON al servidor vía SSH. """
+    msg_value = message.value().decode('utf-8')
+    print(f"Mensaje consumido:\n{msg_value}")
+
     try:
-        msg_json = json.loads(message)  # Convertir el mensaje a JSON
+        msg_json = json.loads(msg_value)
         event_name = msg_json.get("eventName", "")
 
-        # Definir DAG objetivo
-        target_dag = "algorithm_gifs_fire_prediction_post_process" if event_name == "GIFAlgorithmExecution" else "function_create_fire_from_rabbit"
-        print(f"Redirigiendo evento a DAG: {target_dag}")
-
-        # ID único para el proceso
-        unique_id = str(uuid.uuid4())
-
-        # onfigurar conexión SSH usando Airflow
-        ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
-
-        try:
-            with ssh_hook.get_conn() as ssh_client:
-                sftp = ssh_client.open_sftp()
-
-                # Obtener la ruta del servidor desde Airflow
-                file_path = "/home/admin3/grandes-incendios-forestales/input_automatic.json"
-
-                # Subir el JSON al servidor
-                with sftp.file(file_path, "w") as json_file:
-                    json.dump(msg_json, json_file, ensure_ascii=False, indent=4)
-
-                print(f"Archivo JSON guardado en {file_path}")
-
-                sftp.close()
-
-        except Exception as e:
-            print(f"Error en la conexión SSH: {e}")
-            return
-    
-        # Disparar el DAG correspondiente con la referencia al archivo JSON en el servidor
-        trigger_dag_run = TriggerDagRunOperator(
-            task_id=unique_id,
-            trigger_dag_id=target_dag,
-            conf={"file_path": file_path},  # Pasamos la ruta en el servidor
-            execution_date=datetime.now().replace(tzinfo=timezone.utc),
-            dag=dag
+        # Determinar el DAG objetivo sin afectar la lógica original
+        target_dag = (
+            "algorithm_gifs_fire_prediction_post_process"
+            if event_name == "GIFAlgorithmExecution"
+            else "function_create_fire_from_rabbit"
         )
 
-        trigger_dag_run.execute(context=kwargs)
+        print(f"Disparando DAG: {target_dag}")
+
+        # Ejecutar el DAG correspondiente
+        TriggerDagRunOperator(
+            task_id=str(uuid.uuid4()),  # ID único
+            trigger_dag_id=target_dag,
+            conf=msg_json,  # Pasar el JSON completo
+            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+            dag=dag
+        ).execute(context=kwargs)
 
     except json.JSONDecodeError as e:
-        print(f"Error decodificando JSON: {e}")
+        print(f"Error al decodificar JSON: {e}")
     except Exception as e:
-        print(f"Error en la ejecución: {e}")
+        print(f"Error inesperado: {e}")
 
 # Configuración del DAG
 default_args = {
