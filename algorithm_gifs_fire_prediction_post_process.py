@@ -9,47 +9,51 @@ def execute_docker_process(**context):
     """ Ejecuta el proceso GIF utilizando el archivo JSON recibido desde Kafka/NiFi. """
     
     conf = context.get("dag_run").conf
-    file_path = conf.get("file_path", "/home/admin3/grandes-incendios-forestales/input_automatic.json")
-
-    if not os.path.exists(file_path):
-        print(f"El archivo {file_path} no existe.")
-        return
-
-    # Leer el archivo JSON y extraer los datos
-    with open(file_path, "r", encoding="utf-8") as json_file:
-        input_data = json.load(json_file)
-
-    print("Datos cargados desde el archivo JSON:")
-    print(json.dumps(input_data, indent=4))
-
+    remote_file_path = "/home/admin3/grandes-incendios-forestales/input_automatic.json"
+    local_file_path = "/tmp/input_automatic.json"
     
-    event_name = input_data.get('eventName', "UnknownEvent")
-    data_str = input_data.get('data', {})
-
-    if isinstance(data_str, str):
-        try:
-            data = json.loads(data_str)
-        except json.JSONDecodeError:
-            print("Error al decodificar 'data'")
-            return
-    else:
-        data = data_str
-
-    print(f"Evento: {event_name}")
-    print(f"Datos extraídos: {json.dumps(data, indent=4)}")
-
-    # Aquí continúa la ejecución de Docker como antes
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
 
+            # Descargar el JSON desde el servidor
+            try:
+                sftp.get(remote_file_path, local_file_path)
+                print(f"Archivo JSON descargado correctamente desde {remote_file_path}")
+            except FileNotFoundError:
+                print(f"El archivo {remote_file_path} no existe en el servidor.")
+                return
+
+            # Leer y procesar el JSON
+            with open(local_file_path, "r", encoding="utf-8") as json_file:
+                input_data = json.load(json_file)
+
+            print("Datos cargados desde el archivo JSON:")
+            print(json.dumps(input_data, indent=4))
+
+            # Extraer datos necesarios
+            event_name = input_data.get('eventName', "UnknownEvent")
+            data_str = input_data.get('data', {})
+
+            if isinstance(data_str, str):
+                try:
+                    data = json.loads(data_str)
+                except json.JSONDecodeError:
+                    print("Error al decodificar 'data'")
+                    return
+            else:
+                data = data_str
+
+            print(f"Evento: {event_name}")
+            print(f"Datos extraídos: {json.dumps(data, indent=4)}")
+
             # Guardar el JSON procesado en el servidor
-            with sftp.file(file_path, "w") as json_file:
+            with sftp.file(remote_file_path, "w") as json_file:
                 json.dump(data, json_file, ensure_ascii=False, indent=4)
 
-            print(f"Archivo procesado guardado en {file_path}")
+            print(f"Archivo procesado guardado en {remote_file_path}")
 
             # Ejecutar Docker Compose
             print("Ejecutando Docker Compose...")
@@ -58,11 +62,11 @@ def execute_docker_process(**context):
             )
 
             # Descargar output.json si existe
-            output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
+            remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
             local_output_path = "/tmp/output.json"
 
             try:
-                sftp.get(output_path, local_output_path)
+                sftp.get(remote_output_path, local_output_path)
                 print("Archivo de salida descargado correctamente.")
             except FileNotFoundError:
                 print("output.json no encontrado. Continuando con la ejecución.")
@@ -79,7 +83,6 @@ def execute_docker_process(**context):
     except Exception as e:
         print(f"Error en la ejecución: {str(e)}")
         raise
-
 
 # Configuración del DAG en Airflow
 default_args = {
