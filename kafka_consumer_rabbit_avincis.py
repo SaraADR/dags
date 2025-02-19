@@ -1,14 +1,13 @@
 import json
 import uuid
+import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python import BranchPythonOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.providers.ssh.hooks.ssh import SSHHook
 from datetime import datetime, timedelta, timezone
-from airflow.models import Variable
-from airflow.exceptions import AirflowSkipException
+
 
 def consumer_function(message, **kwargs):
     """ Procesa el mensaje recibido desde Kafka y lo envía al DAG correspondiente. """
@@ -27,34 +26,45 @@ def consumer_function(message, **kwargs):
         return None
 
 def process_message(message, kwargs):
-    """ Filtra y redirige el mensaje al DAG correcto, asegurando que el archivo JSON se pase correctamente. """
+    """ Filtra y redirige el mensaje al DAG correcto y envía el JSON al servidor vía SSH. """
     try:
         msg_json = json.loads(message)  # Convertir el mensaje a JSON
-
-        # Verificar si el evento es de tipo "GIFAlgorithmExecution"
         event_name = msg_json.get("eventName", "")
 
-        if event_name == "GIFAlgorithmExecution":
-            target_dag = "algorithm_gifs_fire_prediction_post_process"
-        else:
-            target_dag = "function_create_fire_from_rabbit"
-
+        # Definir DAG objetivo
+        target_dag = "algorithm_gifs_fire_prediction_post_process" if event_name == "GIFAlgorithmExecution" else "function_create_fire_from_rabbit"
         print(f"Redirigiendo evento a DAG: {target_dag}")
 
-        unique_id = str(uuid.uuid4())  # Generar un ID único para la tarea
+        # ID único para el proceso
+        unique_id = str(uuid.uuid4())
 
-        # Guardar JSON recibido en un archivo en la carpeta de Airflow
-        input_json_path = f"/home/admin3/grandes-incendios-forestales/input_automatic.json"
-        with open(input_json_path, "w", encoding="utf-8") as json_file:
-            json.dump(msg_json, json_file, ensure_ascii=False, indent=4)
+        # onfigurar conexión SSH usando Airflow
+        ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
-        print(f"Archivo JSON guardado en {input_json_path}")
+        try:
+            with ssh_hook.get_conn() as ssh_client:
+                sftp = ssh_client.open_sftp()
 
-        # Disparar el DAG correspondiente con la referencia al archivo JSON
+                # Obtener la ruta del servidor desde Airflow
+                file_path = "/home/admin3/grandes-incendios-forestales/input_automatic.json"
+
+                # Subir el JSON al servidor
+                with sftp.file(file_path, "w") as json_file:
+                    json.dump(msg_json, json_file, ensure_ascii=False, indent=4)
+
+                print(f"Archivo JSON guardado en {file_path}")
+
+                sftp.close()
+
+        except Exception as e:
+            print(f"Error en la conexión SSH: {e}")
+            return
+    
+        # Disparar el DAG correspondiente con la referencia al archivo JSON en el servidor
         trigger_dag_run = TriggerDagRunOperator(
             task_id=unique_id,
             trigger_dag_id=target_dag,
-            conf={"file_path": input_json_path},
+            conf={"file_path": file_path},  # Pasamos la ruta en el servidor
             execution_date=datetime.now().replace(tzinfo=timezone.utc),
             dag=dag
         )
