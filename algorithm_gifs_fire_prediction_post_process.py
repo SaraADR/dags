@@ -8,7 +8,6 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 def execute_docker_process(**context):
     """ Ejecuta el proceso GIF utilizando el archivo JSON recibido desde Kafka/NiFi. """
     
-    # Obtener la ruta del archivo JSON recibido desde el DAG que disparó esta ejecución
     conf = context.get("dag_run").conf
     file_path = conf.get("file_path", "/home/admin3/grandes-incendios-forestales/input_automatic.json")
 
@@ -16,24 +15,41 @@ def execute_docker_process(**context):
         print(f"El archivo {file_path} no existe.")
         return
 
-    # Leer el archivo JSON
+    # Leer el archivo JSON y extraer los datos
     with open(file_path, "r", encoding="utf-8") as json_file:
         input_data = json.load(json_file)
 
     print("Datos cargados desde el archivo JSON:")
     print(json.dumps(input_data, indent=4))
 
+    
+    event_name = input_data.get('eventName', "UnknownEvent")
+    data_str = input_data.get('data', {})
+
+    if isinstance(data_str, str):
+        try:
+            data = json.loads(data_str)
+        except json.JSONDecodeError:
+            print("Error al decodificar 'data'")
+            return
+    else:
+        data = data_str
+
+    print(f"Evento: {event_name}")
+    print(f"Datos extraídos: {json.dumps(data, indent=4)}")
+
+    # Aquí continúa la ejecución de Docker como antes
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
 
-            # Subir `input_automatic.json` al servidor para Docker
+            # Guardar el JSON procesado en el servidor
             with sftp.file(file_path, "w") as json_file:
-                json.dump(input_data, json_file, ensure_ascii=False, indent=4)
+                json.dump(data, json_file, ensure_ascii=False, indent=4)
 
-            print(f"Archivo de entrada guardado correctamente: {file_path}")
+            print(f"Archivo procesado guardado en {file_path}")
 
             # Ejecutar Docker Compose
             print("Ejecutando Docker Compose...")
@@ -41,7 +57,7 @@ def execute_docker_process(**context):
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose up -d"
             )
 
-            # Intentar descargar output.json si existe
+            # Descargar output.json si existe
             output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
             local_output_path = "/tmp/output.json"
 
@@ -63,6 +79,7 @@ def execute_docker_process(**context):
     except Exception as e:
         print(f"Error en la ejecución: {str(e)}")
         raise
+
 
 # Configuración del DAG en Airflow
 default_args = {
