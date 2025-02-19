@@ -6,57 +6,50 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 def execute_docker_process(**context):
-    """ Ejecuta el proceso GIF utilizando el archivo JSON recibido desde Kafka/NiFi. """
-    
+    """ Ejecuta el proceso GIF utilizando el archivo JSON recibido desde otro DAG. """
+
+    # Extraer datos directamente del DAG que hace trigger
     conf = context.get("dag_run").conf
-    remote_file_path = "/home/admin3/grandes-incendios-forestales/input_automatic.json"
-    local_file_path = "/tmp/input_automatic.json"
+    if not conf:
+        print("Error: No se recibió configuración desde el DAG.")
+        return
     
+    print("Datos recibidos del DAG:")
+    print(json.dumps(conf, indent=4))
+
+    # Extraer información del JSON
+    event_name = conf.get("eventName", "UnknownEvent")
+    data_str = conf.get("data", {})
+
+    if isinstance(data_str, str):
+        try:
+            data = json.loads(data_str)
+        except json.JSONDecodeError:
+            print("Error al decodificar 'data'")
+            return
+    else:
+        data = data_str
+
+    print(f"Evento: {event_name}")
+    print(f"Datos extraídos: {json.dumps(data, indent=4)}")
+
+    if not data:
+        print("Advertencia: No hay datos válidos para procesar.")
+        return
+
+    # Subir el JSON al servidor para que lo use Docker
+    remote_file_path = "/home/admin3/grandes-incendios-forestales/input_automatic.json"
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
 
-            # Descargar el JSON desde el servidor
-            try:
-                sftp.get(remote_file_path, local_file_path)
-                print(f"Archivo JSON descargado correctamente desde {remote_file_path}")
-            except FileNotFoundError:
-                print(f"El archivo {remote_file_path} no existe en el servidor.")
-                return
+            # Guardar JSON en el servidor
+            with sftp.file(remote_file_path, "w") as json_file:
+                json.dump(data, json_file, ensure_ascii=False, indent=4)
 
-            # Leer y procesar el JSON
-            with open(local_file_path, "r", encoding="utf-8") as json_file:
-                input_data = json.load(json_file)
-
-            print("Datos cargados desde el archivo JSON:")
-            print(json.dumps(input_data, indent=4))
-
-            # Extraer datos necesarios
-            event_name = input_data.get('eventName', "UnknownEvent")
-            data_str = input_data.get('data', {})
-
-            if isinstance(data_str, str):
-                try:
-                    data = json.loads(data_str)
-                except json.JSONDecodeError:
-                    print("Error al decodificar 'data'")
-                    return
-            else:
-                data = data_str
-
-            print(f"Evento: {event_name}")
-            print(f"Datos extraídos: {json.dumps(data, indent=4)}")
-
-            if data:
-                with sftp.file(remote_file_path, "w") as json_file:
-                    json.dump(data, json_file, ensure_ascii=False, indent=4)
-            else:
-                print("Advertencia: No se guardará JSON vacío en el servidor.")
-
-
-            print(f"Archivo procesado guardado en {remote_file_path}")
+            print(f"Archivo JSON guardado correctamente en {remote_file_path}")
 
             # Ejecutar Docker Compose
             print("Ejecutando Docker Compose...")
