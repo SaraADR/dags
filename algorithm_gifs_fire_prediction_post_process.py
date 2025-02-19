@@ -49,9 +49,12 @@ def execute_docker_process(**context):
             print(f"Evento: {event_name}")
             print(f"Datos extraídos: {json.dumps(data, indent=4)}")
 
-            # Guardar el JSON procesado en el servidor
-            with sftp.file(remote_file_path, "w") as json_file:
-                json.dump(data, json_file, ensure_ascii=False, indent=4)
+            if data:
+                with sftp.file(remote_file_path, "w") as json_file:
+                    json.dump(data, json_file, ensure_ascii=False, indent=4)
+            else:
+                print("Advertencia: No se guardará JSON vacío en el servidor.")
+
 
             print(f"Archivo procesado guardado en {remote_file_path}")
 
