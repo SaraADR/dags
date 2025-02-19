@@ -377,21 +377,25 @@ def process_escape_routes_data(**context):
             
 
 
+
             datos = {
                 'sampled_feature': input_data['mission_id'] ,  
                 'result_time': datetime.now(madrid_tz),
-                'phenomenon_time': None,
+                'phenomenon_time': datetime.now(madrid_tz),
                 'input_data': json.dumps(params),  
-                'output_data': json.dumps({"zip_ficheros": file_url})   
+                'output_data': json.dumps({"zip_ficheros": file_url}),   
             }
 
+
+            
             # Construir la consulta de inserción
             query = f"""
                 INSERT INTO algoritmos.algoritmo_escape_routes (
-                    sampled_feature, result_time, input_data, output_data
+                    sampled_feature, result_time, phenomenon_time, input_data, output_data
                 ) VALUES (
-                    {datos['sampled_feature']},
+                     {datos['sampled_feature']},
                     '{datos['result_time']}',
+                    '{datos['phenomenon_time']}',
                     '{datos['input_data']}',
                     '{datos['output_data']}'
                 )

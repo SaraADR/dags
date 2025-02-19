@@ -199,9 +199,9 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
                 output_data["type"] = 2
                 datos = {
-                    'sampled_feature': mission_id,  # Ejemplo de valor
+                    'sampled_feature': mission_id, 
                     'result_time': datetime.datetime.now(madrid_tz),
-                    'phenomenon_time': datetime.datetime.now(madrid_tz),
+                    'phenomenon_time': phenomenon_time,
                     'input_data': json.dumps({"fire_id": fire_id}),
                     'output_data': json.dumps(output_data)
                 }
