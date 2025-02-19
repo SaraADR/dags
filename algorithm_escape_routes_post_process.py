@@ -402,8 +402,8 @@ def process_escape_routes_data(**context):
             """
 
             # Ejecutar la consulta
-            result = execute_query('biobd', query)
-            print(result)
+            execute_query('biobd', query)
+
 
 
     except Exception as e:
