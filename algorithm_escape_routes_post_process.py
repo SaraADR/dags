@@ -378,7 +378,7 @@ def process_escape_routes_data(**context):
 
 
             datos = {
-                'sampled_feature': None,  # Ejemplo de valor
+                'sampled_feature': input_data['mission_id'] ,  # Ejemplo de valor
                 'result_time': datetime.datetime.now(madrid_tz),
                 'phenomenon_time': None,
                 'input_data': params,  
