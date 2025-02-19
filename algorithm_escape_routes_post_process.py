@@ -2,29 +2,25 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 import json
-from sqlalchemy import create_engine, Table, MetaData
-from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from airflow.hooks.http_hook import HttpHook
 import requests
-from dag_utils import update_job_status, throw_job_error, crear_zip_si_existen
+from dag_utils import execute_query,upload_to_minio_path,get_db_session,update_job_status, throw_job_error, crear_zip_si_existen
 import os
 import rasterio
 from rasterio.features import rasterize
 from pyproj import CRS
 from shapely.geometry import shape
 import geopandas as gpd
-from dag_utils import  upload_to_minio, upload_to_minio_path
 import uuid
 import boto3
 from botocore.client import Config
 from airflow.hooks.base_hook import BaseHook
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta, timezone
-from sqlalchemy import create_engine, Table, MetaData, text
+from sqlalchemy import text
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
-from dag_utils import get_db_session
+import pytz
 
 
 def process_escape_routes_data(**context):
@@ -106,8 +102,6 @@ def process_escape_routes_data(**context):
         job_id = context['dag_run'].conf['message']['id']        
         throw_job_error(job_id, e)
         raise
-
-
 
 
     # Procesar "inicio" y "destino" para permitir diferentes estructuras
@@ -332,7 +326,6 @@ def process_escape_routes_data(**context):
                     raise e
     
 
-
         #Creamos la notificación de vuelta  
                 try:
                     session = get_db_session()
@@ -379,6 +372,35 @@ def process_escape_routes_data(**context):
                     throw_job_error(job_id, e)
                     raise e
 
+            # Y guardamos en la tabla de historico
+            madrid_tz = pytz.timezone('Europe/Madrid')
+            fecha_hoy = datetime.now()
+
+
+            datos = {
+                'sampled_feature': None,  # Ejemplo de valor
+                'result_time': datetime.datetime.now(madrid_tz),
+                'phenomenon_time': None,
+                'input_data': params,  
+                'output_data': file_url  
+            }
+
+            # Construir la consulta de inserción
+            query = f"""
+                INSERT INTO algoritmos.algoritmo_escape_routes (
+                    sampled_feature, result_time, phenomenon_time, input_data, output_data
+                ) VALUES (
+                    {datos['sampled_feature']},
+                    '{datos['result_time']}',
+                    '{datos['phenomenon_time']}'::TSRANGE,
+                    '{datos['input_data']}',
+                    '{datos['output_data']}'
+                )
+            """
+
+            # Ejecutar la consulta
+            result = execute_query('biobd', query)
+            print(result)
 
 
     except Exception as e:
