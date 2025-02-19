@@ -385,28 +385,20 @@ def process_escape_routes_data(**context):
                 'output_data': file_url  
             }
 
-            query = text("""
-                INSERT INTO algoritmos.algoritmo_escape_routes (
-                    sampled_feature, result_time, phenomenon_time, input_data, output_data
-                ) VALUES (
-                    :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
-                )
-            """)
             # Construir la consulta de inserción
-            # query = f"""
-            #     INSERT INTO algoritmos.algoritmo_escape_routes (
-            #         sampled_feature, result_time, phenomenon_time, input_data, output_data
-            #     ) VALUES (
-            #         {datos['sampled_feature']},
-            #         '{datos['result_time']}',
-            #         '{datos['phenomenon_time']}'::TSRANGE,
-            #         '{datos['input_data']}',
-            #         '{datos['output_data']}'
-            #     )
-            # """
+            query = f"""
+                INSERT INTO algoritmos.algoritmo_escape_routes (
+                    sampled_feature, result_time, input_data, output_data
+                ) VALUES (
+                    {datos['sampled_feature']},
+                    '{datos['result_time']}',
+                    '{datos['input_data']}',
+                    '{datos['output_data']}'
+                )
+            """
 
             # Ejecutar la consulta
-            result = execute_query('biobd', query, datos)
+            result = execute_query('biobd', query)
             print(result)
 
 
