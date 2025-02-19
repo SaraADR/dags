@@ -53,9 +53,13 @@ def execute_docker_process(**context):
 
             # Ejecutar Docker Compose
             print("Ejecutando Docker Compose...")
-            ssh_client.exec_command(
+            stdin, stdout, stderr = ssh_client.exec_command(
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose up -d"
             )
+            output = stdout.read().decode()
+            error_output = stderr.read().decode()
+            print(f"Salida de la ejecución: {output}")
+            print(f"Errores de la ejecución: {error_output}")
 
             # Descargar output.json si existe
             remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
@@ -67,12 +71,13 @@ def execute_docker_process(**context):
             except FileNotFoundError:
                 print("output.json no encontrado. Continuando con la ejecución.")
 
-            # Limpiar contenedor después de la ejecución
-            print("Eliminando contenedor...")
-            ssh_client.exec_command(
-                "cd /home/admin3/grandes-incendios-forestales && docker-compose down"
-            )
-            print("Contenedor eliminado correctamente.")
+            
+            # # Limpiar contenedor después de la ejecución
+            # print("Eliminando contenedor...")
+            # ssh_client.exec_command(
+            #     "cd /home/admin3/grandes-incendios-forestales && docker-compose down"
+            # )
+            # print("Contenedor eliminado correctamente.")
 
             sftp.close()
 
