@@ -1,11 +1,27 @@
 import datetime
 import json
+import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 def execute_docker_process(**context):
-    """Sube input_automatic.json con datos de prueba, ejecuta Docker Compose y gestiona el contenedor"""
+    """ Ejecuta el proceso GIF utilizando el archivo JSON recibido desde Kafka/NiFi. """
+    
+    # Obtener la ruta del archivo JSON recibido desde el DAG que disparó esta ejecución
+    conf = context.get("dag_run").conf
+    file_path = conf.get("file_path", "/home/admin3/grandes-incendios-forestales/input_automatic.json")
+
+    if not os.path.exists(file_path):
+        print(f"El archivo {file_path} no existe.")
+        return
+
+    # Leer el archivo JSON
+    with open(file_path, "r", encoding="utf-8") as json_file:
+        input_data = json.load(json_file)
+
+    print("Datos cargados desde el archivo JSON:")
+    print(json.dumps(input_data, indent=4))
 
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
@@ -13,40 +29,19 @@ def execute_docker_process(**context):
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
 
-            # Usar un JSON de prueba (más adelante reemplazar con datos reales)
-            input_data = [
-                {"id": 1, "lat": 42.56103, "long": -8.618725},
-                {"id": 2, "lat": 43.01234, "long": -7.54321}
-            ]
+            # Subir `input_automatic.json` al servidor para Docker
+            with sftp.file(file_path, "w") as json_file:
+                json.dump(input_data, json_file, ensure_ascii=False, indent=4)
 
-            print("Usando JSON de prueba para la ejecución:", input_data)
+            print(f"Archivo de entrada guardado correctamente: {file_path}")
 
-            # Subir input_automatic.json con los datos de prueba
-            input_path = "/home/admin3/grandes-incendios-forestales/input_automatic.json"
-            with sftp.file(input_path, "w") as json_file:
-                json.dump({"incendios": input_data}, json_file, ensure_ascii=False, indent=4)
-
-            print(f"Archivo de entrada subido correctamente: {input_path}")
-
-            # Cambiar al directorio correcto y ejecutar limpieza de volúmenes
-            print("Ejecutando limpieza de volúmenes...")
-            ssh_client.exec_command(
-                "cd /home/admin3/grandes-incendios-forestales && docker-compose down --volumes"
-            )
-
-            # Construir la imagen de Docker antes de ejecutar el contenedor
-            print("Construyendo la imagen de Docker...")
-            ssh_client.exec_command(
-                "cd /home/admin3/grandes-incendios-forestales && docker-compose build"
-            )
-
-            # Ejecutar Docker Compose en modo demonio
+            # Ejecutar Docker Compose
             print("Ejecutando Docker Compose...")
             ssh_client.exec_command(
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose up -d"
             )
 
-            # Intentar descargar output.json si existe, sin esperar activamente
+            # Intentar descargar output.json si existe
             output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
             local_output_path = "/tmp/output.json"
 
@@ -54,9 +49,9 @@ def execute_docker_process(**context):
                 sftp.get(output_path, local_output_path)
                 print("Archivo de salida descargado correctamente.")
             except FileNotFoundError:
-                print("output.json no encontrado. Continuando con la ejecución sin descargar.")
+                print("output.json no encontrado. Continuando con la ejecución.")
 
-            # Eliminar el contenedor después de la ejecución
+            # Limpiar contenedor después de la ejecución
             print("Eliminando contenedor...")
             ssh_client.exec_command(
                 "cd /home/admin3/grandes-incendios-forestales && docker-compose down"
@@ -71,7 +66,7 @@ def execute_docker_process(**context):
 
 # Configuración del DAG en Airflow
 default_args = {
-    'owner': 'admin',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime.datetime(2024, 8, 8),
     'retries': 1,
@@ -81,14 +76,13 @@ default_args = {
 dag = DAG(
     'algorithm_gifs_fire_prediction_post_process',
     default_args=default_args,
-    description='DAG to execute GIFS Fire Prediction Algorithm with Docker Compose',
+    description='DAG que ejecuta GIFS Fire Prediction con Docker Compose',
     schedule_interval=None,
     catchup=False,
     max_active_runs=1,
     concurrency=1
 )
 
-# Definición de tarea en el DAG
 execute_docker_task = PythonOperator(
     task_id='execute_docker_process',
     python_callable=execute_docker_process,
@@ -96,5 +90,4 @@ execute_docker_task = PythonOperator(
     dag=dag,
 )
 
-# Definir la secuencia de tareas
 execute_docker_task
