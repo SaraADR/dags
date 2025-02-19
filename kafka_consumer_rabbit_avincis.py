@@ -37,7 +37,7 @@ def consumer_function(message, **kwargs):
 
 # Configuración del DAG
 default_args = {
-    'owner': 'sadr',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime(2024, 7, 7),
     'email_on_failure': False,
