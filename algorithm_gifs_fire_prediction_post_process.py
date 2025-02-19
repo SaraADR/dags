@@ -31,11 +31,17 @@ def execute_docker_process(**context):
         data = data_str
 
     print(f"Evento: {event_name}")
-    print(f"Datos extraídos: {json.dumps(data, indent=4)}")
+    print(f"Datos extraídos antes de ajuste: {json.dumps(data, indent=4)}")
 
     if not data:
         print("Advertencia: No hay datos válidos para procesar.")
         return
+
+    # Asegurar que `data` siempre sea una lista antes de subirlo
+    if isinstance(data, dict):  
+        data = [data]  
+
+    print(f"Datos ajustados para Docker: {json.dumps(data, indent=4)}")
 
     # Subir el JSON al servidor para que lo use Docker
     remote_file_path = "/home/admin3/grandes-incendios-forestales/share_data_host/inputs/input_automatic.json"
@@ -84,6 +90,7 @@ def execute_docker_process(**context):
     except Exception as e:
         print(f"Error en la ejecución: {str(e)}")
         raise
+
 
 # Configuración del DAG en Airflow
 default_args = {
