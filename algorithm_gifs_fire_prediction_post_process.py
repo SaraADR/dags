@@ -38,7 +38,7 @@ def execute_docker_process(**context):
         return
 
     # Subir el JSON al servidor para que lo use Docker
-    remote_file_path = "/home/admin3/grandes-incendios-forestales/share_data_host/inputs/gif_data.json"
+    remote_file_path = "/home/admin3/grandes-incendios-forestales/share_data_host/inputs/input_automatic.json"
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
     try:
