@@ -19,25 +19,32 @@ def consumer_function(message, **kwargs):
         msg_json = json.loads(msg_value)
         event_name = msg_json.get("eventName", "")
 
-        # Determinar DAG objetivo según el evento
-        target_dag = "algorithm_gifs_fire_prediction_post_process" if event_name == "GIFAlgorithmExecution" else "function_create_fire_from_rabbit"
+        # Determinar el DAG objetivo sin afectar la lógica original
+        target_dag = (
+            "algorithm_gifs_fire_prediction_post_process"
+            if event_name == "GIFAlgorithmExecution"
+            else "function_create_fire_from_rabbit"
+        )
+
         print(f"Disparando DAG: {target_dag}")
 
-        # Disparar el DAG correspondiente
+        # Ejecutar el DAG correspondiente
         TriggerDagRunOperator(
             task_id=str(uuid.uuid4()),  # ID único
             trigger_dag_id=target_dag,
-            conf=msg_json,  # Pasar el mensaje JSON completo
+            conf=msg_json,  # Pasar el JSON completo
             execution_date=datetime.now().replace(tzinfo=timezone.utc),
             dag=dag
         ).execute(context=kwargs)
 
     except json.JSONDecodeError as e:
-        print(f"Error decodificando JSON: {e}")
+        print(f"Error al decodificar JSON: {e}")
+    except Exception as e:
+        print(f"Error inesperado: {e}")
 
 # Configuración del DAG
 default_args = {
-    'owner': 'oscar',
+    'owner': 'sadr',
     'depends_on_past': False,
     'start_date': datetime(2024, 7, 7),
     'email_on_failure': False,
