@@ -145,5 +145,11 @@ execute_docker_task = PythonOperator(
     provide_context=True,
     dag=dag,
 )
+obtener_id_mision_dag = PythonOperator(
+    task_id='obtener_id_mision_dag',
+    python_callable=obtener_id_mision,
+    provide_context=True,
+    dag=dag,
+)
 
-execute_docker_task
+execute_docker_task > obtener_id_mision_dag
