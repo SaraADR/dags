@@ -1,13 +1,12 @@
 import json
-import uuid
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 
 def consumer_function(message, **kwargs):
-    """ Procesa el mensaje desde Kafka y dispara el DAG correspondiente. """
+    """Procesa el mensaje desde Kafka y almacena la configuración en XCom evitando duplicados."""
     if not message:
         print("Mensaje vacío recibido.")
         return None
@@ -19,28 +18,56 @@ def consumer_function(message, **kwargs):
         msg_json = json.loads(msg_value)
         event_name = msg_json.get("eventName", "")
 
-        # Determinar el DAG objetivo sin afectar la lógica original
+        # Determinar el DAG objetivo
         target_dag = (
             "algorithm_gifs_fire_prediction_post_process"
             if event_name == "GIFAlgorithmExecution"
             else "function_create_fire_from_rabbit"
         )
 
-        print(f"Disparando DAG: {target_dag}")
+        print(f"Verificando ejecución previa para DAG: {target_dag}")
 
-        # Ejecutar el DAG correspondiente
-        TriggerDagRunOperator(
-            task_id=str(uuid.uuid4()),  # ID único
-            trigger_dag_id=target_dag,
-            conf=msg_json,  # Pasar el JSON completo
-            execution_date=datetime.now().replace(tzinfo=timezone.utc),
-            dag=dag
-        ).execute(context=kwargs)
+        # Obtener el contexto para verificar ejecuciones previas
+        ti = kwargs['ti']
+        previous_execution = ti.xcom_pull(task_ids="consume_from_kafka", key=target_dag)
+
+        if previous_execution:
+            print(f"El DAG {target_dag} ya fue ejecutado con este mensaje. Ignorando duplicado.")
+            return None
+
+        print(f"Guardando en XCom para ejecutar DAG: {target_dag}")
+
+        # Guardar en XCom para evitar que se dispare dos veces
+        ti.xcom_push(key=target_dag, value=True)
+
+        return {"target_dag": target_dag, "conf": msg_json}
 
     except json.JSONDecodeError as e:
         print(f"Error al decodificar JSON: {e}")
     except Exception as e:
         print(f"Error inesperado: {e}")
+
+def trigger_dag_run(**kwargs):
+    """Obtiene la configuración desde XCom y dispara el DAG correspondiente si no ha sido ejecutado ya."""
+    ti = kwargs['ti']
+    trigger_data = ti.xcom_pull(task_ids="consume_from_kafka")
+
+    if not trigger_data:
+        print("No hay datos de trigger disponibles.")
+        return
+
+    target_dag = trigger_data["target_dag"]
+    conf = trigger_data["conf"]
+
+    print(f"Ejecutando DAG: {target_dag} con configuración: {conf}")
+
+    trigger = TriggerDagRunOperator(
+        task_id=f"trigger_{target_dag}",
+        trigger_dag_id=target_dag,
+        conf=conf,
+        execution_date=datetime.now().replace(tzinfo=timezone.utc)
+    )
+    trigger.execute(context=kwargs)
 
 # Configuración del DAG
 default_args = {
@@ -63,13 +90,20 @@ dag = DAG(
     concurrency=1    
 )
 
-consume_from_topic = ConsumeFromTopicOperator(
+consume_from_kafka = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
-    task_id="consume_from_topic",
+    task_id="consume_from_kafka",
     topics=["rabbit_einforex"],
     apply_function=consumer_function,
-    commit_cadence="end_of_batch",
+    commit_cadence="end_of_batch",  # Asegurar que el mensaje no se duplique
     dag=dag,
 )
 
-consume_from_topic
+trigger_dag = PythonOperator(
+    task_id="trigger_dag_run",
+    python_callable=trigger_dag_run,
+    provide_context=True,
+    dag=dag,
+)
+
+consume_from_kafka >> trigger_dag
