@@ -149,16 +149,20 @@ def guardar_resultados_task(**context):
     Obtiene mission_id desde XCom, descarga output.json desde el servidor y guarda los datos en la BD.
     """
     mission_id = context['task_instance'].xcom_pull(task_ids='obtener_mission_id', key='mission_id')
+    input_data = context['dag_run'].conf.get("data")  
 
     if not mission_id:
         print("No se pudo obtener mission_id, no se guardarán los datos en la BD.")
+        return
+
+    if not input_data:
+        print("No se recibió el JSON de entrada desde el DAG, no se guardará en la BD.")
         return
 
     # Ruta del archivo en el servidor y local
     remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
     local_output_path = "/tmp/output.json"
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")  
-
     try:
         # Descargar output.json desde el servidor
         with ssh_hook.get_conn() as ssh_client:
@@ -166,27 +170,23 @@ def guardar_resultados_task(**context):
             sftp.get(remote_output_path, local_output_path)
             sftp.close()
 
-        # Leer JSON descargado
+        # Leer JSON descargado (output del algoritmo)
         with open(local_output_path, "r") as file:
-            resultado_json = json.load(file)
-
-        fire_id = resultado_json[0]["id"]  
-        input_data = json.dumps(resultado_json)  
-        output_data = json.dumps(resultado_json)  
+            output_data = json.load(file)
 
         # Insertar datos en la BD
         session = get_db_session()
 
         madrid_tz = datetime.timezone.utc
-        fecha_hoy = datetime.datetime.now(madrid_tz)  
-        phenomenon_time = fecha_hoy  
+        fecha_hoy = datetime.datetime.now(madrid_tz)  # `result_time` → fecha actual
+        phenomenon_time = fecha_hoy  # `phenomenon_time` es igual a la fecha actual
 
         datos = {
             'sampled_feature': mission_id,
             'result_time': fecha_hoy,
             'phenomenon_time': phenomenon_time,
-            'input_data': input_data,  
-            'output_data': output_data
+            'input_data': json.dumps(input_data),
+            'output_data': json.dumps(output_data)
         }
 
         query = text("""
