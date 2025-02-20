@@ -118,6 +118,33 @@ def obtener_id_mision(fire_id):
     except Exception as e:
         print(f"Error al obtener mission_id: {e}")
         return None
+    
+def obtener_mission_id_task(**context):
+    """
+    Obtiene el mission_id utilizando fire_id después de ejecutar Docker.
+    """
+    # Obtener el archivo de salida descargado
+    local_output_path = "/tmp/output.json"
+
+    try:
+        with open(local_output_path, "r") as file:
+            resultado_json = json.load(file)
+
+        fire_id = resultado_json[0]["id"]  # Se asume que el JSON tiene al menos un incendio
+
+        mission_id = obtener_id_mision(fire_id)
+
+        if mission_id:
+            print(f"Mission ID obtenido correctamente: {mission_id}")
+            context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+        else:
+            print(f"No se encontró mission_id para fire_id: {fire_id}")
+
+    except FileNotFoundError:
+        print("output.json no encontrado, no se puede obtener mission_id.")
+    except Exception as e:
+        print(f"Error en la tarea de obtener mission_id: {str(e)}")
+        raise
 
 
 # Configuración del DAG en Airflow
@@ -145,11 +172,13 @@ execute_docker_task = PythonOperator(
     provide_context=True,
     dag=dag,
 )
-obtener_id_mision_dag = PythonOperator(
-    task_id='obtener_id_mision_dag',
-    python_callable=obtener_id_mision,
+
+obtener_mission_id_task = PythonOperator(
+    task_id='obtener_mission_id',
+    python_callable=obtener_mission_id_task,
     provide_context=True,
     dag=dag,
 )
 
-execute_docker_task > obtener_id_mision_dag
+# Definir la secuencia de ejecución: Primero ejecuta Docker, luego obtiene el mission_id
+execute_docker_task >> obtener_mission_id_task
