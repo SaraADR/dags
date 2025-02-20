@@ -144,25 +144,47 @@ def obtener_mission_id_task(**context):
         print(f"Error en la tarea de obtener mission_id: {str(e)}")
         raise
 
-def insertar_datos_en_bd(mission_id, fire_id, output_data):
+def guardar_resultados_task(**context):
     """
-    Inserta los resultados en la tabla gifs_fire_prediction y devuelve el fid generado.
+    Obtiene mission_id desde XCom, descarga output.json desde el servidor y guarda los datos en la BD.
     """
+    mission_id = context['task_instance'].xcom_pull(task_ids='obtener_mission_id', key='mission_id')
+
+    if not mission_id:
+        print("No se pudo obtener mission_id, no se guardarán los datos en la BD.")
+        return
+
+    # Ruta del archivo en el servidor y local
+    remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
+    local_output_path = "/tmp/output.json"
+    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")  # Conexión SSH para descargar el archivo
+
     try:
+        # 📌 Descargar output.json desde el servidor
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            sftp.get(remote_output_path, local_output_path)
+            sftp.close()
+
+        # 📌 Leer JSON descargado
+        with open(local_output_path, "r") as file:
+            resultado_json = json.load(file)
+
+        fire_id = resultado_json[0]["id"]
+        output_data = resultado_json
+
+        # 📌 Insertar datos en la BD
         session = get_db_session()
 
         madrid_tz = datetime.timezone.utc
         tipo1diasincendio = 10
-
         fecha_hoy = datetime.datetime.now(madrid_tz)
         fecha_inicio = fecha_hoy - datetime.timedelta(days=tipo1diasincendio)
-        phenomenon_time = fecha_hoy
-        valid_time = [fecha_inicio.isoformat(), fecha_hoy.isoformat()]
 
         datos = {
             'sampled_feature': mission_id,
-            'phenomenon_time': phenomenon_time,
-            'valid_time': valid_time,
+            'phenomenon_time': fecha_hoy,
+            'valid_time': [fecha_inicio.isoformat(), fecha_hoy.isoformat()],
             'input_data': json.dumps({"fire_id": fire_id}),
             'output_data': json.dumps(output_data)
         }
@@ -178,43 +200,17 @@ def insertar_datos_en_bd(mission_id, fire_id, output_data):
         result = session.execute(query, datos)
         session.commit()
         fid = result.fetchone()[0]
-        print(f"Datos insertados correctamente en gifs_fire_prediction con fid {fid}")
 
-        return fid
-
-    except Exception as e:
-        session.rollback()
-        print(f"Error al insertar en la BD: {str(e)}")
-        raise
-
-def guardar_resultados_task(**context):
-    """
-    Obtiene mission_id desde XCom y guarda los datos en la BD.
-    """
-    mission_id = context['task_instance'].xcom_pull(task_ids='obtener_mission_id', key='mission_id')
-
-    if not mission_id:
-        print("No se pudo obtener mission_id, no se guardarán los datos en la BD.")
-        return
-
-    local_output_path = "/tmp/output.json"
-
-    try:
-        with open(local_output_path, "r") as file:
-            resultado_json = json.load(file)
-
-        fire_id = resultado_json[0]["id"]
-        output_data = resultado_json
-
-        fid = insertar_datos_en_bd(mission_id, fire_id, output_data)
-
+        # 📌 Guardar fid en XCom para futuras tareas
         context['task_instance'].xcom_push(key='fid', value=fid)
 
     except FileNotFoundError:
         print("output.json no encontrado, no se puede guardar en la BD.")
     except Exception as e:
+        session.rollback()
         print(f"Error en la tarea de guardar resultados: {str(e)}")
         raise
+
 
 default_args = {
     'owner': 'oscar',
