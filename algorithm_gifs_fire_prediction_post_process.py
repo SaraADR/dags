@@ -157,7 +157,7 @@ def guardar_resultados_task(**context):
     # Ruta del archivo en el servidor y local
     remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
     local_output_path = "/tmp/output.json"
-    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")  # Conexión SSH para descargar el archivo
+    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")  
 
     try:
         # Descargar output.json desde el servidor
@@ -170,22 +170,23 @@ def guardar_resultados_task(**context):
         with open(local_output_path, "r") as file:
             resultado_json = json.load(file)
 
-        fire_id = resultado_json[0]["id"]
-        output_data = resultado_json
+        fire_id = resultado_json[0]["id"]  
+        input_data = json.dumps(resultado_json)  
+        output_data = json.dumps(resultado_json)  
 
         # Insertar datos en la BD
         session = get_db_session()
 
         madrid_tz = datetime.timezone.utc
-        fecha_hoy = datetime.datetime.now(madrid_tz)  # `result_time` → fecha actual
-        phenomenon_time = fecha_hoy  # `phenomenon_time` es igual a la fecha actual
+        fecha_hoy = datetime.datetime.now(madrid_tz)  
+        phenomenon_time = fecha_hoy  
 
         datos = {
             'sampled_feature': mission_id,
             'result_time': fecha_hoy,
             'phenomenon_time': phenomenon_time,
-            'input_data': json.dumps({"fire_id": fire_id}),
-            'output_data': json.dumps(output_data)
+            'input_data': input_data,  
+            'output_data': output_data
         }
 
         query = text("""
@@ -211,7 +212,6 @@ def guardar_resultados_task(**context):
         session.rollback()
         print(f"Error en la tarea de guardar resultados: {str(e)}")
         raise
-
 
 
 default_args = {
