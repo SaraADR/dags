@@ -177,23 +177,22 @@ def guardar_resultados_task(**context):
         session = get_db_session()
 
         madrid_tz = datetime.timezone.utc
-        tipo1diasincendio = 10
-        fecha_hoy = datetime.datetime.now(madrid_tz)
-        fecha_inicio = fecha_hoy - datetime.timedelta(days=tipo1diasincendio)
+        fecha_hoy = datetime.datetime.now(madrid_tz)  # `result_time` → fecha actual
+        phenomenon_time = fecha_hoy  # `phenomenon_time` es igual a la fecha actual
 
         datos = {
             'sampled_feature': mission_id,
-            'phenomenon_time': fecha_hoy,
-            'valid_time': [fecha_inicio.isoformat(), fecha_hoy.isoformat()],
+            'result_time': fecha_hoy,
+            'phenomenon_time': phenomenon_time,
             'input_data': json.dumps({"fire_id": fire_id}),
             'output_data': json.dumps(output_data)
         }
 
         query = text("""
             INSERT INTO algoritmos.gifs_fire_prediction (
-                sampled_feature, phenomenon_time, valid_time, input_data, output_data
+                sampled_feature, result_time, phenomenon_time, input_data, output_data
             ) VALUES (
-                :sampled_feature, :phenomenon_time, :valid_time, :input_data, :output_data
+                :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
             ) RETURNING fid;
         """)
 
@@ -204,12 +203,15 @@ def guardar_resultados_task(**context):
         # Guardar fid en XCom para futuras tareas
         context['task_instance'].xcom_push(key='fid', value=fid)
 
+        print(f"Datos insertados correctamente en gifs_fire_prediction con fid {fid}")
+
     except FileNotFoundError:
         print("output.json no encontrado, no se puede guardar en la BD.")
     except Exception as e:
         session.rollback()
         print(f"Error en la tarea de guardar resultados: {str(e)}")
         raise
+
 
 
 default_args = {
