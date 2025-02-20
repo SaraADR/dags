@@ -4,11 +4,10 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from airflow.models import Variable
 from datetime import datetime, timedelta, timezone
 
 def consumer_function(message, **kwargs):
-    """ Procesa el mensaje desde Kafka y dispara el DAG correspondiente solo si no se ha ejecutado antes. """
+    """ Procesa el mensaje desde Kafka y dispara el DAG correspondiente. """
     if not message:
         print("Mensaje vacío recibido.")
         return None
@@ -19,40 +18,31 @@ def consumer_function(message, **kwargs):
     try:
         msg_json = json.loads(msg_value)
         event_name = msg_json.get("eventName", "")
-        event_id = msg_json.get("eventId", "")
 
+        # Determinar el DAG objetivo sin afectar la lógica original
         target_dag = (
             "algorithm_gifs_fire_prediction_post_process"
             if event_name == "GIFAlgorithmExecution"
             else "function_create_fire_from_rabbit"
         )
 
-        processed_events = Variable.get("processed_events", default_var="[]")
-        processed_events = json.loads(processed_events)
-
-        if event_id in processed_events and target_dag == "algorithm_gifs_fire_prediction_post_process":
-            print(f"El evento {event_id} ya fue procesado. Ignorando ejecución.")
-            return None  
-
         print(f"Disparando DAG: {target_dag}")
 
+        # Ejecutar el DAG correspondiente
         TriggerDagRunOperator(
-            task_id=str(uuid.uuid4()),
+            task_id=str(uuid.uuid4()),  # ID único
             trigger_dag_id=target_dag,
-            conf=msg_json,
+            conf=msg_json,  # Pasar el JSON completo
             execution_date=datetime.now().replace(tzinfo=timezone.utc),
             dag=dag
         ).execute(context=kwargs)
-
-        if target_dag == "algorithm_gifs_fire_prediction_post_process":
-            processed_events.append(event_id)
-            Variable.set("processed_events", json.dumps(processed_events))
 
     except json.JSONDecodeError as e:
         print(f"Error al decodificar JSON: {e}")
     except Exception as e:
         print(f"Error inesperado: {e}")
 
+# Configuración del DAG
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
