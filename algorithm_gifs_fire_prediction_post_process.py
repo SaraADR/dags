@@ -119,14 +119,24 @@ def obtener_id_mision(fire_id):
         print(f"Error al obtener mission_id: {e}")
         return None
     
+    
 def obtener_mission_id_task(**context):
-    """
-    Obtiene el mission_id utilizando fire_id después de ejecutar Docker.
-    """
-    # Obtener el archivo de salida descargado
+    """ Accede al servidor vía SSH, descarga output.json, y obtiene mission_id utilizando fire_id."""
+    remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
     local_output_path = "/tmp/output.json"
+    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")  # Conexión SSH
 
     try:
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+
+            # Descargar output.json desde el servidor
+            sftp.get(remote_output_path, local_output_path)
+            print(f"Archivo descargado correctamente: {local_output_path}")
+
+            sftp.close()
+
+        # Leer el JSON descargado
         with open(local_output_path, "r") as file:
             resultado_json = json.load(file)
 
@@ -141,10 +151,11 @@ def obtener_mission_id_task(**context):
             print(f"No se encontró mission_id para fire_id: {fire_id}")
 
     except FileNotFoundError:
-        print("output.json no encontrado, no se puede obtener mission_id.")
+        print("output.json no encontrado en el servidor, no se puede obtener mission_id.")
     except Exception as e:
         print(f"Error en la tarea de obtener mission_id: {str(e)}")
         raise
+
 
 
 # Configuración del DAG en Airflow
