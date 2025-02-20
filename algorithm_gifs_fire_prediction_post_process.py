@@ -160,20 +160,20 @@ def guardar_resultados_task(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")  # Conexión SSH para descargar el archivo
 
     try:
-        # 📌 Descargar output.json desde el servidor
+        # Descargar output.json desde el servidor
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
             sftp.get(remote_output_path, local_output_path)
             sftp.close()
 
-        # 📌 Leer JSON descargado
+        # Leer JSON descargado
         with open(local_output_path, "r") as file:
             resultado_json = json.load(file)
 
         fire_id = resultado_json[0]["id"]
         output_data = resultado_json
 
-        # 📌 Insertar datos en la BD
+        # Insertar datos en la BD
         session = get_db_session()
 
         madrid_tz = datetime.timezone.utc
@@ -190,7 +190,7 @@ def guardar_resultados_task(**context):
         }
 
         query = text("""
-            INSERT INTO gifs_fire_prediction (
+            INSERT INTO algoritmos.gifs_fire_prediction (
                 sampled_feature, phenomenon_time, valid_time, input_data, output_data
             ) VALUES (
                 :sampled_feature, :phenomenon_time, :valid_time, :input_data, :output_data
@@ -201,7 +201,7 @@ def guardar_resultados_task(**context):
         session.commit()
         fid = result.fetchone()[0]
 
-        # 📌 Guardar fid en XCom para futuras tareas
+        # Guardar fid en XCom para futuras tareas
         context['task_instance'].xcom_push(key='fid', value=fid)
 
     except FileNotFoundError:
@@ -229,7 +229,7 @@ dag = DAG(
     max_active_runs=1,
     concurrency=1
 )
-# 1️⃣ Proceso de ejecución de Docker
+# Proceso de ejecución de Docker
 execute_docker_task = PythonOperator(
     task_id='execute_docker_process',
     python_callable=execute_docker_process,
@@ -237,7 +237,7 @@ execute_docker_task = PythonOperator(
     dag=dag,
 )
 
-# 2️⃣ Obtención del mission_id desde la base de datos
+# Obtención del mission_id desde la base de datos
 obtener_mission_id_task = PythonOperator(
     task_id='obtener_mission_id',
     python_callable=obtener_mission_id_task,
@@ -245,7 +245,7 @@ obtener_mission_id_task = PythonOperator(
     dag=dag,
 )
 
-# 3️⃣ Guardado de los resultados en la base de datos
+# Guardado de los resultados en la base de datos
 guardar_resultados_task = PythonOperator(
     task_id='guardar_resultados',
     python_callable=guardar_resultados_task,
