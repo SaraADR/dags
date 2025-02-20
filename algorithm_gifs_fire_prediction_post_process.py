@@ -1,9 +1,12 @@
 import datetime
 import json
 import os
+from sqlalchemy import text
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
+
+from dag_utils import get_db_session
 
 def execute_docker_process(**context):
     """ Ejecuta el proceso GIF utilizando el archivo JSON recibido desde otro DAG. """
@@ -90,6 +93,31 @@ def execute_docker_process(**context):
     except Exception as e:
         print(f"Error en la ejecución: {str(e)}")
         raise
+
+def obtener_id_mision(fire_id):
+    """
+    Obtiene el mission_id (idMision) a partir del fire_id desde la tabla mss_mission_fire.
+    """
+    try:
+        session = get_db_session()  # Obtiene la sesión de SQLAlchemy
+        
+        query = text("""
+            SELECT mission_id 
+            FROM missions.mss_mission_fire 
+            WHERE fire_id = :fire_id;
+        """)
+        
+        result = session.execute(query, {'fire_id': fire_id}).fetchone()
+
+        if result:
+            return result[0]  # Devuelve el mission_id encontrado
+        else:
+            print(f"No se encontró mission_id para fire_id: {fire_id}")
+            return None
+
+    except Exception as e:
+        print(f"Error al obtener mission_id: {e}")
+        return None
 
 
 # Configuración del DAG en Airflow
