@@ -14,14 +14,7 @@ def consumer_function(message, **kwargs):
 
     msg_value = message.value().decode('utf-8')
     print(f"Mensaje consumido:\n{msg_value}")
-    if msg_value:
-        process_message(msg_value)
-    else:
-        print("Empty message received")      
-        return None  
-    
 
-def process_message(msg_value, **kwargs):
     try:
         msg_json = json.loads(msg_value)
         event_name = msg_json.get("eventName", "")
@@ -47,7 +40,7 @@ def process_message(msg_value, **kwargs):
     except json.JSONDecodeError as e:
         print(f"Error al decodificar JSON: {e}")
     except Exception as e:
-        print(f"Task instance incorrecto: {e}")
+        print(f"Error inesperado: {e}")
 
 # Configuración del DAG
 default_args = {
