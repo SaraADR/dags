@@ -22,26 +22,29 @@ def execute_docker_process(**context):
     event_name = conf.get("eventName", "UnknownEvent")
     data_str = conf.get("data", {})
 
+    
     if isinstance(data_str, str):
         try:
-            data = json.loads(data_str)
+            data = json.loads(data_str)  # Convertir de string JSON a estructura Python
         except json.JSONDecodeError:
             print("Error al decodificar 'data'")
             return
     else:
         data = data_str
 
+    
+    if isinstance(data, dict):
+        data = [data]  
+    elif not isinstance(data, list):
+        print("Error: 'data' no es una lista ni un diccionario válido")
+        return
+
     print(f"Evento: {event_name}")
-    print(f"Datos extraídos antes de ajuste: {json.dumps(data, indent=4)}")
+    print(f"Datos ajustados para Docker: {json.dumps(data, indent=4)}")
 
     if not data:
         print("Advertencia: No hay datos válidos para procesar.")
         return
-
-    if isinstance(data, dict):  
-        data = [data]  
-
-    print(f"Datos ajustados para Docker: {json.dumps(data, indent=4)}")
 
     remote_file_path = "/home/admin3/grandes-incendios-forestales/share_data_host/inputs/input_automatic.json"
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
@@ -150,9 +153,6 @@ def guardar_resultados_task(**context):
     """
     mission_id = context['task_instance'].xcom_pull(task_ids='obtener_mission_id', key='mission_id')
     input_data = context['dag_run'].conf.get("data")  
-    
-    if isinstance(input_data, dict):
-        input_data = [input_data]
 
     if not mission_id:
         print("No se pudo obtener mission_id, no se guardarán los datos en la BD.")
@@ -160,6 +160,19 @@ def guardar_resultados_task(**context):
 
     if not input_data:
         print("No se recibió el JSON de entrada desde el DAG, no se guardará en la BD.")
+        return
+
+    if isinstance(input_data, str):
+        try:
+            input_data = json.loads(input_data)
+        except json.JSONDecodeError:
+            print("Error al decodificar 'input_data'")
+            return
+
+    if isinstance(input_data, dict):
+        input_data = [input_data]
+    elif not isinstance(input_data, list):
+        print("Error: 'input_data' no es una lista ni un diccionario válido")
         return
 
     # Ruta del archivo en el servidor y local
