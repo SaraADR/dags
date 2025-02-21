@@ -854,7 +854,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 def get_geonetwork_user_group(mission_id):
     """Obtiene geonetworkGroupId y geonetworkUserId a partir de un missionId"""
     try:
-        url = f"https://actions-api.avincis.cuatrodigital.com/user-info/get-user-by-mission-id/{mission_id}"
+        url = f"https://actions-api.avincis.cuatrodigital.com/user-info/get-user-by-mission-id/{mission_id}/12769"
         response = requests.get(url)
 
         if response.status_code != 200:
