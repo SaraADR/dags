@@ -28,16 +28,6 @@ from airflow.hooks.base import BaseHook
 logging.basicConfig(level=logging.INFO)
 
 
-# def get_user_from_dag_config(**context):
-#     """Obtiene el ID de usuario desde el DAG o usa un valor por defecto"""
-#     dag_conf = context['dag_run'].conf
-
-#     user_id = dag_conf.get("user_id", "admin_default")  # Si no se pasa, usa "admin_default"
-#     user_email = dag_conf.get("user_email", "admin@default.com")  # Email opcional
-
-#     logging.info(f"Usuario asignado: {user_id} ({user_email})")
-#     return user_id, user_email
-
 def convertir_coords(epsg_input,south, west, north, east):
 
     logging.info(f"Convirtiendo coordenadas de EPSG:{epsg_input} a EPSG:4326.")
@@ -114,49 +104,75 @@ def tiff_to_jpg(tiff_path, jpg_path):
 
 #Sube miniatura y el tiff #TODO TIFF A MINIO Y LLAMADA A GEOSERVER PARA IMPORTARLO 
 
+def extract_mission_id_from_json(json_path):
+    """Extrae MissionID desde algorithmresult.json"""
+    try:
+        with open(json_path, 'r', encoding='utf-8') as file:
+            data = json.load(file)
+
+        for metadata_entry in data.get("metadata", []):
+            if metadata_entry.get("name") == "MissionID":
+                mission_id = metadata_entry.get("value")
+                logging.info(f"MissionID extraído: {mission_id}")
+                return int(mission_id)
+
+        logging.warning(f"No se encontró MissionID en {json_path}")
+        return None
+
+    except Exception as e:
+        logging.error(f"Error al extraer MissionID de {json_path}: {str(e)}")
+        return None
+
+
 def upload_miniature(**kwargs):
     files = kwargs['dag_run'].conf.get('otros', [])
     array_files = []
+    mission_id = None  # Variable para almacenar el MissionID
 
     with tempfile.TemporaryDirectory() as temp_dir:
         for file in files:
             file_name = file['file_name']
 
-            # Si el archivo no termina en .tif o .tiff, continúa con el siguiente archivo
+            if file_name.endswith('.json'):
+                file_content = base64.b64decode(file['content'])
+                temp_json_path = os.path.join(temp_dir, file_name)
+
+                with open(temp_json_path, 'wb') as temp_file:
+                    temp_file.write(file_content)
+
+                logging.info(f"Archivo JSON guardado: {temp_json_path}")
+
+                mission_id = extract_mission_id_from_json(temp_json_path)
+
+            # Procesar TIFFs como estaba antes
             if not (file_name.endswith('.tif') or file_name.endswith('.tiff')):
                 continue
 
-            # Decodificar el contenido del archivo desde base64
             file_content = base64.b64decode(file['content'])
             logging.info(file_name)
 
-            # Crear la ruta completa del archivo dentro del directorio temporal
             temp_file_path = os.path.join(temp_dir, file_name)
-
-            # Asegurarse de que la estructura del directorio existe
             os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
 
-            # Guardar el contenido en el archivo temporal
             with open(temp_file_path, 'wb') as temp_file:
                 temp_file.write(file_content)
 
             logging.info(f"Archivo guardado temporalmente en: {temp_file_path}")
 
-            # Generar un UUID para el archivo convertido a JPG
             unique_key = str(uuid.uuid4())
-
-            # Crear ruta para el archivo JPG
             file_jpg_name = f"{unique_key}.jpg"
             temp_jpg_path = os.path.join(temp_dir, file_jpg_name)
 
-            # Convertir TIFF a JPG
             tiff_to_jpg(temp_file_path, temp_jpg_path)
-
-            # Subir el archivo JPG a MinIO y obtener la URL
             file_url = up_to_minio(temp_dir, file_jpg_name)
 
-            # Añadir nombre y URL al array de archivos
             array_files.append({'name': os.path.basename(file_name), 'url': file_url})
+
+    if mission_id:
+        kwargs['ti'].xcom_push(key='mission_id', value=mission_id)
+        logging.info(f"MissionID {mission_id} guardado en XCom")
+    else:
+        logging.error("No se pudo extraer MissionID.")
 
     return array_files
 
@@ -870,16 +886,15 @@ def get_geonetwork_user_group(mission_id):
 
 
 def assign_owner_to_resource(**context):
-    """Asigna un propietario al recurso en GeoNetwork usando los valores dinámicos"""
+    """Asigna un propietario al recurso en GeoNetwork usando MissionID dinámico"""
     try:
         logging.info("INICIANDO ASIGNACIÓN DE PROPIETARIO...")
 
-        # Obtener conexión de GeoNetwork
         connection = BaseHook.get_connection("geonetwork_update_conn")
         geonetwork_url = connection.host  
 
-        # Obtener el resource_id de XCom
         resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork', key='resource_id')
+        mission_id = context['ti'].xcom_pull(task_ids='upload_miniature', key='mission_id')
 
         if not resource_ids:
             logging.error("No se obtuvo resource_id después de la subida del XML.")
@@ -888,15 +903,10 @@ def assign_owner_to_resource(**context):
         if not isinstance(resource_ids, list):
             resource_ids = [resource_ids]
 
-        # Obtener missionId desde el recurso (Asumiendo que está en `dag_run.conf`)
-        # dag_conf = context['dag_run'].conf
-        mission_id = 12769
-
         if not mission_id:
-            logging.error("No se proporcionó mission_id en la configuración del DAG.")
+            logging.error("No se encontró MissionID en algorithmresult.json.")
             return
 
-        # Obtener user_id y group_id desde la API
         group_identifier, user_identifier = get_geonetwork_user_group(mission_id)
 
         if not group_identifier or not user_identifier:
@@ -905,7 +915,6 @@ def assign_owner_to_resource(**context):
 
         logging.info(f"Obtenidos dinámicamente - user_identifier: {user_identifier}, group_identifier: {group_identifier}")
 
-        # Obtener credenciales de GeoNetwork
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
         for resource_id in resource_ids:
