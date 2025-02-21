@@ -3,11 +3,11 @@ import uuid
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator  # Import corregido
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 
 def consumer_function(message, **kwargs):
-    """ Procesa el mensaje desde Kafka y devuelve la configuración para disparar el DAG. """
+    """ Procesa el mensaje desde Kafka y dispara el DAG correspondiente. """
     if not message:
         print("Mensaje vacío recibido.")
         return None
@@ -19,17 +19,23 @@ def consumer_function(message, **kwargs):
         msg_json = json.loads(msg_value)
         event_name = msg_json.get("eventName", "")
 
-        # Determinar el DAG objetivo
+        # Determinar el DAG objetivo sin afectar la lógica original
         target_dag = (
             "algorithm_gifs_fire_prediction_post_process"
             if event_name == "GIFAlgorithmExecution"
             else "function_create_fire_from_rabbit"
         )
 
-        print(f"Se procesará el mensaje para disparar el DAG: {target_dag}")
+        print(f"Disparando DAG: {target_dag}")
 
-        # Devolver los datos que necesita la siguiente tarea
-        return {"dag_id": target_dag, "conf": msg_json}
+        # Ejecutar el DAG correspondiente
+        TriggerDagRunOperator(
+            task_id=str(uuid.uuid4()),  # ID único
+            trigger_dag_id=target_dag,
+            conf=msg_json,  # Pasar el JSON completo
+            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+            dag=dag
+        ).execute(context=kwargs)
 
     except json.JSONDecodeError as e:
         print(f"Error al decodificar JSON: {e}")
@@ -66,30 +72,4 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-def trigger_dag_function(**kwargs):
-    """ Extrae los datos del XCom y dispara el DAG adecuado """
-    ti = kwargs['ti']
-    message_data = ti.xcom_pull(task_ids='consume_from_topic')
-
-    if message_data:
-        dag_id = message_data["dag_id"]
-        conf = message_data["conf"]
-
-        print(f"Disparando el DAG {dag_id} con configuración: {conf}")
-
-        TriggerDagRunOperator(
-            task_id="trigger_dag_run",
-            trigger_dag_id=dag_id,
-            conf=conf,
-            execution_date=datetime.now().replace(tzinfo=timezone.utc),
-            dag=dag
-        ).execute(context=kwargs)
-
-trigger_dag = PythonOperator(
-    task_id="trigger_dag",
-    python_callable=trigger_dag_function,
-    provide_context=True,
-    dag=dag
-)
-
-consume_from_topic >> trigger_dag  # Definir dependencias correctamente
+consume_from_topic
