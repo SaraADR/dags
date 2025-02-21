@@ -127,24 +127,36 @@ def extract_mission_id_from_json(json_path):
 def upload_miniature(**kwargs):
     files = kwargs['dag_run'].conf.get('otros', [])
     array_files = []
-    mission_id = None  # Variable para almacenar el MissionID
 
+    # Obtener JSON de la misma manera que en generate_xml
+    algoritm_result = kwargs['dag_run'].conf.get('json')
+    
+    if not algoritm_result:
+        logging.error("No se encontró el JSON en dag_run.conf")
+        return None
+
+    logging.info(f"Contenido JSON cargado en upload_miniature: {algoritm_result}")
+
+    # Extraer MissionID desde metadata
+    mission_id = None
+    metadata_list = algoritm_result.get("metadata", [])
+
+    for metadata_entry in metadata_list:
+        if metadata_entry.get("name") == "MissionID":
+            mission_id = metadata_entry.get("value")
+            break
+
+    if mission_id:
+        kwargs['ti'].xcom_push(key='mission_id', value=mission_id)
+        logging.info(f"MissionID extraído y guardado en XCom: {mission_id}")
+    else:
+        logging.error("No se encontró MissionID en el JSON proporcionado.")
+
+    # Procesar archivos TIFF
     with tempfile.TemporaryDirectory() as temp_dir:
         for file in files:
             file_name = file['file_name']
 
-            if file_name.endswith('.json'):
-                file_content = base64.b64decode(file['content'])
-                temp_json_path = os.path.join(temp_dir, file_name)
-
-                with open(temp_json_path, 'wb') as temp_file:
-                    temp_file.write(file_content)
-
-                logging.info(f"Archivo JSON guardado: {temp_json_path}")
-
-                mission_id = extract_mission_id_from_json(temp_json_path)
-
-            # Procesar TIFFs como estaba antes
             if not (file_name.endswith('.tif') or file_name.endswith('.tiff')):
                 continue
 
@@ -168,13 +180,8 @@ def upload_miniature(**kwargs):
 
             array_files.append({'name': os.path.basename(file_name), 'url': file_url})
 
-    if mission_id:
-        kwargs['ti'].xcom_push(key='mission_id', value=mission_id)
-        logging.info(f"MissionID {mission_id} guardado en XCom")
-    else:
-        logging.error("No se pudo extraer MissionID.")
-
     return array_files
+
 
 
 
