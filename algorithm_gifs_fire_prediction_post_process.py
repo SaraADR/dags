@@ -150,6 +150,9 @@ def guardar_resultados_task(**context):
     """
     mission_id = context['task_instance'].xcom_pull(task_ids='obtener_mission_id', key='mission_id')
     input_data = context['dag_run'].conf.get("data")  
+    
+    if isinstance(input_data, dict):
+        input_data = [input_data]
 
     if not mission_id:
         print("No se pudo obtener mission_id, no se guardarán los datos en la BD.")
