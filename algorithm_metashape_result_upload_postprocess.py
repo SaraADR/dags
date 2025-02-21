@@ -854,7 +854,7 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
 def get_geonetwork_user_group(mission_id):
     """Obtiene geonetworkGroupId y geonetworkUserId a partir de un missionId"""
     try:
-        url = f"https://actions-api.avincis.cuatrodigital.com/user-info/get-user-by-mission-id/12769"
+        url = f"https://actions-api.avincis.cuatrodigital.com/user-info/get-user-by-mission-id/{mission_id}"
         response = requests.get(url)
 
         if response.status_code != 200:
@@ -889,8 +889,8 @@ def assign_owner_to_resource(**context):
             resource_ids = [resource_ids]
 
         # Obtener missionId desde el recurso (Asumiendo que está en `dag_run.conf`)
-        dag_conf = context['dag_run'].conf
-        mission_id = dag_conf.get("mission_id")
+        # dag_conf = context['dag_run'].conf
+        mission_id = 12769
 
         if not mission_id:
             logging.error("No se proporcionó mission_id en la configuración del DAG.")
