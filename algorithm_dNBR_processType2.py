@@ -155,7 +155,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                         print("⚠️ Se encontró el mensaje de error: Valor -3")
                         sftp.close()
                         return
-                    if "Valor -100" in output:
+                    elif "Valor -100" in output:
                         print("⚠️ Se encontró el mensaje de error: Valor -100 Error desconocido")
                         sftp.close()
                         return
