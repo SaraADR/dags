@@ -44,7 +44,7 @@ def consumer_function(message, prefix, **kwargs):
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'tmp'
     folder_prefix = 'metadatos/'
-    local_directory = 'temp'  
+    local_directory = 'tmp'  
 
     try:
         local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
@@ -64,7 +64,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         return
     
     name_short = os.path.basename(file_path)
-    file_name = 'temp/' + name_short
+    file_name = 'tmp/' + name_short
     print(f"Ejecutando proceso de docker con el file {file_name}")
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 

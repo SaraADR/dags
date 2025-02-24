@@ -235,7 +235,7 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir,context)
         # Conexión a MinIO
         s3_client = get_minio_client()
 
-        bucket_name = 'temp'
+        bucket_name = 'tmp'
         
         # Listar todos los archivos en el directorio local de salida
         for filename in os.listdir(local_output_directory):

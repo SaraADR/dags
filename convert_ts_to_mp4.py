@@ -44,9 +44,9 @@ def convert_ts_to_mp4(**kwargs):
 
 
     # Nuevos valores para el bucket y directorios
-    bucket_name = 'temp'  # Bucket donde está el archivo .ts
+    bucket_name = 'tmp'  # Bucket donde está el archivo .ts
     folder_prefix = f'metadatos/12c23bc3-8738-4d07-bc29-fdcd82621f62/'  # Prefijo en el bucket, incluye subdirectorio
-    local_directory = 'temp'  # Directorio local para trabajo temporal
+    local_directory = 'tmp'  # Directorio local para trabajo temporal
     ts_key = f"{folder_prefix}{resource_id}.ts"  # Ruta completa del archivo TS
     mp4_key = f"{folder_prefix}{resource_id}.mp4"  # Ruta completa del archivo MP4
     print(f"Bucket Name: {bucket_name}")
