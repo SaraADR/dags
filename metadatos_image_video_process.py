@@ -44,7 +44,7 @@ def consumer_function(message, prefix, **kwargs):
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'tmp'
     folder_prefix = 'metadatos/'
-    local_directory = 'temp'  
+    local_directory = 'tmp'  
 
     try:
         local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)

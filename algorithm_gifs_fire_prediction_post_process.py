@@ -206,7 +206,7 @@ def guardar_resultados_task(**context):
         }
 
         query = text("""
-            INSERT INTO algoritmos.gifs_fire_prediction (
+            INSERT INTO algoritmos.algoritmo_gifs_fire_prediction (
                 sampled_feature, result_time, phenomenon_time, input_data, output_data
             ) VALUES (
                 :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
@@ -220,7 +220,7 @@ def guardar_resultados_task(**context):
         # Guardar fid en XCom para futuras tareas
         context['task_instance'].xcom_push(key='fid', value=fid)
 
-        print(f"Datos insertados correctamente en gifs_fire_prediction con fid {fid}")
+        print(f"Datos insertados correctamente en algoritmo_gifs_fire_prediction con fid {fid}")
 
     except FileNotFoundError:
         print("output.json no encontrado, no se puede guardar en la BD.")
