@@ -1,11 +1,80 @@
 import datetime
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from dag_utils import execute_query
+from airflow.hooks.base_hook import BaseHook
+import requests
 
 
 def process_element(**context):
+    fire_id = 225305
 
+    query = f"""
+        SELECT mission_id
+        FROM missions.mss_mission_fire mf
+        WHERE mf.fire_id = {fire_id}
+    """
+    missionId = execute_query('biobd', query)
+
+    json_Incendio = busqueda_datos_incendio(fire_id)
+    json_Perimetro = busqueda_datos_perimetro(fire_id)
+
+    print(missionId)
+    print(json_Incendio)
+    print(json_Perimetro)
     return
+
+
+
+
+def busqueda_datos_incendio(idIncendio):
+        try:
+            print("Buscando el incendio en einforex")
+            # Conexión al servicio ATC usando las credenciales almacenadas en Airflow
+            conn = BaseHook.get_connection('atc_services_connection')
+            auth = (conn.login, conn.password)
+            url = f"{conn.host}/rest/FireService/get?id={idIncendio}"
+
+            response = requests.get(url, auth=auth)
+
+            if response.status_code == 200:
+                print("Incendio encontrado con exito.")
+                fire_data = response.json()
+                return fire_data
+            else:
+                print(f"Error en la busqueda del incendio: {response.status_code}")
+                print(response.text)
+                raise Exception(f"Error en la busqueda del incendio: {response.status_code}")
+
+        except Exception as e:
+            print(e)
+            raise
+
+
+
+def busqueda_datos_perimetro(idIncendio):
+        try:
+            print("Buscando el perimetro del incendio en einforex")
+            # Conexión al servicio ATC usando las credenciales almacenadas en Airflow
+            conn = BaseHook.get_connection('atc_services_connection')
+            auth = (conn.login, conn.password)
+            url = f"{conn.host}/rest/FireAlgorithm_FirePerimeterService/getByFire?id={idIncendio}"
+
+            response = requests.get(url, auth=auth)
+
+            if response.status_code == 200:
+                print("Perimetros del incendio encontrados con exito.")
+                fire_data = response.json()
+                most_recent_obj = max(fire_data, key=lambda x: x["timestamp"])
+                return most_recent_obj
+            else:
+                print(f"Error en la busqueda del incendio: {response.status_code}")
+                print(response.text)
+                raise Exception(f"Error en la busqueda del incendio: {response.status_code}")
+
+        except Exception as e:
+            print(e)
+            raise
 
 
 default_args = {
