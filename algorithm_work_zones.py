@@ -22,9 +22,29 @@ def process_element(**context):
     print(missionId)
     print(json_Incendio)
     print(json_Perimetro)
+
+    params = {
+        "geometry":  json_Perimetro,
+        "direction" : 250,
+        "fireEvolutionVectorId": 1111,
+        "limitTemperature" : 50,
+        "minDistance" :30,
+        "maxDistance" : 120,
+        "firePerimeterId" : 225310   
+    }
+
+
+
+    try:
+        ejecutar_algoritmo(params)
+    except Exception as e:
+        print(f"Error en la ejecución, el algoritmo ha dado un error en su salida")
+
     return
 
 
+def ejecutar_algoritmo(params):
+     return 0
 
 
 def busqueda_datos_incendio(idIncendio):
