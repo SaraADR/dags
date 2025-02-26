@@ -311,13 +311,13 @@ def process_escape_routes_data(**context):
 
             if(shapefile_path is not None):
 
-                
+                mission_id = input_data.get('mission_id', 'unknown_mission') 
 
                 try:
                     outputZip = os.path.join(local_output_directory, "ruta_escape.zip")
                     crear_zip_si_existen("ruta_escape", local_output_directory, [".shp", ".prj", ".shx", ".dbf"])
                     key = f"{uuid.uuid4()}"
-                    file_key = 'escape_routes/' + str(key) 
+                    file_key = f'missions/{mission_id}/escape_routes/{key}'
                     upload_to_minio_path('minio_conn', 'tmp', file_key, outputZip)
                     file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}/ruta_escape.zip"
                     print(f" URL: {file_url}")
