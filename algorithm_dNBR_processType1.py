@@ -116,11 +116,12 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 print("Salida de run.sh:")
                 print(output)
                 for line in output.split("\n"):
-                    if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -1: No se pudo generar una imagen" in line or "Valor -1" in line: 
-                        print(f"Error durante el guardado de la misión: {line}")
-                        output_data = {"estado": "ERROR", "comentario": line}
+                    if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -1: No se pudo generar una imagen" in line or "Valor -100" in line: 
+                        algorithm_error_message = line.strip()
+                        print(f"Error durante el guardado de la misión: {algorithm_error_message}")
+                        output_data = {"estado": "ERROR", "comentario": algorithm_error_message}
                         historizacion(output_data, fire_id, mission_id )
-                        raise Exception(line)
+                        raise Exception(algorithm_error_message)
                         
                
                
