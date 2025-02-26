@@ -319,7 +319,7 @@ def process_escape_routes_data(**context):
                     key = f"{uuid.uuid4()}"
                     file_key = f'{mission_id}/escape_routes/{key}'
                     upload_to_minio_path('minio_conn', 'missions', file_key, outputZip)
-                    file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}/ruta_escape.zip"
+                    file_url = f"https://minioapi.avincis.cuatrodigital.com/missions/{file_key}/ruta_escape.zip"
                     print(f" URL: {file_url}")
                 except Exception as e:
                     print(f"Error al subir archivos a MinIO: {str(e)}")
