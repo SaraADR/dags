@@ -175,22 +175,23 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                             print(f"Archivo {filename} descargado a {local_file_path}")
                             downloaded_files.append(local_file_path)
             
-                sftp.close()
-                print_directory_contents(local_output_directory)
-                local_output_directory = f'/tmp/{str(fire_id)}'
-                archivos_en_tmp = os.listdir(local_output_directory)
-                
-                key = uuid.uuid4()
-                for archivo in archivos_en_tmp:
-                    archivo_path = os.path.join(local_output_directory, archivo)
-                    if not os.path.isfile(archivo_path):
-                        print(f"Skipping upload: {local_file_path} is not a file.")
-                    else:
-                        local_file_path = f"{mission_id}/{str(key)}"
-                        upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
-                        output_data[archivo] = local_file_path
-                output_data["estado"] = "FINISHED"
-                historizacion(output_data, fire_id, mission_id, )
+                    sftp.close()
+                    print_directory_contents(local_output_directory)
+                    local_output_directory = f'/tmp/{str(fire_id)}'
+                    archivos_en_tmp = os.listdir(local_output_directory)
+                    
+                    key = uuid.uuid4()
+                    for archivo in archivos_en_tmp:
+                        archivo_path = os.path.join(local_output_directory, archivo)
+                        if not os.path.isfile(archivo_path):
+                            print(f"Skipping upload: {local_file_path} is not a file.")
+                        else:
+                            print(archivo)
+                            local_file_path = f"{mission_id}/{str(key)}"
+                            upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
+                            output_data[archivo] = local_file_path
+                    output_data["estado"] = "FINISHED"
+                    historizacion(output_data, fire_id, mission_id, )
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
         output_data = {"estado": "ERROR", "comentario": str(e)}
@@ -199,7 +200,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 def historizacion(output_data, fire_id, mission_id):
     try:
         # Y guardamos en la tabla de historico
-
+            print("Guardamos en historización")
             madrid_tz = pytz.timezone('Europe/Madrid')
 
             tipo2mesesminimo = int(Variable.get("tipo2mesesminimo", default_var="3"))
