@@ -280,7 +280,7 @@ def process_escape_routes_data(**context):
 
             output_directory = f'/home/admin3/algoritmo_rutas_escape/output/rutas_escape_{str(message['message']['id'])}' 
 
-            local_output_directory = '/tmp'
+            local_output_directory = '/missions'
 
             sftp.chdir(output_directory)
             print(f"Cambiando al directorio de salida: {output_directory}")
@@ -301,7 +301,7 @@ def process_escape_routes_data(**context):
             #Cerramos el algoritmo, leemos el resultado
             print_directory_contents(local_output_directory)
 
-            local_output_directory = '/tmp'
+            local_output_directory = '/missions'
             shapefile_path = os.path.join(local_output_directory, "ruta_escape.shp")
             tiff_output_path = os.path.join(local_output_directory, "ruta_escape.tiff")
 
@@ -317,9 +317,9 @@ def process_escape_routes_data(**context):
                     outputZip = os.path.join(local_output_directory, "ruta_escape.zip")
                     crear_zip_si_existen("ruta_escape", local_output_directory, [".shp", ".prj", ".shx", ".dbf"])
                     key = f"{uuid.uuid4()}"
-                    file_key = f'missions/{mission_id}/escape_routes/{key}'
-                    upload_to_minio_path('minio_conn', 'tmp', file_key, outputZip)
-                    file_url = f"https://minioapi.avincis.cuatrodigital.com/tmp/{file_key}/ruta_escape.zip"
+                    file_key = f'{mission_id}/escape_routes/{key}'
+                    upload_to_minio_path('minio_conn', 'missions', file_key, outputZip)
+                    file_url = f"https://minioapi.avincis.cuatrodigital.com/missions/{file_key}/ruta_escape.zip"
                     print(f" URL: {file_url}")
                 except Exception as e:
                     print(f"Error al subir archivos a MinIO: {str(e)}")
