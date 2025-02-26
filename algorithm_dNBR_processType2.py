@@ -162,7 +162,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                         
                     # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
                     output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
-                    local_output_directory = f'/tmp/{str(fire_id)}'
+                    local_output_directory = f'/tmp'
                     sftp.chdir(output_directory)
                     print(f"Cambiando al directorio de salida: {output_directory}")
                     downloaded_files = []
