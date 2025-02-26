@@ -301,7 +301,7 @@ def process_escape_routes_data(**context):
             #Cerramos el algoritmo, leemos el resultado
             print_directory_contents(local_output_directory)
 
-            local_output_directory = '/tmp'
+            local_output_directory = '/missions'
             shapefile_path = os.path.join(local_output_directory, "ruta_escape.shp")
             tiff_output_path = os.path.join(local_output_directory, "ruta_escape.tiff")
 
