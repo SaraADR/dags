@@ -148,7 +148,6 @@ def obtener_mission_id_task(**context):
         raise
 
 def guardar_resultados_task(**context):
-    
     """ Obtiene mission_id desde XCom, descarga output.json desde el servidor y guarda los datos en la BD. """
 
     mission_id = context['task_instance'].xcom_pull(task_ids='obtener_mission_id', key='mission_id')
@@ -175,7 +174,6 @@ def guardar_resultados_task(**context):
     if error_msg:
         print(f"Error: {error_msg}")
         output_data = json.dumps({"estado": "ERROR", "comentario": error_msg})
-        status = "ERROR"
     else:
         # Intentar descargar output.json
         remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
@@ -189,22 +187,19 @@ def guardar_resultados_task(**context):
                 sftp.close()
 
             with open(local_output_path, "r") as file:
-                output_data = json.load(file)
+                output_data_json = json.load(file)
 
-            # Agregar estado "FINISHED"
-            output_data = json.dumps({"estado": "FINISHED", "data": output_data})
-            status = "FINISHED"
+            # Agregar estado "FINISHED" dentro del output_data
+            output_data = json.dumps({"estado": "FINISHED", "data": output_data_json})
             error_msg = None
 
         except FileNotFoundError:
             print("output.json no encontrado, registrando estado 'ERROR'.")
             output_data = json.dumps({"estado": "ERROR", "comentario": "output.json no encontrado"})
-            status = "ERROR"
             error_msg = "output.json no encontrado"
         except Exception as e:
             print(f"Error en la tarea de guardar resultados: {str(e)}")
             output_data = json.dumps({"estado": "ERROR", "comentario": str(e)})
-            status = "ERROR"
             error_msg = str(e)
 
     # Guardar en la base de datos
@@ -214,9 +209,9 @@ def guardar_resultados_task(**context):
 
         query = text("""
             INSERT INTO algoritmos.algoritmo_gifs_fire_prediction (
-                sampled_feature, result_time, phenomenon_time, input_data, output_data, status, error_message
+                sampled_feature, result_time, phenomenon_time, input_data, output_data, error_message
             ) VALUES (
-                :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data, :status, :error_message
+                :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data, :error_message
             ) RETURNING fid;
         """)
 
@@ -226,15 +221,13 @@ def guardar_resultados_task(**context):
             'phenomenon_time': fecha_hoy,
             'input_data': json.dumps(input_data) if input_data else None,
             'output_data': output_data,
-            'status': status,
             'error_message': error_msg
         })
         session.commit()
 
-        if status == "FINISHED":
-            fid = result.fetchone()[0]
-            context['task_instance'].xcom_push(key='fid', value=fid)
-            print(f"Datos insertados correctamente con fid {fid}")
+        fid = result.fetchone()[0]
+        context['task_instance'].xcom_push(key='fid', value=fid)
+        print(f"Datos insertados correctamente con fid {fid}")
 
     except Exception as e:
         session.rollback()
