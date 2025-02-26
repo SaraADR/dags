@@ -148,90 +148,95 @@ def obtener_mission_id_task(**context):
         raise
 
 def guardar_resultados_task(**context):
-    """ Obtiene mission_id desde XCom, descarga output.json desde el servidor y guarda los datos en la BD. """
-
+    """
+    Obtiene mission_id desde XCom, descarga output.json desde el servidor y guarda los datos en la BD.
+    """
     mission_id = context['task_instance'].xcom_pull(task_ids='obtener_mission_id', key='mission_id')
-    input_data = context['dag_run'].conf.get("data")
+    input_data = context['dag_run'].conf.get("data")  
 
     if not mission_id:
-        error_msg = "Mission ID no encontrado"
-    elif not input_data:
-        error_msg = "Input data vacío"
-    else:
+        print("No se pudo obtener mission_id, no se guardarán los datos en la BD.")
+        return
+
+    if not input_data:
+        print("No se recibió el JSON de entrada desde el DAG, no se guardará en la BD.")
+        return
+
+    if isinstance(input_data, str):
         try:
-            if isinstance(input_data, str):
-                input_data = json.loads(input_data)
-            if isinstance(input_data, dict):
-                input_data = [input_data]
-            if not isinstance(input_data, list):
-                raise ValueError("Formato inválido en input_data")
+            input_data = json.loads(input_data)
         except json.JSONDecodeError:
-            error_msg = "Error decodificando input_data"
-        else:
-            error_msg = None
+            print("Error al decodificar 'input_data'")
+            return
 
-    # Si hubo un error hasta aquí, se almacena como error y se termina la ejecución
-    if error_msg:
-        print(f"Error: {error_msg}")
-        output_data = json.dumps({"estado": "ERROR", "comentario": error_msg})
-    else:
-        # Intentar descargar output.json
-        remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
-        local_output_path = "/tmp/output.json"
-        ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
+    if isinstance(input_data, dict):
+        input_data = [input_data]
+    elif not isinstance(input_data, list):
+        print("Error: 'input_data' no es una lista ni un diccionario válido")
+        return
 
-        try:
-            with ssh_hook.get_conn() as ssh_client:
-                sftp = ssh_client.open_sftp()
-                sftp.get(remote_output_path, local_output_path)
-                sftp.close()
+    # Ruta del archivo en el servidor y local
+    remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
+    local_output_path = "/tmp/output.json"
+    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")  
 
-            with open(local_output_path, "r") as file:
-                output_data_json = json.load(file)
+    try:
+        # Descargar output.json desde el servidor
+        with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            sftp.get(remote_output_path, local_output_path)
+            sftp.close()
 
-            # Agregar estado "FINISHED" dentro del output_data
-            output_data = json.dumps({"estado": "FINISHED", "data": output_data_json})
-            error_msg = None
+        # Leer JSON descargado (output del algoritmo)
+        with open(local_output_path, "r") as file:
+            output_data_json = json.load(file)
 
-        except FileNotFoundError:
-            print("output.json no encontrado, registrando estado 'ERROR'.")
-            output_data = json.dumps({"estado": "ERROR", "comentario": "output.json no encontrado"})
-            error_msg = "output.json no encontrado"
-        except Exception as e:
-            print(f"Error en la tarea de guardar resultados: {str(e)}")
-            output_data = json.dumps({"estado": "ERROR", "comentario": str(e)})
-            error_msg = str(e)
+        # Incluir el estado "FINISHED" dentro del JSON de salida
+        output_data = {"estado": "FINISHED", "data": output_data_json}
 
-    # Guardar en la base de datos
+    except FileNotFoundError:
+        print("output.json no encontrado, registrando estado 'ERROR'.")
+        output_data = {"estado": "ERROR", "comentario": "output.json no encontrado"}
+    except Exception as e:
+        print(f"Error en la tarea de guardar resultados: {str(e)}")
+        output_data = {"estado": "ERROR", "comentario": str(e)}
+
+    # Insertar datos en la BD
     try:
         session = get_db_session()
-        fecha_hoy = datetime.datetime.now(datetime.timezone.utc)
 
-        query = text("""
-            INSERT INTO algoritmos.algoritmo_gifs_fire_prediction (
-                sampled_feature, result_time, phenomenon_time, input_data, output_data, error_message
-            ) VALUES (
-                :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data, :error_message
-            ) RETURNING fid;
-        """)
+        fecha_hoy = datetime.datetime.now(datetime.timezone.utc)  # `result_time` y `phenomenon_time` → fecha actual
 
-        result = session.execute(query, {
+        datos = {
             'sampled_feature': mission_id,
             'result_time': fecha_hoy,
             'phenomenon_time': fecha_hoy,
-            'input_data': json.dumps(input_data) if input_data else None,
-            'output_data': output_data,
-            'error_message': error_msg
-        })
-        session.commit()
+            'input_data': json.dumps(input_data),
+            'output_data': json.dumps(output_data)
+        }
 
+        query = text("""
+            INSERT INTO algoritmos.algoritmo_gifs_fire_prediction (
+                sampled_feature, result_time, phenomenon_time, input_data, output_data
+            ) VALUES (
+                :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
+            ) RETURNING fid;
+        """)
+
+        result = session.execute(query, datos)
+        session.commit()
         fid = result.fetchone()[0]
+
+        # Guardar fid en XCom para futuras tareas
         context['task_instance'].xcom_push(key='fid', value=fid)
-        print(f"Datos insertados correctamente con fid {fid}")
+
+        print(f"Datos insertados correctamente en algoritmo_gifs_fire_prediction con fid {fid}")
 
     except Exception as e:
         session.rollback()
-        print(f"Error al guardar en BD: {str(e)}")
+        print(f"Error en la tarea de guardar resultados en BD: {str(e)}")
+        raise
+
 
 
 default_args = {
