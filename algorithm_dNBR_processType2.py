@@ -187,7 +187,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                         print(archivo)
                         local_file_path = f"{mission_id}/{str(key)}"
                         upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
-                        output_data[archivo] = local_file_path
+                        output_data[archivo] = local_file_path + '/' + archivo
+                        
                 output_data["estado"] = "FINISHED"
                 historizacion(output_data, fire_id, mission_id )
     except Exception as e:
