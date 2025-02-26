@@ -271,6 +271,30 @@ def busqueda_datos_perimetro(idIncendio):
         except Exception as e:
             print(e)
             raise
+ 
+
+def busqueda_datos_incendio(idIncendio):
+        try:
+            print("Buscando el incendio en einforex")
+            # Conexión al servicio ATC usando las credenciales almacenadas en Airflow
+            conn = BaseHook.get_connection('atc_services_connection')
+            auth = (conn.login, conn.password)
+            url = f"{conn.host}/rest/FireService/get?id={idIncendio}"
+
+            response = requests.get(url, auth=auth)
+
+            if response.status_code == 200:
+                print("Incendio encontrado con exito.")
+                fire_data = response.json()
+                return fire_data
+            else:
+                print(f"Error en la busqueda del incendio: {response.status_code}")
+                print(response.text)
+                raise Exception(f"Error en la busqueda del incendio: {response.status_code}")
+
+        except Exception as e:
+            print(e)
+            raise
 
 default_args = {
     'owner': 'sadr',
