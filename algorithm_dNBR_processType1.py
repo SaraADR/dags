@@ -159,7 +159,6 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
         print(f"Error en el proceso: {str(e)}")    
         output_data = {"estado": "ERROR", "comentario": str(e)}
 
-
     return None
 
 def historizacion(output_data, fire_id, mission_id):
