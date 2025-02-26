@@ -197,7 +197,8 @@ def historizacion(output_data, fire_id, mission_id):
             # Ejecutar la consulta
             execute_query('biobd', query)
     except Exception as e:
-        print(f"Error en el proceso: {str(e)}")    
+        print(f"Error en el proceso: {str(e)}")  
+    return  
  
 
 def busqueda_datos_incendio(idIncendio):
