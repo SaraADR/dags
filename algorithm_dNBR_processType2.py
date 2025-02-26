@@ -131,7 +131,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
                 }
                 print(params)
-
+                output_data = {}
                 if params is not None:                                    
                     archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{fire_id}_{fecha}.json"
                     with sftp.file(archivo_params, 'w') as json_file:
@@ -151,113 +151,101 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     output_data = {}
                     print("Salida de run.sh:")
                     print(output)
-                    if "Valor -3" in output:
-                        print("⚠️ Se encontró el mensaje de error: Valor -3")
-                        sftp.close()
-                        return
-                    elif "Valor -100" in output:
-                        print("⚠️ Se encontró el mensaje de error: Valor -100 Error desconocido")
-                        sftp.close()
-                        return
-                    else:
-                        # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
-                        output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
-                        local_output_directory = f'/tmp/{str(fire_id)}'
-                        sftp.chdir(output_directory)
-                        print(f"Cambiando al directorio de salida: {output_directory}")
-                        downloaded_files = []
-                        for filename in sftp.listdir():
-                                remote_file_path = os.path.join(output_directory, filename)
-                                local_file_path = os.path.join(local_output_directory, filename)
-
-                                # Descargar el archivo
-                                sftp.get(remote_file_path, local_file_path)
-                                print(f"Archivo {filename} descargado a {local_file_path}")
-                                downloaded_files.append(local_file_path)
-                
-                        sftp.close()
-                        print_directory_contents(local_output_directory)
-                        local_output_directory = f'/tmp/{str(fire_id)}'
-                        archivos_en_tmp = os.listdir(local_output_directory)
+                    for line in output.split("\n"):
+                        if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -1: No se pudo generar una imagen" in line or "Valor -100" in line: 
+                            algorithm_error_message = line.strip()
+                            print(f"Error durante el guardado de la misión: {algorithm_error_message}")
+                            output_data = {"estado": "ERROR", "comentario": algorithm_error_message}
+                            historizacion(output_data, fire_id, mission_id )
+                            raise Exception(algorithm_error_message)
+                            
                         
-                        key = uuid.uuid4()
-                        for archivo in archivos_en_tmp:
-                            archivo_path = os.path.join(local_output_directory, archivo)
-                            if not os.path.isfile(archivo_path):
-                                print(f"Skipping upload: {local_file_path} is not a file.")
-                            else:
-                                local_file_path = f"{mission_id}/{str(key)}"
-                                upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
-                                output_data[archivo] = local_file_path
+                    # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
+                    output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
+                    local_output_directory = f'/tmp/{str(fire_id)}'
+                    sftp.chdir(output_directory)
+                    print(f"Cambiando al directorio de salida: {output_directory}")
+                    downloaded_files = []
+                    for filename in sftp.listdir():
+                            remote_file_path = os.path.join(output_directory, filename)
+                            local_file_path = os.path.join(local_output_directory, filename)
 
-                # Y guardamos en la tabla de historico
-                madrid_tz = pytz.timezone('Europe/Madrid')
-
-                tipo2mesesminimo = int(Variable.get("tipo2mesesminimo", default_var="3"))
-                fecha_proxima = FechaProxima()
-                fecha_inicio = fecha_proxima.restar_meses(fecha_proxima.hoy, tipo2mesesminimo)
-                fecha_hoy = fecha_proxima.hoy
-
-                # Formatear phenomenon_time
-                phenomenon_time = f"[{fecha_inicio.strftime('%Y-%m-%dT%H:%M:%S')}, {fecha_hoy.strftime('%Y-%m-%dT%H:%M:%S')}]"
-
-                output_data["type"] = 2
-                datos = {
-                    'sampled_feature': mission_id, 
-                    'result_time': datetime.datetime.now(madrid_tz),
-                    'phenomenon_time': phenomenon_time,
-                    'input_data': json.dumps({"fire_id": fire_id}),
-                    'output_data': json.dumps(output_data)
-                }
-
-                # Construir la consulta de inserción
-                query = f"""
-                    INSERT INTO algoritmos.algoritmo_dnbr (
-                        sampled_feature, result_time, phenomenon_time, input_data, output_data
-                    ) VALUES (
-                        {datos['sampled_feature']},
-                        '{datos['result_time']}',
-                        '{datos['phenomenon_time']}'::TSRANGE,
-                        '{datos['input_data']}',
-                        '{datos['output_data']}'
-                    )
-                """
-
-                # Ejecutar la consulta
-                execute_query('biobd', query)
-
-            sftp.close()
+                            # Descargar el archivo
+                            sftp.get(remote_file_path, local_file_path)
+                            print(f"Archivo {filename} descargado a {local_file_path}")
+                            downloaded_files.append(local_file_path)
+            
+                sftp.close()
+                print_directory_contents(local_output_directory)
+                local_output_directory = f'/tmp/{str(fire_id)}'
+                archivos_en_tmp = os.listdir(local_output_directory)
+                
+                key = uuid.uuid4()
+                for archivo in archivos_en_tmp:
+                    archivo_path = os.path.join(local_output_directory, archivo)
+                    if not os.path.isfile(archivo_path):
+                        print(f"Skipping upload: {local_file_path} is not a file.")
+                    else:
+                        local_file_path = f"{mission_id}/{str(key)}"
+                        upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
+                        output_data[archivo] = local_file_path
+                output_data["estado"] = "FINISHED"
+                historizacion(output_data, fire_id, mission_id, )
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
-        raise        
-
-    return None
+        output_data = {"estado": "ERROR", "comentario": str(e)}
 
 
+def historizacion(output_data, fire_id, mission_id):
+    try:
+        # Y guardamos en la tabla de historico
 
-def busqueda_datos_incendio(idIncendio):
-        try:
-            print("Buscando el incendio en einforex")
-            # Conexión al servicio ATC usando las credenciales almacenadas en Airflow
-            conn = BaseHook.get_connection('atc_services_connection')
-            auth = (conn.login, conn.password)
-            url = f"{conn.host}/rest/FireService/get?id={idIncendio}"
+            madrid_tz = pytz.timezone('Europe/Madrid')
 
-            response = requests.get(url, auth=auth)
+            tipo2mesesminimo = int(Variable.get("tipo2mesesminimo", default_var="3"))
+            fecha_proxima = FechaProxima()
+            fecha_inicio = fecha_proxima.restar_meses(fecha_proxima.hoy, tipo2mesesminimo)
+            fecha_hoy = fecha_proxima.hoy
 
-            if response.status_code == 200:
-                print("Incendio encontrado con exito.")
-                fire_data = response.json()
-                return fire_data
-            else:
-                print(f"Error en la busqueda del incendio: {response.status_code}")
-                print(response.text)
-                raise Exception(f"Error en la busqueda del incendio: {response.status_code}")
+            # Formatear phenomenon_time
+            phenomenon_time = f"[{fecha_inicio.strftime('%Y-%m-%dT%H:%M:%S')}, {fecha_hoy.strftime('%Y-%m-%dT%H:%M:%S')}]"
 
-        except Exception as e:
-            print(e)
-            raise
+            output_data["type"] = 2
+            datos = {
+                'sampled_feature': mission_id, 
+                'result_time': datetime.datetime.now(madrid_tz),
+                'phenomenon_time': phenomenon_time,
+                'input_data': json.dumps({"fire_id": fire_id}),
+                'output_data': json.dumps(output_data)
+            }
 
+            output_data["type"] = 2
+            datos = {
+                'sampled_feature': mission_id,  
+                'result_time': datetime.datetime.now(madrid_tz),
+                'phenomenon_time': phenomenon_time,
+                'input_data': json.dumps({"fire_id": fire_id}),
+                'output_data': json.dumps(output_data)
+            }
+
+            # Construir la consulta de inserción
+            query = f"""
+                INSERT INTO algoritmos.algoritmo_dnbr (
+                    sampled_feature, result_time, phenomenon_time, input_data, output_data
+                ) VALUES (
+                    {datos['sampled_feature']},
+                    '{datos['result_time']}',
+                    '{datos['phenomenon_time']}'::TSRANGE,
+                    '{datos['input_data']}',
+                    '{datos['output_data']}'
+                )
+            """
+
+            # Ejecutar la consulta
+            execute_query('biobd', query)
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")    
+ 
 
 
 def busqueda_datos_perimetro(idIncendio):
