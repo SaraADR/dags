@@ -94,7 +94,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             }
 
             print(params)
-
+            output_data = {}
             if params is not None:                                    
                 archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{fire_id}_{fecha}.json"
                 with sftp.file(archivo_params, 'w') as json_file:
@@ -115,11 +115,13 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
                 print("Salida de run.sh:")
                 print(output)
-                if(error_output is not None):
-                    print("ESTO ES PARTE DEL ERROR")
-                    print(error_output)
-                    # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
-
+                for line in output.split("\n"):
+                    if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -2" in line or "Valor -1" in line: 
+                        print(f"Error durante el guardado de la misión: {line}")
+                        historizacion(output_data, fire_id, mission_id )
+                        raise Exception(line)
+               
+               
                 output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
                 local_output_directory = '/tmp'
                 sftp.chdir(output_directory)
@@ -138,7 +140,6 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             print_directory_contents(local_output_directory)
             local_output_directory = '/tmp'
             archivos_en_tmp = os.listdir(local_output_directory)
-            output_data = {}
             key = uuid.uuid4()
             for archivo in archivos_en_tmp:
                 archivo_path = os.path.join(local_output_directory, archivo)
@@ -150,11 +151,15 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     output_data[archivo] = local_file_path
             
             output_data["estado"] = "FINISHED"
+            historizacion(output_data, fire_id, mission_id, )
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
         output_data = {"estado": "ERROR", "comentario": str(e)}
 
-    
+
+    return None
+
+def historizacion(output_data, fire_id, mission_id):
     try:
             # Y guardamos en la tabla de historico
             madrid_tz = pytz.timezone('Europe/Madrid')
@@ -191,9 +196,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             execute_query('biobd', query)
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
-
-    return None
-
+ 
 
 def busqueda_datos_incendio(idIncendio):
         try:
