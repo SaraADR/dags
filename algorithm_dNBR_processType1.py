@@ -116,10 +116,12 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 print("Salida de run.sh:")
                 print(output)
                 for line in output.split("\n"):
-                    if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -2" in line or "Valor -1" in line: 
+                    if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -1: No se pudo generar una imagen" in line or "Valor -1" in line: 
                         print(f"Error durante el guardado de la misión: {line}")
+                        output_data = {"estado": "ERROR", "comentario": line}
                         historizacion(output_data, fire_id, mission_id )
                         raise Exception(line)
+                        
                
                
                 output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
