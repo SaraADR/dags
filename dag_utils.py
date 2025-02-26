@@ -13,7 +13,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 import requests
 from airflow.hooks.base import BaseHook
-
+import paramiko
 
 # Función para enviar notificaciones a la BD
 
@@ -464,3 +464,29 @@ def parse_output_to_json(output):
 def duration_to_seconds(duration_str):
     h, m, s = map(int, duration_str.split(":"))
     return timedelta(hours=h, minutes=m, seconds=s).total_seconds()
+
+
+def delete_file_sftp(url):
+
+    filename = os.path.basename(url)
+    try:
+        conn = BaseHook.get_connection('SFTP')
+        host = conn.host
+        port = conn.port 
+        username = conn.login
+        password = conn.password
+
+
+        transport = paramiko.Transport((host, port))
+        transport.connect(username=username, password=password)
+        sftp = paramiko.SFTPClient.from_transport(transport)
+
+        sftp.remove(filename)
+        print(f"Archivo '{filename}' eliminado exitosamente.")
+
+        # Cerrar conexiones
+        sftp.close()
+        transport.close()
+
+    except Exception as e:
+        print(f"Error al eliminar el archivo: {e}")

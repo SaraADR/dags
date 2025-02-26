@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 from dag_utils import dms_to_decimal, duration_to_seconds, get_minio_client, parse_output_to_json, upload_to_minio, upload_to_minio_path, send_email
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
-from dag_utils import get_db_session
+from dag_utils import get_db_session, delete_file_sftp
 from airflow.models import Variable
 
 mensaje_final = {
@@ -50,6 +50,7 @@ def consumer_function(message, prefix, **kwargs):
         local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
         print(local_zip_path)
         process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
+        delete_file_sftp(msg_value)
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
         raise 
