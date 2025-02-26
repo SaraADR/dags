@@ -148,9 +148,14 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     local_file_path = f"{mission_id}/{str(key)}"
                     upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
                     output_data[archivo] = local_file_path
+            
+            output_data["estado"] = "FINISHED"
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")    
+        output_data = {"estado": "ERROR", "comentario": str(e)}
 
-
-
+    
+    try:
             # Y guardamos en la tabla de historico
             madrid_tz = pytz.timezone('Europe/Madrid')
             tipo1diasincendio = int(Variable.get("dNBR_diasFinIncendio", default_var="10"))
@@ -184,10 +189,8 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
             # Ejecutar la consulta
             execute_query('biobd', query)
-
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
-        raise        
 
     return None
 
