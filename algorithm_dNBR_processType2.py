@@ -177,7 +177,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             
                     sftp.close()
                     print_directory_contents(local_output_directory)
-                    local_output_directory = f'/tmp/{str(fire_id)}'
+                    local_output_directory = f'/tmp'
                     archivos_en_tmp = os.listdir(local_output_directory)
                     
                     key = uuid.uuid4()
