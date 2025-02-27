@@ -18,8 +18,7 @@ def consumer_function(message, **kwargs):
     try:
         msg_json = json.loads(msg_value)
         event_name = msg_json.get("eventName", "")
-
-        # Determinar el DAG objetivo con if
+    
         if event_name == "GIFAlgorithmExecution":
             target_dag = "algorithm_gifs_fire_prediction_post_process"
         else:
