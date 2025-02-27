@@ -383,7 +383,7 @@ def process_escape_routes_data(**context):
                 'result_time': datetime.now(madrid_tz),
                 'phenomenon_time': datetime.now(madrid_tz),
                 'input_data': json.dumps(params),  
-                'output_data': json.dumps({"zip_ficheros": file_url}),   
+                'output_data': json.dumps({"estado": "FINISHED", "zip_ficheros": file_url}),   
             }
 
 
