@@ -19,12 +19,11 @@ def consumer_function(message, **kwargs):
         msg_json = json.loads(msg_value)
         event_name = msg_json.get("eventName", "")
 
-        # Determinar el DAG objetivo sin afectar la lógica original
-        target_dag = (
-            "algorithm_gifs_fire_prediction_post_process"
-            if event_name == "GIFAlgorithmExecution"
-            else "function_create_fire_from_rabbit"
-        )
+        # Determinar el DAG objetivo con if
+        if event_name == "GIFAlgorithmExecution":
+            target_dag = "algorithm_gifs_fire_prediction_post_process"
+        else:
+            target_dag = "function_create_fire_from_rabbit"
 
         print(f"Disparando DAG: {target_dag}")
 
@@ -71,5 +70,3 @@ consume_from_topic = ConsumeFromTopicOperator(
     commit_cadence="end_of_batch",
     dag=dag,
 )
-
-consume_from_topic
