@@ -80,7 +80,7 @@ def process_extracted_files(**kwargs):
                 file_name = os.path.basename(file['file_name'])
                 print(f"  Subiendo archivo: {file_name}")
                 content_bytes = base64.b64decode(file['content'])
-                actual_child_key = f"{unique_id_child}/{file_name}"
+                actual_child_key = f"missions/{mission_id}/{unique_id_child}/{file_name}"
 
                 # Subir a MinIO
                 s3_client.put_object(
@@ -97,7 +97,7 @@ def process_extracted_files(**kwargs):
     try:
         s3_client = get_minio_client()
         bucket_name = 'missions'
-        json_key = f"{parent}/algorithm_result.json"
+        json_key = f"missions/{mission_id}/{parent}/algorithm_result.json"
         json_str = json.dumps(json_content).encode('utf-8')
 
         s3_client.put_object(
