@@ -117,7 +117,6 @@ def process_extracted_files(**kwargs):
     try:
         s3_client = get_minio_client()
         bucket_name = 'missions'  
-        json_key = parent +'/' + 'algorithm_result.json'
 
         # Subir el archivo a MinIO
         s3_client.put_object(
