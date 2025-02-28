@@ -67,7 +67,7 @@ def process_extracted_files(**kwargs):
 
 
         bucket_name = 'missions'
-        video_key = f"missions/{id_mission}/{uuid_key}/{video_file_name}"
+        video_key = f"{id_mission}/{uuid_key}/{video_file_name}"
 
 
         s3_client.put_object(
@@ -78,7 +78,7 @@ def process_extracted_files(**kwargs):
         print(f'{video_file_name} subido correctamente a MinIO.')
 
     json_str = json.dumps(json_content).encode('utf-8')
-    json_key = f"missions/{id_mission}/{uuid_key}/algorithm_result.json"
+    json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
 
     s3_client.put_object(
         Bucket='missions',
