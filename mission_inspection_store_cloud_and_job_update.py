@@ -113,20 +113,21 @@ def process_extracted_files(**kwargs):
 
 
 
-    #Subimos el algorithm_result a la carpeta del padre
-    try:
-        s3_client = get_minio_client()
-        bucket_name = 'missions'  
+    # #Subimos el algorithm_result a la carpeta del padre
+    # try:
+    #     s3_client = get_minio_client()
+    #     bucket_name = 'missions'  
+    #     json_key = parent +'/' + 'algorithm_result.json'
 
-        # Subir el archivo a MinIO
-        s3_client.put_object(
-            Bucket=bucket_name,
-            Key=json_key,
-            Body=io.BytesIO(content_bytes),
-        )
-        print(f'algorithm_result subido correctamente a MinIO.')
-    except Exception as e:
-                print(f"Error al insertar en minio: {str(e)}")
+    #     # Subir el archivo a MinIO
+    #     s3_client.put_object(
+    #         Bucket=bucket_name,
+    #         Key=json_key,
+    #         Body=io.BytesIO(content_bytes),
+    #     )
+    #     print(f'algorithm_result subido correctamente a MinIO.')
+    # except Exception as e:
+    #             print(f"Error al insertar en minio: {str(e)}")
 
 
     print(childanduuid)
