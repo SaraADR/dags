@@ -30,7 +30,8 @@ def process_element(**context):
                     "temperature": None,
                     "limitTemperature": 150,
                     "minDistance": 30,
-                    "maxDistance": 120
+                    "maxDistance": 120,
+                    "firePerimeterId" : perimeter
                 })
             ejecutar_algoritmo(data, missionId, fire)
         else:
