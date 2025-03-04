@@ -25,8 +25,13 @@ def process_element(**context):
                 WHERE mf.fire_id = {fire}
             """
             missionId = execute_query('biobd', query)         
-            json_Perimetro = busqueda_datos_perimetro(fire, perimeter)
-            print(json_Perimetro)
+            #json_Perimetro = busqueda_datos_perimetro(fire, perimeter)
+            data.update({
+                    "temperature": None,
+                    "limitTemperature": 150,
+                    "minDistance": 30,
+                    "maxDistance": 120
+                })
             ejecutar_algoritmo(data, missionId, fire)
         else:
             print("El campo 'prediction' es True, no se ejecuta el algoritmo.")
