@@ -7,8 +7,9 @@ from airflow.hooks.base_hook import BaseHook
 import json
 from sqlalchemy import text
 import requests
-from dag_utils import upload_to_minio_path, print_directory_contents
+from dag_utils import upload_to_minio_path, print_directory_contents, execute_query
 import uuid
+import pytz
 
 def process_element(**context):
     try:
@@ -16,7 +17,17 @@ def process_element(**context):
         print(message)
         data = json.loads(message.get("data", "{}"))
         if not data.get("prediction", True):  # Por defecto True para evitar ejecución no deseada
-            ejecutar_algoritmo(data)
+            fire = data.get("fireId")
+            perimeter = data.get("perimeterId")
+            query = f"""
+                SELECT mission_id
+                FROM missions.mss_mission_fire mf
+                WHERE mf.fire_id = {fire}
+            """
+            missionId = execute_query('biobd', query)         
+            json_Perimetro = busqueda_datos_perimetro(fire, perimeter)
+            print(json_Perimetro)
+            ejecutar_algoritmo(data, missionId, fire)
         else:
             print("El campo 'prediction' es True, no se ejecuta el algoritmo.")
     except Exception as e:
@@ -24,7 +35,7 @@ def process_element(**context):
     return
 
 
-def ejecutar_algoritmo(params):
+def ejecutar_algoritmo(params, mission_id, fire_id):
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
     try:
         # Conectarse al servidor SSH
@@ -60,7 +71,7 @@ def ejecutar_algoritmo(params):
                         algorithm_error_message = line.strip()
                         print(f"Error durante el guardado de la misión: {algorithm_error_message}")
                         output_data = {"estado": "ERROR", "comentario": algorithm_error_message}
-                        #historizacion(output_data, fire_id, mission_id )
+                        historizacion(output_data, fire_id, mission_id )
                         raise Exception(algorithm_error_message)
                         
                 output_directory = f'/home/admin3/algoritmo_dNBR/output/ejecucion'  
@@ -97,6 +108,70 @@ def ejecutar_algoritmo(params):
 
     return 0
 
+
+def historizacion(output_data, fire_id, mission_id):
+    try:
+            # Y guardamos en la tabla de historico
+            madrid_tz = pytz.timezone('Europe/Madrid')
+
+            # Calcular la fecha de inicio y fin
+            fecha_hoy = datetime.datetime.now()
+            fecha_inicio = fecha_hoy
+            phenomenon_time = f"[{fecha_inicio}, {fecha_hoy}]"
+
+            output_data["type"] = 1
+            datos = {
+                'sampled_feature': mission_id,  # Ejemplo de valor
+                'result_time': datetime.datetime.now(madrid_tz),
+                'phenomenon_time': phenomenon_time,
+                'input_data': json.dumps({"fire_id": fire_id}),
+                'output_data': json.dumps(output_data)
+            }
+
+            # Construir la consulta de inserción
+            query = f"""
+                INSERT INTO algoritmos.algoritmo_dnbr (
+                    sampled_feature, result_time, phenomenon_time, input_data, output_data
+                ) VALUES (
+                    {datos['sampled_feature']},
+                    '{datos['result_time']}',
+                    '{datos['phenomenon_time']}'::TSRANGE,
+                    '{datos['input_data']}',
+                    '{datos['output_data']}'
+                )
+            """
+
+            # Ejecutar la consulta
+            execute_query('biobd', query)
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")  
+    return  
+ 
+def busqueda_datos_perimetro(idIncendio, idPerimetro):
+        try:
+            print("Buscando el perimetro del incendio en einforex")
+            # Conexión al servicio ATC usando las credenciales almacenadas en Airflow
+            conn = BaseHook.get_connection('atc_services_connection')
+            auth = (conn.login, conn.password)
+            url = f"{conn.host}/rest/FireAlgorithm_FirePerimeterService/getByFire?id={idIncendio}"
+
+            response = requests.get(url, auth=auth)
+
+            if response.status_code == 200:
+                print("Perimetros del incendio encontrados con exito.")
+                fire_data = response.json()
+                matching_perimeter = next((p for p in fire_data if p.get("id") == idPerimetro), None)
+
+            if matching_perimeter:
+                print("✅ Perímetro encontrado con éxito.")
+                return matching_perimeter
+            else:
+                print(f"⚠ No se encontró un perímetro con ID {idPerimetro}.")
+                return None
+
+        except Exception as e:
+            print(e)
+            raise
 
 
 default_args = {
