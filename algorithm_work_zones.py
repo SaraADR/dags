@@ -66,7 +66,7 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
 
 
                 path = f'/share_data/input/ejecucion.json' 
-                output_directory = f'/home/admin3/algoritmo_dNBR/output/ejecucion'  
+                output_directory = f'/share_data/output/ejecucion'  
                 stdin, stdout, stderr = ssh_client.exec_command(
                     f'cd /home/admin3/algoritmo_zonas_trabajo/scripts && '
                     f'export CONFIGURATION_PATH={path} && '
