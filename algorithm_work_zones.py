@@ -24,7 +24,8 @@ def process_element(**context):
                 FROM missions.mss_mission_fire mf
                 WHERE mf.fire_id = {fire}
             """
-            missionId = execute_query('biobd', query)         
+            missionId = execute_query('biobd', query)   
+            print(missionId)      
             #json_Perimetro = busqueda_datos_perimetro(fire, perimeter)
             data.update({
                     "temperature": None,
