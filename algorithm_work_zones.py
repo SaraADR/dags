@@ -31,7 +31,8 @@ def process_element(**context):
                     "limitTemperature": 150,
                     "minDistance": 30,
                     "maxDistance": 120,
-                    "firePerimeterId" : perimeter
+                    "firePerimeterId" : perimeter,
+                    "fireEvolutionVectorId" : data.get("id")
                 })
             ejecutar_algoritmo(data, missionId, fire)
         else:
