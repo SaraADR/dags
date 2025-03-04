@@ -13,6 +13,7 @@ import uuid
 def process_element(**context):
     try:
         message = context["dag_run"].conf
+        print(message)
         data = json.loads(message.get("data", "{}"))
         if not data.get("prediction", True):  # Por defecto True para evitar ejecución no deseada
             ejecutar_algoritmo(data)
