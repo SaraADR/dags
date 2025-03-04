@@ -26,7 +26,8 @@ def process_element(**context):
             """
             missionId = execute_query('biobd', query)   
             print(missionId)      
-            #json_Perimetro = busqueda_datos_perimetro(fire, perimeter)
+            json_Perimetro = busqueda_datos_perimetro(fire, perimeter)
+            
             data.update({
                     "temperature": None,
                     "limitTemperature": 150,
@@ -34,7 +35,7 @@ def process_element(**context):
                     "maxDistance": 120,
                     "firePerimeterId" : perimeter,
                     "fireEvolutionVectorId" : data.get("id"),
-                    "geometry": data.get("point")
+                    "geometry": json_Perimetro
                 })
             ejecutar_algoritmo(data, missionId, fire)
         else:
