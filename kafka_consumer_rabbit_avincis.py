@@ -21,6 +21,8 @@ def consumer_function(message, **kwargs):
     
         if event_name == "GIFAlgorithmExecution":
             target_dag = "algorithm_gifs_fire_prediction_post_process"
+        if event_name == "FireEvolutionVectorCreatedOrUpdatedEvent":
+            target_dag = "algorithm_work_zones"
         else:
             target_dag = "function_create_fire_from_rabbit"
 
