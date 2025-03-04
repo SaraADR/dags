@@ -64,10 +64,14 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
                     print(f"Guardado archivo {archivo_params}")
     
 
+
                 path = f'/share_data/input/ejecucion.json' 
+                output_directory = f'/home/admin3/algoritmo_dNBR/output/ejecucion'  
                 stdin, stdout, stderr = ssh_client.exec_command(
                     f'cd /home/admin3/algoritmo_zonas_trabajo/scripts && '
                     f'export CONFIGURATION_PATH={path} && '
+                    f'export OUTDIR={output_directory} && '
+                    f'export OUTFILE_NAME=ejecucion.json && '
                     f'docker-compose -f ../launch/compose.yaml up --build && '
                     f'docker-compose -f ../launch/compose.yaml down --volumes'
                 )
@@ -84,7 +88,6 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
                         historizacion(output_data, fire_id, mission_id )
                         raise Exception(algorithm_error_message)
                         
-                output_directory = f'/home/admin3/algoritmo_dNBR/output/ejecucion'  
                 local_output_directory = '/tmp'
                 sftp.chdir(output_directory)
                 print(f"Cambiando al directorio de salida: {output_directory}")
