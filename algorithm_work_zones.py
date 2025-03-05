@@ -37,7 +37,8 @@ def process_element(**context):
                     "maxDistance": 120,
                     "firePerimeterId" : perimeter,
                     "fireEvolutionVectorId" : data.get("id"),
-                    "geometry": json_Perimetro.get("geometry")
+                    "geometry": json_Perimetro.get("geometry"),
+                    "output": True
                 })
             ejecutar_algoritmo(data, missionId, fire)
         else:
