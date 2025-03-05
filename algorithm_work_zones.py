@@ -130,7 +130,7 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
                     upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
                     output_data[archivo] = local_file_path + '/' + archivo
             output_data["estado"] = "FINISHED"
-            historizacion(output_data, fire_id, mission_id )
+            historizacion(output_data, fire_id, mission_id, params )
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
         output_data = {"estado": "ERROR", "comentario": str(e)}
@@ -138,7 +138,7 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
     return 0
 
 
-def historizacion(output_data, fire_id, mission_id):
+def historizacion(output_data, fire_id, mission_id, params):
     try:
             # Y guardamos en la tabla de historico
             madrid_tz = pytz.timezone('Europe/Madrid')
@@ -146,14 +146,14 @@ def historizacion(output_data, fire_id, mission_id):
             # Calcular la fecha de inicio y fin
             fecha_hoy = datetime.datetime.now()
             fecha_inicio = fecha_hoy
-            phenomenon_time = f"[{fecha_inicio}, {fecha_hoy}]"
+
 
             output_data["type"] = 1
             datos = {
                 'sampled_feature': mission_id,  # Ejemplo de valor
                 'result_time': datetime.datetime.now(madrid_tz),
-                'phenomenon_time': phenomenon_time,
-                'input_data': json.dumps({"fire_id": fire_id}),
+                'phenomenon_time': fecha_hoy,
+                'input_data': json.dumps(params),
                 'output_data': json.dumps(output_data)
             }
 
