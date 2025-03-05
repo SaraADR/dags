@@ -58,36 +58,37 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
             stdout.channel.recv_exit_status()  # Esperar a que el comando termine
 
             if params is not None:                                    
-                archivo_params = f"/home/admin3/algoritmo_zonas_trabajo/input/ejecucion.json"
-                with sftp.file(archivo_params, 'w') as json_file:
-                    json.dump(params, json_file, ensure_ascii=False, indent=4)
-                    print(f"Guardado archivo {archivo_params}")
+                # archivo_params = f"/home/admin3/algoritmo_zonas_trabajo/input/ejecucion.json"
+                # with sftp.file(archivo_params, 'w') as json_file:
+                #     json.dump(params, json_file, ensure_ascii=False, indent=4)
+                #     print(f"Guardado archivo {archivo_params}")
     
 
 
-                path = f'/share_data/input/ejecucion.json' 
-                output_directory = f'/share_data/output/ejecucion'  
-                stdin, stdout, stderr = ssh_client.exec_command(
-                    f'cd /home/admin3/algoritmo_zonas_trabajo/scripts && '
-                    f'export CONFIGURATION_PATH={path} && '
-                    f'export OUTDIR={output_directory} && '
-                    f'export OUTFILE_NAME=ejecucion.json && '
-                    f'docker-compose -f ../launch/compose.yaml up --build && '
-                    f'docker-compose -f ../launch/compose.yaml down --volumes'
-                )
-                output = stdout.read().decode()
-                error_output = stderr.read().decode()
+                # path = f'/share_data/input/ejecucion.json' 
+                # output_directory = f'/share_data/output/ejecucion'  
+                # stdin, stdout, stderr = ssh_client.exec_command(
+                #     f'cd /home/admin3/algoritmo_zonas_trabajo/scripts && '
+                #     f'export CONFIGURATION_PATH={path} && '
+                #     f'export OUTDIR={output_directory} && '
+                #     f'export OUTFILE_NAME=ejecucion.json && '
+                #     f'docker-compose -f ../launch/compose.yaml up --build && '
+                #     f'docker-compose -f ../launch/compose.yaml down --volumes'
+                # )
+                # output = stdout.read().decode()
+                # error_output = stderr.read().decode()
 
-                print("Salida de run.sh:")
-                print(output)
-                for line in output.split("\n"):
-                    if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -1: No se pudo generar una imagen" in line or "Valor -100" in line: 
-                        algorithm_error_message = line.strip()
-                        print(f"Error durante el guardado de la misión: {algorithm_error_message}")
-                        output_data = {"estado": "ERROR", "comentario": algorithm_error_message}
-                        historizacion(output_data, fire_id, mission_id )
-                        raise Exception(algorithm_error_message)
-                        
+                # print("Salida de run.sh:")
+                # print(output)
+                # for line in output.split("\n"):
+                #     if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -1: No se pudo generar una imagen" in line or "Valor -100" in line: 
+                #         algorithm_error_message = line.strip()
+                #         print(f"Error durante el guardado de la misión: {algorithm_error_message}")
+                #         output_data = {"estado": "ERROR", "comentario": algorithm_error_message}
+                #         historizacion(output_data, fire_id, mission_id )
+                #         raise Exception(algorithm_error_message)
+                    
+                output_directory = '/home/admin3/algoritmo_zonas_trabajo/output/ejecucion'     
                 local_output_directory = '/tmp'
                 sftp.chdir(output_directory)
                 print(f"Cambiando al directorio de salida: {output_directory}")
