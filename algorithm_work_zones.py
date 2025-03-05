@@ -25,6 +25,8 @@ def process_element(**context):
                 WHERE mf.fire_id = {fire}
             """
             missionId = execute_query('biobd', query)   
+            missionId = missionId[0][0] if missionId else None
+
             print(missionId)      
             json_Perimetro = busqueda_datos_perimetro(fire, perimeter)
             
@@ -47,6 +49,7 @@ def process_element(**context):
 
 def ejecutar_algoritmo(params, mission_id, fire_id):
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    output_data = {}
     try:
         # Conectarse al servidor SSH
         with ssh_hook.get_conn() as ssh_client:
@@ -58,35 +61,35 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
             stdout.channel.recv_exit_status()  # Esperar a que el comando termine
 
             if params is not None:                                    
-                # archivo_params = f"/home/admin3/algoritmo_zonas_trabajo/input/ejecucion.json"
-                # with sftp.file(archivo_params, 'w') as json_file:
-                #     json.dump(params, json_file, ensure_ascii=False, indent=4)
-                #     print(f"Guardado archivo {archivo_params}")
+                archivo_params = f"/home/admin3/algoritmo_zonas_trabajo/input/ejecucion.json"
+                with sftp.file(archivo_params, 'w') as json_file:
+                    json.dump(params, json_file, ensure_ascii=False, indent=4)
+                    print(f"Guardado archivo {archivo_params}")
     
 
 
-                # path = f'/share_data/input/ejecucion.json' 
-                # output_directory = f'/share_data/output/ejecucion'  
-                # stdin, stdout, stderr = ssh_client.exec_command(
-                #     f'cd /home/admin3/algoritmo_zonas_trabajo/scripts && '
-                #     f'export CONFIGURATION_PATH={path} && '
-                #     f'export OUTDIR={output_directory} && '
-                #     f'export OUTFILE_NAME=ejecucion.json && '
-                #     f'docker-compose -f ../launch/compose.yaml up --build && '
-                #     f'docker-compose -f ../launch/compose.yaml down --volumes'
-                # )
-                # output = stdout.read().decode()
-                # error_output = stderr.read().decode()
+                path = f'/share_data/input/ejecucion.json' 
+                output_directory = f'/share_data/output/ejecucion'  
+                stdin, stdout, stderr = ssh_client.exec_command(
+                    f'cd /home/admin3/algoritmo_zonas_trabajo/scripts && '
+                    f'export CONFIGURATION_PATH={path} && '
+                    f'export OUTDIR={output_directory} && '
+                    f'export OUTFILE_NAME=ejecucion.json && '
+                    f'docker-compose -f ../launch/compose.yaml up --build && '
+                    f'docker-compose -f ../launch/compose.yaml down --volumes'
+                )
+                output = stdout.read().decode()
+                error_output = stderr.read().decode()
 
-                # print("Salida de run.sh:")
-                # print(output)
-                # for line in output.split("\n"):
-                #     if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -1: No se pudo generar una imagen" in line or "Valor -100" in line: 
-                #         algorithm_error_message = line.strip()
-                #         print(f"Error durante el guardado de la misión: {algorithm_error_message}")
-                #         output_data = {"estado": "ERROR", "comentario": algorithm_error_message}
-                #         historizacion(output_data, fire_id, mission_id )
-                #         raise Exception(algorithm_error_message)
+                print("Salida de run.sh:")
+                print(output)
+                for line in output.split("\n"):
+                    if "Valor -3: La región del incendio no se incluye en la capa de combustibles." in line or "Valor -1: No se pudo generar una imagen" in line or "Valor -100" in line: 
+                        algorithm_error_message = line.strip()
+                        print(f"Error durante el guardado de la misión: {algorithm_error_message}")
+                        output_data = {"estado": "ERROR", "comentario": algorithm_error_message}
+                        historizacion(output_data, fire_id, mission_id )
+                        raise Exception(algorithm_error_message)
                     
                 output_directory = '/home/admin3/algoritmo_zonas_trabajo/output/ejecucion'     
                 local_output_directory = '/tmp'
@@ -111,11 +114,23 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
                 archivo_path = os.path.join(local_output_directory, archivo)
                 if not os.path.isfile(archivo_path):
                     print(f"Skipping upload: {local_file_path} is not a file.")
+                if archivo.endswith('.json'):
+                    try:
+                        with open(archivo_path, 'r', encoding='utf-8') as json_file:
+                            output_data[archivo] = json.load(json_file)  
+                        print(f"Archivo JSON {archivo} cargado en output_data.")
+                        local_file_path = f"{mission_id}/{str(key)}"
+                        upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
+                        output_data[archivo] = local_file_path + '/' + archivo
+                    except Exception as e:
+                        print(f"Error al leer el JSON {archivo}: {str(e)}")
+                        output_data[archivo] = f"Error: {str(e)}"
                 else:
                     local_file_path = f"{mission_id}/{str(key)}"
                     upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
                     output_data[archivo] = local_file_path + '/' + archivo
             output_data["estado"] = "FINISHED"
+            historizacion(output_data, fire_id, mission_id )
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
         output_data = {"estado": "ERROR", "comentario": str(e)}
