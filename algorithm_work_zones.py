@@ -125,7 +125,7 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
                     except Exception as e:
                         print(f"Error al leer el JSON {archivo}: {str(e)}")
                         output_data[archivo] = f"Error: {str(e)}"
-                else:
+                elif archivo.endswith('.gpkg'):
                     local_file_path = f"{mission_id}/{str(key)}"
                     upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
                     output_data[archivo] = local_file_path + '/' + archivo
