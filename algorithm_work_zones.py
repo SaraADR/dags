@@ -128,6 +128,7 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
                     local_file_path = f"{mission_id}/{str(key)}"
                     upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
                     output_data[archivo] = local_file_path + '/' + archivo
+
             output_data["estado"] = "FINISHED"
             historizacion(output_data, fire_id, mission_id, params )
     except Exception as e:
@@ -138,6 +139,7 @@ def ejecutar_algoritmo(params, mission_id, fire_id):
 
 
 def historizacion(output_data, fire_id, mission_id, params):
+    print("Historizamos el proceso")
     try:
             # Y guardamos en la tabla de historico
             madrid_tz = pytz.timezone('Europe/Madrid')
@@ -163,7 +165,7 @@ def historizacion(output_data, fire_id, mission_id, params):
                 ) VALUES (
                     {datos['sampled_feature']},
                     '{datos['result_time']}',
-                    '{datos['phenomenon_time']}'::TSRANGE,
+                    '{datos['phenomenon_time']}',
                     '{datos['input_data']}',
                     '{datos['output_data']}'
                 )
