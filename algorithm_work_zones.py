@@ -148,8 +148,6 @@ def historizacion(output_data, fire_id, mission_id, params):
             fecha_hoy = datetime.datetime.now()
             fecha_inicio = fecha_hoy
 
-
-            output_data["type"] = 1
             datos = {
                 'sampled_feature': mission_id,  # Ejemplo de valor
                 'result_time': datetime.datetime.now(madrid_tz),
