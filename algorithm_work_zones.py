@@ -159,7 +159,7 @@ def historizacion(output_data, fire_id, mission_id):
 
             # Construir la consulta de inserción
             query = f"""
-                INSERT INTO algoritmos.algoritmo_dnbr (
+                INSERT INTO algoritmos.algoritmo_work_zones (
                     sampled_feature, result_time, phenomenon_time, input_data, output_data
                 ) VALUES (
                     {datos['sampled_feature']},
