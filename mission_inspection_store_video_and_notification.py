@@ -90,7 +90,7 @@ def process_extracted_files(**kwargs):
 
     try:
 
-        id_resource_uuid = uuid.UUID(video_key.split('/')[0])
+        id_resource_uuid = uuid_key
 
         query = text("""
         INSERT INTO missions.mss_inspection_video 
