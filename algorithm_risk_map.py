@@ -45,7 +45,7 @@ def check_output_files(**context):
         with ssh_hook.get_conn() as ssh_client:
             print("Verificando archivos de salida en /app/output/...")
             # Se ejecuta el comando sin parámetros interactivos
-            command = "docker exec mapa_riesgo ls -l /app/output"
+            command = "ls -l ~/algoritmo-mapas-de-riesgo/output"
             stdin, stdout, stderr = ssh_client.exec_command(command)
             output_files = stdout.read().decode()
             print("Archivos encontrados en /app/output/:")
