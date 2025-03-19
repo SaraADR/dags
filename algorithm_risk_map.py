@@ -16,7 +16,7 @@ def execute_docker_process(**context):
     try:
         with ssh_hook.get_conn() as ssh_client:
             print("Conectando por SSH y ejecutando Docker Compose...")
-            command = "cd /home/admin3/algoritmo-mapas-de-riesgo && docker-compose up --build -d"
+            command = "cd /home/admin3/algoritmo-mapas-de-riesgo && docker-compose up --build"
             stdin, stdout, stderr = ssh_client.exec_command(command)
             print(stdout.read().decode())
             print(stderr.read().decode())
