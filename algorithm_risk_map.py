@@ -1,25 +1,39 @@
 import os
 import json
-from datetime import datetime, timedelta  # Importación correcta para manejar fechas
+from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from airflow.operators.bash import BashOperator
 from dag_utils import execute_query
 import time
 
 def execute_docker_process(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
-    
+
     try:
         with ssh_hook.get_conn() as ssh_client:
             print("Conectando por SSH y ejecutando Docker Compose...")
             command = "cd /home/admin3/algoritmo-mapas-de-riesgo && docker-compose up --build -d"
             stdin, stdout, stderr = ssh_client.exec_command(command)
-            print(stdout.read().decode())
-            print(stderr.read().decode())
 
-            # Esperar hasta que el contenedor finalice
+            output = stdout.read().decode().strip()
+            error_output = stderr.read().decode().strip()
+
+            print("Salida del contenedor:")
+            print(output)
+            print("Errores del contenedor:")
+            print(error_output)
+
+            if "error" in error_output.lower():
+                raise Exception("Fallo en la ejecución del contenedor. Revisar logs.")
+
+            context['task_instance'].xcom_push(key='process_info', value={
+                "execution_time": datetime.utcnow().isoformat(),
+                "docker_output": output,
+                "docker_errors": error_output,
+                "status": "SUCCESS" if not error_output else "FAILED"
+            })
+
             check_command = "docker ps -q --filter 'name=mapa_riesgo'"
             while True:
                 stdin, stdout, stderr = ssh_client.exec_command(check_command)
@@ -27,80 +41,69 @@ def execute_docker_process(**context):
                 if not running_containers:
                     print("El contenedor ha finalizado.")
                     break
-                time.sleep(10)  # Esperar 10 segundos antes de volver a verificar
+                time.sleep(10)
 
     except Exception as e:
         print(f"Error en la ejecución del algoritmo: {str(e)}")
         raise
 
 def check_output_files(**context):
-    """
-    Verifica si los archivos TIFF se generaron correctamente en la carpeta de salida del contenedor.
-    """
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
-    
+
     try:
         with ssh_hook.get_conn() as ssh_client:
             print("Verificando archivos de salida en /app/output/...")
-            # Se ejecuta el comando sin parámetros interactivos
             command = "ls -l ~/algoritmo-mapas-de-riesgo/output"
             stdin, stdout, stderr = ssh_client.exec_command(command)
-            output_files = stdout.read().decode()
-            print("Archivos encontrados en /app/output/:")
+
+            output_files = stdout.read().decode().strip()
+            print("Archivos encontrados:")
             print(output_files)
-            
+
             if "mapariesgo" not in output_files:
                 raise Exception("No se generaron archivos TIFF en la carpeta de salida.")
+
+            context['task_instance'].xcom_push(key='output_files', value=output_files)
+
     except Exception as e:
         print(f"Error al verificar archivos de salida: {str(e)}")
         raise
 
-
-
 def store_in_db(**context):
-    import json
-    from datetime import datetime
+    process_info = context['task_instance'].xcom_pull(task_ids='execute_docker_process', key='process_info')
 
-    local_file = context['task_instance'].xcom_pull(task_ids='download_output_file', key='output_file')
-
-    if not local_file:
-        print("No se encontró el archivo a guardar en la base de datos.")
+    if not process_info:
+        print("No se encontró información del proceso para guardar en la base de datos.")
         return
 
-    # Datos a guardar
     datos = {
-        "sampled_feature": "mapa_riesgo",  
+        "sampled_feature": "mapa_riesgo",
         "result_time": datetime.utcnow(),
         "phenomenon_time": datetime.utcnow(),
-        "input_data": json.dumps({"source": local_file}),
-        "output_data": json.dumps({"status": "FINISHED", "file_path": local_file})
+        "input_data": json.dumps({"execution_time": process_info["execution_time"]}),
+        "output_data": json.dumps({
+            "status": process_info["status"],
+            "docker_output": process_info["docker_output"],
+            "docker_errors": process_info["docker_errors"]
+        })
     }
 
-    query = f"""
+    query = """
         INSERT INTO algoritmos.algoritmo_risk_maps (
             sampled_feature, result_time, phenomenon_time, input_data, output_data
         ) VALUES (
-            '{datos['sampled_feature']}',
-            '{datos['result_time']}',
-            '{datos['phenomenon_time']}',
-            '{datos['input_data']}',
-            '{datos['output_data']}'
+            :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
         )
     """
 
     try:
-        execute_query('biobd', query)
-        print("Datos guardados correctamente en la base de datos.")
+        execute_query('biobd', query, datos)
+        print("Datos del proceso guardados correctamente en la base de datos.")
     except Exception as e:
         print(f"Error al guardar en la base de datos: {str(e)}")
 
-
 def publish_to_geoserver(**context):
-    """
-    Publica los resultados en Geoserver.
-    (Implementación pendiente: aquí se incluirá la lógica para subir el TIFF a Geoserver)
-    """
-    print("Publicando en Geoserver... (Implementación pendiente)")
+    print("Publicando en Geoserver...")
 
 default_args = {
     'owner': 'admin',
