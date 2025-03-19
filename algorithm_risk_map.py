@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
+import pytz
 from dag_utils import execute_query
 import time
 
@@ -71,6 +72,8 @@ def check_output_files(**context):
 
 def store_in_db(**context):
     process_info = context['task_instance'].xcom_pull(task_ids='execute_docker_process', key='process_info')
+ # Y guardamos en la tabla de historico
+    madrid_tz = pytz.timezone('Europe/Madrid')
 
     if not process_info:
         print("No se encontró información del proceso para guardar en la base de datos.")
@@ -78,8 +81,8 @@ def store_in_db(**context):
 
     datos = {
         "sampled_feature": "mapa_riesgo",
-        "result_time": datetime.utcnow(),
-        "phenomenon_time": datetime.utcnow(),
+        "result_time": datetime.now(madrid_tz),
+        "phenomenon_time": datetime.now(madrid_tz),
         "input_data": json.dumps({"execution_time": process_info["execution_time"]}),
         "output_data": json.dumps({
             "status": process_info["status"],
