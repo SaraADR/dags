@@ -5,12 +5,9 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.operators.bash import BashOperator
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 def execute_docker_process(**context):
-    """
-    Ejecuta el algoritmo de mapas de riesgo en la máquina remota usando Docker Compose.
-    """
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
     
     try:
@@ -18,19 +15,19 @@ def execute_docker_process(**context):
             print("Conectando por SSH y ejecutando Docker Compose...")
             command = "cd /home/admin3/algoritmo-mapas-de-riesgo && docker-compose up --build -d"
             stdin, stdout, stderr = ssh_client.exec_command(command)
-            output = stdout.read().decode()
-            error_output = stderr.read().decode()
-            print(f"Salida de la ejecución: {output}")
-            print(f"Errores de la ejecución: {error_output}")
-            
-            # Verificar si el contenedor 'mapa_riesgo' está corriendo
-            check_command = "docker ps --filter 'name=mapa_riesgo' --format '{{.ID}}'"
-            stdin, stdout, stderr = ssh_client.exec_command(check_command)
-            running_containers = stdout.read().decode().strip()
-            
-            if not running_containers:
-                raise Exception("El contenedor 'mapa_riesgo' no se está ejecutando correctamente.")
-                
+            print(stdout.read().decode())
+            print(stderr.read().decode())
+
+            # Esperar hasta que el contenedor finalice
+            check_command = "docker ps -q --filter 'name=mapa_riesgo'"
+            while True:
+                stdin, stdout, stderr = ssh_client.exec_command(check_command)
+                running_containers = stdout.read().decode().strip()
+                if not running_containers:
+                    print("El contenedor ha finalizado.")
+                    break
+                time.sleep(30)  # Esperar 10 segundos antes de volver a verificar
+
     except Exception as e:
         print(f"Error en la ejecución del algoritmo: {str(e)}")
         raise
