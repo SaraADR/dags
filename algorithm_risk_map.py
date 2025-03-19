@@ -10,16 +10,25 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.operators.bash import BashOperator
 
 
+import time
+from airflow.providers.ssh.hooks.ssh import SSHHook
+
 def execute_docker_process(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
-    
+
     try:
         with ssh_hook.get_conn() as ssh_client:
             print("Conectando por SSH y ejecutando Docker Compose...")
+
             command = "cd /home/admin3/algoritmo-mapas-de-riesgo && docker-compose up --build"
             stdin, stdout, stderr = ssh_client.exec_command(command)
-            print(stdout.read().decode())
-            print(stderr.read().decode())
+
+            # Leer la salida de Docker en tiempo real
+            for line in iter(stdout.readline, ""):
+                print(f"{line.strip()}")  # Imprime cada línea en tiempo real para Airflow
+
+            for line in iter(stderr.readline, ""):
+                print(f"{line.strip()}")  # Captura errores en tiempo real también
 
             # Esperar hasta que el contenedor finalice
             check_command = "docker ps -q --filter 'name=mapa_riesgo'"
@@ -29,6 +38,7 @@ def execute_docker_process(**context):
                 if not running_containers:
                     print("El contenedor ha finalizado.")
                     break
+                print("Contenedor en ejecución... esperando 10 segundos más.")
                 time.sleep(10)  # Esperar 10 segundos antes de volver a verificar
 
     except Exception as e:
