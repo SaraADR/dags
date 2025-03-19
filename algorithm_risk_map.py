@@ -1,17 +1,12 @@
 import os
 import json
-import time  # Importación correcta para usar time.sleep()
 from datetime import datetime, timedelta  # Importación correcta para manejar fechas
-
-# Airflow
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.operators.bash import BashOperator
-
-
+from dag_utils import execute_query
 import time
-from airflow.providers.ssh.hooks.ssh import SSHHook
 
 def execute_docker_process(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
@@ -67,6 +62,46 @@ def check_output_files(**context):
         print(f"Error al verificar archivos de salida: {str(e)}")
         raise
 
+
+
+def store_in_db(**context):
+    import json
+    from datetime import datetime
+
+    local_file = context['task_instance'].xcom_pull(task_ids='download_output_file', key='output_file')
+
+    if not local_file:
+        print("No se encontró el archivo a guardar en la base de datos.")
+        return
+
+    # Datos a guardar
+    datos = {
+        "sampled_feature": "mapa_riesgo",  
+        "result_time": datetime.utcnow(),
+        "phenomenon_time": datetime.utcnow(),
+        "input_data": json.dumps({"source": local_file}),
+        "output_data": json.dumps({"status": "FINISHED", "file_path": local_file})
+    }
+
+    query = f"""
+        INSERT INTO algoritmos.algoritmo_risk_maps (
+            sampled_feature, result_time, phenomenon_time, input_data, output_data
+        ) VALUES (
+            '{datos['sampled_feature']}',
+            '{datos['result_time']}',
+            '{datos['phenomenon_time']}',
+            '{datos['input_data']}',
+            '{datos['output_data']}'
+        )
+    """
+
+    try:
+        execute_query('biobd', query)
+        print("Datos guardados correctamente en la base de datos.")
+    except Exception as e:
+        print(f"Error al guardar en la base de datos: {str(e)}")
+
+
 def publish_to_geoserver(**context):
     """
     Publica los resultados en Geoserver.
@@ -105,6 +140,13 @@ check_output_task = PythonOperator(
     dag=dag,
 )
 
+store_in_db_task = PythonOperator(
+    task_id='store_in_db',
+    python_callable=store_in_db,
+    provide_context=True,
+    dag=dag,
+)
+
 publish_geoserver_task = PythonOperator(
     task_id='publish_to_geoserver',
     python_callable=publish_to_geoserver,
@@ -112,4 +154,4 @@ publish_geoserver_task = PythonOperator(
     dag=dag,
 )
 
-execute_docker_task >> check_output_task >> publish_geoserver_task
+execute_docker_task >> check_output_task >> store_in_db_task >> publish_geoserver_task
