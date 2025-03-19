@@ -5,7 +5,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.operators.bash import BashOperator
-from datetime import datetime, time, timedelta
+import time 
 
 def execute_docker_process(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
@@ -26,7 +26,7 @@ def execute_docker_process(**context):
                 if not running_containers:
                     print("El contenedor ha finalizado.")
                     break
-                time.sleep(30)  # Esperar 10 segundos antes de volver a verificar
+                time.sleep(10)  # Esperar 10 segundos antes de volver a verificar
 
     except Exception as e:
         print(f"Error en la ejecución del algoritmo: {str(e)}")
