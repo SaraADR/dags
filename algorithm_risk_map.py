@@ -1,11 +1,14 @@
-import datetime
 import os
 import json
+import time  # Importación correcta para usar time.sleep()
+from datetime import datetime, timedelta  # Importación correcta para manejar fechas
+
+# Airflow
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.operators.bash import BashOperator
-import time 
+
 
 def execute_docker_process(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
