@@ -250,7 +250,6 @@ def busqueda_datos_perimetro(idIncendio):
             print(e)
             raise
 
-
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
@@ -259,7 +258,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=1),
-
 }
 
 dag = DAG(
