@@ -54,7 +54,7 @@ def check_output_files(**context):
     try:
         with ssh_hook.get_conn() as ssh_client:
             print("Verificando archivos de salida en /app/output/...")
-            command = "ls -l ~/algoritmo-mapas-de-riesgo/output"
+            command = "ls -l /home/admin3/algoritmo_mapas_de_riesgo/output"
             stdin, stdout, stderr = ssh_client.exec_command(command)
 
             output_files = stdout.read().decode().strip()
