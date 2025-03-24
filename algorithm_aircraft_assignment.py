@@ -17,7 +17,7 @@ def process_element(**context):
     # print(input_data)
 
     # Ruta temporal para almacenar la clave privada en el contenedor
-    SSH_KEY_PATH = "/home/airflow/.ssh/id_rsa"
+    SSH_KEY_PATH = "/home/airflow/id_rsa"
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p")).decode("utf-8")
     os.makedirs(os.path.dirname(SSH_KEY_PATH), exist_ok=True)
     with open(SSH_KEY_PATH, "w") as f:
