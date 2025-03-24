@@ -2,7 +2,10 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 import datetime
 import json
-
+from airflow.providers.ssh.hooks.ssh import SSHHook
+import base64
+from airflow.models import Variable
+import os
 
 def process_element(**context):
     print("Algoritmo de asignación de aeronaves")
@@ -13,6 +16,32 @@ def process_element(**context):
     from_user = message['message']['from_user']
     print(input_data)
 
+    # Ruta temporal para almacenar la clave privada en el contenedor
+    SSH_KEY_PATH = "/home/airflow/.ssh/id_rsa"
+    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p")).decode("utf-8")
+    os.makedirs(os.path.dirname(SSH_KEY_PATH), exist_ok=True)
+    with open(SSH_KEY_PATH, "w") as f:
+        f.write(ssh_key_decoded)
+    os.chmod(SSH_KEY_PATH, 0o600)
+
+    ssh_hook = SSHHook(
+            ssh_conn_id='ssh_avincis',  # ID de conexión en Airflow
+            key_file=SSH_KEY_PATH       # Ruta de la clave temporal
+    )
+    with ssh_hook.get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            print("✅ Conexión SSH exitosa")
+
+            # Ejemplo: Listar archivos en el directorio remoto
+            remote_files = sftp.listdir('/path/del/servidor')
+            print("📂 Archivos remotos:", remote_files)
+
+            sftp.close()
+
+
+
+
+            
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
