@@ -101,7 +101,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     topics=["jobs"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_batch",
+    commit_cadence="end_of_operator",
     dag=dag,
 
 )
