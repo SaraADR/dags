@@ -16,7 +16,7 @@ def process_element(**context):
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
-    'start_date': datetime.datetime(2024, 8, 8),
+    'start_date': datetime.datetime(2025, 1, 3),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -27,7 +27,7 @@ dag = DAG(
     'algorithm_aircraft_assignment',
     default_args=default_args,
     description='Algoritmo de asignación de aeronaves',
-    schedule_interval='@daily', 
+    schedule_interval=None, 
     catchup=False,
     max_active_runs=1,
     concurrency=1
