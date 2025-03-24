@@ -8,13 +8,13 @@ from airflow.models import Variable
 import os
 
 def process_element(**context):
-    print("Algoritmo de asignación de aeronaves")
-    message = context['dag_run'].conf
-    input_data_str = message['message']['input_data']
-    input_data = json.loads(input_data_str)
-    task_type = message['message']['job']
-    from_user = message['message']['from_user']
-    print(input_data)
+    # print("Algoritmo de asignación de aeronaves")
+    # message = context['dag_run'].conf
+    # input_data_str = message['message']['input_data']
+    # input_data = json.loads(input_data_str)
+    # task_type = message['message']['job']
+    # from_user = message['message']['from_user']
+    # print(input_data)
 
     # Ruta temporal para almacenar la clave privada en el contenedor
     SSH_KEY_PATH = "/home/airflow/.ssh/id_rsa"
@@ -41,7 +41,7 @@ def process_element(**context):
 
 
 
-            
+
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
