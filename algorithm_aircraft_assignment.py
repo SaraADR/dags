@@ -33,7 +33,7 @@ def process_element(**context):
             print("✅ Conexión SSH exitosa")
 
             # Ejemplo: Listar archivos en el directorio remoto
-            remote_files = sftp.listdir('/path/del/servidor')
+            remote_files = sftp.listdir('/')
             print("📂 Archivos remotos:", remote_files)
 
             sftp.close()
