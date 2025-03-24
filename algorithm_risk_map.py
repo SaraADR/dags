@@ -68,6 +68,7 @@ def check_output_files(**context):
     try:
         with ssh_hook.get_conn() as ssh_client:
             print("Verificando archivos de salida en /app/output/...")
+
             command = "ls -l /home/admin3/algoritmo_mapas_de_riesgo/output"
             stdin, stdout, stderr = ssh_client.exec_command(command)
 
@@ -78,7 +79,13 @@ def check_output_files(**context):
             if "mapariesgo" not in output_files:
                 raise Exception("No se generaron archivos TIFF en la carpeta de salida.")
 
-            context['task_instance'].xcom_push(key='output_files', value=output_files)
+            # Extraer nombres de archivos .tif
+            command_tif = "ls /home/admin3/algoritmo_mapas_de_riesgo/output/*.tif"
+            stdin, stdout, stderr = ssh_client.exec_command(command_tif)
+            tiff_files = stdout.read().decode().strip().split('\n')
+            print("Archivos TIFF encontrados:", tiff_files)
+
+            context['task_instance'].xcom_push(key='output_files', value=tiff_files)
 
     except Exception as e:
         print(f"Error al verificar archivos de salida: {str(e)}")
@@ -86,20 +93,27 @@ def check_output_files(**context):
 
 def store_in_db(**context):
     process_info = context['task_instance'].xcom_pull(task_ids='execute_docker_process', key='process_info')
- # Y guardamos en la tabla de historico
+    tiff_files = context['task_instance'].xcom_pull(task_ids='check_output_files', key='output_files')
+
     madrid_tz = pytz.timezone('Europe/Madrid')
 
-    if not process_info:
-        print("No se encontró información del proceso para guardar en la base de datos.")
+    if not process_info or not tiff_files:
+        print("Falta información del proceso o archivos para guardar en la base de datos.")
         return
+
+    # Tomamos el primer archivo .tif como ejemplo
+    generated_file = os.path.basename(tiff_files[0]) if isinstance(tiff_files, list) else tiff_files
 
     datos = {
         "sampled_feature": "mapa_riesgo",
         "result_time": datetime.now(madrid_tz),
         "phenomenon_time": datetime.now(madrid_tz),
-        "input_data": json.dumps({"execution_time": process_info["execution_time"]}),
+        "input_data": json.dumps({
+            "execution_time": process_info["execution_time"],
+        }),
         "output_data": json.dumps({
             "status": process_info["status"],
+            "generated_tiff": generated_file,
             "docker_output": process_info["docker_output"],
             "docker_errors": process_info["docker_errors"]
         })
@@ -118,9 +132,6 @@ def store_in_db(**context):
         print("Datos del proceso guardados correctamente en la base de datos.")
     except Exception as e:
         print(f"Error al guardar en la base de datos: {str(e)}")
-
-def publish_to_geoserver(**context):
-    print("Publicando en Geoserver...")
 
 default_args = {
     'owner': 'admin',
