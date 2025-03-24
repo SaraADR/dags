@@ -7,14 +7,26 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 import pytz
 from dag_utils import execute_query
 import time
-
 def execute_docker_process(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
     try:
         with ssh_hook.get_conn() as ssh_client:
-            print("Conectando por SSH y ejecutando Docker Compose...")
-            command = "cd /home/admin3/algoritmo_mapas_de_riesgo && docker-compose up -d"
+            print("Conectando por SSH para limpiar y lanzar el contenedor...")
+
+            # 1. Detener y eliminar contenedores + volúmenes previos
+            cleanup_command = "cd /home/admin3/algoritmo_mapas_de_riesgo && docker-compose down --volumes"
+            stdin, stdout, stderr = ssh_client.exec_command(cleanup_command)
+            cleanup_output = stdout.read().decode().strip()
+            cleanup_error = stderr.read().decode().strip()
+            print("Resultado de limpieza:")
+            print(cleanup_output)
+            if cleanup_error:
+                print("Errores durante limpieza:")
+                print(cleanup_error)
+
+            # 2. Lanzar el contenedor desde cero con build
+            command = "cd /home/admin3/algoritmo_mapas_de_riesgo && docker-compose up --build -d"
             stdin, stdout, stderr = ssh_client.exec_command(command)
 
             output = stdout.read().decode().strip()
@@ -35,6 +47,7 @@ def execute_docker_process(**context):
                 "status": "SUCCESS" if not error_output else "FAILED"
             })
 
+            # 3. Esperar hasta que el contenedor finalice su ejecución
             check_command = "docker ps -q --filter 'name=mapa_riesgo'"
             while True:
                 stdin, stdout, stderr = ssh_client.exec_command(check_command)
@@ -47,6 +60,7 @@ def execute_docker_process(**context):
     except Exception as e:
         print(f"Error en la ejecución del algoritmo: {str(e)}")
         raise
+
 
 def check_output_files(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
