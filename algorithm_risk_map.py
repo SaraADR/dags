@@ -133,6 +133,11 @@ def store_in_db(**context):
     except Exception as e:
         print(f"Error al guardar en la base de datos: {str(e)}")
 
+
+def publish_to_geoserver(**context):
+    print("Publicando en Geoserver...")
+
+
 default_args = {
     'owner': 'admin',
     'depends_on_past': False,
