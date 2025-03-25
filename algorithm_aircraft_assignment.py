@@ -6,6 +6,7 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 import base64
 from airflow.models import Variable
 import os
+import paramiko
 
 def process_element(**context):
     # print("Algoritmo de asignación de aeronaves")
@@ -24,19 +25,37 @@ def process_element(**context):
         f.write(ssh_key_decoded)
     os.chmod(SSH_KEY_PATH, 0o600)
 
-    ssh_hook = SSHHook(
-            ssh_conn_id='ssh_avincis',  # ID de conexión en Airflow
-            key_file=SSH_KEY_PATH       # Ruta de la clave temporal
+    jump_host_hook = SSHHook(
+        ssh_conn_id='ssh_avincis',  
+        key_file=SSH_KEY_PATH       
     )
-    with ssh_hook.get_conn() as ssh_client:
-            sftp = ssh_client.open_sftp()
-            print("✅ Conexión SSH exitosa")
 
-            # Ejemplo: Listar archivos en el directorio remoto
-            remote_files = sftp.listdir('/')
-            print("📂 Archivos remotos:", remote_files)
+    with jump_host_hook.get_conn() as jump_host_client:
+        print("✅ Conexión SSH con máquina intermedia exitosa")
 
-            sftp.close()
+        # Crear cliente Paramiko para el segundo salto
+        transport = jump_host_client.get_transport()
+        dest_addr = ('10.38.9.6', 22)  # Dirección IP privada del servidor destino
+        local_addr = ('127.0.0.1', 0)
+        
+        jump_channel = transport.open_channel("direct-tcpip", dest_addr, local_addr)
+
+        second_client = paramiko.SSHClient()
+        second_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        second_client.connect(
+            '10.38.9.6',
+            username='usuario_destino',
+            sock=jump_channel
+        )
+        print("✅ Conexión SSH con servidor privado exitosa")
+
+        # Ejemplo de listar archivos en el servidor destino
+        stdin, stdout, stderr = second_client.exec_command('ls /ruta/deseada')
+        print("📂 Archivos en el servidor destino:", stdout.read().decode())
+
+        second_client.close()
+
 
 
 
