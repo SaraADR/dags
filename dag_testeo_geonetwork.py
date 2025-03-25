@@ -18,18 +18,26 @@ def publish_riskmap_to_geoserver(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
     remote_output_dir = "/home/admin3/algoritmo_mapas_de_riesgo/output"
 
-    # Nombre con timestamp
-    layer_name = f"galicia_mapa_riesgo_{datetime.now().strftime('%Y%m%d_%H%M')}"
-    tiff_file_name = "mapariesgo.tif"  # Ajusta si el nombre cambia
-    remote_tiff_path = os.path.join(remote_output_dir, tiff_file_name)
-
-    # Obtener archivo por SSH
     with ssh_hook.get_conn() as ssh_client:
         sftp = ssh_client.open_sftp()
+        sftp.chdir(remote_output_dir)
+
+        # Buscar primer archivo que cumpla con "mapariesgo*.tif"
+        candidates = [f for f in sftp.listdir() if f.startswith("mapariesgo") and f.endswith(".tif")]
+        if not candidates:
+            raise FileNotFoundError("No se encontraron archivos TIFF en el directorio remoto.")
+
+        tiff_file_name = sorted(candidates)[-1]  # O usa [0] si prefieres el más antiguo
+        remote_tiff_path = os.path.join(remote_output_dir, tiff_file_name)
+        print(f"📂 Archivo seleccionado: {remote_tiff_path}")
+
+        # Leer contenido del archivo
         with sftp.file(remote_tiff_path, 'rb') as remote_file:
             file_data = remote_file.read()
         sftp.close()
 
+    # Nombre de capa en GeoServer
+    layer_name = f"galicia_mapa_riesgo_{datetime.now().strftime('%Y%m%d_%H%M')}"
     headers = {"Content-type": "image/tiff"}
 
     # 1️⃣ Subir como nueva capa
@@ -41,7 +49,6 @@ def publish_riskmap_to_geoserver(**context):
         auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
         params={"configure": "all"}
     )
-
     if response.status_code not in [201, 202]:
         raise Exception(f"Error al publicar nueva capa {layer_name}: {response.text}")
     print(f"✅ Capa publicada: {layer_name}")
@@ -55,10 +62,8 @@ def publish_riskmap_to_geoserver(**context):
         auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
         params={"configure": "all"}
     )
-
     if response_latest.status_code not in [201, 202]:
         raise Exception(f"Error al actualizar capa genérica: {response_latest.text}")
-
     print(f"✅ Capa genérica actualizada: {GENERIC_LAYER}")
 
 # DAG Definition
