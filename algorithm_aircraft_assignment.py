@@ -27,17 +27,10 @@ def process_element(**context):
         temp_file_path = temp_file.name  # Guardar la ruta del archivo temporal
 
     with open(temp_file_path, 'r') as file:
-        print("Contenido del archivo temporal:\n")
-        print(file.read())
-
-    # os.makedirs(os.path.dirname(SSH_KEY_PATH), exist_ok=True)
-    # with open(SSH_KEY_PATH, "w") as f:
-    #     f.write(ssh_key_decoded)
-    # os.chmod(SSH_KEY_PATH, 0o600)
 
         jump_host_hook = SSHHook(
             ssh_conn_id='ssh_avincis',  
-            key_file=SSH_KEY_PATH       
+            key_file=temp_file_path       
         )
 
         with jump_host_hook.get_conn() as jump_host_client:
