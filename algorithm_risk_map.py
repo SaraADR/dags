@@ -147,52 +147,54 @@ WORKSPACE = "Modelos_Combustible_2024"
 STORE = "riskmaps"
 
 def publish_to_geoserver(**context):
-    tiff_files = context['task_instance'].xcom_pull(task_ids='check_output_files', key='output_files')
-    if not tiff_files:
-        raise Exception("No se encontraron archivos para publicar.")
 
-    for tiff_path in tiff_files:
-        layer_name = f"galicia_mapa_riesgo_{datetime.now().strftime('%Y%m%d_%H%M')}"
-        file_name = os.path.basename(tiff_path)
+    print("Esperando a la reactivación de geoserver...")
+    # tiff_files = context['task_instance'].xcom_pull(task_ids='check_output_files', key='output_files')
+    # if not tiff_files:
+    #     raise Exception("No se encontraron archivos para publicar.")
 
-        # 1. Publicar como nueva capa
-        url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
-        headers = {"Content-type": "image/tiff"}
+    # for tiff_path in tiff_files:
+    #     layer_name = f"galicia_mapa_riesgo_{datetime.now().strftime('%Y%m%d_%H%M')}"
+    #     file_name = os.path.basename(tiff_path)
 
-        with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
-            sftp = ssh_client.open_sftp()
-            with sftp.file(tiff_path, 'rb') as remote_file:
-                file_data = remote_file.read()
+    #     # 1. Publicar como nueva capa
+    #     url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+    #     headers = {"Content-type": "image/tiff"}
 
-        response = requests.put(
-            url,
-            headers=headers,
-            data=file_data,
-            auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
-            params={"configure": "all"}
-        )
+    #     with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
+    #         sftp = ssh_client.open_sftp()
+    #         with sftp.file(tiff_path, 'rb') as remote_file:
+    #             file_data = remote_file.read()
 
-        if response.status_code not in [201, 202]:
-            raise Exception(f"Error al publicar {layer_name} en GeoServer: {response.text}")
+    #     response = requests.put(
+    #         url,
+    #         headers=headers,
+    #         data=file_data,
+    #         auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
+    #         params={"configure": "all"}
+    #     )
 
-        print(f"Capa publicada: {layer_name}")
+    #     if response.status_code not in [201, 202]:
+    #         raise Exception(f"Error al publicar {layer_name} en GeoServer: {response.text}")
 
-        # 2. Actualizar capa genérica
-        generic_store = "galicia_mapa_riesgo_latest"
-        url_latest = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{generic_store}/file.geotiff"
+    #     print(f"Capa publicada: {layer_name}")
 
-        response_latest = requests.put(
-            url_latest,
-            headers=headers,
-            data=file_data,
-            auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
-            params={"configure": "all"}
-        )
+    #     # 2. Actualizar capa genérica
+    #     generic_store = "galicia_mapa_riesgo_latest"
+    #     url_latest = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{generic_store}/file.geotiff"
 
-        if response_latest.status_code not in [201, 202]:
-            raise Exception(f"Error al actualizar capa genérica: {response_latest.text}")
+    #     response_latest = requests.put(
+    #         url_latest,
+    #         headers=headers,
+    #         data=file_data,
+    #         auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
+    #         params={"configure": "all"}
+    #     )
 
-        print(f"Capa genérica actualizada: galicia_mapa_riesgo_latest")
+    #     if response_latest.status_code not in [201, 202]:
+    #         raise Exception(f"Error al actualizar capa genérica: {response_latest.text}")
+
+    #     print(f"Capa genérica actualizada: galicia_mapa_riesgo_latest")
 
 
 
