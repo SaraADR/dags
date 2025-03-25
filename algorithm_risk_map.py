@@ -186,7 +186,7 @@ def publish_to_geoserver(**context):
 
 
 default_args = {
-    'owner': 'admin',
+    'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime(2024, 9, 1),
     'retries': 2,
