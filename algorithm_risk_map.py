@@ -140,7 +140,7 @@ def store_in_db(**context):
 
 
 
-GEOSERVER_URL = "https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/rest"
+GEOSERVER_URL = "https://geoserver.dev.cuatrodigital.com/geoserver/rest"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
 WORKSPACE = "Modelos_Combustible_2024"
