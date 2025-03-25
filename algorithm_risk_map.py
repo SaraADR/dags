@@ -140,7 +140,7 @@ def store_in_db(**context):
 
 
 
-GEOSERVER_URL = "https://geoserver.dev.cuatrodigital.com/geoserver/rest"
+GEOSERVER_URL = "https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/rest"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
 WORKSPACE = "Modelos_Combustible_2024"
@@ -149,52 +149,52 @@ STORE = "riskmaps"
 def publish_to_geoserver(**context):
 
     print("Esperando a la reactivación de geoserver...")
-    # tiff_files = context['task_instance'].xcom_pull(task_ids='check_output_files', key='output_files')
-    # if not tiff_files:
-    #     raise Exception("No se encontraron archivos para publicar.")
+    tiff_files = context['task_instance'].xcom_pull(task_ids='check_output_files', key='output_files')
+    if not tiff_files:
+        raise Exception("No se encontraron archivos para publicar.")
 
-    # for tiff_path in tiff_files:
-    #     layer_name = f"galicia_mapa_riesgo_{datetime.now().strftime('%Y%m%d_%H%M')}"
-    #     file_name = os.path.basename(tiff_path)
+    for tiff_path in tiff_files:
+        layer_name = f"galicia_mapa_riesgo_{datetime.now().strftime('%Y%m%d_%H%M')}"
+        file_name = os.path.basename(tiff_path)
 
-    #     # 1. Publicar como nueva capa
-    #     url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
-    #     headers = {"Content-type": "image/tiff"}
+        # 1. Publicar como nueva capa
+        url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+        headers = {"Content-type": "image/tiff"}
 
-    #     with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
-    #         sftp = ssh_client.open_sftp()
-    #         with sftp.file(tiff_path, 'rb') as remote_file:
-    #             file_data = remote_file.read()
+        with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
+            sftp = ssh_client.open_sftp()
+            with sftp.file(tiff_path, 'rb') as remote_file:
+                file_data = remote_file.read()
 
-    #     response = requests.put(
-    #         url,
-    #         headers=headers,
-    #         data=file_data,
-    #         auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
-    #         params={"configure": "all"}
-    #     )
+        response = requests.put(
+            url,
+            headers=headers,
+            data=file_data,
+            auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
+            params={"configure": "all"}
+        )
 
-    #     if response.status_code not in [201, 202]:
-    #         raise Exception(f"Error al publicar {layer_name} en GeoServer: {response.text}")
+        if response.status_code not in [201, 202]:
+            raise Exception(f"Error al publicar {layer_name} en GeoServer: {response.text}")
 
-    #     print(f"Capa publicada: {layer_name}")
+        print(f"Capa publicada: {layer_name}")
 
-    #     # 2. Actualizar capa genérica
-    #     generic_store = "galicia_mapa_riesgo_latest"
-    #     url_latest = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{generic_store}/file.geotiff"
+        # 2. Actualizar capa genérica
+        generic_store = "galicia_mapa_riesgo_latest"
+        url_latest = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{generic_store}/file.geotiff"
 
-    #     response_latest = requests.put(
-    #         url_latest,
-    #         headers=headers,
-    #         data=file_data,
-    #         auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
-    #         params={"configure": "all"}
-    #     )
+        response_latest = requests.put(
+            url_latest,
+            headers=headers,
+            data=file_data,
+            auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
+            params={"configure": "all"}
+        )
 
-    #     if response_latest.status_code not in [201, 202]:
-    #         raise Exception(f"Error al actualizar capa genérica: {response_latest.text}")
+        if response_latest.status_code not in [201, 202]:
+            raise Exception(f"Error al actualizar capa genérica: {response_latest.text}")
 
-    #     print(f"Capa genérica actualizada: galicia_mapa_riesgo_latest")
+        print(f"Capa genérica actualizada: galicia_mapa_riesgo_latest")
 
 
 
