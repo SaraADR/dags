@@ -35,13 +35,14 @@ def process_element(**context):
     #     f.write(ssh_key_decoded)
     # os.chmod(SSH_KEY_PATH, 0o600)
 
-    # jump_host_hook = SSHHook(
-    #     ssh_conn_id='ssh_avincis',  
-    #     key_file=SSH_KEY_PATH       
-    # )
+        jump_host_hook = SSHHook(
+            ssh_conn_id='ssh_avincis',  
+            key_file=SSH_KEY_PATH       
+        )
 
-    # with jump_host_hook.get_conn() as jump_host_client:
-    #     print("✅ Conexión SSH con máquina intermedia exitosa")
+        with jump_host_hook.get_conn() as jump_host_client:
+            print("✅ Conexión SSH con máquina intermedia exitosa")
+            jump_host_client.close()
 
     #     # Crear cliente Paramiko para el segundo salto
     #     transport = jump_host_client.get_transport()
