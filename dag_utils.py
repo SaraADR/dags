@@ -14,6 +14,8 @@ from airflow.operators.python import PythonOperator
 import requests
 from airflow.hooks.base import BaseHook
 import paramiko
+from requests.auth import HTTPBasicAuth
+
 
 # Función para enviar notificaciones a la BD
 
@@ -310,6 +312,24 @@ def upload_to_minio(conn_id, bucket_name, file_key, file_content):
         print(f"Archivo {file_key} subido correctamente a MinIO.")
     except Exception as e:
         print(f"Error al subir el archivo a MinIO: {str(e)}")
+        raise
+
+
+def get_geoserver_connection(conn_id='geoserver_connection'):
+    """
+    Devuelve la información de conexión a GeoServer a partir del conn_id.
+    """
+    try:
+        conn = BaseHook.get_connection(conn_id)
+        base_url = conn.host.rstrip('/')
+        username = conn.login
+        password = conn.password
+        auth = HTTPBasicAuth(username, password)
+
+        print(f"Conexión a GeoServer obtenida de {conn_id}")
+        return base_url, auth
+    except Exception as e:
+        print(f"Error al obtener conexión a GeoServer: {str(e)}")
         raise
 
 def upload_to_minio_path(conn_id, bucket_name, destination_prefix, local_file):
