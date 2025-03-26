@@ -145,10 +145,6 @@ GENERIC_LAYER = "galicia_mapa_riesgo_latest"
 REMOTE_OUTPUT_DIR = "/home/admin3/algoritmo_mapas_de_riesgo/output"
 
 def publish_to_geoserver(**context):
-    import os
-    import requests
-    from airflow.providers.ssh.hooks.ssh import SSHHook
-    from dag_utils import get_geoserver_connection
 
     WORKSPACE = "Modelos_Combustible_2024"
     GENERIC_LAYER = "galicia_mapa_riesgo_latest"
@@ -159,20 +155,25 @@ def publish_to_geoserver(**context):
         raise Exception("No hay archivos para subir a GeoServer.")
 
     latest_tiff = sorted(tiff_files)[-1]
-    layer_name = os.path.splitext(os.path.basename(latest_tiff))[0]  # Usa el nombre del TIFF como capa
+    base_name = os.path.splitext(os.path.basename(latest_tiff))[0]
+
+    # Asegurar prefijo 'galicia_' en el nombre
+    layer_name = base_name if base_name.startswith("galicia_") else f"galicia_{base_name}"
     print(f"Nombre de capa a publicar: {layer_name}")
 
+    # Leer archivo TIFF remoto vía SFTP
     with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
         sftp = ssh_client.open_sftp()
         with sftp.file(latest_tiff, 'rb') as remote_file:
             file_data = remote_file.read()
         sftp.close()
 
+    # Conexión GeoServer desde Airflow
     base_url, auth = get_geoserver_connection("geoserver_connection")
     headers_xml = {"Content-type": "text/xml"}
     headers_tiff = {"Content-type": "image/tiff"}
 
-    # 1. Crear el coverage store vacío (POST)
+    # 1. Crear el coverage store si no existe
     store_creation_url = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores"
     store_xml = f"""
         <coverageStore>
@@ -191,9 +192,9 @@ def publish_to_geoserver(**context):
     )
 
     if res_create.status_code not in [201, 202]:
-        print(f"Advertencia: el coverageStore puede que ya exista ({res_create.status_code})")
+        print(f"Advertencia: el coverageStore '{layer_name}' puede que ya exista ({res_create.status_code})")
 
-    # 2. Subir el TIFF (PUT)
+    # 2. Subir TIFF al coverage store (histórico)
     upload_url = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
     res_upload = requests.put(
         upload_url,
@@ -205,7 +206,7 @@ def publish_to_geoserver(**context):
 
     if res_upload.status_code not in [201, 202]:
         raise Exception(f"Error publicando capa {layer_name}: {res_upload.text}")
-    print(f"Capa publicada: {layer_name}")
+    print(f"Capa histórica publicada: {layer_name}")
 
     # 3. Actualizar capa genérica
     generic_url = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
@@ -220,6 +221,7 @@ def publish_to_geoserver(**context):
     if res_latest.status_code not in [201, 202]:
         raise Exception(f"Error actualizando capa genérica: {res_latest.text}")
     print(f"Capa genérica actualizada: {GENERIC_LAYER}")
+
 
 
 default_args = {
