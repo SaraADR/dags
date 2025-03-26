@@ -5,7 +5,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 import pytz
-from dag_utils import execute_query
+from dag_utils import execute_query, get_geoserver_connection
 import time
 import requests
 from requests.auth import HTTPBasicAuth
@@ -140,9 +140,6 @@ def store_in_db(**context):
 
 
 
-GEOSERVER_URL = "https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/rest"
-GEOSERVER_USER = "admin"
-GEOSERVER_PASSWORD = "geoserver"
 WORKSPACE = "Modelos_Combustible_2024"
 GENERIC_LAYER = "galicia_mapa_riesgo_latest"
 REMOTE_OUTPUT_DIR = "/home/admin3/algoritmo_mapas_de_riesgo/output"
@@ -166,16 +163,18 @@ def publish_to_geoserver(**context):
         with sftp.file(latest_tiff, 'rb') as remote_file:
             file_data = remote_file.read()
         sftp.close()
-
+        
+    # Conexión a GeoServer por airflow
+    base_url, auth = get_geoserver_connection("geoserver_connection")
     headers = {"Content-type": "image/tiff"}
 
     # Publicar como nueva capa
-    url_new = f"{GEOSERVER_URL}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+    url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
     response = requests.put(
         url_new,
         headers=headers,
         data=file_data,
-        auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
+        auth=auth,
         params={"configure": "all"}
     )
     if response.status_code not in [201, 202]:
@@ -183,12 +182,12 @@ def publish_to_geoserver(**context):
     print(f"Capa publicada: {layer_name}")
 
     # Actualizar capa genérica
-    url_latest = f"{GEOSERVER_URL}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+    url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
     response_latest = requests.put(
         url_latest,
         headers=headers,
         data=file_data,
-        auth=HTTPBasicAuth(GEOSERVER_USER, GEOSERVER_PASSWORD),
+        auth=auth,
         params={"configure": "all"}
     )
     if response_latest.status_code not in [201, 202]:
