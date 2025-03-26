@@ -140,59 +140,85 @@ def store_in_db(**context):
 
 
 
-# Constantes necesarias
 WORKSPACE = "Modelos_Combustible_2024"
 GENERIC_LAYER = "galicia_mapa_riesgo_latest"
+REMOTE_OUTPUT_DIR = "/home/admin3/algoritmo_mapas_de_riesgo/output"
 
 def publish_to_geoserver(**context):
-    # Obtener lista de archivos .tif encontrados
+    import os
+    import requests
+    from airflow.providers.ssh.hooks.ssh import SSHHook
+    from dag_utils import get_geoserver_connection
+
+    WORKSPACE = "Modelos_Combustible_2024"
+    GENERIC_LAYER = "galicia_mapa_riesgo_latest"
+
+    # Obtener archivo TIFF más reciente
     tiff_files = context['task_instance'].xcom_pull(task_ids='check_output_files', key='output_files')
     if not tiff_files:
         raise Exception("No hay archivos para subir a GeoServer.")
 
-    # Seleccionar el TIFF más reciente
     latest_tiff = sorted(tiff_files)[-1]
-    print(f"Publicando TIFF más reciente: {latest_tiff}")
-
-    # Obtener el nombre del archivo, sin extensión
-    layer_name = os.path.splitext(os.path.basename(latest_tiff))[0]
+    layer_name = os.path.splitext(os.path.basename(latest_tiff))[0]  # Usa el nombre del TIFF como capa
     print(f"Nombre de capa a publicar: {layer_name}")
 
-    # Leer archivo TIFF remoto vía SFTP
     with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
         sftp = ssh_client.open_sftp()
         with sftp.file(latest_tiff, 'rb') as remote_file:
             file_data = remote_file.read()
         sftp.close()
 
-    # Conexión a GeoServer (Airflow connection)
     base_url, auth = get_geoserver_connection("geoserver_connection")
-    headers = {"Content-type": "image/tiff"}
+    headers_xml = {"Content-type": "text/xml"}
+    headers_tiff = {"Content-type": "image/tiff"}
 
-    # Publicar como nueva capa histórica (usando el nombre original del TIFF)
-    url_new = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
-    response = requests.put(
-        url_new,
-        headers=headers,
+    # 1. Crear el coverage store vacío (POST)
+    store_creation_url = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores"
+    store_xml = f"""
+        <coverageStore>
+            <name>{layer_name}</name>
+            <type>GeoTIFF</type>
+            <enabled>true</enabled>
+            <workspace>{WORKSPACE}</workspace>
+        </coverageStore>
+    """.strip()
+
+    res_create = requests.post(
+        store_creation_url,
+        headers=headers_xml,
+        data=store_xml,
+        auth=auth
+    )
+
+    if res_create.status_code not in [201, 202]:
+        print(f"Advertencia: el coverageStore puede que ya exista ({res_create.status_code})")
+
+    # 2. Subir el TIFF (PUT)
+    upload_url = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+    res_upload = requests.put(
+        upload_url,
+        headers=headers_tiff,
         data=file_data,
         auth=auth,
         params={"configure": "all"}
     )
-    if response.status_code not in [201, 202]:
-        raise Exception(f"Error publicando capa {layer_name}: {response.text}")
+
+    if res_upload.status_code not in [201, 202]:
+        raise Exception(f"Error publicando capa {layer_name}: {res_upload.text}")
     print(f"Capa publicada: {layer_name}")
 
-    # Actualizar capa genérica
-    url_latest = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
-    response_latest = requests.put(
-        url_latest,
-        headers=headers,
+    # 3. Actualizar capa genérica
+    generic_url = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+    res_latest = requests.put(
+        generic_url,
+        headers=headers_tiff,
         data=file_data,
         auth=auth,
         params={"configure": "all"}
     )
-    if response_latest.status_code not in [201, 202]:
-        raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
+
+    if res_latest.status_code not in [201, 202]:
+        raise Exception(f"Error actualizando capa genérica: {res_latest.text}")
     print(f"Capa genérica actualizada: {GENERIC_LAYER}")
 
 
