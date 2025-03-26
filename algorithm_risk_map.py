@@ -140,36 +140,37 @@ def store_in_db(**context):
 
 
 
+# Constantes necesarias
 WORKSPACE = "Modelos_Combustible_2024"
 GENERIC_LAYER = "galicia_mapa_riesgo_latest"
-REMOTE_OUTPUT_DIR = "/home/admin3/algoritmo_mapas_de_riesgo/output"
 
 def publish_to_geoserver(**context):
-    # Obtener lista de archivos .tif encontrados en el paso anterior
+    # Obtener lista de archivos .tif encontrados
     tiff_files = context['task_instance'].xcom_pull(task_ids='check_output_files', key='output_files')
     if not tiff_files:
         raise Exception("No hay archivos para subir a GeoServer.")
 
-    # Seleccionar solo el archivo más reciente (último en orden alfabético)
+    # Seleccionar el TIFF más reciente
     latest_tiff = sorted(tiff_files)[-1]
-    print(f"Publicando solo el TIFF más reciente: {latest_tiff}")
+    print(f"Publicando TIFF más reciente: {latest_tiff}")
 
-    # Construir nombre de capa con timestamp
-    layer_name = f"galicia_mapa_riesgo_{datetime.now().strftime('%Y%m%d_%H%M')}"
+    # Obtener el nombre del archivo, sin extensión
+    layer_name = os.path.splitext(os.path.basename(latest_tiff))[0]
+    print(f"Nombre de capa a publicar: {layer_name}")
 
-    # Leer archivo remoto vía SFTP
+    # Leer archivo TIFF remoto vía SFTP
     with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
         sftp = ssh_client.open_sftp()
         with sftp.file(latest_tiff, 'rb') as remote_file:
             file_data = remote_file.read()
         sftp.close()
-        
-    # Conexión a GeoServer por airflow
+
+    # Conexión a GeoServer (Airflow connection)
     base_url, auth = get_geoserver_connection("geoserver_connection")
     headers = {"Content-type": "image/tiff"}
 
-    # Publicar como nueva capa
-    url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+    # Publicar como nueva capa histórica (usando el nombre original del TIFF)
+    url_new = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
     response = requests.put(
         url_new,
         headers=headers,
@@ -178,11 +179,11 @@ def publish_to_geoserver(**context):
         params={"configure": "all"}
     )
     if response.status_code not in [201, 202]:
-        raise Exception(f"Error publicando {layer_name}: {response.text}")
+        raise Exception(f"Error publicando capa {layer_name}: {response.text}")
     print(f"Capa publicada: {layer_name}")
 
     # Actualizar capa genérica
-    url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+    url_latest = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
     response_latest = requests.put(
         url_latest,
         headers=headers,
