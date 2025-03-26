@@ -154,8 +154,12 @@ def publish_to_geoserver(**context):
     latest_tiff = sorted(tiff_files)[-1]
     print(f"Publicando solo el TIFF más reciente: {latest_tiff}")
 
-    # Construir nombre de capa con timestamp
-    layer_name = f"galicia_mapa_riesgo_{datetime.now().strftime('%Y%m%d_%H%M')}"
+    # Obtener el nombre del archivo sin extensión
+    base_name = os.path.splitext(os.path.basename(latest_tiff))[0]
+
+    # Asegurar prefijo "galicia_" en el nombre de la capa
+    layer_name = base_name if base_name.startswith("galicia_") else f"galicia_{base_name}"
+    print(f"Nombre de capa a publicar: {layer_name}")
 
     # Leer archivo remoto vía SFTP
     with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
@@ -193,6 +197,7 @@ def publish_to_geoserver(**context):
     if response_latest.status_code not in [201, 202]:
         raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
     print(f"Capa genérica actualizada: {GENERIC_LAYER}")
+    print("Proceso de publicación finalizado.")
 
 
 default_args = {
