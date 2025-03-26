@@ -315,7 +315,6 @@ def upload_to_minio(conn_id, bucket_name, file_key, file_content):
         raise
 
 
-
 def get_geoserver_connection(conn_id='geoserver_connection'):
     """
     Devuelve la información de conexión a GeoServer a partir del conn_id.

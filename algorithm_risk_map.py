@@ -150,35 +150,49 @@ def publish_to_geoserver(**context):
     if not tiff_files:
         raise Exception("No hay archivos para subir a GeoServer.")
 
-    # Seleccionar el TIFF más reciente (último alfabéticamente)
+    # Seleccionar solo el archivo más reciente (último en orden alfabético)
     latest_tiff = sorted(tiff_files)[-1]
-    print(f"Publicando TIFF (sobrescribiendo capa): {latest_tiff}")
+    print(f"Publicando solo el TIFF más reciente: {latest_tiff}")
 
-    # Leer el archivo TIFF remoto vía SFTP
+    # Construir nombre de capa con timestamp
+    layer_name = f"galicia_mapa_riesgo_{datetime.now().strftime('%Y%m%d_%H%M')}"
+
+    # Leer archivo remoto vía SFTP
     with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
         sftp = ssh_client.open_sftp()
         with sftp.file(latest_tiff, 'rb') as remote_file:
             file_data = remote_file.read()
         sftp.close()
-
-    # Obtener conexión desde Airflow
+        
+    # Conexión a GeoServer por airflow
     base_url, auth = get_geoserver_connection("geoserver_connection")
     headers = {"Content-type": "image/tiff"}
 
-    # Subir TIFF al mismo coveragestore para reemplazar la capa existente
-    url = f"{base_url}/rest/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+    # Publicar como nueva capa
+    url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
     response = requests.put(
-        url,
+        url_new,
         headers=headers,
         data=file_data,
         auth=auth,
         params={"configure": "all"}
     )
-
     if response.status_code not in [201, 202]:
-        raise Exception(f"Error al actualizar capa: {response.text}")
-    
-    print(f"Capa {GENERIC_LAYER} actualizada correctamente.")
+        raise Exception(f"Error publicando {layer_name}: {response.text}")
+    print(f"Capa publicada: {layer_name}")
+
+    # Actualizar capa genérica
+    url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+    response_latest = requests.put(
+        url_latest,
+        headers=headers,
+        data=file_data,
+        auth=auth,
+        params={"configure": "all"}
+    )
+    if response_latest.status_code not in [201, 202]:
+        raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
+    print(f"Capa genérica actualizada: {GENERIC_LAYER}")
 
 
 default_args = {
