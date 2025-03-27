@@ -7,9 +7,6 @@ from sqlalchemy import create_engine, Table, MetaData, text
 from sqlalchemy.orm import sessionmaker
 from dag_utils import update_job_status, throw_job_error, get_db_session
 
-
-
-
 def receive_data_and_create_fire(**context):
     message = context['dag_run'].conf
     if not message:
@@ -202,6 +199,7 @@ def notify_frontend_additional_event(mission_id, event_name):
     except Exception as e:
         print(f"Error al insertar la notificación: {str(e)}")
         raise
+
 
 # Función para crear una misión, una relación misión-incendio y un historial de estado de misión
 def createMissionMissionFireAndHistoryStatus(msg_json):
