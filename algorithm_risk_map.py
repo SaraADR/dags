@@ -146,7 +146,6 @@ REMOTE_OUTPUT_DIR = "/home/admin3/algoritmo_mapas_de_riesgo/output"
 
 def publish_to_geoserver(**context):
     import os
-    import re
     import requests
     from datetime import datetime
     from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -155,28 +154,28 @@ def publish_to_geoserver(**context):
     WORKSPACE = "Modelos_Combustible_2024"
     GENERIC_LAYER = "galicia_mapa_riesgo_latest"
 
-    # Obtener lista de archivos .tif encontrados
+    # Obtener TIFF más reciente
     tiff_files = context['task_instance'].xcom_pull(task_ids='check_output_files', key='output_files')
     if not tiff_files:
         raise Exception("No hay archivos para subir a GeoServer.")
 
-    # Seleccionar solo el archivo más reciente
     latest_tiff = sorted(tiff_files)[-1]
     print(f"Publicando solo el TIFF más reciente: {latest_tiff}")
 
-    # Obtener nombre del archivo sin extensión
-    base_name = os.path.splitext(os.path.basename(latest_tiff))[0]
-
-    # Extraer timestamp de ICONA del nombre del TIFF
-    match = re.search(r'(\d{8}[_-]?\d{2}h)', base_name)
-    if match:
-        timestamp = match.group(1).replace("-", "_")
+    # Calcular la hora ICONA según la hora actual (redondeando)
+    now = datetime.now()
+    hour = now.hour
+    if hour < 6:
+        icona_hour = "00h"
+    elif hour < 12:
+        icona_hour = "06h"
+    elif hour < 18:
+        icona_hour = "12h"
     else:
-        # Si no se encuentra patrón esperado, usar timestamp actual para evitar sobrescritura
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+        icona_hour = "18h"
 
-    # Construir nombre de capa histórica asegurando prefijo "galicia_"
-    layer_name = f"galicia_mapa_riesgo_{timestamp}"
+    icona_timestamp = now.strftime("%Y%m%d") + f"_{icona_hour}"
+    layer_name = f"galicia_mapa_riesgo_{icona_timestamp}"
     print(f"Nombre de capa a publicar: {layer_name}")
 
     # Leer archivo remoto vía SFTP
@@ -186,11 +185,11 @@ def publish_to_geoserver(**context):
             file_data = remote_file.read()
         sftp.close()
 
-    # Conexión GeoServer
+    # Subir a GeoServer
     base_url, auth = get_geoserver_connection("geoserver_connection")
     headers = {"Content-type": "image/tiff"}
 
-    # 1. Publicar capa histórica
+    # Capa histórica
     url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
     response = requests.put(
         url_new,
@@ -203,7 +202,7 @@ def publish_to_geoserver(**context):
         raise Exception(f"Error publicando {layer_name}: {response.text}")
     print(f"Capa publicada: {layer_name}")
 
-    # 2. Actualizar capa genérica "latest"
+    # Capa latest
     url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
     response_latest = requests.put(
         url_latest,
@@ -215,6 +214,7 @@ def publish_to_geoserver(**context):
     if response_latest.status_code not in [201, 202]:
         raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
     print(f"Capa genérica actualizada: {GENERIC_LAYER}")
+
 
 
 default_args = {
