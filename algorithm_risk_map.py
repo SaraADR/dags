@@ -146,6 +146,7 @@ REMOTE_OUTPUT_DIR = "/home/admin3/algoritmo_mapas_de_riesgo/output"
 
 def publish_to_geoserver(**context):
     import os
+    import re
     import requests
     from datetime import datetime
     from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -162,30 +163,30 @@ def publish_to_geoserver(**context):
     latest_tiff = sorted(tiff_files)[-1]
     print(f"Publicando solo el TIFF más reciente: {latest_tiff}")
 
-    # Calcular la hora ICONA según la hora actual (redondeando)
-    now = datetime.now()
-    hour = now.hour
-    if hour < 6:
-        icona_hour = "00h"
-    elif hour < 12:
-        icona_hour = "06h"
-    elif hour < 18:
-        icona_hour = "12h"
-    else:
-        icona_hour = "18h"
+    # Obtener nombre base del TIFF sin extensión
+    base_name = os.path.splitext(os.path.basename(latest_tiff))[0]
 
-    icona_timestamp = now.strftime("%Y%m%d") + f"_{icona_hour}"
+    # Extraer fecha y hora ICONA del nombre del TIFF
+    match = re.search(r'(\d{4})-(\d{2})-(\d{2})(\d{1,2})h', base_name)
+    if match:
+        yyyy, mm, dd, hh = match.groups()
+        hh = hh.zfill(2)  # Asegurar que la hora tenga dos dígitos
+        icona_timestamp = f"{yyyy}{mm}{dd}_{hh}h"
+    else:
+        raise Exception(f"No se pudo extraer fecha/hora ICONA del nombre: {base_name}")
+
+    # Construir nombre de capa final
     layer_name = f"galicia_mapa_riesgo_{icona_timestamp}"
     print(f"Nombre de capa a publicar: {layer_name}")
 
-    # Leer archivo remoto vía SFTP
+    # Leer archivo TIFF remoto vía SFTP
     with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
         sftp = ssh_client.open_sftp()
         with sftp.file(latest_tiff, 'rb') as remote_file:
             file_data = remote_file.read()
         sftp.close()
 
-    # Subir a GeoServer
+    # Subida a GeoServer
     base_url, auth = get_geoserver_connection("geoserver_connection")
     headers = {"Content-type": "image/tiff"}
 
@@ -202,7 +203,7 @@ def publish_to_geoserver(**context):
         raise Exception(f"Error publicando {layer_name}: {response.text}")
     print(f"Capa publicada: {layer_name}")
 
-    # Capa latest
+    # Capa fija (latest)
     url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
     response_latest = requests.put(
         url_latest,
@@ -214,6 +215,7 @@ def publish_to_geoserver(**context):
     if response_latest.status_code not in [201, 202]:
         raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
     print(f"Capa genérica actualizada: {GENERIC_LAYER}")
+
 
 
 
