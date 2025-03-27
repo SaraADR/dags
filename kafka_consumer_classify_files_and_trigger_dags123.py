@@ -35,6 +35,7 @@ def consumer_function(message, prefix, **kwargs):
     s3_client = get_minio_client()
 
 
+
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'tmp'
     folder_prefix = 'sftp/'
