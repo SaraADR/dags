@@ -9,6 +9,7 @@ from dag_utils import update_job_status, throw_job_error, get_db_session
 
 def receive_data_and_create_fire(**context):
 
+
     print("EJECUCION RECIBIDA")
     message = context['dag_run'].conf
     if not message:
