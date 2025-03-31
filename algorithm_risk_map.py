@@ -156,7 +156,7 @@ def set_geoserver_style(layer_name, base_url, auth, style_name):
     response = requests.put(url, headers=headers, data=payload, auth=auth)
     if response.status_code not in [200, 201]:
         raise Exception(f"Error asignando estilo a {layer_name}: {response.text}")
-    print(f"✅ Estilo '{style_name}' aplicado a capa '{layer_name}'")
+    print(f"Estilo '{style_name}' aplicado a capa '{layer_name}'")
 
 def publish_to_geoserver(**context):
 
