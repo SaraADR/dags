@@ -9,8 +9,7 @@ from dag_utils import execute_query, get_geoserver_connection
 import time
 import requests
 from requests.auth import HTTPBasicAuth
-import os
-
+import re
 
 def execute_docker_process(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
@@ -144,13 +143,22 @@ WORKSPACE = "Modelos_Combustible_2024"
 GENERIC_LAYER = "galicia_mapa_riesgo_latest"
 REMOTE_OUTPUT_DIR = "/home/admin3/algoritmo_mapas_de_riesgo/output"
 
+def set_geoserver_style(layer_name, base_url, auth, style_name):
+    url = f"{base_url}/layers/Modelos_Combustible_2024:{layer_name}"
+    headers = {"Content-Type": "application/xml"}
+    payload = f"""
+        <layer>
+            <defaultStyle>
+                <name>{style_name}</name>
+            </defaultStyle>
+        </layer>
+    """
+    response = requests.put(url, headers=headers, data=payload, auth=auth)
+    if response.status_code not in [200, 201]:
+        raise Exception(f"Error asignando estilo a {layer_name}: {response.text}")
+    print(f"✅ Estilo '{style_name}' aplicado a capa '{layer_name}'")
+
 def publish_to_geoserver(**context):
-    import os
-    import re
-    import requests
-    from datetime import datetime
-    from airflow.providers.ssh.hooks.ssh import SSHHook
-    from dag_utils import get_geoserver_connection
 
     WORKSPACE = "Modelos_Combustible_2024"
     GENERIC_LAYER = "galicia_mapa_riesgo_latest"
@@ -216,6 +224,9 @@ def publish_to_geoserver(**context):
         raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
     print(f"Capa genérica actualizada: {GENERIC_LAYER}")
 
+     # Asignar estilo automáticamente
+    set_geoserver_style(layer_name, base_url, auth, "thermographic")
+    set_geoserver_style("galicia_mapa_riesgo_latest", base_url, auth, "thermographic")
 
 
 
