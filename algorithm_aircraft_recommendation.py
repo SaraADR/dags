@@ -9,7 +9,7 @@ def print_input_data(**context):
     print(json.dumps(input_data, indent=2))
 
     mission_data = input_data.get('missionData', [])
-    print(f"➡️ Total misiones recibidas: {len(mission_data)}")
+    print(f"Total misiones recibidas: {len(mission_data)}")
 
     for i, mission in enumerate(mission_data, start=1):
         print(f"\n Misión #{i}:")
