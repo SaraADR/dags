@@ -5,14 +5,14 @@ import json
 
 def print_input_data(**context):
     input_data = context['dag_run'].conf.get('inputData', {})
-    print("\n📥 inputData recibido:")
+    print("\n inputData recibido:")
     print(json.dumps(input_data, indent=2))
 
     mission_data = input_data.get('missionData', [])
     print(f"➡️ Total misiones recibidas: {len(mission_data)}")
 
     for i, mission in enumerate(mission_data, start=1):
-        print(f"\n🧭 Misión #{i}:")
+        print(f"\n Misión #{i}:")
         print(json.dumps(mission, indent=2))
 
 
