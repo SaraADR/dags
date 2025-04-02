@@ -53,9 +53,9 @@ def process_message(msg_value, **kwargs):
             elif job == 'convert-ts-to-mp4':
                 dag_to_trigger = 'convert_ts_to_mp4_dag'
             elif job == 'cma-recommender':
-                dag_to_trigger = 'algorithm_aircraft_assignment'
-            elif job == 'cma-planner':
                 dag_to_trigger = 'algorithm_aircraft_recommendation'
+            elif job == 'cma-planner':
+                dag_to_trigger = 'algorithm_aircraft_planificator'
             else:
                 print(f"Unrecognized job type: {job}")
                 raise AirflowSkipException(f"Unrecognized job type: {job}")
