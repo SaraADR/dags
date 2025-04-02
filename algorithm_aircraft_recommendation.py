@@ -58,7 +58,8 @@ def execute_algorithm_remote(**context):
         print("Conexión con servidor interno (10.38.9.6) establecida")
 
         # Ejecutar el algoritmo remoto
-        cmd = 'cd ~/algoritmo && source venv/bin/activate && python call_recomendador.py input/input_data_aeronaves.txt'
+        # cmd = 'cd ~/algoritmo && source venv/bin/activate && python call_recomendador.py input/input_data_aeronaves.txt'
+        cmd = 'ls -la ~'
         print(f"Ejecutando comando remoto:\n{cmd}")
         stdin, stdout, stderr = target_client.exec_command(cmd)
 
