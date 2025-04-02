@@ -61,6 +61,7 @@ def process_message(msg_value, **kwargs):
                 raise AirflowSkipException(f"Unrecognized job type: {job}")
 
 
+
             trigger_dag_run = TriggerDagRunOperator(
                 task_id=f'trigger_{job}_handler_{id_sesion}',
                 trigger_dag_id=dag_to_trigger,
