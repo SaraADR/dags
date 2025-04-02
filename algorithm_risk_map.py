@@ -158,37 +158,53 @@ def set_geoserver_style(layer_name, base_url, auth, style_name):
         raise Exception(f"Error asignando estilo a {layer_name}: {response.text}")
     print(f"Estilo '{style_name}' aplicado a capa '{layer_name}'")
 
-def publish_to_geoserver(**context):
+def get_latest_file(ssh_client, file_list):
+    sftp = ssh_client.open_sftp()
+    latest = None
+    latest_time = None
+    for f in file_list:
+        try:
+            attr = sftp.stat(f)
+            if latest_time is None or attr.st_mtime > latest_time:
+                latest = f
+                latest_time = attr.st_mtime
+        except Exception as e:
+            print(f"No se pudo acceder a {f}: {e}")
+    sftp.close()
+    return latest
 
+def publish_to_geoserver(**context):
     WORKSPACE = "Modelos_Combustible_2024"
     GENERIC_LAYER = "galicia_mapa_riesgo_latest"
 
-    # Obtener TIFF más reciente
     tiff_files = context['task_instance'].xcom_pull(task_ids='check_output_files', key='output_files')
     if not tiff_files:
         raise Exception("No hay archivos para subir a GeoServer.")
 
-    latest_tiff = sorted(tiff_files)[-1]
-    print(f"Publicando solo el TIFF más reciente: {latest_tiff}")
-
-    # Obtener nombre base del TIFF sin extensión
-    base_name = os.path.splitext(os.path.basename(latest_tiff))[0]
-
-    # Extraer fecha y hora ICONA del nombre del TIFF
-    match = re.search(r'(\d{4})-(\d{2})-(\d{2})(\d{1,2})h', base_name)
-    if match:
-        yyyy, mm, dd, hh = match.groups()
-        hh = hh.zfill(2)  # Asegurar que la hora tenga dos dígitos
-        icona_timestamp = f"{yyyy}{mm}{dd}_{hh}h"
-    else:
-        raise Exception(f"No se pudo extraer fecha/hora ICONA del nombre: {base_name}")
-
-    # Construir nombre de capa final
-    layer_name = f"galicia_mapa_riesgo_{icona_timestamp}"
-    print(f"Nombre de capa a publicar: {layer_name}")
-
-    # Leer archivo TIFF remoto vía SFTP
     with SSHHook(ssh_conn_id="my_ssh_conn").get_conn() as ssh_client:
+        latest_tiff = get_latest_file(ssh_client, tiff_files)
+
+        if not latest_tiff:
+            raise Exception("No se pudo determinar el archivo TIFF más reciente.")
+        
+        print(f"Publicando TIFF más reciente (por fecha real): {latest_tiff}")
+
+        # Obtener nombre base del TIFF sin extensión
+        base_name = os.path.splitext(os.path.basename(latest_tiff))[0]
+
+        # Extraer fecha y hora ICONA del nombre del TIFF
+        match = re.search(r'(\d{4})-(\d{2})-(\d{2})(\d{1,2})h', base_name)
+        if match:
+            yyyy, mm, dd, hh = match.groups()
+            hh = hh.zfill(2)
+            icona_timestamp = f"{yyyy}{mm}{dd}_{hh}h"
+        else:
+            raise Exception(f"No se pudo extraer fecha/hora ICONA del nombre: {base_name}")
+
+        layer_name = f"galicia_mapa_riesgo_{icona_timestamp}"
+        print(f"Nombre de capa a publicar: {layer_name}")
+
+        # Leer archivo remoto
         sftp = ssh_client.open_sftp()
         with sftp.file(latest_tiff, 'rb') as remote_file:
             file_data = remote_file.read()
@@ -200,36 +216,24 @@ def publish_to_geoserver(**context):
 
     # Capa histórica
     url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
-    response = requests.put(
-        url_new,
-        headers=headers,
-        data=file_data,
-        auth=auth,
-        params={"configure": "all"}
-    )
+    response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
     if response.status_code not in [201, 202]:
         raise Exception(f"Error publicando {layer_name}: {response.text}")
     print(f"Capa publicada: {layer_name}")
 
-    # Capa fija (latest)
+    # Capa genérica
     url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
-    response_latest = requests.put(
-        url_latest,
-        headers=headers,
-        data=file_data,
-        auth=auth,
-        params={"configure": "all"}
-    )
+    response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
     if response_latest.status_code not in [201, 202]:
         raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
     print(f"Capa genérica actualizada: {GENERIC_LAYER}")
 
-     # Asignar estilo automáticamente
+    # Estilo
     set_geoserver_style(layer_name, base_url, auth, "thermographic")
     set_geoserver_style("galicia_mapa_riesgo_latest", base_url, auth, "thermographic")
 
 
-
+# Definición del DAG
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
