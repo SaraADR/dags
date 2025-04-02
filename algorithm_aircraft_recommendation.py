@@ -51,7 +51,7 @@ default_args = {
 }
 
 dag = DAG(
-    'test_ssh_connection_avincis_2',
+    'algorithm_aircraft_recommendation',
     default_args=default_args,
     schedule_interval=None,
     catchup=False
