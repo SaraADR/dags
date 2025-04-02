@@ -60,6 +60,7 @@ def execute_algorithm_remote(**context):
         # Ejecutar el algoritmo remoto
         # cmd = 'cd ~/algoritmo && source venv/bin/activate && python call_recomendador.py input/input_data_aeronaves.txt'
         cmd = 'ls -la ~'
+        cmd = 'find ~ -type f -name "call_recomendador.py" 2>/dev/null'
         print(f"Ejecutando comando remoto:\n{cmd}")
         stdin, stdout, stderr = target_client.exec_command(cmd)
 
