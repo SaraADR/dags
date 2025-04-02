@@ -55,29 +55,33 @@ def process_element(**context):
             print(f"Error al intentar conectarse o ejecutar un comando: {e}")
 
 
-        # with jump_host_hook.get_conn() as jump_host_client:
-        #     print("✅ Conexión SSH con máquina intermedia exitosa")
+        with jump_host_hook.get_conn() as jump_host_client:
+            print("Conexión SSH con máquina intermedia exitosa")
 
-        #     transport = jump_host_client.get_transport()
-        #     dest_addr = ('10.38.9.6', 22)
-        #     local_addr = ('127.0.0.1', 0)
+            transport = jump_host_client.get_transport()
+            dest_addr = ('10.38.9.6', 22)
+            local_addr = ('127.0.0.1', 0)
 
-        #     jump_channel = transport.open_channel("direct-tcpip", dest_addr, local_addr)
+            jump_channel = transport.open_channel("direct-tcpip", dest_addr, local_addr)
 
-        #     second_client = paramiko.SSHClient()
-        #     second_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            second_client = paramiko.SSHClient()
+            second_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        #     second_client.connect(
-        #         '10.38.9.6',
-        #         username='usuario_destino',
-        #         sock=jump_channel
-        #     )
-        #     print("✅ Conexión SSH con servidor privado exitosa")
+            second_client.connect(
+                '10.38.9.6',
+                username='airflow-executor',
+                sock=jump_channel,
+                key_filename=temp_file_path
+            )
+            print("Conexión SSH con servidor privado exitosa")
 
-        #     stdin, stdout, stderr = second_client.exec_command('ls /ruta/deseada')
-        #     print("📂 Archivos en el servidor destino:", stdout.read().decode())
+            stdin, stdout, stderr = second_client.exec_command('ls')
+            print("Archivos en el servidor destino:")
+            print(stdout.read().decode())
+            print("Errores (si hay):")
+            print(stderr.read().decode())
 
-        #     second_client.close()
+            second_client.close()
 
     finally:
         os.remove(temp_file_path)
