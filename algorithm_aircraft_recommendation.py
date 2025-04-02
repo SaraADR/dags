@@ -52,7 +52,8 @@ def execute_algorithm_remote(**context):
         target_client.connect(
             hostname="10.38.9.6",
             username="airflow-executor",
-            sock=jump_channel
+            sock=jump_channel,
+            key_filename=temp_file_path
         )
         print("Conexión con servidor interno (10.38.9.6) establecida")
 
