@@ -11,16 +11,16 @@ from airflow.hooks.base import BaseHook
 
 def execute_algorithm_remote(**context):
     # Leer inputData desde el trigger
-    input_data = context['dag_run'].conf.get('inputData', {})
+    input_data = context['dag_run'].conf.get('inputData', '')
     print("InputData recibido:")
-    print(json.dumps(input_data, indent=2))
+    print(input_data)
 
     # Configuración de conexión SSH
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
-    username = ssh_conn.login  # ← usará airflow-executor
+    username = ssh_conn.login  # airflow-executor
 
-    # Obtener la clave desde la variable codificada
+    # Obtener la clave desde Variable
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
         temp_file.write(ssh_key_decoded)
@@ -38,7 +38,7 @@ def execute_algorithm_remote(**context):
         )
         print("Conexión SSH al bastión establecida")
 
-        # Hacer salto al servidor interno
+        # Salto al servidor destino
         jump_transport = bastion.get_transport()
         jump_channel = jump_transport.open_channel(
             "direct-tcpip",
@@ -46,7 +46,6 @@ def execute_algorithm_remote(**context):
             src_addr=("127.0.0.1", 0)
         )
 
-        # Conectar al servidor interno usando el mismo usuario
         target_client = paramiko.SSHClient()
         target_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         target_client.connect(
@@ -55,15 +54,24 @@ def execute_algorithm_remote(**context):
             sock=jump_channel,
             key_filename=temp_file_path
         )
-        print("Conexión con servidor interno (10.38.9.6) establecida")
+        print("Conexión con servidor interno establecida")
 
-        # Ejecutar el algoritmo remoto
-        # cmd = 'cd ~/algoritmo && source venv/bin/activate && python call_recomendador.py input/input_data_aeronaves.txt'
-        # cmd = 'for d in /home /opt /srv /data /var /usr /root; do echo "Contenido de: $d" && ls -la $d; echo ""; done'
-        cmd = 'ls -l /algoritms/algoritmo-recomendador-objetivo-5'
+        # Crear el archivo input en el servidor remoto
+        remote_input_path = '/algoritms/algoritmo-recomendador-objetivo-5/Input/input_data_aeronaves.txt'
+        sftp = target_client.open_sftp()
+        with sftp.file(remote_input_path, 'w') as remote_file:
+            remote_file.write(input_data)
+        sftp.close()
+        print(f"Input guardado en: {remote_input_path}")
 
+        # Ejecutar el algoritmo
+        cmd = (
+            'cd /algoritms/algoritmo-recomendador-objetivo-5 && '
+            'source venv/bin/activate && '
+            'python call_recomendador.py Input/input_data_aeronaves.txt'
+        )
 
-        print(f"Ejecutando comando remoto:\n{cmd}")
+        print(f"Ejecutando comando:\n{cmd}")
         stdin, stdout, stderr = target_client.exec_command(cmd)
 
         print("STDOUT:")
@@ -79,6 +87,7 @@ def execute_algorithm_remote(**context):
     finally:
         os.remove(temp_file_path)
 
+# DAG config
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
@@ -92,7 +101,7 @@ default_args = {
 dag = DAG(
     'algorithm_aircraft_planificator',
     default_args=default_args,
-    description='Ejecuta algoritmo de recomendación remoto en Avincis',
+    description='Ejecuta algoritmo de planificación en servidor Avincis',
     schedule_interval=None,
     catchup=False,
     max_active_runs=1,

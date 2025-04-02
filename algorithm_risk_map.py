@@ -107,6 +107,7 @@ def store_in_db(**context):
 
     # Tomamos el primer archivo .tif como ejemplo
     generated_file = os.path.basename(tiff_files[0]) if isinstance(tiff_files, list) else tiff_files
+    generated_file_path = tiff_files[0] if isinstance(tiff_files, list) else tiff_files
 
     datos = {
         "sampled_feature": "mapa_riesgo",
@@ -118,6 +119,7 @@ def store_in_db(**context):
         "output_data": json.dumps({
             "status": process_info["status"],
             "generated_tiff": generated_file,
+            "remote_path": generated_file_path,  
             "docker_output": process_info["docker_output"],
             "docker_errors": process_info["docker_errors"]
         })
