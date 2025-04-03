@@ -11,10 +11,11 @@ from airflow.hooks.base import BaseHook
 
 def execute_algorithm_remote(**context):
     # Leer inputData desde el trigger
-    conf = context.get("dag_run").conf
-    input_data = conf.get('inputData', '')
-
-    print("InputData recibido:")
+    message = context['dag_run'].conf
+    input_data_str = message['message']['input_data']
+    input_data = json.loads(input_data_str)
+    task_type = message['message']['job']
+    from_user = message['message']['from_user']
     print(input_data)
 
     # Configuración de conexión SSH
