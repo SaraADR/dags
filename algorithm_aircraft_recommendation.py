@@ -13,6 +13,7 @@ def execute_algorithm_remote(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
+    print(input_data)
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
@@ -46,10 +47,17 @@ def execute_algorithm_remote(**context):
         )
 
         sftp = target_client.open_sftp()
-        remote_input_path = '/algoritms/algoritmo-asignacion-aeronaves-objetivo-5/Input/input.json'
+        remote_input_dir = '/algoritms/algoritmo-asignacion-aeronaves-objetivo-5/Input'
+        remote_input_path = f'{remote_input_dir}/input.json'
+
+        try:
+            sftp.stat(remote_input_dir)
+        except FileNotFoundError:
+            sftp.mkdir(remote_input_dir)
 
         with sftp.file(remote_input_path, 'w') as remote_file:
             remote_file.write(json.dumps(input_data, indent=2))
+
         sftp.close()
 
         cmd = (
