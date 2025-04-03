@@ -5,6 +5,7 @@ import json
 import base64
 import tempfile
 import os
+import uuid
 import paramiko
 from airflow.models import Variable
 from airflow.hooks.base import BaseHook
@@ -47,23 +48,29 @@ def execute_algorithm_remote(**context):
         )
 
         sftp = target_client.open_sftp()
-        remote_input_dir = '/algoritms/algoritmo-asignacion-aeronaves-objetivo-5/Input'
-        remote_input_path = f'{remote_input_dir}/input.json'
 
-        try:
-            sftp.stat(remote_input_dir)
-        except FileNotFoundError:
-            sftp.mkdir(remote_input_dir)
+        exec_id = f"EJECUCION_{uuid.uuid4().hex}"
+        base_path = f"/algoritms/executions/{exec_id}"
+        input_dir = f"{base_path}/input"
+        output_dir = f"{base_path}/output"
+        input_file = f"{input_dir}/input.json"
+        output_file = f"{output_dir}/output.json"
 
-        with sftp.file(remote_input_path, 'w') as remote_file:
+        for path in [base_path, input_dir, output_dir]:
+            try:
+                sftp.stat(path)
+            except FileNotFoundError:
+                sftp.mkdir(path)
+
+        with sftp.file(input_file, 'w') as remote_file:
             remote_file.write(json.dumps(input_data, indent=2))
 
         sftp.close()
 
         cmd = (
-            'cd /algoritms/algoritmo-asignacion-aeronaves-objetivo-5 && '
-            'source venv/bin/activate && '
-            'python call_asignador.py Input/input.json'
+            f'cd /algoritms/algoritmo-asignacion-aeronaves-objetivo-5 && '
+            f'source venv/bin/activate && '
+            f'python call_asignador.py {input_file} {output_file}'
         )
 
         stdin, stdout, stderr = target_client.exec_command(cmd)
@@ -101,6 +108,7 @@ process_element_task = PythonOperator(
     python_callable=execute_algorithm_remote,
     dag=dag,
 )
+
 
 
 # def process_element(**context):
