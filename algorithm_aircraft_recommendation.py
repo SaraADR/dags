@@ -1,7 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
-import json
 import base64
 import tempfile
 import os
@@ -9,12 +8,7 @@ import paramiko
 from airflow.models import Variable
 from airflow.hooks.base import BaseHook
 
-def execute_algorithm_remote(**context):
-    message = context['dag_run'].conf
-    input_data_str = message['message']['input_data']
-    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
-    print(input_data)
-
+def remote_ls():
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
     username = ssh_conn.login
@@ -46,28 +40,12 @@ def execute_algorithm_remote(**context):
             key_filename=temp_file_path
         )
 
-        sftp = target_client.open_sftp()
-
-        assignment_id = input_data.get("assignmentId")
-        if not assignment_id:
-            raise Exception("assignmentId is required in input_data")
-
-        base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
-        input_file = f"{base_path}/input/input.json"
-        output_file = f"{base_path}/output/output.json"
-
-        with sftp.file(input_file, 'w') as remote_file:
-            remote_file.write(json.dumps(input_data, indent=2))
-
-        sftp.close()
-
-        cmd = (
-            f'cd /algoritms/algoritmo-asignacion-aeronaves-objetivo-5 && '
-            f'python3 call_aircraft_dispatch.py {input_file} {output_file}'
-        )
-
+        cmd = "ls -la /algoritms"
         stdin, stdout, stderr = target_client.exec_command(cmd)
+
+        print("--- STDOUT ---")
         print(stdout.read().decode())
+        print("--- STDERR ---")
         print(stderr.read().decode())
 
         target_client.close()
@@ -78,29 +56,148 @@ def execute_algorithm_remote(**context):
 
 default_args = {
     'owner': 'sara',
-    'depends_on_past': False,
     'start_date': datetime(2025, 1, 3),
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=1),
+    'retries': 0,
 }
 
-dag = DAG(
-    'algorithm_aircraft_recommendation',
+with DAG(
+    dag_id='algorithm_aircraft_recommendation',
     default_args=default_args,
-    description='Ejecuta algoritmo de asignación en servidor Avincis',
     schedule_interval=None,
-    catchup=False,
-    max_active_runs=1,
-    concurrency=1
-)
+    catchup=False
+) as dag:
 
-process_element_task = PythonOperator(
-    task_id='execute_assignation_algorithm',
-    python_callable=execute_algorithm_remote,
-    dag=dag,
-)
+    inspect_algoritms_folder = PythonOperator(
+        task_id='ls_algoritms',
+        python_callable=remote_ls
+    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# from airflow import DAG
+# from airflow.operators.python import PythonOperator
+# from datetime import datetime, timedelta
+# import json
+# import base64
+# import tempfile
+# import os
+# import paramiko
+# from airflow.models import Variable
+# from airflow.hooks.base import BaseHook
+
+# def execute_algorithm_remote(**context):
+#     message = context['dag_run'].conf
+#     input_data_str = message['message']['input_data']
+#     input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
+#     print(input_data)
+
+#     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
+#     hostname = ssh_conn.host
+#     username = ssh_conn.login
+
+#     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
+#     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+#         temp_file.write(ssh_key_decoded)
+#         temp_file_path = temp_file.name
+#     os.chmod(temp_file_path, 0o600)
+
+#     try:
+#         bastion = paramiko.SSHClient()
+#         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+#         bastion.connect(hostname=hostname, username=username, key_filename=temp_file_path)
+
+#         jump_transport = bastion.get_transport()
+#         jump_channel = jump_transport.open_channel(
+#             "direct-tcpip",
+#             dest_addr=("10.38.9.6", 22),
+#             src_addr=("127.0.0.1", 0)
+#         )
+
+#         target_client = paramiko.SSHClient()
+#         target_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+#         target_client.connect(
+#             hostname="10.38.9.6",
+#             username="airflow-executor",
+#             sock=jump_channel,
+#             key_filename=temp_file_path
+#         )
+
+#         sftp = target_client.open_sftp()
+
+#         assignment_id = input_data.get("assignmentId")
+#         if not assignment_id:
+#             raise Exception("assignmentId is required in input_data")
+
+#         base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
+#         input_file = f"{base_path}/input/input.json"
+#         output_file = f"{base_path}/output/output.json"
+
+#         with sftp.file(input_file, 'w') as remote_file:
+#             remote_file.write(json.dumps(input_data, indent=2))
+
+#         sftp.close()
+
+#         cmd = (
+#             f'cd /algoritms/algoritmo-asignacion-aeronaves-objetivo-5 && '
+#             f'python3 call_aircraft_dispatch.py {input_file} {output_file}'
+#         )
+
+#         stdin, stdout, stderr = target_client.exec_command(cmd)
+#         print(stdout.read().decode())
+#         print(stderr.read().decode())
+
+#         target_client.close()
+#         bastion.close()
+
+#     finally:
+#         os.remove(temp_file_path)
+
+# default_args = {
+#     'owner': 'sara',
+#     'depends_on_past': False,
+#     'start_date': datetime(2025, 1, 3),
+#     'email_on_failure': False,
+#     'email_on_retry': False,
+#     'retries': 1,
+#     'retry_delay': timedelta(minutes=1),
+# }
+
+# dag = DAG(
+#     'algorithm_aircraft_recommendation',
+#     default_args=default_args,
+#     description='Ejecuta algoritmo de asignación en servidor Avincis',
+#     schedule_interval=None,
+#     catchup=False,
+#     max_active_runs=1,
+#     concurrency=1
+# )
+
+# process_element_task = PythonOperator(
+#     task_id='execute_assignation_algorithm',
+#     python_callable=execute_algorithm_remote,
+#     dag=dag,
+# )
 
 
 
