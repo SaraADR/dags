@@ -6,7 +6,6 @@ import base64
 import tempfile
 import os
 import paramiko
-import uuid
 from airflow.models import Variable
 from airflow.hooks.base import BaseHook
 
@@ -49,26 +48,22 @@ def execute_algorithm_remote(**context):
 
         sftp = target_client.open_sftp()
 
-        exec_id = f"EJECUCION_{uuid.uuid4().hex}"
-        base_path = f"/algoritms/executions/{exec_id}"
-        input_dir = f"{base_path}/input"
-        output_dir = f"{base_path}/output"
-        input_file = f"{input_dir}/input.json"
-        output_file = f"{output_dir}/output.json"
+        assignment_id = input_data.get("assignmentId")
+        if not assignment_id:
+            raise Exception("assignmentId is required in input_data")
 
-        for path in [base_path, input_dir, output_dir]:
-            try:
-                sftp.stat(path)
-            except FileNotFoundError:
-                sftp.mkdir(path)
+        base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
+        input_file = f"{base_path}/input/input.json"
+        output_file = f"{base_path}/output/output.json"
 
         with sftp.file(input_file, 'w') as remote_file:
             remote_file.write(json.dumps(input_data, indent=2))
+
         sftp.close()
 
         cmd = (
-            f"cd /algoritms/algoritmo-recomendador-objetivo-5 && "
-            f"python3 call_aircraft_dispatch.py {input_file} {output_file}"
+            f'cd /algoritms/algoritmo-asignacion-aeronaves-objetivo-5 && '
+            f'python3 call_aircraft_dispatch.py {input_file} {output_file}'
         )
 
         stdin, stdout, stderr = target_client.exec_command(cmd)
@@ -83,48 +78,29 @@ def execute_algorithm_remote(**context):
 
 default_args = {
     'owner': 'sara',
+    'depends_on_past': False,
     'start_date': datetime(2025, 1, 3),
+    'email_on_failure': False,
+    'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
 }
 
-with DAG(
-    dag_id='algorithm_aircraft_recommendation',
+dag = DAG(
+    'algorithm_aircraft_recommendation',
     default_args=default_args,
-    description='Ejecuta algoritmo recomendador de medios aéreos en servidor Avincis',
+    description='Ejecuta algoritmo de asignación en servidor Avincis',
     schedule_interval=None,
     catchup=False,
     max_active_runs=1,
     concurrency=1
-) as dag:
+)
 
-    process_element_task = PythonOperator(
-        task_id='execute_assignation_algorithm',
-        python_callable=execute_algorithm_remote,
-    )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+process_element_task = PythonOperator(
+    task_id='execute_assignation_algorithm',
+    python_callable=execute_algorithm_remote,
+    dag=dag,
+)
 
 
 
