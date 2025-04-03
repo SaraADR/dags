@@ -53,8 +53,16 @@ def execute_algorithm_remote(**context):
             raise Exception("assignmentId is required in input_data")
 
         base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
-        input_file = f"{base_path}/input/input.json"
-        output_file = f"{base_path}/output/output.json"
+        input_dir = f"{base_path}/input"
+        output_dir = f"{base_path}/output"
+        input_file = f"{input_dir}/input.json"
+        output_file = f"{output_dir}/output.json"
+
+        for path in [base_path, input_dir, output_dir]:
+            try:
+                sftp.stat(path)
+            except FileNotFoundError:
+                sftp.mkdir(path)
 
         with sftp.file(input_file, 'w') as remote_file:
             remote_file.write(json.dumps(input_data, indent=2))
