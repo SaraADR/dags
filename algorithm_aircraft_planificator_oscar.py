@@ -1,108 +1,100 @@
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-from datetime import datetime, timedelta
 import json
+import os
 import base64
 import tempfile
-import os
 import paramiko
 from airflow.models import Variable
 from airflow.hooks.base import BaseHook
+from airflow.providers.ssh.hooks.ssh import SSHHook
 
-def execute_algorithm_remote(**context):
+def process_element(**context):
     raw_conf = context['dag_run'].conf
-
     if not raw_conf:
         raise ValueError("No se recibió mensaje en dag_run.conf")
 
+    message = raw_conf[0] if isinstance(raw_conf, list) else raw_conf
+    input_data_str = message.get("input_data", "")
+    if not input_data_str:
+        raise ValueError("input_data no proporcionado")
+
     try:
-        full_message = raw_conf[0] if isinstance(raw_conf, list) else raw_conf
-        input_data_raw = full_message.get("input_data", "")
+        input_data = json.loads(input_data_str)
+    except json.JSONDecodeError:
+        raise ValueError("input_data no es un JSON válido")
 
-        if not input_data_raw:
-            raise ValueError("input_data no proporcionado")
+    assignment_id = input_data.get("assignmentId")
+    if not assignment_id:
+        raise ValueError("Falta assignmentId")
 
-        try:
-            input_data_dict = json.loads(input_data_raw)
-        except json.JSONDecodeError:
-            raise ValueError("input_data no es un JSON válido")
+    input_txt = (
+        f"medios=a\n"
+        f"url1=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/get?id={assignment_id}\n"
+        f"url2=https://pre.atcservices.cirpas.gal/rest/FlightQueryService/searchByCriteria\n"
+        f"url3=https://pre.atcservices.cirpas.gal/rest/FlightReportService/getReport\n"
+        f"url4=https://pre.atcservices.cirpas.gal/rest/AircraftStatusService/getAll\n"
+        f"url5=https://pre.atcservices.cirpas.gal/rest/AircraftBaseService/getAll\n"
+        f"url6=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/update\n"
+        f"user=ITMATI.DES\n"
+        f"password=Cui_1234\n"
+        f"modelos_aeronave=input/modelos_vehiculo.csv"
+    )
 
-        assignment_id = input_data_dict.get("assignmentId", "")
-        if not assignment_id:
-            raise ValueError("Falta assignmentId en input_data")
+    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p")).decode("utf-8")
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+        temp_file.write(ssh_key_decoded)
+        temp_file_path = temp_file.name
+    os.chmod(temp_file_path, 0o600)
 
-        input_txt = (
-            f"medios=a\n"
-            f"url1=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/get?id={assignment_id}\n"
-            f"url2=https://pre.atcservices.cirpas.gal/rest/FlightQueryService/searchByCriteria\n"
-            f"url3=https://pre.atcservices.cirpas.gal/rest/FlightReportService/getReport\n"
-            f"url4=https://pre.atcservices.cirpas.gal/rest/AircraftStatusService/getAll\n"
-            f"url5=https://pre.atcservices.cirpas.gal/rest/AircraftBaseService/getAll\n"
-            f"url6=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/update\n"
-            f"user=ITMATI.DES\n"
-            f"password=Cui_1234\n"
-            f"modelos_aeronave=input/modelos_vehiculo.csv"
+    try:
+        jump_host_hook = SSHHook(
+            ssh_conn_id='ssh_avincis',
+            key_file=temp_file_path
         )
 
-        ssh_conn = BaseHook.get_connection("ssh_avincis_2")
-        hostname = ssh_conn.host
-        username = ssh_conn.login
+        with jump_host_hook.get_conn() as jump_host_client:
+            transport = jump_host_client.get_transport()
+            dest_addr = ('10.38.9.6', 22)
+            local_addr = ('127.0.0.1', 0)
 
-        ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
-        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
-            temp_file.write(ssh_key_decoded)
-            temp_file_path = temp_file.name
-        os.chmod(temp_file_path, 0o600)
+            jump_channel = transport.open_channel("direct-tcpip", dest_addr, local_addr)
 
-        try:
-            bastion = paramiko.SSHClient()
-            bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            bastion.connect(hostname=hostname, username=username, key_filename=temp_file_path)
+            second_client = paramiko.SSHClient()
+            second_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-            jump_transport = bastion.get_transport()
-            jump_channel = jump_transport.open_channel(
-                "direct-tcpip",
-                dest_addr=("10.38.9.6", 22),
-                src_addr=("127.0.0.1", 0)
-            )
-
-            target_client = paramiko.SSHClient()
-            target_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            target_client.connect(
-                hostname="10.38.9.6",
-                username="airflow-executor",
+            second_client.connect(
+                '10.38.9.6',
+                username='airflow-executor',
                 sock=jump_channel,
                 key_filename=temp_file_path
             )
 
-            sftp = target_client.open_sftp()
-            temp_remote_path = '/tmp/input_data_aeronaves.txt'
-            final_input_path = '/algoritms/algoritmo-recomendador-objetivo-5/Input/input_data_aeronaves.txt'
+            sftp = second_client.open_sftp()
+            remote_tmp_path = "/tmp/input_data_aeronaves.txt"
+            final_input_path = "/algoritms/algoritmo-recomendador-objetivo-5/Input/input_data_aeronaves.txt"
 
-            with sftp.file(temp_remote_path, 'w') as remote_file:
-                remote_file.write(input_txt)
+            with sftp.file(remote_tmp_path, "w") as f:
+                f.write(input_txt)
+
             sftp.close()
 
             cmd = (
-                f'cd /algoritms/algoritmo-recomendador-objetivo-5 && '
-                f'mv {temp_remote_path} {final_input_path} && '
-                'source venv/bin/activate && '
-                'python call_recomendador.py Input/input_data_aeronaves.txt'
+                f"cd /algoritms/algoritmo-recomendador-objetivo-5 && "
+                f"mv {remote_tmp_path} {final_input_path} && "
+                f"source venv/bin/activate && "
+                f"python call_recomendador.py Input/input_data_aeronaves.txt"
             )
 
-            stdin, stdout, stderr = target_client.exec_command(cmd)
+            stdin, stdout, stderr = second_client.exec_command(cmd)
             print(stdout.read().decode())
             print(stderr.read().decode())
 
-            target_client.close()
-            bastion.close()
+            second_client.close()
 
-        finally:
-            os.remove(temp_file_path)
+    finally:
+        os.remove(temp_file_path)
 
-    except Exception as e:
-        raise RuntimeError(f"Error en la ejecución: {str(e)}")
 
+# DAG config
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
