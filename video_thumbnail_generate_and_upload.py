@@ -21,7 +21,6 @@ def load_processed_files_from_minio(s3_client, bucket_name, key):
     except s3_client.exceptions.NoSuchKey:
         return []
     except Exception as e:
-        print(f"Error al cargar archivos procesados: {e}")
         return []
 
 def save_processed_files_to_minio(s3_client, bucket_name, key, processed_files):
@@ -60,8 +59,6 @@ def scan_minio_for_files(**kwargs):
             elif file_key.endswith(('.png', '.jpg', '.jpeg', '.tiff')) and file_key not in processed_image_keys:
                 new_images.append(file_key)
 
-    print(f"Nuevos videos detectados: {new_videos}")
-    print(f"Nuevas imágenes detectadas: {new_images}")
 
     kwargs['task_instance'].xcom_push(key='new_videos', value=new_videos)
     kwargs['task_instance'].xcom_push(key='new_images', value=new_images)
@@ -115,7 +112,6 @@ def process_and_generate_image_thumbnails(**kwargs):
     """Procesa imágenes detectadas, genera miniaturas y mueve ambas a la carpeta /thumbs en MinIO."""
     images = kwargs['task_instance'].xcom_pull(key='new_images', default=[])
     if not images:
-        print("No hay nuevas imágenes para procesar.")
         return
 
     s3_client = get_minio_client()
@@ -126,15 +122,12 @@ def process_and_generate_image_thumbnails(**kwargs):
     for image_key in images:
         # Evitar procesar miniaturas dentro de /thumbs
         if "/thumbs/" in image_key or "_thumb" in image_key:
-            print(f"Omitiendo archivo en bucle: {image_key}")
             continue
 
         # Verificar si la imagen ya ha sido procesada
         if image_key in [img['key'] for img in processed_images]:
-            print(f"Imagen ya procesada, omitiendo: {image_key}")
             continue
 
-        print(f"Procesando imagen: {image_key}")
 
         temp_dir = tempfile.mkdtemp()
         original_extension = os.path.splitext(image_key)[-1].lower()
@@ -153,7 +146,6 @@ def process_and_generate_image_thumbnails(**kwargs):
             # Subir el archivo original a la carpeta /thumbs (si aún no existe)
             if not any(img['key'] == original_in_thumbs_key for img in processed_images):
                 s3_client.upload_file(image_path, bucket_name, original_in_thumbs_key)
-                print(f"Archivo original movido a /thumbs: {original_in_thumbs_key}")
 
             # Procesar la imagen para generar una miniatura
             clip = ImageClip(image_path)
@@ -161,7 +153,6 @@ def process_and_generate_image_thumbnails(**kwargs):
 
             # Subir la miniatura a la carpeta /thumbs
             s3_client.upload_file(thumbnail_path, bucket_name, thumbnail_key)
-            print(f"Miniatura subida a /thumbs: {thumbnail_key}")
 
             # Registrar el archivo procesado
             processed_images.append({"key": image_key, "uuid": str(uuid.uuid4())})
