@@ -10,17 +10,14 @@ from airflow.models import Variable
 from airflow.hooks.base import BaseHook
 
 def execute_algorithm_remote(**context):
-    # Leer inputData desde el trigger
-    input_data = context['dag_run'].conf.get('inputData', {})
-    print("InputData recibido:")
-    print(json.dumps(input_data, indent=2))
+    message = context['dag_run'].conf
+    input_data_str = message['message']['input_data']
+    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
 
-    # Configuración de conexión SSH
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
-    username = ssh_conn.login  # ← usará airflow-executor
+    username = ssh_conn.login
 
-    # Obtener la clave desde la variable codificada
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
         temp_file.write(ssh_key_decoded)
@@ -28,17 +25,10 @@ def execute_algorithm_remote(**context):
     os.chmod(temp_file_path, 0o600)
 
     try:
-        # Conectar al bastión
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        bastion.connect(
-            hostname=hostname,
-            username=username,
-            key_filename=temp_file_path
-        )
-        print("Conexión SSH al bastión establecida")
+        bastion.connect(hostname=hostname, username=username, key_filename=temp_file_path)
 
-        # Hacer salto al servidor interno
         jump_transport = bastion.get_transport()
         jump_channel = jump_transport.open_channel(
             "direct-tcpip",
@@ -46,7 +36,6 @@ def execute_algorithm_remote(**context):
             src_addr=("127.0.0.1", 0)
         )
 
-        # Conectar al servidor interno usando el mismo usuario
         target_client = paramiko.SSHClient()
         target_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         target_client.connect(
@@ -55,24 +44,24 @@ def execute_algorithm_remote(**context):
             sock=jump_channel,
             key_filename=temp_file_path
         )
-        print("Conexión con servidor interno (10.38.9.6) establecida")
 
-        # Ejecutar el algoritmo remoto
-        # cmd = 'cd ~/algoritmo && source venv/bin/activate && python call_recomendador.py input/input_data_aeronaves.txt'
-        # cmd = 'for d in /home /opt /srv /data /var /usr /root; do echo "Contenido de: $d" && ls -la $d; echo ""; done'
-        cmd = 'ls -l /algoritms/algoritmo-asignacion-aeronaves-objetivo-5'
+        remote_input_path = '/algoritms/algoritmo-asignacion-aeronaves-objetivo-5/Input/input_data_aeronaves.txt'
+        sftp = target_client.open_sftp()
+        with sftp.file(remote_input_path, 'w') as remote_file:
+            for key, value in input_data.items():
+                remote_file.write(f"{key}={value}\n")
+        sftp.close()
 
+        cmd = (
+            'cd /algoritms/algoritmo-asignacion-aeronaves-objetivo-5 && '
+            'source venv/bin/activate && '
+            'python call_asignador.py Input/input_data_aeronaves.txt'
+        )
 
-        print(f"Ejecutando comando remoto:\n{cmd}")
         stdin, stdout, stderr = target_client.exec_command(cmd)
-
-        print("STDOUT:")
         print(stdout.read().decode())
-
-        print("STDERR:")
         print(stderr.read().decode())
 
-        # Cierre de conexiones
         target_client.close()
         bastion.close()
 
@@ -92,7 +81,7 @@ default_args = {
 dag = DAG(
     'algorithm_aircraft_recommendation',
     default_args=default_args,
-    description='Ejecuta algoritmo de recomendación remoto en Avincis',
+    description='Ejecuta algoritmo de asignación en servidor Avincis',
     schedule_interval=None,
     catchup=False,
     max_active_runs=1,
@@ -100,7 +89,7 @@ dag = DAG(
 )
 
 process_element_task = PythonOperator(
-    task_id='execute_algorithm_via_jump_host',
+    task_id='execute_assignation_algorithm',
     python_callable=execute_algorithm_remote,
     provide_context=True,
     dag=dag,
