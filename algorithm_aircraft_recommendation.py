@@ -62,7 +62,7 @@ def execute_algorithm_remote(**context):
         sftp.close()
 
         cmd = (
-            f'cd /algoritms/algoritmo-asignacion-aeronaves-objetivo-5 && '
+            f'cd /algoritms/algoritmo-recomendador-objetivo-5 && '
             f'python3 call_aircraft_dispatch.py {input_file} {output_file}'
         )
 
@@ -89,7 +89,7 @@ default_args = {
 dag = DAG(
     'algorithm_aircraft_recommendation',
     default_args=default_args,
-    description='Ejecuta algoritmo de asignación en servidor Avincis',
+    description='Ejecuta algoritmo de recomendación en servidor Avincis',
     schedule_interval=None,
     catchup=False,
     max_active_runs=1,
