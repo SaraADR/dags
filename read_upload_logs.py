@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import boto3
 
 # Lista de DAGs 
-dag_ids_to_monitor = ['kafka_consumer_classify_files_and_trigger_dags', 'kafka_consumer_trigger_jobs', ]
+dag_ids_to_monitor = ['algorithm_dNBR_process_Type1', 'kafka_consumer_classify_files_and_trigger_dags', 'kafka_consumer_trigger_jobs', ]
 
 
 def upload_logs_to_s3(dag_id, execution_date):
