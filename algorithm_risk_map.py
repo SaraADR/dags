@@ -239,19 +239,18 @@ def publish_to_geoserver(**context):
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
-    'start_date': datetime(2025, 4, 2),
+    'start_date': datetime(2024, 9, 1),
     'retries': 2,
     'retry_delay': timedelta(minutes=30),
 }
 
-dag = DAG (
+dag = DAG(
     'algorithm_risk_map',
     default_args=default_args,
     description='DAG para ejecutar el algoritmo de mapas de riesgo 6 veces al día automáticamente',
     schedule_interval='0 8,10,12,14,16,18 * * *',
-    catchup=True,
-    max_active_runs=1,
-    timezone=pytz.timezone('Europe/Madrid')  # Esto no está en tu DAG
+    catchup=False,
+    max_active_runs=1
 )
 
 execute_docker_task = PythonOperator(
