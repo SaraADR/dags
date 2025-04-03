@@ -10,15 +10,12 @@ from airflow.models import Variable
 from airflow.hooks.base import BaseHook
 
 def execute_algorithm_remote(**context):
-    # Acceso correcto al inputData desde 'message'
-    message = context['dag_run'].conf.get('message', {})
-    input_data = message.get('inputData', '')
-    
-    print("INPUT DATA RECIBIDO")
-    print(input_data)
+    # Leer inputData desde el trigger
+    conf = context.get("dag_run").conf
+    input_data = conf.get('inputData', '')
 
-    if not input_data:
-        raise ValueError("No se recibió inputData válido. Verifica el mensaje de entrada.")
+    print("InputData recibido:")
+    print(input_data)
 
     # Configuración de conexión SSH
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
@@ -79,10 +76,10 @@ def execute_algorithm_remote(**context):
         print(f"Ejecutando comando:\n{cmd}")
         stdin, stdout, stderr = target_client.exec_command(cmd)
 
-        print("STDOUT")
+        print("STDOUT:")
         print(stdout.read().decode())
 
-        print("STDERR")
+        print("STDERR:")
         print(stderr.read().decode())
 
         # Cierre de conexiones
