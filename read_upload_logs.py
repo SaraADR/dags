@@ -46,15 +46,16 @@ dag = DAG(
 
 for dag_id in dag_ids_to_monitor:
     sensor_task = ExternalTaskSensor(
-        task_id=f'wait_for_{dag_id}',
-        external_dag_id=dag_id,
-        execution_date_fn=lambda dt: dt,  
-        mode='reschedule', 
-        poke_interval=20, 
-        timeout=3600,  
-        dag=dag,
-    )
-    
+    task_id=f'wait_for_{dag_id}',
+    external_dag_id=dag_id,
+    allowed_states=['success'],  
+    failed_states=['failed', 'skipped'], 
+    execution_date_fn=None,  
+    mode='reschedule',  
+    poke_interval=10,  
+    timeout=3600,  
+    dag=dag,
+)
     upload_task = PythonOperator(
         task_id=f'upload_logs_{dag_id}',
         python_callable=upload_logs_to_s3,
