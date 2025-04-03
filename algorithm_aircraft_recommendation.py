@@ -70,8 +70,8 @@ def execute_algorithm_remote(**context):
         sftp.close()
 
         cmd = (
-            f'cd /algoritms/algoritmo-recomendador-objetivo-5 && '
-            f'python3 call_aircraft_dispatch.py {input_file} {output_file}'
+            f'python3 /algoritms/algoritmo-asignacion-aeronaves-objetivo-5/call_aircraft_dispatch.py '
+            f'{input_file} {output_file}'
         )
 
         stdin, stdout, stderr = target_client.exec_command(cmd)
