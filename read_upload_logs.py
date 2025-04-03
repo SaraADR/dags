@@ -49,7 +49,6 @@ for dag_id in dag_ids_to_monitor:
     task_id=f'wait_for_{dag_id}',
     external_dag_id=dag_id,
     allowed_states=['success'],  
-    failed_states=['failed', 'skipped'], 
     execution_date_fn=None,  
     mode='reschedule',  
     poke_interval=10,  
