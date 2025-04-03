@@ -4,17 +4,18 @@ from airflow.sensors.external_task import ExternalTaskSensor
 from datetime import datetime, timedelta
 import boto3
 
-# Lista de DAGs 
-dag_ids_to_monitor = ['algorithm_dNBR_process_Type1', 'kafka_consumer_classify_files_and_trigger_dags', 'kafka_consumer_trigger_jobs', ]
-
+# DAGs a monitorear
+dag_ids_to_monitor = [
+    'algorithm_dNBR_process_Type1',
+    'kafka_consumer_classify_files_and_trigger_dags',
+    'kafka_consumer_trigger_jobs',
+]
 
 def upload_logs_to_s3(dag_id, execution_date):
     log_file_path = f"/opt/airflow/logs/{dag_id}/{execution_date}.log"
-
     try:
         with open(log_file_path, "r") as log_file:
             logs = log_file.read()
-
         print(logs)
 
         # # Configurar conexión con S3
@@ -28,8 +29,6 @@ def upload_logs_to_s3(dag_id, execution_date):
     except Exception as e:
         print(f"Error al leer o subir logs para {dag_id}: {e}")
 
-
-
 default_args = {
     'owner': 'airflow',
     'start_date': datetime(2025, 4, 3),
@@ -41,19 +40,18 @@ dag = DAG(
     'read_upload_logs',
     default_args=default_args,
     schedule_interval=None, 
+    catchup=False  
 )
 
-# Lista de sensores y tareas de subida de logs
-sensors = []
-upload_tasks = []
 
 for dag_id in dag_ids_to_monitor:
-    # Sensor que espera la finalización de cada DAG
     sensor_task = ExternalTaskSensor(
         task_id=f'wait_for_{dag_id}',
         external_dag_id=dag_id,
-        execution_delta=timedelta(minutes=1),
-        mode='poke',
+        execution_date_fn=lambda dt: dt,  
+        mode='reschedule', 
+        poke_interval=20, 
+        timeout=3600,  
         dag=dag,
     )
     
@@ -64,9 +62,4 @@ for dag_id in dag_ids_to_monitor:
         dag=dag,
     )
 
-    # Establecer dependencia: cuando el DAG finaliza, se suben sus logs
-    sensor_task >> upload_task
-    
-    # Guardamos las tareas en listas por si queremos administrarlas dinámicamente
-    sensors.append(sensor_task)
-    upload_tasks.append(upload_task)
+    sensor_task >> upload_task  
