@@ -10,7 +10,7 @@ from airflow.models import Variable
 from dag_utils import execute_query
 from sqlalchemy import text
 import requests
-from dag_utils import  upload_logs_to_s3, upload_to_minio_path, print_directory_contents
+from dag_utils import  upload_to_minio_path, print_directory_contents
 import uuid
 
 def process_element(**context):
@@ -249,6 +249,36 @@ def busqueda_datos_perimetro(idIncendio):
         except Exception as e:
             print(e)
             raise
+
+
+def upload_logs_to_s3(context):
+    try:
+        dag_id = context['dag'].dag_id
+        task_id = context['task_instance'].task_id
+        execution_date = context['ts_nodash']
+        try_number = context['task_instance'].try_number
+
+        log_file_path = f"/opt/airflow/logs/{dag_id}/{task_id}/{execution_date}/attempt={try_number}.log"
+        
+        print(f"🪵 Subiendo logs desde: {log_file_path}")
+        
+        with open(log_file_path, "r") as log_file:
+            logs = log_file.read()
+        
+        print(f"📄 Logs:\n{logs[:500]}...")  # solo los primeros 500 caracteres
+    except Exception as e:
+        print(f"❌ Error al leer logs: {e}")
+
+    marker_path = f"/tmp/on_success_marker_{dag_id}_{task_id}_{execution_date}.txt"
+    try:
+        with open(marker_path, "w") as f:
+            f.write("✅ Callback ejecutado\n")
+
+        print(f"🪵 Callback ejecutado correctamente, se creó: {marker_path}")
+    except Exception as e:
+        print(f"❌ Error en el callback: {e}")
+
+
 
 default_args = {
     'owner': 'sadr',
