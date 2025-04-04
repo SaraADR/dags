@@ -513,6 +513,7 @@ def delete_file_sftp(url):
 
 
 def upload_logs_to_s3(context):
+    print(f"Subiendo logs para DAG: {context['dag'].dag_id} con fecha: {context['ts']}")
     dag_id = context['dag'].dag_id
     execution_date = context['ts']
     
