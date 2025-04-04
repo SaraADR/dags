@@ -10,7 +10,7 @@ from airflow.models import Variable
 from dag_utils import execute_query
 from sqlalchemy import text
 import requests
-from dag_utils import upload_to_minio_path, print_directory_contents
+from dag_utils import  upload_logs_to_s3, upload_to_minio_path, print_directory_contents
 import uuid
 
 def process_element(**context):
@@ -267,7 +267,8 @@ dag = DAG(
     schedule_interval='@daily', 
     catchup=False,
     max_active_runs=1,
-    concurrency=1
+    concurrency=1,
+    on_success_callback=upload_logs_to_s3
 )
 
 process_element_task = PythonOperator(

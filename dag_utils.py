@@ -510,3 +510,25 @@ def delete_file_sftp(url):
 
     except Exception as e:
         print(f"Error al eliminar el archivo: {e}")
+
+
+def upload_logs_to_s3(context):
+    dag_id = context['dag'].dag_id
+    execution_date = context['ts']
+    
+    log_file_path = f"/opt/airflow/logs/{dag_id}/{execution_date}.log"
+    try:
+        with open(log_file_path, "r") as log_file:
+            logs = log_file.read()
+        print(logs)
+
+        # Configurar conexión con S3
+        # s3_client = boto3.client('s3')
+        # bucket_name = "tu-bucket-s3"
+        # s3_key = f"logs/{dag_id}/{execution_date}.txt"
+
+        # s3_client.put_object(Bucket=bucket_name, Key=s3_key, Body=logs)
+        # print(f"Logs de {dag_id} subidos exitosamente a {s3_key}")
+
+    except Exception as e:
+        print(f"Error al leer o subir logs para {dag_id}: {e}")
