@@ -513,23 +513,19 @@ def delete_file_sftp(url):
 
 
 def upload_logs_to_s3(context):
-    print(f"Subiendo logs para DAG: {context['dag'].dag_id} con fecha: {context['ts']}")
-    dag_id = context['dag'].dag_id
-    execution_date = context['ts']
-    
-    log_file_path = f"/opt/airflow/logs/{dag_id}/{execution_date}.log"
     try:
+        dag_id = context['dag'].dag_id
+        task_id = context['task_instance'].task_id
+        execution_date = context['ts_nodash']
+        try_number = context['task_instance'].try_number
+
+        log_file_path = f"/opt/airflow/logs/{dag_id}/{task_id}/{execution_date}/attempt={try_number}.log"
+        
+        print(f"🪵 Subiendo logs desde: {log_file_path}")
+        
         with open(log_file_path, "r") as log_file:
             logs = log_file.read()
-        print(logs)
-
-        # Configurar conexión con S3
-        # s3_client = boto3.client('s3')
-        # bucket_name = "tu-bucket-s3"
-        # s3_key = f"logs/{dag_id}/{execution_date}.txt"
-
-        # s3_client.put_object(Bucket=bucket_name, Key=s3_key, Body=logs)
-        # print(f"Logs de {dag_id} subidos exitosamente a {s3_key}")
-
+        
+        print(f"📄 Logs:\n{logs[:500]}...")  # solo los primeros 500 caracteres
     except Exception as e:
-        print(f"Error al leer o subir logs para {dag_id}: {e}")
+        print(f"❌ Error al leer logs: {e}")
