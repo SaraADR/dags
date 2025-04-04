@@ -117,7 +117,6 @@ def store_in_db(**context):
             "execution_time": process_info["execution_time"],
         }),
         "output_data": json.dumps({
-            "status": process_info["status"],
             "generated_tiff": generated_file,
             "remote_path": generated_file_path,  
             "docker_output": process_info["docker_output"],

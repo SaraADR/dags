@@ -10,20 +10,15 @@ from airflow.models import Variable
 from airflow.hooks.base import BaseHook
 
 def execute_algorithm_remote(**context):
-    # Leer inputData desde el trigger
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-    input_data = json.loads(input_data_str)
-    task_type = message['message']['job']
-    from_user = message['message']['from_user']
+    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data
     print(input_data)
 
-    # Configuración de conexión SSH
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
-    username = ssh_conn.login  # airflow-executor
+    username = ssh_conn.login
 
-    # Obtener la clave desde Variable
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
         temp_file.write(ssh_key_decoded)
@@ -31,17 +26,10 @@ def execute_algorithm_remote(**context):
     os.chmod(temp_file_path, 0o600)
 
     try:
-        # Conectar al bastión
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        bastion.connect(
-            hostname=hostname,
-            username=username,
-            key_filename=temp_file_path
-        )
-        print("Conexión SSH al bastión establecida")
+        bastion.connect(hostname=hostname, username=username, key_filename=temp_file_path)
 
-        # Salto al servidor destino
         jump_transport = bastion.get_transport()
         jump_channel = jump_transport.open_channel(
             "direct-tcpip",
@@ -57,40 +45,32 @@ def execute_algorithm_remote(**context):
             sock=jump_channel,
             key_filename=temp_file_path
         )
-        print("Conexión con servidor interno establecida")
 
-        # Crear el archivo input en el servidor remoto
-        remote_input_path = '/algoritms/algoritmo-recomendador-objetivo-5/Input/input_data_aeronaves.txt'
         sftp = target_client.open_sftp()
-        with sftp.file(remote_input_path, 'w') as remote_file:
-            remote_file.write(input_data)
-        sftp.close()
-        print(f"Input guardado en: {remote_input_path}")
 
-        # Ejecutar el algoritmo
+        # Input fijo esperado por el algoritmo
+        remote_input_path = '/algoritms/algoritmo-recomendador-objetivo-5/Input/input_data_aeronaves.txt'
+
+        with sftp.file(remote_input_path, 'w') as remote_file:
+            remote_file.write(input_data['txt_content'])  # <- contenido en string plano
+
+        sftp.close()
+
         cmd = (
             'cd /algoritms/algoritmo-recomendador-objetivo-5 && '
-            'source venv/bin/activate && '
-            'python call_recomendador.py Input/input_data_aeronaves.txt'
+            'python3 call_recomendador.py Input/input_data_aeronaves.txt'
         )
 
-        print(f"Ejecutando comando:\n{cmd}")
         stdin, stdout, stderr = target_client.exec_command(cmd)
-
-        print("STDOUT:")
         print(stdout.read().decode())
-
-        print("STDERR:")
         print(stderr.read().decode())
 
-        # Cierre de conexiones
         target_client.close()
         bastion.close()
 
     finally:
         os.remove(temp_file_path)
 
-# DAG config
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
@@ -112,8 +92,7 @@ dag = DAG(
 )
 
 process_element_task = PythonOperator(
-    task_id='execute_algorithm_via_jump_host',
+    task_id='execute_algorithm_planificator',
     python_callable=execute_algorithm_remote,
-    provide_context=True,
     dag=dag,
 )
