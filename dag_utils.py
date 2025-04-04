@@ -530,8 +530,7 @@ def upload_logs_to_s3(context):
     except Exception as e:
         print(f"❌ Error al leer logs: {e}")
 
-        marker_path = f"/tmp/on_success_marker_{dag_id}_{task_id}_{execution_date}.txt"
-    
+    marker_path = f"/tmp/on_success_marker_{dag_id}_{task_id}_{execution_date}.txt"
     try:
         with open(marker_path, "w") as f:
             f.write("✅ Callback ejecutado\n")
