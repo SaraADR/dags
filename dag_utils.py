@@ -529,3 +529,13 @@ def upload_logs_to_s3(context):
         print(f"📄 Logs:\n{logs[:500]}...")  # solo los primeros 500 caracteres
     except Exception as e:
         print(f"❌ Error al leer logs: {e}")
+
+        marker_path = f"/tmp/on_success_marker_{dag_id}_{task_id}_{execution_date}.txt"
+    
+    try:
+        with open(marker_path, "w") as f:
+            f.write("✅ Callback ejecutado\n")
+
+        print(f"🪵 Callback ejecutado correctamente, se creó: {marker_path}")
+    except Exception as e:
+        print(f"❌ Error en el callback: {e}")
