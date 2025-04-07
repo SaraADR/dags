@@ -18,7 +18,7 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
 
-from dag_utils import get_minio_client
+from dag_utils import get_minio_client, delete_file_sftp
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
@@ -27,7 +27,7 @@ def consumer_function(message, prefix, **kwargs):
         print("Mensaje procesado: ", msg_value)
     except Exception as e:
         print(f"Error al procesar el mensaje: {e}")
-
+    delete_file_sftp(msg_value)
     
     file_path_in_minio =  msg_value  
         
