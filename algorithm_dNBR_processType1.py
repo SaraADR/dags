@@ -12,7 +12,7 @@ from sqlalchemy import text
 import requests
 from dag_utils import  upload_to_minio_path, print_directory_contents
 import uuid
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 def process_element(**context):
 
@@ -280,10 +280,12 @@ process_element_task = PythonOperator(
     dag=dag,
 )
 
-
-final_task = DummyOperator(
-    task_id='final_task',
-    dag=dag
+trigger_monitoring = TriggerDagRunOperator(
+    task_id="trigger_monitor_dags",
+    trigger_dag_id="monitor_dags",  
+    conf={"dag_name": dag.dag_id}, 
+    dag=dag,
 )
 
-process_element_task > final_task
+
+process_element_task > trigger_monitoring
