@@ -11,6 +11,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 import re
 from airflow.utils import timezone
+import pendulum
 
 def execute_docker_process(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
@@ -239,7 +240,7 @@ def publish_to_geoserver(**context):
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
-    'start_date': datetime(2024, 9, 1),
+    'start_date': pendulum.datetime(2024, 9, 1, tz="Europe/Madrid"),
     'retries': 2,
     'retry_delay': timedelta(minutes=30),
 }
@@ -251,7 +252,6 @@ dag = DAG(
     schedule_interval='0 8,10,12,14,16,18 * * *',
     catchup=False,
     max_active_runs=1,
-    timezone=timezone.timezone('Europe/Madrid')  
 
 )
 
