@@ -9,6 +9,7 @@ from airflow.models import TaskInstance
 from airflow.utils.db import provide_session
 
 # Función que imprime un mensaje cuando un DAG termina
+@provide_session
 def print_message(session, **kwargs):
     dag_name = kwargs['dag_run'].conf.get('dag_name', 'Desconocido')
     print(f"Ha finalizado este DAG: {dag_name}")
