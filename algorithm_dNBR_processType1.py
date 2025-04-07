@@ -12,6 +12,7 @@ from sqlalchemy import text
 import requests
 from dag_utils import  upload_to_minio_path, print_directory_contents
 import uuid
+from airflow.operators.dummy import DummyOperator
 
 def process_element(**context):
 
@@ -279,4 +280,10 @@ process_element_task = PythonOperator(
     dag=dag,
 )
 
-process_element_task 
+
+final_task = DummyOperator(
+    task_id='final_task',
+    dag=dag
+)
+
+process_element_task > final_task
