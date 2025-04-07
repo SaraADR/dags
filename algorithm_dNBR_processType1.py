@@ -288,4 +288,4 @@ trigger_monitoring = TriggerDagRunOperator(
 )
 
 
-process_element_task > trigger_monitoring
+process_element_task >> trigger_monitoring
