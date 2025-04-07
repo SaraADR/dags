@@ -13,7 +13,7 @@ from airflow.utils.db import provide_session
 def print_message(session, **kwargs):
     dag_name = kwargs['dag_run'].conf.get('dag_name', 'Desconocido')
     print(f"Ha finalizado este DAG: {dag_name}")
-    ti = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_name).order_by(TaskInstance.execution_date.desc()).first()
+    ti = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_name).order_by(TaskInstance.execution_date.desc()).limit(1).all()
     if not ti:
         log_path = "No se encontró una ejecución válida"
     else:
