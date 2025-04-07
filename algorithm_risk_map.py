@@ -10,6 +10,7 @@ import time
 import requests
 from requests.auth import HTTPBasicAuth
 import re
+from airflow.utils import timezone
 
 def execute_docker_process(**context):
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
@@ -249,7 +250,9 @@ dag = DAG(
     description='DAG para ejecutar el algoritmo de mapas de riesgo 6 veces al día automáticamente',
     schedule_interval='0 8,10,12,14,16,18 * * *',
     catchup=False,
-    max_active_runs=1
+    max_active_runs=1,
+    timezone=timezone.timezone('Europe/Madrid')  
+
 )
 
 execute_docker_task = PythonOperator(
