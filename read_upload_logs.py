@@ -17,7 +17,6 @@ def print_message(session, **kwargs):
     ti = task_instances = (
         session.query(TaskInstance)
         .filter(TaskInstance.dag_id == dag_name)
-        .order_by(TaskInstance.execution_date.desc())
         .limit(10)
         .all()
     )
