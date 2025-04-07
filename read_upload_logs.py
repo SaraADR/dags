@@ -1,6 +1,6 @@
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
-from airflow.sensors.task_sensor import TaskSensor
+from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 
@@ -38,7 +38,7 @@ start = DummyOperator(
 # Crear un TaskSensor y un PythonOperator para cada DAG a monitorear
 for dag_name in dag_names_to_monitor:
     # Sensor que espera la tarea final de cada DAG
-    wait_for_task = TaskSensor(
+    wait_for_task = ExternalTaskSensor(
         task_id=f'wait_for_{dag_name}_final_task',
         external_dag_id=dag_name,
         external_task_id='final_task',  # La tarea que marca el final del DAG monitoreado
