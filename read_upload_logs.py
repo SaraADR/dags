@@ -1,6 +1,6 @@
 from airflow import DAG
-from airflow.providers.apache.airflow.operators.dummy import DummyOperator
-from airflow.providers.apache.airflow.sensors.external_task import ExternalTaskSensor
+from airflow.operators.dummy_operator  import DummyOperator
+from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 
