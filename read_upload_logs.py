@@ -19,36 +19,21 @@ def print_message(session, **kwargs):
     ti = task_instances = (
         session.query(TaskInstance)
         .filter(TaskInstance.dag_id == dag_name)
-        .limit(10)
         .all()
     )
 
     for ti in task_instances:
         print(f"📌 Log encontrado: DAG={ti.dag_id}, Run ID={ti.run_id}, Task={ti.task_id}, Intento={ti.try_number}")
 
-    latest_execution_date = session.query(func.max(TaskInstance.execution_date)).filter(
-        TaskInstance.dag_id == dag_name
-    ).scalar()     
+    ti = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_name).order_by(TaskInstance.execution_date.desc()).limit(1).first()
 
-    if latest_execution_date:
-        task_instance = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == dag_name,
-            TaskInstance.execution_date == latest_execution_date
-        ).first()
-
-        print(f"📌 Último log encontrado: DAG={task_instance.dag_id}, Run ID={task_instance.run_id}, Task={task_instance.task_id}, Intento={task_instance.try_number}")
-        return task_instance
+    if not ti:
+        log_path = "No se encontró una ejecución válida"
     else:
-        print(f"🚨 No se encontraron ejecuciones recientes para el DAG {dag_name}")
-    # ti = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_name).order_by(TaskInstance.execution_date.desc()).limit(1).first()
+        log_path = f"/opt/airflow/logs/dag_id={dag_name}/run_id={ti.run_id}/task_id={ti.task_id}/attempt={ti.try_number}.log"
 
-    # if not ti:
-    #     log_path = "No se encontró una ejecución válida"
-    # else:
-    #     log_path = f"/opt/airflow/logs/dag_id={dag_name}/run_id={ti.run_id}/task_id={ti.task_id}/attempt={ti.try_number}.log"
-
-    # print(f"🔍 Se va a buscar este log: {log_path}")
-    # return log_path
+    print(f"🔍 Se va a buscar este log: {log_path}")
+    return log_path
 
 
 def upload_to_minio(**kwargs):
