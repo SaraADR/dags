@@ -44,7 +44,6 @@ for dag_name in dag_names_to_monitor:
         poke_interval=60,  
         timeout=600,  
         retries=3,
-        poke_interval=60,
         dag=dag,
     )
 
