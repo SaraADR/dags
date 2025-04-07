@@ -259,7 +259,7 @@ consume_from_topic = ConsumeFromTopicOperator(
     topics=["files"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_operator",
+    commit_cadence="end_of_batch",
     dag=dag,
 )
 
