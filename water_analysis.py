@@ -112,9 +112,9 @@ default_args = {
 }
 
 dag = DAG(
-    'mission_inspection_store_video_and_notification',
+    'waterAnalysis',
     default_args=default_args,
-    description='DAG que procesa archivos extraídos, convierte videos si es necesario, y genera notificaciones.',
+    description='DAG que procesa analisis de aguas',
     schedule_interval=None,
     catchup=False,
 )
