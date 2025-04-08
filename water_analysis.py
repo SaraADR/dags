@@ -6,7 +6,11 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta, timezone
 import io
 from sqlalchemy import  text
-from dag_utils import get_db_session, get_minio_client
+from dag_utils import get_db_session, get_minio_client, execute_query
+import os
+from airflow.models import Variable
+import copy
+import pytz
 
 
 # Función para procesar archivos extraídos
@@ -32,9 +36,11 @@ def process_extracted_files(**kwargs):
     print(f"UUID generado para almacenamiento: {uuid_key}")  
 
 
+    json_modificado = copy.deepcopy(json_content)
+    rutaminio = Variable.get("ruta_minIO")
     for archivo in archivos:
-        archivo_file_name = archivos['file_name']
-        archivo_content = base64.b64decode(archivos['content'])
+        archivo_file_name = os.path.basename(archivo['file_name'])
+        archivo_content = base64.b64decode(archivo['content'])
 
         s3_client = get_minio_client()
 
@@ -50,7 +56,22 @@ def process_extracted_files(**kwargs):
         )
         print(f'{archivo_file_name} subido correctamente a MinIO.')
 
-    json_str = json.dumps(json_content).encode('utf-8')
+        print(archivo_key)
+
+
+        #TO DO: Modificaciones de path de json
+        for resource in json_modificado['executionResources']:
+            print("path de recurso:")
+            print(resource['path'])
+            if os.path.basename(resource['path']) == {archivo_file_name}:
+                resource['path'] = f"{rutaminio}/{bucket_name}/{archivo_key}"  
+
+
+
+    startTimeStamp = json_modificado['startTimestamp']
+    endTimeStamp = json_modificado['endTimestamp']
+
+    json_str = json.dumps(json_modificado).encode('utf-8')
     json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
 
     s3_client.put_object(
@@ -61,44 +82,85 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
-# Función para generar notificación
-def generate_notify_job(**context):
-    json_content = context['dag_run'].conf.get('json')
-    id_mission = None
-    for metadata in json_content['metadata']:
-        if metadata['name'] == 'MissionID':
-            id_mission = metadata['value']
-            break
+    historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
 
-    if id_mission:
-        try:
-            session = get_db_session()
+# # Función para generar notificación
+# def generate_notify_job(**context):
+#     json_content = context['dag_run'].conf.get('json')
+#     id_mission = None
+#     for metadata in json_content['metadata']:
+#         if metadata['name'] == 'MissionID':
+#             id_mission = metadata['value']
+#             break
 
-            data_json = json.dumps({
-                "to": "all_users",
-                "actions": [{
-                    "type": "reloadMission",
-                    "data": {"missionId": id_mission}
-                }]
-            })
-            time = datetime.now().replace(tzinfo=timezone.utc)
+#     if id_mission:
+#         try:
+#             session = get_db_session()
 
-            query = text("""
-                INSERT INTO public.notifications
-                (destination, "data", "date", status)
-                VALUES (:destination, :data, :date, NULL);
-            """)
-            session.execute(query, {
-                'destination': 'inspection',
-                'data': data_json,
-                'date': time
-            })
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            print(f"Error durante la inserción de la notificación: {str(e)}")
-        finally:
-            session.close()
+#             data_json = json.dumps({
+#                 "to": "all_users",
+#                 "actions": [{
+#                     "type": "reloadMission",
+#                     "data": {"missionId": id_mission}
+#                 }]
+#             })
+#             time = datetime.now().replace(tzinfo=timezone.utc)
+
+#             query = text("""
+#                 INSERT INTO public.notifications
+#                 (destination, "data", "date", status)
+#                 VALUES (:destination, :data, :date, NULL);
+#             """)
+#             session.execute(query, {
+#                 'destination': 'inspection',
+#                 'data': data_json,
+#                 'date': time
+#             })
+#             session.commit()
+#         except Exception as e:
+#             session.rollback()
+#             print(f"Error durante la inserción de la notificación: {str(e)}")
+#         finally:
+#             session.close()
+
+
+
+
+def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeStamp):
+    try:
+        # Y guardamos en la tabla de historico
+            print("Guardamos en historización")
+            madrid_tz = pytz.timezone('Europe/Madrid')
+
+            # Formatear phenomenon_time
+            phenomenon_time = f"[{startTimeStamp.strftime('%Y-%m-%dT%H:%M:%S')}, {endTimeStamp.strftime('%Y-%m-%dT%H:%M:%S')}]"
+
+            datos = {
+                'sampled_feature': mission_id, 
+                'result_time': datetime.datetime.now(madrid_tz),
+                'phenomenon_time': phenomenon_time,
+                'input_data': json.dumps(input_data),
+                'output_data': json.dumps(output_data)
+            }
+
+            # Construir la consulta de inserción
+            query = f"""
+                INSERT INTO algoritmos.algoritmo_water_analysis (
+                    sampled_feature, result_time, phenomenon_time, input_data, output_data
+                ) VALUES (
+                    {datos['sampled_feature']},
+                    '{datos['result_time']}',
+                    '{datos['phenomenon_time']}'::TSRANGE,
+                    '{datos['input_data']}',
+                    '{datos['output_data']}'
+                )
+            """
+
+            # Ejecutar la consulta
+            execute_query('biobd', query)
+    except Exception as e:
+        print(f"Error en el proceso: {str(e)}")    
+ 
 
 # Definición del DAG
 default_args = {
@@ -112,7 +174,7 @@ default_args = {
 }
 
 dag = DAG(
-    'waterAnalysis',
+    'water_analysis',
     default_args=default_args,
     description='DAG que procesa analisis de aguas',
     schedule_interval=None,
@@ -125,12 +187,12 @@ process_extracted_files_task = PythonOperator(
     dag=dag,
 )
 
-generate_notify = PythonOperator(
-    task_id='generate_notify_job',
-    python_callable=generate_notify_job,
-    provide_context=True,
-    dag=dag,
-)
+# generate_notify = PythonOperator(
+#     task_id='generate_notify_job',
+#     python_callable=generate_notify_job,
+#     provide_context=True,
+#     dag=dag,
+# )
 
 # Flujo del DAG
-process_extracted_files_task >> generate_notify
+process_extracted_files_task 
