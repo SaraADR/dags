@@ -12,7 +12,10 @@ from airflow.hooks.base import BaseHook
 def execute_algorithm_remote(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
-    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data
+    if isinstance(input_data_str, str):
+        input_data = json.loads(input_data_str)
+    else:
+        input_data = input_data_str
     print(input_data)
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
@@ -51,8 +54,16 @@ def execute_algorithm_remote(**context):
         # Input fijo esperado por el algoritmo
         remote_input_path = '/algoritms/algoritmo-recomendador-objetivo-5/Input/input_data_aeronaves.txt'
 
+        # GENERACIÓN DEL CONTENIDO .TXT A PARTIR DE input_data
+        missions = input_data.get('missionData', [])
+        lines = []
+        for m in missions:
+            line = f"{m['missionID']},{m['lonLat'][0]},{m['lonLat'][1]},{m['startDate']},{m['endDate']},{m['timeInterval']}"
+            lines.append(line)
+        txt_content = "\n".join(lines)
+
         with sftp.file(remote_input_path, 'w') as remote_file:
-            remote_file.write(input_data['txt_content'])  # <- contenido en string plano
+            remote_file.write(txt_content)
 
         sftp.close()
 
