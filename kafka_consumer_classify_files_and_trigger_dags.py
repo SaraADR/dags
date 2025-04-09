@@ -27,7 +27,7 @@ def consumer_function(message, prefix, **kwargs):
         print("Mensaje procesado: ", msg_value)
     except Exception as e:
         print(f"Error al procesar el mensaje: {e}")
-    delete_file_sftp(msg_value)
+    # delete_file_sftp(msg_value)
     
     file_path_in_minio =  msg_value  
         
