@@ -6,9 +6,10 @@
 
 
 
-
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.models import Variable
+from airflow.hooks.base import BaseHook
 from datetime import datetime, timedelta
 import os
 import tempfile
@@ -17,10 +18,8 @@ import json
 import csv
 import paramiko
 import pytz
-from dag_utils import get_minio_client, get_db_session
 from sqlalchemy import text
-from airflow.models import Variable
-from airflow.hooks.base import BaseHook
+from dag_utils import get_minio_client, get_db_session
 
 def insert_notification(payload):
     session = get_db_session()
@@ -40,6 +39,33 @@ def insert_notification(payload):
     except Exception as e:
         session.rollback()
         print(f"Error insertando notificación: {str(e)}")
+        raise
+    finally:
+        session.close()
+
+def insert_history(output_data):
+    session = get_db_session()
+    try:
+        madrid_tz = pytz.timezone('Europe/Madrid')
+        datos = {
+            "sampled_feature": output_data.get("assignmentId", "unknown"),
+            "result_time": datetime.now(madrid_tz),
+            "phenomenon_time": datetime.now(madrid_tz),
+            "input_data": json.dumps({}),  # De momento vacío (se puede completar si tienes input)
+            "output_data": json.dumps(output_data)
+        }
+        query = text("""
+            INSERT INTO algoritmos.algoritmo_aircraft_planificator (
+                sampled_feature, result_time, phenomenon_time, input_data, output_data
+            ) VALUES (
+                :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
+            )
+        """)
+        session.execute(query, datos)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        print(f"Error insertando histórico: {str(e)}")
         raise
     finally:
         session.close()
@@ -93,8 +119,25 @@ def process_and_notify_with_csv():
     finally:
         os.remove(temp_file_path)
 
+    # Leer JSON descargado
     with open(local_tmp_output, 'r', encoding='utf-8') as f:
         output_data = json.load(f)
+
+    # Subir JSON a MinIO
+    s3_client = get_minio_client()
+    bucket_name = "tmp"
+    folder = "algorithm_outputs"
+    
+    json_key_current = f"{folder}/jsons/{output_file}"
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    json_key_historic = f"{folder}/historic/{timestamp}_{output_file}"
+
+    # Subida actual y subida histórica
+    s3_client.upload_file(local_tmp_output, bucket_name, json_key_current)
+    s3_client.upload_file(local_tmp_output, bucket_name, json_key_historic)
+
+    minio_base_url = "https://minio.avincis.cuatrodigital.com/"
+    json_url = f"{minio_base_url}/{bucket_name}/{json_key_current}"
 
     os.remove(local_tmp_output)
 
@@ -114,25 +157,22 @@ def process_and_notify_with_csv():
                 writer.writerow([aid, vehicle])
 
     # Subir CSV a MinIO
-    s3_client = get_minio_client()
-    bucket_name = "tmp"
-    folder = "algorithm_outputs"
-    file_key = f"{folder}/{os.path.basename(local_csv_file)}"
+    csv_key = f"{folder}/{os.path.basename(local_csv_file)}"
+    s3_client.upload_file(local_csv_file, bucket_name, csv_key)
 
-    s3_client.upload_file(local_csv_file, bucket_name, file_key)
+    csv_url = f"{minio_base_url}/{bucket_name}/{csv_key}"
 
     os.remove(local_csv_file)
 
-    # Construir URL pública
-    minio_base_url = "https://minio.avincis.cuatrodigital.com/"
-    csv_url = f"{minio_base_url}/{bucket_name}/{file_key}"
+    # Guardar histórico en la base de datos
+    insert_history(output_data)
 
     # Insertar notificación para el Front
     payload = {
         "to": user,
         "actions": [
             {
-                "type": "notify",
+                "type": "load_csv_table",
                 "data": {
                     "message": "Datos generados por el algoritmo de planificación de aeronaves disponibles."
                 }
@@ -141,6 +181,12 @@ def process_and_notify_with_csv():
                 "type": "loadTable",
                 "data": {
                     "url": csv_url
+                }
+            },
+            {
+                "type": "loadJson",
+                "data": {
+                    "url": json_url,
                 }
             }
         ]
@@ -160,7 +206,7 @@ default_args = {
 dag = DAG(
     'algorithm_aircraft_planificator',
     default_args=default_args,
-    description='DAG de prueba: descarga test1.1.json de servidor y genera notificación automáticamente',
+    description='DAG completo: descarga test1.1.json, sube CSV y JSON, guarda histórico en BD y notifica al frontend',
     schedule_interval=None,
     catchup=False,
     max_active_runs=1,
@@ -172,6 +218,7 @@ process_fixed_output_task = PythonOperator(
     python_callable=process_and_notify_with_csv,
     dag=dag,
 )
+
 
 
 
