@@ -59,12 +59,12 @@ def process_extracted_files(**kwargs):
         print(archivo_key)
 
 
-        #TO DO: Modificaciones de path de json
-        for resource in json_modificado['executionResources']:
-            print("path de recurso:")
-            print(resource['path'])
-            if os.path.basename(resource['path']) == {archivo_file_name}:
-                resource['path'] = f"{rutaminio}/{bucket_name}/{archivo_key}"  
+    #TO DO: Modificaciones de path de json
+    for resource in json_modificado['executionResources']:
+        print("path de recurso:")
+        print(resource['path'])
+        if os.path.basename(resource['path']) == {archivo_file_name}:
+            resource['path'] = f"{rutaminio}/{bucket_name}/{archivo_key}"  
 
 
 
