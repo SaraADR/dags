@@ -109,7 +109,7 @@ def process_fixed_output_from_server():
             {
                 "type": "notify",
                 "data": {
-                    "message": "Datos del plan procesados correctamente"
+                    "message": "Datos generados por el algoritmo de planificación de aeronaves disponibles.",
                 }
             },
             {
