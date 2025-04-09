@@ -41,7 +41,7 @@ def consumer_function(message, prefix, **kwargs):
     folder_prefix = 'sftp/'
 
     # Descargar el archivo desde MinIO
-    local_directory = 'tmp'  # Cambia este path al local
+    local_directory = 'temp'  # Cambia este path al local
     try:
         local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
         print(local_zip_path)
@@ -84,11 +84,12 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
     if not files:
         print(f"No se encontraron archivos para descargar en la carpeta: {folder_prefix}")
         return
+    print(files)
 
     local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
     print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
     
-    relative_path = file_path_in_minio
+    relative_path = file_path_in_minio.replace('/tmp/', '')
     try:
         # Verificar si el archivo existe antes de intentar descargarlo
         response = s3_client.get_object(Bucket=bucket_name, Key=relative_path)
