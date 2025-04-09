@@ -181,7 +181,7 @@ dag = DAG(
 
 process_fixed_output_task = PythonOperator(
     task_id='execute_algorithm_planificator',
-    python_callable=process_fixed_output_from_server,
+    python_callable=process_and_notify_with_csv,
     dag=dag,
 )
 
