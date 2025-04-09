@@ -121,6 +121,9 @@ def process_fixed_output_from_server():
     with open(local_tmp_output, 'r', encoding='utf-8') as f:
         output_data = json.load(f)
 
+    print("DEBUG - Contenido real del output descargado:")
+    print(output_data)
+
     os.remove(local_tmp_output)
 
     assignment_data = {
