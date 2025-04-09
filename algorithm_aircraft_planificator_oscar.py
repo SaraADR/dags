@@ -39,7 +39,7 @@ def insert_notification(payload):
 
 def process_fixed_output_from_server():
     output_file = "test1.1.json"  # Fichero fijo que quieres procesar
-    user = "Francisco José Blanco Garza"  # Usuario destino
+    user = "all_users"  # Usuario destino
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
