@@ -150,7 +150,7 @@ dag = DAG(
 )
 
 process_fixed_output_task = PythonOperator(
-    task_id='process_fixed_output_from_server',
+    task_id='execute_algorithm_planificator',
     python_callable=process_fixed_output_from_server,
     dag=dag,
 )
