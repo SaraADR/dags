@@ -127,10 +127,12 @@ def process_fixed_output_from_server():
     os.remove(local_tmp_output)
 
     assignment_data = {
-        "assignmentId": assignment_id,
-        "assignments": output_data
+        "assignmentId": output_data['assignmentId'],
+        "assignments": output_data['assignments']
     }
+
     notify_assignment_table(assignment_data, user)
+
 
 default_args = {
     'owner': 'oscar',
