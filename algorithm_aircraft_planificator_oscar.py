@@ -1,3 +1,12 @@
+# TENEMOS LA FUNCION DE PRUEBA PARA NOTIFICAR AL FRONTEND, UNA VEZ ESTE COMPLETADO EL ENVÍO Y SE REALICE CORRECTAMENTE
+# SIMPLEMENTE INTEGRARÍAMOS DENTRO DE LA FUNCION ESTE PROCESO, Y ACABAR CON RESUMEN DEL FLUJO:
+
+# GENERACION DE DATOS DESDE EL FRONT > EJECUCIÓN DEL ALGORITMO EN SERVIDOR > DESCARGA DE RESULTADOS > ENVÍO DE NOTIFICACIÓN AL FRONTEND 
+# > ENVÍO DE NOTIFICACIÓN A LA BASE DE DATOS
+
+
+
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.hooks.base import BaseHook
@@ -8,16 +17,11 @@ import os
 import tempfile
 import base64
 import json
+import csv
+import boto3
 from sqlalchemy import text
 from dag_utils import get_db_session
 import pytz
-
-
-# TENEMOS LA FUNCION DE PRUEBA PARA NOTIFICAR AL FRONTEND, UNA VEZ ESTE COMPLETADO EL ENVÍO Y SE REALICE CORRECTAMENTE
-# SIMPLEMENTE INTEGRARÍAMOS DENTRO DE LA FUNCION ESTE PROCESO, Y ACABAR CON RESUMEN DEL FLUJO:
-
-# GENERACION DE DATOS DESDE EL FRONT > EJECUCIÓN DEL ALGORITMO EN SERVIDOR > DESCARGA DE RESULTADOS > ENVÍO DE NOTIFICACIÓN AL FRONTEND
-# > ENVÍO DE NOTIFICACIÓN A LA BASE DE DATOS
 
 def insert_notification(payload):
     try:
@@ -44,10 +48,11 @@ def insert_notification(payload):
     finally:
         session.close()
 
-def process_fixed_output_from_server():
-    output_file = "test1.1.json"  # Fichero fijo que quieres procesar
-    user = "all_users"  # Usuario destino
+def process_and_notify_with_csv():
+    output_file = "test1.1.json"  # Nombre del fichero de output remoto
+    user = "all_users"            # Enviar a todos los usuarios
 
+    # --- CONEXIÓN SSH para descargar el fichero ---
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
     username = ssh_conn.login
@@ -98,39 +103,61 @@ def process_fixed_output_from_server():
 
     os.remove(local_tmp_output)
 
+    # --- PROCESAR ASIGNACIONES Y CREAR CSV ---
     assignment_id = output_data.get('assignmentId')
     assignments_list = output_data.get('assignments', [])
 
-    headers = ["assignment_id", "vehicle_id"]
-    rows = []
+    local_csv_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
 
-    for assignment in assignments_list:
-        aid = assignment.get('id')
-        vehicles = assignment.get('vehicles', [])
-        for vehicle in vehicles:
-            rows.append([aid, vehicle])
+    with open(local_csv_file, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(['assignment_id', 'vehicle_id'])  # Cabeceras
+        for assignment in assignments_list:
+            aid = assignment.get('id')
+            vehicles = assignment.get('vehicles', [])
+            for vehicle in vehicles:
+                writer.writerow([aid, vehicle])
 
+    # --- SUBIR A MINIO ---
+    minio_conn = BaseHook.get_connection('minio_conn')  
+    s3 = boto3.client(
+        's3',
+        endpoint_url=minio_conn.host,
+        aws_access_key_id=minio_conn.login,
+        aws_secret_access_key=minio_conn.password,
+        region_name='us-east-1'
+    )
+
+    bucket_name = "tmp"
+    file_name_in_minio = f"algorithm_outputs/{os.path.basename(local_csv_file)}"
+    s3.upload_file(local_csv_file, bucket_name, file_name_in_minio)
+
+    # URL final del CSV subido
+    minio_base_url = minio_conn.extra_dejson.get('minio_public_url')
+    csv_url = f"{minio_base_url}/{bucket_name}/{file_name_in_minio}"
+
+    os.remove(local_csv_file)
+
+    # --- GENERAR NOTIFICACIÓN ---
     payload = {
         "to": user,
         "actions": [
             {
                 "type": "notify",
                 "data": {
-                    "message": "Datos generados por el algoritmo de planificación de aeronaves disponibles.",
+                    "message": "Datos generados por el algoritmo de planificación de aeronaves disponibles."
                 }
             },
             {
                 "type": "loadTable",
                 "data": {
-                    "headers": headers,
-                    "rows": rows
+                    "url": csv_url
                 }
             }
         ]
     }
 
     insert_notification(payload)
-
 
 default_args = {
     'owner': 'oscar',
