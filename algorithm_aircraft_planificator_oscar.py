@@ -9,27 +9,23 @@
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.hooks.base import BaseHook
-from airflow.models import Variable
 from datetime import datetime, timedelta
-import paramiko
 import os
 import tempfile
 import base64
 import json
 import csv
-import boto3
-from sqlalchemy import text
-from dag_utils import get_db_session
+import paramiko
 import pytz
+from dag_utils import get_minio_client, get_db_session
+from sqlalchemy import text
+from airflow.models import Variable
+from airflow.hooks.base import BaseHook
 
 def insert_notification(payload):
+    session = get_db_session()
     try:
-        session = get_db_session()
-        engine = session.get_bind()
-
         now_utc = datetime.now(pytz.utc)
-
         query = text("""
             INSERT INTO public.notifications
             (destination, "data", "date", status)
@@ -41,18 +37,17 @@ def insert_notification(payload):
             'date': now_utc
         })
         session.commit()
-
     except Exception as e:
         session.rollback()
         print(f"Error insertando notificación: {str(e)}")
+        raise
     finally:
         session.close()
 
 def process_and_notify_with_csv():
-    output_file = "test1.1.json"  # Nombre del fichero de output remoto
-    user = "all_users"            # Enviar a todos los usuarios
+    output_file = "test1.1.json"
+    user = "all_users"
 
-    # --- CONEXIÓN SSH para descargar el fichero ---
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
     username = ssh_conn.login
@@ -86,7 +81,7 @@ def process_and_notify_with_csv():
 
         sftp = target_client.open_sftp()
 
-        remote_output_path = f'/algoritms/algoritmo-asignacion-aeronaves-objetivo-5/output/{output_file}'
+        remote_output_path = '/algoritms/algoritmo-asignacion-aeronaves-objetivo-5/output/test1.1.json'
         local_tmp_output = tempfile.NamedTemporaryFile(delete=False).name
 
         sftp.get(remote_output_path, local_tmp_output)
@@ -103,7 +98,7 @@ def process_and_notify_with_csv():
 
     os.remove(local_tmp_output)
 
-    # --- PROCESAR ASIGNACIONES Y CREAR CSV ---
+    # Crear CSV temporal
     assignment_id = output_data.get('assignmentId')
     assignments_list = output_data.get('assignments', [])
 
@@ -111,34 +106,28 @@ def process_and_notify_with_csv():
 
     with open(local_csv_file, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['assignment_id', 'vehicle_id'])  # Cabeceras
+        writer.writerow(['assignment_id', 'vehicle_id'])
         for assignment in assignments_list:
             aid = assignment.get('id')
             vehicles = assignment.get('vehicles', [])
             for vehicle in vehicles:
                 writer.writerow([aid, vehicle])
 
-    # --- SUBIR A MINIO ---
-    minio_conn = BaseHook.get_connection('minio_conn')  
-    s3 = boto3.client(
-        's3',
-        endpoint_url=minio_conn.host,
-        aws_access_key_id=minio_conn.login,
-        aws_secret_access_key=minio_conn.password,
-        region_name='us-east-1'
-    )
-
+    # Subir CSV a MinIO
+    s3_client = get_minio_client()
     bucket_name = "tmp"
-    file_name_in_minio = f"algorithm_outputs/{os.path.basename(local_csv_file)}"
-    s3.upload_file(local_csv_file, bucket_name, file_name_in_minio)
+    folder = "algorithm_outputs"
+    file_key = f"{folder}/{os.path.basename(local_csv_file)}"
 
-    # URL final del CSV subido
-    minio_base_url = minio_conn.extra_dejson.get('minio_public_url')
-    csv_url = f"{minio_base_url}/{bucket_name}/{file_name_in_minio}"
+    s3_client.upload_file(local_csv_file, bucket_name, file_key)
 
     os.remove(local_csv_file)
 
-    # --- GENERAR NOTIFICACIÓN ---
+    # Construir URL pública
+    minio_base_url = "https://minio.avincis.cuatrodigital.com/"
+    csv_url = f"{minio_base_url}/{bucket_name}/{file_key}"
+
+    # Insertar notificación para el Front
     payload = {
         "to": user,
         "actions": [
@@ -156,7 +145,6 @@ def process_and_notify_with_csv():
             }
         ]
     }
-
     insert_notification(payload)
 
 default_args = {
