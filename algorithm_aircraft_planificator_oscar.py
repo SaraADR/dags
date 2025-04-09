@@ -15,6 +15,7 @@ import pytz
 def insert_notification(payload):
     try:
         session = get_db_session()
+        engine = session.get_bind()
 
         time = datetime.now(pytz.utc)
 
@@ -67,11 +68,10 @@ def notify_assignment_table(assignments_data, user):
 
     insert_notification(payload)
 
-def process_output_from_server(**context):
-    message = context['dag_run'].conf
-    output_file = message['message']['output_file']  # ejemplo: "test1.1.json"
-    user = message['message']['from_user']
-    assignment_id = message['message'].get('assignmentId')
+def process_fixed_output_from_server():
+    output_file = "test1.1.json"  # Archivo fijo
+    assignment_id = 1234          # assignment_id fijo
+    user = "usuario"              # usuario fijo (puedes cambiarlo)
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
@@ -123,25 +123,11 @@ def process_output_from_server(**context):
 
     os.remove(local_tmp_output)
 
-    if assignment_id:
-        assignment_data = {
-            "assignmentId": assignment_id,
-            "assignments": output_data
-        }
-        notify_assignment_table(assignment_data, user)
-    else:
-        payload = {
-            "to": str(user),
-            "actions": [
-                {
-                    "type": "notify",
-                    "data": {
-                        "message": "Resultados procesados y disponibles."
-                    }
-                }
-            ]
-        }
-        insert_notification(payload)
+    assignment_data = {
+        "assignmentId": assignment_id,
+        "assignments": output_data
+    }
+    notify_assignment_table(assignment_data, user)
 
 default_args = {
     'owner': 'oscar',
@@ -154,21 +140,21 @@ default_args = {
 }
 
 dag = DAG(
-    'algorithm_aircraft_planificator_test_from_server',
+    'algorithm_aircraft_planificator',
     default_args=default_args,
-    description='DAG de prueba: descarga output JSON real del servidor y genera notificación de tabla para Front',
+    description='DAG de prueba: descarga test1.1.json de servidor y genera notificación automáticamente',
     schedule_interval=None,
     catchup=False,
     max_active_runs=1,
     concurrency=1
 )
 
-process_output_task = PythonOperator(
-    task_id='process_output_from_server',
-    python_callable=process_output_from_server,
-    provide_context=True,
+process_fixed_output_task = PythonOperator(
+    task_id='process_fixed_output_from_server',
+    python_callable=process_fixed_output_from_server,
     dag=dag,
 )
+
 
 
 
