@@ -253,13 +253,14 @@ dag = DAG(
     concurrency=1
 )
 
+
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic_minio",
     topics=["filesV4"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_operator",
+    commit_cadence="end_of_batch",
     dag=dag,
 )
 
