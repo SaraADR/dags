@@ -143,21 +143,22 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
                 'output_data': json.dumps(output_data)
             }
 
-            # Construir la consulta de inserción
-            query = f"""
-                INSERT INTO algoritmos.algoritmo_water_analysis (
-                    sampled_feature, result_time, phenomenon_time, input_data, output_data
-                ) VALUES (
-                    {datos['sampled_feature']},
-                    '{datos['result_time']}',
-                    '{datos['phenomenon_time']}'::TSRANGE,
-                    '{datos['input_data']}',
-                    '{datos['output_data']}'
-                )
-            """
+            print(datos)
+            # # Construir la consulta de inserción
+            # query = f"""
+            #     INSERT INTO algoritmos.algoritmo_water_analysis (
+            #         sampled_feature, result_time, phenomenon_time, input_data, output_data
+            #     ) VALUES (
+            #         {datos['sampled_feature']},
+            #         '{datos['result_time']}',
+            #         '{datos['phenomenon_time']}'::TSRANGE,
+            #         '{datos['input_data']}',
+            #         '{datos['output_data']}'
+            #     )
+            # """
 
-            # Ejecutar la consulta
-            execute_query('biobd', query)
+            # # Ejecutar la consulta
+            # execute_query('biobd', query)
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
  
