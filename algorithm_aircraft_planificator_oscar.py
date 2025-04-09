@@ -17,17 +17,17 @@ def insert_notification(payload):
         session = get_db_session()
         engine = session.get_bind()
 
-        time = datetime.now(pytz.utc)
+        now_utc = datetime.now(pytz.utc)
 
         query = text("""
             INSERT INTO public.notifications
             (destination, "data", "date", status)
-            VALUES (:destination, :data, NULL, NULL);
+            VALUES (:destination, :data, :date, NULL);
         """)
         session.execute(query, {
             'destination': 'ignis',
             'data': json.dumps(payload, ensure_ascii=False),
-            'date': time
+            'date': now_utc
         })
         session.commit()
 
@@ -37,41 +37,9 @@ def insert_notification(payload):
     finally:
         session.close()
 
-def notify_assignment_table(assignments_data, user):
-    headers = ["assignment_id", "vehicle_id"]
-    rows = []
-
-    for assignment in assignments_data.get('assignments', []):
-        assignment_id = assignment.get('id')
-        vehicles = assignment.get('vehicles', [])
-        for vehicle in vehicles:
-            rows.append([assignment_id, vehicle])
-
-    payload = {
-        "to": str(user),
-        "actions": [
-            {
-                "type": "loadTable",
-                "data": {
-                    "headers": headers,
-                    "rows": rows
-                }
-            },
-            {
-                "type": "notify",
-                "data": {
-                    "message": "Resultados de asignación de vehículos disponibles."
-                }
-            }
-        ]
-    }
-
-    insert_notification(payload)
-
 def process_fixed_output_from_server():
-    output_file = "test1.1.json"  # Archivo fijo
-    assignment_id = 1234          # assignment_id fijo
-    user = "usuario"              # usuario fijo (puedes cambiarlo)
+    output_file = "test1.1.json"  # Fichero fijo que quieres procesar
+    user = "Francisco José Blanco Garza"  # Usuario destino
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
@@ -121,17 +89,40 @@ def process_fixed_output_from_server():
     with open(local_tmp_output, 'r', encoding='utf-8') as f:
         output_data = json.load(f)
 
-    print("DEBUG - Contenido real del output descargado:")
-    print(output_data)
-
     os.remove(local_tmp_output)
 
-    assignment_data = {
-        "assignmentId": output_data['assignmentId'],
-        "assignments": output_data['assignments']
+    assignment_id = output_data.get('assignmentId')
+    assignments_list = output_data.get('assignments', [])
+
+    headers = ["assignment_id", "vehicle_id"]
+    rows = []
+
+    for assignment in assignments_list:
+        aid = assignment.get('id')
+        vehicles = assignment.get('vehicles', [])
+        for vehicle in vehicles:
+            rows.append([aid, vehicle])
+
+    payload = {
+        "to": user,
+        "actions": [
+            {
+                "type": "notify",
+                "data": {
+                    "message": "Datos del plan procesados correctamente"
+                }
+            },
+            {
+                "type": "loadTable",
+                "data": {
+                    "headers": headers,
+                    "rows": rows
+                }
+            }
+        ]
     }
 
-    notify_assignment_table(assignment_data, user)
+    insert_notification(payload)
 
 
 default_args = {
