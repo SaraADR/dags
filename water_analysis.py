@@ -92,13 +92,13 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
             madrid_tz = pytz.timezone('Europe/Madrid')
 
             # Formatear phenomenon_time
-            start_dt = datetime.datetime.strptime(startTimeStamp, "%Y%m%dT%H%M%S")
-            end_dt = datetime.datetime.strptime(endTimeStamp, "%Y%m%dT%H%M%S")
+            start_dt = datetime.strptime(startTimeStamp, "%Y%m%dT%H%M%S")
+            end_dt = datetime.strptime(endTimeStamp, "%Y%m%dT%H%M%S")
 
             phenomenon_time = f"[{start_dt.strftime('%Y-%m-%dT%H:%M:%S')}, {end_dt.strftime('%Y-%m-%dT%H:%M:%S')}]"
             datos = {
                 'sampled_feature': mission_id, 
-                'result_time': datetime.datetime.now(madrid_tz),
+                'result_time': datetime.now(madrid_tz),
                 'phenomenon_time': phenomenon_time,
                 'input_data': json.dumps(input_data),
                 'output_data': json.dumps(output_data)
