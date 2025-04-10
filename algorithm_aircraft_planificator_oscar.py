@@ -78,7 +78,7 @@ def get_planning_id_from_einforex(payload):
     Llama a la API de EINFOREX para guardar la planificación y devuelve el planning_id.
     """
     try:
-        connection = BaseHook.get_connection('einforex_planning_conn')
+        connection = BaseHook.get_connection('einforex_planning_url')
         extra = json.loads(connection.extra)
         planning_url = extra['planning_url']
 
