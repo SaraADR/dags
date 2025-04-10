@@ -308,7 +308,7 @@ default_args = {
 }
 
 dag = DAG(
-    'algorithm_aircraft_planificator',
+    'algorithm_aircraft_recommendation',
     default_args=default_args,
     description='DAG Planificador aeronaves',
     schedule_interval=None,

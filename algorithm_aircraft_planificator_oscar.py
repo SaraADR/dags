@@ -95,7 +95,7 @@ default_args = {
 }
 
 dag = DAG(
-    'algorithm_aircraft_recommendation',
+    'algorithm_aircraft_planificator',
     default_args=default_args,
     description='Ejecuta algoritmo de recomendación en servidor Avincis',
     schedule_interval=None,
