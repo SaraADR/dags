@@ -183,6 +183,11 @@ def create_metadata_uuid_basica(archivos, json_modificado):
         "format": "application/json"
     }
 
+    metadata_file = io.BytesIO()
+    metadata_file.write(json.dumps(generated_metadata).encode('utf-8'))
+    metadata_file.seek(0)
+
+
     connection = BaseHook.get_connection("geonetwork_update_conn")
     access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
     headers = {
@@ -191,17 +196,23 @@ def create_metadata_uuid_basica(archivos, json_modificado):
     'Cookie': str(set_cookie_header[0]),
     'Accept': 'application/json'
     }
+
+    files = {
+        'file': ('metadata.json', metadata_file, 'application/json')
+    }
     # 3. Subir el metadato
     response = requests.post(
         f"{connection.schema}{connection.host}/geonetwork/srv/api/records",
         headers=headers,
-        json=generated_metadata
+        files=files
     )
-
+    
     print("Respuesta de creación de metadato:", response.status_code, response.text)
     response.raise_for_status()
+
     uuid_metadata = list(response.json()['metadataInfos'].values())[0][0]['uuid']
     print("📄 UUID del metadato creado:", uuid_metadata)
+    return uuid_metadata
 
 
 def upload_to_geonetwork(archivos, json_modificado, **context):
