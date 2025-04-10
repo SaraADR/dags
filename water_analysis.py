@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -166,16 +167,29 @@ def upload_to_geonetwork(archivos, json_modificado, **context):
         upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
+        # UUID común para agrupar todos los recursos
+        group_uuid = str(uuid.uuid4())
+        logging.info(f"UUID común para agrupación en GeoNetwork: {group_uuid}")
+
+
         resource_ids = []
 
-        for xml_data in archivos:
-            xml_decoded = base64.b64decode(xml_data).decode('utf-8')
+        for archivo in archivos:
+            xml_base64 = archivo['content']
+            xml_decoded = base64.b64decode(xml_base64).decode('utf-8')
+            file_name = archivo.get('file_name', 'metadata.xml')
 
-            logging.info(f"XML DATA: {xml_data}")
+            logging.info(f"XML DATA: {file_name}")
             logging.info(xml_decoded)
 
+
+            if "<uuid>" in xml_decoded:
+                xml_decoded = re.sub(r"<uuid>.*?</uuid>", f"<uuid>{group_uuid}</uuid>", xml_decoded)
+            else:
+                xml_decoded = xml_decoded.replace("</gmd:fileIdentifier>", f"<gco:CharacterString>{group_uuid}</gco:CharacterString></gmd:fileIdentifier>")
+
             files = {
-                'file': ('metadata.xml', xml_decoded, 'text/xml'),
+                'file': (file_name, xml_decoded, 'text/xml'),
             }
 
             headers = {
@@ -212,8 +226,11 @@ def upload_to_geonetwork(archivos, json_modificado, **context):
         if not resource_ids:
             raise Exception("No se generó ningún resource_id en GeoNetwork.")
 
+
         context['ti'].xcom_push(key='resource_id', value=resource_ids)
+        context['ti'].xcom_push(key='group_uuid', value=group_uuid)
         return resource_ids
+
 
     except Exception as e:
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
