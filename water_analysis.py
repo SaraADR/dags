@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 import uuid
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
@@ -11,7 +12,9 @@ import os
 from airflow.models import Variable
 import copy
 import pytz
-
+from airflow.hooks.base_hook import BaseHook
+import requests
+import logging
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
@@ -38,6 +41,7 @@ def process_extracted_files(**kwargs):
 
     json_modificado = copy.deepcopy(json_content)
     rutaminio = Variable.get("ruta_minIO")
+    nuevos_paths = {}
     for archivo in archivos:
         archivo_file_name = os.path.basename(archivo['file_name'])
         archivo_content = base64.b64decode(archivo['content'])
@@ -57,14 +61,13 @@ def process_extracted_files(**kwargs):
         print(f'{archivo_file_name} subido correctamente a MinIO.')
 
         print(archivo_key)
-
-
-    #TO DO: Modificaciones de path de json
+        nuevos_paths[archivo_file_name] = f"{rutaminio}/{bucket_name}/{archivo_key}"
+      
     for resource in json_modificado['executionResources']:
-        print("path de recurso:")
-        print(resource['path'])
-        if os.path.basename(resource['path']) == {archivo_file_name}:
-            resource['path'] = f"{rutaminio}/{bucket_name}/{archivo_key}"  
+        file_name = os.path.basename(resource['path'])
+        if file_name in nuevos_paths:
+            print(f"Actualizando path de {file_name}")
+            resource['path'] = nuevos_paths[file_name]
 
 
 
@@ -82,7 +85,12 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
+    #Historizamos para guardar en bd y pantalla de front
     historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
+
+    #Integramos en geonetwork
+    upload_to_geonetwork(archivos, json_modificado)
+
 
 
 def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeStamp):
@@ -92,37 +100,136 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
             madrid_tz = pytz.timezone('Europe/Madrid')
 
             # Formatear phenomenon_time
-            start_dt = datetime.datetime.strptime(startTimeStamp, "%Y%m%dT%H%M%S")
-            end_dt = datetime.datetime.strptime(endTimeStamp, "%Y%m%dT%H%M%S")
+            start_dt = datetime.strptime(startTimeStamp, "%Y%m%dT%H%M%S")
+            end_dt = datetime.strptime(endTimeStamp, "%Y%m%dT%H%M%S")
 
             phenomenon_time = f"[{start_dt.strftime('%Y-%m-%dT%H:%M:%S')}, {end_dt.strftime('%Y-%m-%dT%H:%M:%S')}]"
             datos = {
                 'sampled_feature': mission_id, 
-                'result_time': datetime.datetime.now(madrid_tz),
+                'result_time': datetime.now(madrid_tz),
                 'phenomenon_time': phenomenon_time,
                 'input_data': json.dumps(input_data),
                 'output_data': json.dumps(output_data)
             }
 
-            print(datos)
-            # # Construir la consulta de inserción
-            # query = f"""
-            #     INSERT INTO algoritmos.algoritmo_water_analysis (
-            #         sampled_feature, result_time, phenomenon_time, input_data, output_data
-            #     ) VALUES (
-            #         {datos['sampled_feature']},
-            #         '{datos['result_time']}',
-            #         '{datos['phenomenon_time']}'::TSRANGE,
-            #         '{datos['input_data']}',
-            #         '{datos['output_data']}'
-            #     )
-            # """
 
-            # # Ejecutar la consulta
-            # execute_query('biobd', query)
+            # Construir la consulta de inserción
+            query = f"""
+                INSERT INTO algoritmos.algoritmo_water_analysis (
+                    sampled_feature, result_time, phenomenon_time, input_data, output_data
+                ) VALUES (
+                    {datos['sampled_feature']},
+                    '{datos['result_time']}',
+                    '{datos['phenomenon_time']}'::TSRANGE,
+                    '{datos['input_data']}',
+                    '{datos['output_data']}'
+                )
+            """
+
+            # Ejecutar la consulta
+            execute_query('biobd', query)
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
  
+
+def get_geonetwork_credentials():
+    try:
+
+        conn = BaseHook.get_connection('geonetwork_conn')
+        credential_dody = {
+            "username" : conn.login,
+            "password" : conn.password
+        }
+
+        # Hacer la solicitud para obtener las credenciales
+        logging.info(f"Obteniendo credenciales de: {conn.host}")
+        response = requests.post(conn.host,json= credential_dody)
+
+        # Verificar que la respuesta sea exitosa
+        response.raise_for_status()
+
+        # Extraer los headers y tokens necesarios
+        response_object = response.json()
+        access_token = response_object['accessToken']
+        xsrf_token = response_object['xsrfToken']
+        set_cookie_header = response_object['setCookieHeader']
+    
+
+        return [access_token, xsrf_token, set_cookie_header]
+    
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error al obtener credenciales: {e}")
+        raise Exception(f"Error al obtener credenciales: {e}")
+
+def upload_to_geonetwork(archivos, json_modificado, **context):
+    try:
+        connection = BaseHook.get_connection("geonetwork_update_conn")
+        upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
+        access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
+
+        # UUID común para agrupar todos los recursos
+        group_uuid = str(uuid.uuid4())
+        logging.info(f"UUID común para agrupación en GeoNetwork: {group_uuid}")
+
+
+        resource_ids = []
+
+        for archivo in archivos:
+            archivo_name = archivo['file_name']
+            archivo_content = base64.b64decode(archivo['content'])
+
+
+            files = {
+                'file': (archivo_name, archivo_content, 'application/octet-stream'),
+            }
+
+            logging.info(f"XML DATA: {archivo_name}")
+
+
+            headers = {
+                'Authorization': f"Bearer {access_token}",
+                'x-xsrf-token': str(xsrf_token),
+                'Cookie': str(set_cookie_header[0]),
+                'Accept': 'application/json'
+            }
+
+            response = requests.post(upload_url, files=files, headers=headers)
+            logging.info(f"Respuesta completa de GeoNetwork: {response.status_code}, {response.text}")
+
+            response.raise_for_status()
+            response_data = response.json()
+
+            # Extraer el identificador correcto desde metadataInfos
+            metadata_infos = response_data.get("metadataInfos", {})
+            if metadata_infos:
+                metadata_values = list(metadata_infos.values())[0]  # Obtener la primera lista de metadatos
+                if metadata_values:
+                    resource_id = metadata_values[0].get("uuid")  # Extraer el verdadero identificador
+                else:
+                    resource_id = None
+            else:
+                resource_id = None
+
+            if not resource_id:
+                logging.error(f"No se encontró un identificador válido en la respuesta de GeoNetwork: {response_data}")
+                continue
+
+            logging.info(f"Identificador del recurso en GeoNetwork: {resource_id}")
+            resource_ids.append(resource_id)
+
+        if not resource_ids:
+            raise Exception("No se generó ningún resource_id en GeoNetwork.")
+
+
+        context['ti'].xcom_push(key='resource_id', value=resource_ids)
+        context['ti'].xcom_push(key='group_uuid', value=group_uuid)
+        return resource_ids
+
+
+    except Exception as e:
+        logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
+        raise
+
 
 # Definición del DAG
 default_args = {
