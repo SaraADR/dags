@@ -88,12 +88,10 @@ def get_planning_id_from_einforex(payload):
 # Tareas principales
 
 def prepare_and_upload_input(**context):
-    message = context['dag_run'].conf['message']
-    if isinstance(message, str):
-        message = json.loads(message)
+    input_data = context['dag_run'].conf
+    if isinstance(input_data, str):
+        input_data = json.loads(input_data)
 
-    input_data = message['input_data']
-    user = message['from_user']
     vehicles = input_data['vehicles']
     fires = input_data['fires']
     assignment_criteria = input_data['assignmentCriteria']
