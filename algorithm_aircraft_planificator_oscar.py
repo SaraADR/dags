@@ -88,15 +88,37 @@ def get_planning_id_from_einforex(payload):
 # Tareas principales
 
 def prepare_and_upload_input(**context):
-    input_data = context['dag_run'].conf
-    if isinstance(input_data, str):
-        input_data = json.loads(input_data)
+    # Cargar correctamente el conf
+    raw_conf = context['dag_run'].conf
+    if isinstance(raw_conf, str):
+        raw_conf = json.loads(raw_conf)
 
-    print("CONF RECIBIDO:", input_data)
-       
+    message = raw_conf.get('message')
+    if not message:
+        raise ValueError("El input no contiene el campo 'message'.")
+
+    user = message.get('from_user')
+
+    raw_input_data = message.get('input_data')
+    if not raw_input_data:
+        raise ValueError("El input no contiene 'input_data' dentro de message.")
+
+    if isinstance(raw_input_data, str):
+        input_data = json.loads(raw_input_data)
+    else:
+        input_data = raw_input_data
+
+    # Confirmar input recibido
+    print("[DEBUG] INPUT DATA FINAL:", input_data)
+
     vehicles = input_data['vehicles']
     fires = input_data['fires']
     assignment_criteria = input_data['assignmentCriteria']
+
+    # Guardamos usuario para usar en notify_frontend
+    context['ti'].xcom_push(key='user', value=user)
+
+    # Conexión SSH
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
@@ -127,10 +149,12 @@ def prepare_and_upload_input(**context):
         with sftp.file(SERVER_INPUT_DIR + INPUT_FILENAME, 'w') as remote_file:
             for line in input_lines:
                 remote_file.write(line)
+
         sftp.close()
         client.close()
         bastion.close()
         print("[INFO] Input preparado y subido correctamente")
+
     finally:
         os.remove(temp_key_path)
 
