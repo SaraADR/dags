@@ -38,6 +38,7 @@ def process_extracted_files(**kwargs):
 
     json_modificado = copy.deepcopy(json_content)
     rutaminio = Variable.get("ruta_minIO")
+    nuevos_paths = {}
     for archivo in archivos:
         archivo_file_name = os.path.basename(archivo['file_name'])
         archivo_content = base64.b64decode(archivo['content'])
@@ -57,14 +58,13 @@ def process_extracted_files(**kwargs):
         print(f'{archivo_file_name} subido correctamente a MinIO.')
 
         print(archivo_key)
-
-
-    #TO DO: Modificaciones de path de json
+        nuevos_paths[archivo_file_name] = f"{rutaminio}/{bucket_name}/{archivo_key}"
+      
     for resource in json_modificado['executionResources']:
-        print("path de recurso:")
-        print(resource['path'])
-        if os.path.basename(resource['path']) == {archivo_file_name}:
-            resource['path'] = f"{rutaminio}/{bucket_name}/{archivo_key}"  
+        file_name = os.path.basename(resource['path'])
+        if file_name in nuevos_paths:
+            print(f"Actualizando path de {file_name}")
+            resource['path'] = nuevos_paths[file_name]
 
 
 
