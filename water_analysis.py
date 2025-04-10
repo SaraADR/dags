@@ -11,7 +11,9 @@ import os
 from airflow.models import Variable
 import copy
 import pytz
-
+from airflow.hooks.base_hook import BaseHook
+import requests
+import logging
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
@@ -82,7 +84,12 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
+    #Historizamos para guardar en bd y pantalla de front
     historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
+
+    #Integramos en geonetwork
+    upload_to_geonetwork(archivos, json_modificado)
+
 
 
 def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeStamp):
@@ -123,6 +130,95 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
  
+
+def get_geonetwork_credentials():
+    try:
+
+        conn = BaseHook.get_connection('geonetwork_conn')
+        credential_dody = {
+            "username" : conn.login,
+            "password" : conn.password
+        }
+
+        # Hacer la solicitud para obtener las credenciales
+        logging.info(f"Obteniendo credenciales de: {conn.host}")
+        response = requests.post(conn.host,json= credential_dody)
+
+        # Verificar que la respuesta sea exitosa
+        response.raise_for_status()
+
+        # Extraer los headers y tokens necesarios
+        response_object = response.json()
+        access_token = response_object['accessToken']
+        xsrf_token = response_object['xsrfToken']
+        set_cookie_header = response_object['setCookieHeader']
+    
+
+        return [access_token, xsrf_token, set_cookie_header]
+    
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error al obtener credenciales: {e}")
+        raise Exception(f"Error al obtener credenciales: {e}")
+
+def upload_to_geonetwork(archivos, json_modificado, **context):
+    try:
+        connection = BaseHook.get_connection("geonetwork_update_conn")
+        upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
+        access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
+
+        resource_ids = []
+
+        for xml_data in archivos:
+            xml_decoded = base64.b64decode(xml_data).decode('utf-8')
+
+            logging.info(f"XML DATA: {xml_data}")
+            logging.info(xml_decoded)
+
+            files = {
+                'file': ('metadata.xml', xml_decoded, 'text/xml'),
+            }
+
+            headers = {
+                'Authorization': f"Bearer {access_token}",
+                'x-xsrf-token': str(xsrf_token),
+                'Cookie': str(set_cookie_header[0]),
+                'Accept': 'application/json'
+            }
+
+            response = requests.post(upload_url, files=files, headers=headers)
+            logging.info(f"Respuesta completa de GeoNetwork: {response.status_code}, {response.text}")
+
+            response.raise_for_status()
+            response_data = response.json()
+
+            # Extraer el identificador correcto desde metadataInfos
+            metadata_infos = response_data.get("metadataInfos", {})
+            if metadata_infos:
+                metadata_values = list(metadata_infos.values())[0]  # Obtener la primera lista de metadatos
+                if metadata_values:
+                    resource_id = metadata_values[0].get("uuid")  # Extraer el verdadero identificador
+                else:
+                    resource_id = None
+            else:
+                resource_id = None
+
+            if not resource_id:
+                logging.error(f"No se encontró un identificador válido en la respuesta de GeoNetwork: {response_data}")
+                continue
+
+            logging.info(f"Identificador del recurso en GeoNetwork: {resource_id}")
+            resource_ids.append(resource_id)
+
+        if not resource_ids:
+            raise Exception("No se generó ningún resource_id en GeoNetwork.")
+
+        context['ti'].xcom_push(key='resource_id', value=resource_ids)
+        return resource_ids
+
+    except Exception as e:
+        logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
+        raise
+
 
 # Definición del DAG
 default_args = {
