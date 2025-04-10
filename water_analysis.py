@@ -84,47 +84,6 @@ def process_extracted_files(**kwargs):
 
     historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
 
-# # Función para generar notificación
-# def generate_notify_job(**context):
-#     json_content = context['dag_run'].conf.get('json')
-#     id_mission = None
-#     for metadata in json_content['metadata']:
-#         if metadata['name'] == 'MissionID':
-#             id_mission = metadata['value']
-#             break
-
-#     if id_mission:
-#         try:
-#             session = get_db_session()
-
-#             data_json = json.dumps({
-#                 "to": "all_users",
-#                 "actions": [{
-#                     "type": "reloadMission",
-#                     "data": {"missionId": id_mission}
-#                 }]
-#             })
-#             time = datetime.now().replace(tzinfo=timezone.utc)
-
-#             query = text("""
-#                 INSERT INTO public.notifications
-#                 (destination, "data", "date", status)
-#                 VALUES (:destination, :data, :date, NULL);
-#             """)
-#             session.execute(query, {
-#                 'destination': 'inspection',
-#                 'data': data_json,
-#                 'date': time
-#             })
-#             session.commit()
-#         except Exception as e:
-#             session.rollback()
-#             print(f"Error durante la inserción de la notificación: {str(e)}")
-#         finally:
-#             session.close()
-
-
-
 
 def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeStamp):
     try:
@@ -133,8 +92,10 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
             madrid_tz = pytz.timezone('Europe/Madrid')
 
             # Formatear phenomenon_time
-            phenomenon_time = f"[{startTimeStamp.strftime('%Y-%m-%dT%H:%M:%S')}, {endTimeStamp.strftime('%Y-%m-%dT%H:%M:%S')}]"
+            start_dt = datetime.datetime.strptime(startTimeStamp, "%Y%m%dT%H%M%S")
+            end_dt = datetime.datetime.strptime(endTimeStamp, "%Y%m%dT%H%M%S")
 
+            phenomenon_time = f"[{start_dt.strftime('%Y-%m-%dT%H:%M:%S')}, {end_dt.strftime('%Y-%m-%dT%H:%M:%S')}]"
             datos = {
                 'sampled_feature': mission_id, 
                 'result_time': datetime.datetime.now(madrid_tz),
