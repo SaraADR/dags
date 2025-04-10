@@ -175,22 +175,16 @@ def upload_to_geonetwork(archivos, json_modificado, **context):
         resource_ids = []
 
         for archivo in archivos:
-            xml_base64 = archivo['content']
-            xml_decoded = base64.b64decode(xml_base64).decode('utf-8')
-            file_name = archivo.get('file_name', 'metadata.xml')
+            archivo_name = archivo['file_name']
+            archivo_content = base64.b64decode(archivo['content'])
 
-            logging.info(f"XML DATA: {file_name}")
-            logging.info(xml_decoded)
-
-
-            if "<uuid>" in xml_decoded:
-                xml_decoded = re.sub(r"<uuid>.*?</uuid>", f"<uuid>{group_uuid}</uuid>", xml_decoded)
-            else:
-                xml_decoded = xml_decoded.replace("</gmd:fileIdentifier>", f"<gco:CharacterString>{group_uuid}</gco:CharacterString></gmd:fileIdentifier>")
 
             files = {
-                'file': (file_name, xml_decoded, 'text/xml'),
+                'file': (archivo_name, archivo_content, 'application/octet-stream'),
             }
+
+            logging.info(f"XML DATA: {archivo_name}")
+
 
             headers = {
                 'Authorization': f"Bearer {access_token}",
