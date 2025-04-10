@@ -79,8 +79,7 @@ def get_planning_id_from_einforex(payload):
     """
     try:
         connection = BaseHook.get_connection('einforex_planning_url')
-        extra = json.loads(connection.extra)
-        planning_url = extra['planning_url']
+        planning_url = connection.host + "/rest/ResourcePlanningAlgorithmExecutionService/save"
 
         response = requests.post(planning_url, json=payload, timeout=30)
         response.raise_for_status()
