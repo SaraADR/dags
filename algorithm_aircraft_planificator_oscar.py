@@ -74,16 +74,28 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
     }
 
 def get_planning_id_from_einforex(payload):
-    base_url = Variable.get("einforex_planning_url")
-    full_url = base_url + EINFOREX_ROUTE
-    print("[INFO] POST a EINFOREX iniciado")
-    response = requests.post(full_url, json=payload, timeout=10)
-    response.raise_for_status()
-    planning_id = response.json().get('id')
-    if planning_id is None:
-        raise Exception(f"[ERROR] No se obtuvo 'id' en respuesta: {response.text}")
-    print(f"[INFO] PlanningId obtenido: {planning_id}")
-    return planning_id
+    """
+    Llama a la API de EINFOREX para guardar la planificación y devuelve el planning_id.
+    """
+    try:
+        connection = BaseHook.get_connection('einforex_planning_conn')
+        extra = json.loads(connection.extra)
+        planning_url = extra['planning_url']
+
+        response = requests.post(planning_url, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        planning_id = response.json().get('id')
+        if planning_id is None:
+            raise ValueError("La respuesta no contiene 'id'")
+
+        print(f"[INFO] Planning ID recibido: {planning_id}")
+        return planning_id
+
+    except Exception as e:
+        print(f"[ERROR] Fallo al obtener planning_id de EINFOREX: {e}")
+        raise
+
 
 # Tareas principales
 
