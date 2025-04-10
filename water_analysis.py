@@ -89,7 +89,7 @@ def process_extracted_files(**kwargs):
     historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
 
     #Integramos en geonetwork
-    upload_to_geonetwork(archivos, json_modificado)
+    create_metadata_uuid_basica(archivos, json_modificado)
 
 
 
@@ -160,6 +160,49 @@ def get_geonetwork_credentials():
     except requests.exceptions.RequestException as e:
         logging.error(f"Error al obtener credenciales: {e}")
         raise Exception(f"Error al obtener credenciales: {e}")
+
+
+def create_metadata_uuid_basica(archivos, json_modificado):
+    # Se crear un metadato compatible con GeoNetwork
+    mission_id = json_modificado["metadata"][1]["value"]
+    date = json_modificado["metadata"][6]["value"]
+    operator = json_modificado["metadata"][4]["value"]
+    aircraft = json_modificado["metadata"][2]["value"]
+    tags = list({tag for r in json_modificado["executionResources"] for tag in r["tag"].split(",")})
+
+    generated_metadata = {
+        "title": f"Análisis de Agua - Misión {mission_id}",
+        "abstract": f"Resultado del análisis realizado con aeronave {aircraft} el {date}. Operador: {operator}.",
+        "date": date,
+        "keywords": tags,
+        "contact": {
+            "name": operator,
+            "email": "contacto@ejemplo.com"
+        },
+        "language": "spa",
+        "format": "application/json"
+    }
+
+    connection = BaseHook.get_connection("geonetwork_update_conn")
+    access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
+    headers = {
+    'Authorization': f"Bearer {access_token}",
+    'x-xsrf-token': str(xsrf_token),
+    'Cookie': str(set_cookie_header[0]),
+    'Accept': 'application/json'
+    }
+    # 3. Subir el metadato
+    response = requests.post(
+        f"{connection.schema}{connection.host}/geonetwork/srv/api/records",
+        headers=headers,
+        json=generated_metadata
+    )
+
+    print("Respuesta de creación de metadato:", response.status_code, response.text)
+    response.raise_for_status()
+    uuid_metadata = list(response.json()['metadataInfos'].values())[0][0]['uuid']
+    print("📄 UUID del metadato creado:", uuid_metadata)
+
 
 def upload_to_geonetwork(archivos, json_modificado, **context):
     try:
