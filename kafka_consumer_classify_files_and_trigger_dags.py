@@ -197,7 +197,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                         trigger_dag_name = 'algorithm_metashape_result_upload_postprocess'
                         print("Ejecutando lógica para MetashapeRGB")
                     elif algorithm_id == 'WaterAnalysis':
-                        trigger_dag_name = 'algorithm_metashape_result_upload_postprocess'
+                        trigger_dag_name = 'water_analysis'
                         print("Ejecutando lógica para WaterAnalysis")
 
                     unique_id = uuid.uuid4()
