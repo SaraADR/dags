@@ -92,10 +92,11 @@ def prepare_and_upload_input(**context):
     if isinstance(input_data, str):
         input_data = json.loads(input_data)
 
+    print("CONF RECIBIDO:", input_data)
+       
     vehicles = input_data['vehicles']
     fires = input_data['fires']
     assignment_criteria = input_data['assignmentCriteria']
-
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
@@ -133,7 +134,6 @@ def prepare_and_upload_input(**context):
     finally:
         os.remove(temp_key_path)
 
-    context['ti'].xcom_push(key='user', value=user)
 
 def run_and_download_algorithm(**context):
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
