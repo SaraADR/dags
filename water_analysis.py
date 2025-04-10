@@ -178,9 +178,14 @@ def upload_to_geonetwork(archivos, json_modificado, **context):
             archivo_name = archivo['file_name']
             archivo_content = base64.b64decode(archivo['content'])
 
+            if archivo_name.lower().endswith('.png'):
+                mime_type = 'image/png'
+                logging.info(f"Procesando archivo PNG: {archivo_name}")
+            else:
+                mime_type = 'application/octet-stream'
 
             files = {
-                'file': (archivo_name, archivo_content, 'application/octet-stream'),
+                'file': (archivo_name, archivo_content, mime_type),
             }
 
             logging.info(f"XML DATA: {archivo_name}")
