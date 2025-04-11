@@ -20,28 +20,35 @@ def execute_docker_process(**context):
         with ssh_hook.get_conn() as ssh_client:
             print("Conectando por SSH para limpiar y lanzar el contenedor...")
 
-            # 1. Detener y eliminar contenedores + volúmenes previos
+            # 1. Limpiar contenedores anteriores
+            print("[INFO] Ejecutando docker-compose down...")
             cleanup_command = "cd /home/admin3/algoritmo_mapas_de_riesgo && docker-compose down --volumes"
             stdin, stdout, stderr = ssh_client.exec_command(cleanup_command)
-            cleanup_output = stdout.read().decode().strip()
-            cleanup_error = stderr.read().decode().strip()
-            print("Resultado de limpieza:")
-            print(cleanup_output)
-            if cleanup_error:
-                print("Errores durante limpieza:")
-                print(cleanup_error)
+            stdout.channel.recv_exit_status()  # Esperar que termine
+            print("[OUTPUT][docker-compose down]:")
+            for line in stdout.read().decode().splitlines():
+                print(line)
+            error_output = stderr.read().decode().strip()
+            if error_output:
+                print("[ERROR][docker-compose down]:")
+                print(error_output)
 
             # 2. Lanzar el contenedor desde cero con build
             command = "cd /home/admin3/algoritmo_mapas_de_riesgo && docker-compose up --build -d"
             stdin, stdout, stderr = ssh_client.exec_command(command)
 
+            stdout.channel.recv_exit_status()
+
             output = stdout.read().decode().strip()
             error_output = stderr.read().decode().strip()
 
-            print("Salida del contenedor:")
-            print(output)
-            print("Errores del contenedor:")
-            print(error_output)
+            print("[OUTPUT][docker-compose up]:")
+            for line in output.split("\n"):
+                print(line)
+
+            if error_output:
+                print("[ERROR][docker-compose up]:")
+                print(error_output)
 
             if "error" in error_output.lower():
                 raise Exception("Fallo en la ejecución del contenedor. Revisar logs.")
@@ -93,11 +100,8 @@ def check_output_files(**context):
 
             context['task_instance'].xcom_push(key='output_files', value=tiff_files)
 
-             # Eliminar solo los TIFF que empiecen por 'mapariesgo' para evitar eliminar archivos no deseados
-            delete_command = (
-                "find /home/admin3/algoritmo_mapas_de_riesgo/output "
-                "-maxdepth 1 -type f -name 'mapariesgo*.tif' -delete"
-            )
+            # Eliminar solo los TIFF que empiecen por 'mapariesgo' para evitar eliminar archivos no deseados
+            delete_command = "find /home/admin3/algoritmo_mapas_de_riesgo/output -maxdepth 1 -type f -name 'mapariesgo*.tif' -delete"
             stdin, stdout, stderr = ssh_client.exec_command(delete_command)
             delete_output = stdout.read().decode().strip()
             delete_error = stderr.read().decode().strip()
@@ -108,7 +112,8 @@ def check_output_files(**context):
                 print("Errores al eliminar los archivos:")
                 print(delete_error)
 
-                
+
+
     except Exception as e:
         print(f"Error al verificar archivos de salida: {str(e)}")
         raise
