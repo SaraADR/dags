@@ -49,9 +49,11 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
             matched_vehicles = [v for v in vehicles if v['model'] == model]
             available_aircrafts.extend([v['id'] for v in matched_vehicles])
 
+    output_interval_ms = 600_000  # 10 minutos en milisegundos (puedes ajustar)
+
     return {
-        "startDate": None,
-        "endDate": None,
+        "startDate": to_millis(start_dt),
+        "endDate": to_millis(end_dt),
         "sinceDate": to_millis(start_dt),
         "untilDate": to_millis(end_dt),
         "fireLocation": {
@@ -61,15 +63,15 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
             "z": fire['position'].get('z', 0)
         },
         "availableAircrafts": available_aircrafts,
-        "outputInterval": None,
+        "outputInterval": output_interval_ms,
         "resourcePlanningCriteria": [{
-            "id": 0,
-            "executionId": 0,
+            "id": fire_id,  # ¡Aquí ahora es el fireId como ID único!
+            "executionId": 0,  # Este por ahora seguimos dejando 0
             "since": to_millis(start_dt),
             "until": to_millis(end_dt),
-            "aircrafts": available_aircrafts,
+            "aircrafts": available_aircrafts if available_aircrafts else [""],  # Evitar vacío total
             "waterAmount": None,
-            "aircraftNum": None
+            "aircraftNum": len(available_aircrafts)  # Número de aeronaves disponibles
         }],
         "resourcePlanningResult": []
     }
