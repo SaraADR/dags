@@ -87,11 +87,12 @@ def get_planning_id_from_einforex(payload):
         password = connection.password
 
         print(f"[INFO] Llamando a {planning_url} con usuario {username}")
+        print(json.dumps(payload, indent=2))
 
         response = requests.post(
             planning_url,
             json=payload,
-            auth=HTTPBasicAuth(username, password),  # 💥 AQUÍ AÑADIMOS AUTENTICACIÓN
+            auth=HTTPBasicAuth(username, password),
             timeout=30
         )
 
