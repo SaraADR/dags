@@ -36,9 +36,6 @@ def to_millis(dt):
     return int(dt.timestamp() * 1000)
 
 def build_einforex_payload(fire, vehicles, assignment_criteria):
-    """
-    Construye el payload que se envía al servicio de planificación (EINFOREX).
-    """
     now = datetime.utcnow()
     start_dt = now.replace(minute=((now.minute // 10 + 1) * 10) % 60, second=0, microsecond=0)
     end_dt = start_dt + timedelta(hours=4)
@@ -65,62 +62,57 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
         },
         "availableAircrafts": available_aircrafts,
         "outputInterval": None,
-        "resourcePlanningCriteria": [
-            {
-                "id": 0,
-                "executionId": 0,
-                "since": to_millis(start_dt),
-                "until": to_millis(end_dt),
-                "aircrafts": [""],  # <--- Siempre vacío
-                "waterAmount": None,
-                "aircraftNum": len(available_aircrafts)  # <--- Número de helicópteros
-            }
-        ],
+        "resourcePlanningCriteria": [{
+            "id": 0,
+            "executionId": 0,
+            "since": to_millis(start_dt),
+            "until": to_millis(end_dt),
+            "aircrafts": available_aircrafts,
+            "waterAmount": None,
+            "aircraftNum": None
+        }],
         "resourcePlanningResult": []
     }
 
-
-
-    return payload
-
 def get_planning_id_from_einforex(payload):
     """
-    Llama a la API de EINFOREX para guardar la planificación y devuelve el planning_id.
+    Llama a la API de EINFOREX usando autenticación HTTP básica (usuario/contraseña) y devuelve el planning_id.
     """
     try:
+        # Obtener conexión de Airflow
         connection = BaseHook.get_connection('einforex_planning_url')
+        
         planning_url = connection.host + "/rest/ResourcePlanningAlgorithmExecutionService/save"
-        einforex_user = connection.login
-        einforex_password = connection.password
+        username = connection.login
+        password = connection.password
 
-        print(f"[INFO] Llamando a {planning_url} con usuario {einforex_user}")
-        print("[DEBUG] Payload que se envía:", json.dumps(payload, indent=2))
+        print(f"[INFO] Llamando a {planning_url} con usuario {username}")
 
         response = requests.post(
             planning_url,
             json=payload,
-            auth=(einforex_user, einforex_password),
+            auth=HTTPBasicAuth(username, password),  # 💥 AQUÍ AÑADIMOS AUTENTICACIÓN
             timeout=30
         )
-        response.raise_for_status()
 
+        response.raise_for_status()
+        
         planning_id = response.json().get('id')
         if planning_id is None:
-            raise ValueError("[ERROR] La respuesta no contiene 'id'.")
+            raise ValueError("La respuesta de EINFOREX no contiene 'id'")
 
         print(f"[INFO] Planning ID recibido: {planning_id}")
         return planning_id
 
     except Exception as e:
-        print(f"[ERROR] Fallo al obtener planning_id de EINFOREX: {str(e)}")
+        print(f"[ERROR] Fallo al obtener planning_id de EINFOREX: {e}")
         raise
-
 
 
 # Tareas principales
 
 def prepare_and_upload_input(**context):
-    # Cargar input
+    # Cargar correctamente el conf
     raw_conf = context['dag_run'].conf
     if isinstance(raw_conf, str):
         raw_conf = json.loads(raw_conf)
@@ -140,46 +132,34 @@ def prepare_and_upload_input(**context):
     else:
         input_data = raw_input_data
 
+    # Confirmar input recibido
     print("[DEBUG] INPUT DATA FINAL:", input_data)
 
     vehicles = input_data['vehicles']
     fires = input_data['fires']
     assignment_criteria = input_data['assignmentCriteria']
 
+    # Guardamos usuario para usar en notify_frontend
     context['ti'].xcom_push(key='user', value=user)
 
-    # Preparar SSH
+    # Conexión SSH
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
 
     input_lines = []
-
-    # Procesar cada incendio
     for fire in fires:
-        fire_id = fire['id']
-        try:
-            payload = build_einforex_payload(fire, vehicles, assignment_criteria)
-            print(f"[INFO] Llamando a EINFOREX para el incendio {fire_id}")
-            print("[DEBUG] Payload que se envía:", json.dumps(payload, indent=2))
+        payload = build_einforex_payload(fire, vehicles, assignment_criteria)
+        planning_id = get_planning_id_from_einforex(payload)
+        line = f"http://10.38.9.6:8080{EINFOREX_ROUTE}\n{planning_id}\n/home/airflow/modelos_vehiculo.csv\n"
+        input_lines.append(line)
 
-            planning_id = get_planning_id_from_einforex(payload)
-            line = f"http://10.38.9.6:8080{EINFOREX_ROUTE}\n{planning_id}\n/home/airflow/modelos_vehiculo.csv\n"
-            input_lines.append(line)
-            print(f"[INFO] Planning ID obtenido para incendio {fire_id}: {planning_id}")
-
-        except Exception as e:
-            print(f"[ERROR] Fallo procesando incendio {fire_id}: {e}")
-            continue
-
-    # Escribir la clave privada temporal
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file_key:
         temp_file_key.write(ssh_key_decoded)
         temp_key_path = temp_file_key.name
     os.chmod(temp_key_path, 0o600)
 
     try:
-        # Conexión SSH + salto
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         bastion.connect(hostname=hostname, username=username, key_filename=temp_key_path)
@@ -189,7 +169,6 @@ def prepare_and_upload_input(**context):
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
 
-        # Subida del fichero
         sftp = client.open_sftp()
         with sftp.file(SERVER_INPUT_DIR + INPUT_FILENAME, 'w') as remote_file:
             for line in input_lines:
@@ -198,13 +177,10 @@ def prepare_and_upload_input(**context):
         sftp.close()
         client.close()
         bastion.close()
-
-        print("[INFO] Input preparado y subido correctamente.")
+        print("[INFO] Input preparado y subido correctamente")
 
     finally:
         os.remove(temp_key_path)
-
-
 
 
 def run_and_download_algorithm(**context):
