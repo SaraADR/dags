@@ -290,4 +290,11 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-consume_from_topic
+trigger_monitoring = TriggerDagRunOperator(
+    task_id="trigger_monitor_dags",
+    trigger_dag_id="monitor_dags",  
+    conf={"dag_name": dag.dag_id}, 
+    dag=dag,
+)
+
+consume_from_topic >> trigger_monitoring
