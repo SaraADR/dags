@@ -20,6 +20,7 @@ import paramiko
 import pytz
 from sqlalchemy import text
 from dag_utils import get_minio_client, get_db_session
+from requests.auth import HTTPBasicAuth
 
 # Constantes
 EINFOREX_ROUTE = "/atcServices/rest/ResourcePlanningAlgorithmExecutionService/save"
@@ -75,18 +76,30 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
 
 def get_planning_id_from_einforex(payload):
     """
-    Llama a la API de EINFOREX para guardar la planificación y devuelve el planning_id.
+    Llama a la API de EINFOREX usando autenticación HTTP básica (usuario/contraseña) y devuelve el planning_id.
     """
     try:
+        # Obtener conexión de Airflow
         connection = BaseHook.get_connection('einforex_planning_url')
+        
         planning_url = connection.host + "/rest/ResourcePlanningAlgorithmExecutionService/save"
+        username = connection.login
+        password = connection.password
 
-        response = requests.post(planning_url, json=payload, timeout=30)
+        print(f"[INFO] Llamando a {planning_url} con usuario {username}")
+
+        response = requests.post(
+            planning_url,
+            json=payload,
+            auth=HTTPBasicAuth(username, password),  
+            timeout=30
+        )
+
         response.raise_for_status()
         
         planning_id = response.json().get('id')
         if planning_id is None:
-            raise ValueError("La respuesta no contiene 'id'")
+            raise ValueError("La respuesta de EINFOREX no contiene 'id'")
 
         print(f"[INFO] Planning ID recibido: {planning_id}")
         return planning_id
