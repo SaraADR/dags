@@ -49,10 +49,10 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
             matched_vehicles = [v for v in vehicles if v['model'] == model]
             available_aircrafts.extend([v['id'] for v in matched_vehicles])
 
-    if not available_aircrafts:
-        available_aircrafts = [""]  # Obligatorio poner al menos un string vacío en aircrafts
+    # importante: en "resourcePlanningCriteria", el campo "aircrafts" es [""] (string vacío dentro de array)
+    aircraft_num = len(available_aircrafts) if available_aircrafts else None
 
-    payload = {
+    return {
         "startDate": None,
         "endDate": None,
         "sinceDate": to_millis(start_dt),
@@ -61,21 +61,22 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
             "srid": fire['position']['srid'],
             "x": fire['position']['x'],
             "y": fire['position']['y'],
-            "z": fire['position'].get('z', None)
+            "z": fire['position'].get('z', 0)
         },
-        "availableAircrafts": available_aircrafts,
+        "availableAircrafts": available_aircrafts,  # Aquí SÍ se mandan las matrículas
         "outputInterval": None,
         "resourcePlanningCriteria": [{
             "id": 0,
             "executionId": 0,
             "since": to_millis(start_dt),
             "until": to_millis(end_dt),
-            "aircrafts": available_aircrafts,
+            "aircrafts": [""],  # <<< IMPORTANTE: SIEMPRE LISTA CON STRING VACÍO
             "waterAmount": None,
-            "aircraftNum": len([a for a in available_aircrafts if a])  # Solo cuenta aeronaves no vacías
+            "aircraftNum": aircraft_num  # número de aeronaves disponibles
         }],
         "resourcePlanningResult": []
     }
+
 
     return payload
 
