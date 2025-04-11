@@ -30,20 +30,22 @@ mensaje_final = {
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
+    trace_id = None
 
-    headers = message.headers()
-    print(f"Headers (contenido): {headers}")
-
-    if headers:
-        for key, value in headers:
-            # Convertir bytes a string
-            key_str = key.decode('utf-8') if isinstance(key, bytes) else key
-            value_str = value.decode('utf-8') if isinstance(value, bytes) else value
-            
-            print(f"Header: {key_str} = {value_str}")
-            
-            if key_str == 'traceId':
-                trace_id = value_str
+    if hasattr(message, 'headers') and callable(message.headers):
+        headers = message.headers()
+        print(f"Headers (contenido): {headers}")
+        
+        if headers:
+            for key, value in headers:
+                # Convertir bytes a string
+                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                value_str = value.decode('utf-8') if isinstance(value, bytes) else value
+                
+                print(f"Header: {key_str} = {value_str}")
+                
+                if key_str == 'traceId':
+                    trace_id = value_str
 
     if trace_id is None:
         print("No se encontró traceId en los headers")
