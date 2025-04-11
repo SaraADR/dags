@@ -93,6 +93,22 @@ def check_output_files(**context):
 
             context['task_instance'].xcom_push(key='output_files', value=tiff_files)
 
+             # Eliminar solo los TIFF que empiecen por 'mapariesgo' para evitar eliminar archivos no deseados
+            delete_command = (
+                "find /home/admin3/algoritmo_mapas_de_riesgo/output "
+                "-maxdepth 1 -type f -name 'mapariesgo*.tif' -delete"
+            )
+            stdin, stdout, stderr = ssh_client.exec_command(delete_command)
+            delete_output = stdout.read().decode().strip()
+            delete_error = stderr.read().decode().strip()
+
+            print("Resultado de eliminación de archivos TIFF:")
+            print(delete_output)
+            if delete_error:
+                print("Errores al eliminar los archivos:")
+                print(delete_error)
+
+                
     except Exception as e:
         print(f"Error al verificar archivos de salida: {str(e)}")
         raise
