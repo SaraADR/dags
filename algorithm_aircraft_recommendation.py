@@ -75,31 +75,27 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
     }
 
 def get_planning_id_from_einforex(payload):
-    """
-    Llama a la API de EINFOREX usando autenticación HTTP básica (usuario/contraseña) y devuelve el planning_id.
-    """
     try:
-        # Obtener conexión de Airflow
         connection = BaseHook.get_connection('einforex_planning_url')
-        
         planning_url = connection.host + "/rest/ResourcePlanningAlgorithmExecutionService/save"
         username = connection.login
         password = connection.password
 
         print(f"[INFO] Llamando a {planning_url} con usuario {username}")
+        print(f"[DEBUG] Payload que se envía: {json.dumps(payload, indent=2)}") 
 
         response = requests.post(
             planning_url,
             json=payload,
-            auth=HTTPBasicAuth(username, password),  
+            auth=HTTPBasicAuth(username, password),
             timeout=30
         )
 
         response.raise_for_status()
-        
+
         planning_id = response.json().get('id')
         if planning_id is None:
-            raise ValueError("La respuesta de EINFOREX no contiene 'id'")
+            raise ValueError("La respuesta no contiene 'id'")
 
         print(f"[INFO] Planning ID recibido: {planning_id}")
         return planning_id
@@ -107,6 +103,7 @@ def get_planning_id_from_einforex(payload):
     except Exception as e:
         print(f"[ERROR] Fallo al obtener planning_id de EINFOREX: {e}")
         raise
+
 
 
 # Tareas principales
