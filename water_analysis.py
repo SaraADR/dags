@@ -56,8 +56,14 @@ def process_extracted_files(**kwargs):
         archivo_key = f"{id_mission}/{uuid_key}/{archivo_file_name}"
 
         if(archivo_file_name.endswith('.tif')):
-            print(archivo)
-            print(archivo_content)
+            print(type(archivo_content))
+            s3_client.put_object(
+                Bucket=bucket_name,
+                Key=archivo_key,
+                Body=io.BytesIO(archivo_content),
+                ContentType="image/tiff"
+            )
+            print(f'{archivo_file_name} subido correctamente a MinIO.')
         else:
             s3_client.put_object(
                 Bucket=bucket_name,
@@ -158,7 +164,9 @@ def publish_to_geoserver(archivos, **context):
     headers = {"Content-type": "image/tiff"}
 
 
-    tiff_files = [f for f in archivos if f.lower().endswith('.tif')]
+
+    tiff_files = [archivo['file_name'] for archivo in archivos if archivo['file_name'].lower().endswith('.tif')]
+
     for tif_file in tiff_files:
         with open(tif_file, 'rb') as f:
             file_data = f.read()
