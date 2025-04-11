@@ -36,6 +36,9 @@ def to_millis(dt):
     return int(dt.timestamp() * 1000)
 
 def build_einforex_payload(fire, vehicles, assignment_criteria):
+    """
+    Construye el payload que se envía al servicio de planificación (EINFOREX).
+    """
     now = datetime.utcnow()
     start_dt = now.replace(minute=((now.minute // 10 + 1) * 10) % 60, second=0, microsecond=0)
     end_dt = start_dt + timedelta(hours=4)
@@ -48,8 +51,6 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
         for model in matched_criteria[0]['vehicleModels']:
             matched_vehicles = [v for v in vehicles if v['model'] == model]
             available_aircrafts.extend([v['id'] for v in matched_vehicles])
-
-    aircraft_num = len(available_aircrafts)
 
     return {
         "startDate": None,
@@ -70,9 +71,9 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
                 "executionId": 0,
                 "since": to_millis(start_dt),
                 "until": to_millis(end_dt),
-                "aircrafts": [""],  # <-- Aquí cambiamos: siempre [""] como Marcos quiere
+                "aircrafts": [""],  # <--- Siempre vacío
                 "waterAmount": None,
-                "aircraftNum": aircraft_num  # <-- Ponemos el número total de aeronaves disponibles
+                "aircraftNum": len(available_aircrafts)  # <--- Número de helicópteros
             }
         ],
         "resourcePlanningResult": []
@@ -119,7 +120,7 @@ def get_planning_id_from_einforex(payload):
 # Tareas principales
 
 def prepare_and_upload_input(**context):
-    # Cargar correctamente el conf
+    # Cargar input
     raw_conf = context['dag_run'].conf
     if isinstance(raw_conf, str):
         raw_conf = json.loads(raw_conf)
@@ -139,7 +140,6 @@ def prepare_and_upload_input(**context):
     else:
         input_data = raw_input_data
 
-    # Confirmar input recibido
     print("[DEBUG] INPUT DATA FINAL:", input_data)
 
     vehicles = input_data['vehicles']
@@ -148,94 +148,38 @@ def prepare_and_upload_input(**context):
 
     context['ti'].xcom_push(key='user', value=user)
 
-    # Conexión SSH
+    # Preparar SSH
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
 
-    # Para guardar líneas del fichero input
     input_lines = []
 
-    # Cargar la URL de EINFOREX
-    einforex_conn = BaseHook.get_connection('einforex_planning_url')
-    planning_url = einforex_conn.host + "/rest/ResourcePlanningAlgorithmExecutionService/save"
-    einforex_user = einforex_conn.login
-    einforex_password = einforex_conn.password
-
-    # Hacer petición por cada fuego
+    # Procesar cada incendio
     for fire in fires:
         fire_id = fire['id']
-        matched_criteria = [c for c in assignment_criteria if c['fireId'] == fire_id]
-
-        available_aircrafts = []
-        if matched_criteria:
-            for model in matched_criteria[0]['vehicleModels']:
-                matched_vehicles = [v for v in vehicles if v['model'] == model]
-                available_aircrafts.extend([v['id'] for v in matched_vehicles])
-
-        if not available_aircrafts:
-            print(f"[WARNING] No se encontraron aeronaves disponibles para el incendio {fire_id}. Se omite.")
-            continue  # Evitar mandar un payload vacío que cause error 500
-
-        now = datetime.utcnow()
-        start_dt = now.replace(minute=((now.minute // 10 + 1) * 10) % 60, second=0, microsecond=0)
-        end_dt = start_dt + timedelta(hours=4)
-
-        payload = {
-            "startDate": None,
-            "endDate": None,
-            "sinceDate": int(start_dt.timestamp() * 1000),
-            "untilDate": int(end_dt.timestamp() * 1000),
-            "fireLocation": {
-                "srid": fire['position']['srid'],
-                "x": fire['position']['x'],
-                "y": fire['position']['y'],
-                "z": fire['position'].get('z', 0)
-            },
-            "availableAircrafts": available_aircrafts,
-            "outputInterval": None,
-            "resourcePlanningCriteria": [
-                {
-                    "id": 0,
-                    "executionId": 0,
-                    "since": int(start_dt.timestamp() * 1000),
-                    "until": int(end_dt.timestamp() * 1000),
-                    "aircrafts": available_aircrafts,
-                    "waterAmount": None,
-                    "aircraftNum": len(available_aircrafts)  # Este campo es clave!
-                }
-            ],
-            "resourcePlanningResult": []
-        }
-
-        print(f"[INFO] Llamando a {planning_url} con usuario {einforex_user}")
-        print("[DEBUG] Payload que se envía:", json.dumps(payload, indent=2))
-
         try:
-            response = requests.post(planning_url, json=payload, auth=(einforex_user, einforex_password), timeout=30)
-            response.raise_for_status()
-            planning_id = response.json().get('id')
-            if not planning_id:
-                raise ValueError("No se recibió 'id' en la respuesta de EINFOREX.")
+            payload = build_einforex_payload(fire, vehicles, assignment_criteria)
+            print(f"[INFO] Llamando a EINFOREX para el incendio {fire_id}")
+            print("[DEBUG] Payload que se envía:", json.dumps(payload, indent=2))
 
-            print(f"[INFO] Planning ID recibido para incendio {fire_id}: {planning_id}")
-
-            # Añadir línea al input file
-            line = f"http://10.38.9.6:8080/atcServices/rest/ResourcePlanningAlgorithmExecutionService/save\n{planning_id}\n/home/airflow/modelos_vehiculo.csv\n"
+            planning_id = get_planning_id_from_einforex(payload)
+            line = f"http://10.38.9.6:8080{EINFOREX_ROUTE}\n{planning_id}\n/home/airflow/modelos_vehiculo.csv\n"
             input_lines.append(line)
+            print(f"[INFO] Planning ID obtenido para incendio {fire_id}: {planning_id}")
 
         except Exception as e:
-            print(f"[ERROR] Fallo procesando incendio {fire_id}: {str(e)}")
-            raise
+            print(f"[ERROR] Fallo procesando incendio {fire_id}: {e}")
+            continue
 
-    # Guardar la clave SSH temporal
+    # Escribir la clave privada temporal
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file_key:
         temp_file_key.write(ssh_key_decoded)
         temp_key_path = temp_file_key.name
     os.chmod(temp_key_path, 0o600)
 
-    # Subir input al servidor
     try:
+        # Conexión SSH + salto
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         bastion.connect(hostname=hostname, username=username, key_filename=temp_key_path)
@@ -245,6 +189,7 @@ def prepare_and_upload_input(**context):
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
 
+        # Subida del fichero
         sftp = client.open_sftp()
         with sftp.file(SERVER_INPUT_DIR + INPUT_FILENAME, 'w') as remote_file:
             for line in input_lines:
@@ -253,10 +198,12 @@ def prepare_and_upload_input(**context):
         sftp.close()
         client.close()
         bastion.close()
-        print("[INFO] Input preparado y subido correctamente")
+
+        print("[INFO] Input preparado y subido correctamente.")
 
     finally:
         os.remove(temp_key_path)
+
 
 
 
