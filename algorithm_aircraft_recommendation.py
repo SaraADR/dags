@@ -49,7 +49,10 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
             matched_vehicles = [v for v in vehicles if v['model'] == model]
             available_aircrafts.extend([v['id'] for v in matched_vehicles])
 
-    return {
+    if not available_aircrafts:
+        available_aircrafts = [""]  # Obligatorio poner al menos un string vacío en aircrafts
+
+    payload = {
         "startDate": None,
         "endDate": None,
         "sinceDate": to_millis(start_dt),
@@ -58,7 +61,7 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
             "srid": fire['position']['srid'],
             "x": fire['position']['x'],
             "y": fire['position']['y'],
-            "z": fire['position'].get('z', 0)
+            "z": fire['position'].get('z', None)
         },
         "availableAircrafts": available_aircrafts,
         "outputInterval": None,
@@ -69,10 +72,13 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
             "until": to_millis(end_dt),
             "aircrafts": available_aircrafts,
             "waterAmount": None,
-            "aircraftNum": None
+            "aircraftNum": len([a for a in available_aircrafts if a])  # Solo cuenta aeronaves no vacías
         }],
         "resourcePlanningResult": []
     }
+
+    return payload
+
 
 def get_planning_id_from_einforex(payload):
     try:
