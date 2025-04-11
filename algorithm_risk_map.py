@@ -100,19 +100,6 @@ def check_output_files(**context):
 
             context['task_instance'].xcom_push(key='output_files', value=tiff_files)
 
-            # Eliminar solo los TIFF que empiecen por 'mapariesgo' para evitar eliminar archivos no deseados
-            delete_command = "find /home/admin3/algoritmo_mapas_de_riesgo/output -maxdepth 1 -type f -name 'mapariesgo*.tif' -delete"
-            stdin, stdout, stderr = ssh_client.exec_command(delete_command)
-            delete_output = stdout.read().decode().strip()
-            delete_error = stderr.read().decode().strip()
-
-            print("Resultado de eliminación de archivos TIFF:")
-            print(delete_output)
-            if delete_error:
-                print("Errores al eliminar los archivos:")
-                print(delete_error)
-
-
 
     except Exception as e:
         print(f"Error al verificar archivos de salida: {str(e)}")
@@ -257,6 +244,21 @@ def publish_to_geoserver(**context):
     set_geoserver_style("galicia_mapa_riesgo_latest", base_url, auth, "thermographic")
 
 
+def delete_old_files(**context):
+    ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
+    ssh_client = ssh_hook.get_conn()
+    print("Conectando por SSH para eliminar archivos TIFF antiguos...")
+    delete_command = "find /home/admin3/algoritmo_mapas_de_riesgo/output -maxdepth 1 -type f -name 'mapariesgo*.tif' -delete"
+    stdin, stdout, stderr = ssh_client.exec_command(delete_command)
+    delete_output = stdout.read().decode().strip()
+    delete_error = stderr.read().decode().strip()
+
+    print("Resultado de eliminación de archivos TIFF:")
+    print(delete_output)
+    if delete_error:
+        print("Errores al eliminar los archivos:")
+        print(delete_error)
+
 # Definición del DAG
 default_args = {
     'owner': 'oscar',
@@ -304,4 +306,11 @@ publish_geoserver_task = PythonOperator(
     dag=dag,
 )
 
-execute_docker_task >> check_output_task >> store_in_db_task >> publish_geoserver_task
+delete_old_files_task = PythonOperator(
+    task_id='delete_old_files',
+    python_callable=delete_old_files,
+    provide_context=True,
+    dag=dag,
+)
+
+execute_docker_task >> check_output_task >> store_in_db_task >> publish_geoserver_task >> delete_old_files_task
