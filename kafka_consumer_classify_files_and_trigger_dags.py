@@ -42,23 +42,21 @@ def consumer_function(message, prefix, **kwargs):
 
     if trace_id is None:
         print("No se encontró traceId en los headers")
+        # Generar ID si no existe
+        trace_id = f"airflow-generated_{uuid.uuid4()}"
     else:
         print(f"TraceId encontrado: {trace_id}")
-
 
     try:
         msg_value = message.value().decode('utf-8')
         print("Mensaje procesado: ", msg_value)
     except Exception as e:
         print(f"Error al procesar el mensaje: {e}")
-    # delete_file_sftp(msg_value)
     
-    file_path_in_minio =  msg_value  
+    file_path_in_minio = msg_value  
         
     # Establecer conexión con MinIO
     s3_client = get_minio_client()
-
-
 
     # Nombre del bucket donde está almacenado el archivo/carpeta
     bucket_name = 'tmp'
@@ -69,17 +67,26 @@ def consumer_function(message, prefix, **kwargs):
     try:
         local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
         print(local_zip_path)
-        process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
+        
+        # En lugar de intentar ejecutar el trigger aquí, guardamos la información necesaria en XCom
+        result = analyze_zip_file(local_zip_path, file_path_in_minio, **kwargs)
+        
+        # Guardar información en XCom
+        ti = kwargs.get('ti')
+        if ti:
+            ti.xcom_push(key='trigger_info', value=result)
+            ti.xcom_push(key='trace_id', value=trace_id)
+        
+        return result
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
-        raise 
+        raise
 
 
 def list_files_in_minio_folder(s3_client, bucket_name, prefix):
     """
     Lista todos los archivos dentro de un prefijo (directorio) en MinIO.
     """
-
     print(bucket_name),
     print(prefix)
     try:
@@ -132,28 +139,28 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
         return None  # Devolver None si hay un error
 
 
-def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
-
+def analyze_zip_file(local_zip_path, file_path_in_minio, **kwargs):
+    """
+    Analiza el contenido del ZIP y devuelve información para el trigger.
+    No ejecuta el trigger directamente.
+    """
     if local_zip_path is None:
         print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
-        return
+        return None
     
-
     try:
         if not os.path.exists(local_zip_path):
             print(f"Archivo no encontrado: {local_zip_path}")
-            return
+            return None
         
-
         # Abre y procesa el archivo ZIP desde el sistema de archivos
         with zipfile.ZipFile(local_zip_path, 'r') as zip_file:
             zip_file.testzip() 
             print("El archivo ZIP es válido.")
     except zipfile.BadZipFile:
         print("El archivo no es un ZIP válido antes del procesamiento.")
-        return
+        return None
     
-
     try:
         with zipfile.ZipFile(local_zip_path, 'r') as zip_file:
             # Procesar el archivo ZIP en un directorio temporal
@@ -171,6 +178,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                 folder_structure = {}
                 otros = []
                 algorithm_id = None
+                json_content = None
 
                 for file_name in file_list:
                     file_path = os.path.join(temp_dir, file_name)
@@ -207,9 +215,10 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                             otros.append({'file_name': file_name, 'content': encoded_content})
 
                 print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
-                print("Archivos adicionales procesados:", otros)
+                print("Archivos adicionales procesados:", len(otros))
 
-                # Realiza el procesamiento basado en el AlgorithmID
+                # Determinar qué DAG debe ser desencadenado
+                trigger_dag_name = None
                 if algorithm_id:
                     if algorithm_id == 'PowerLineVideoAnalisysRGB':
                         trigger_dag_name = 'mission_inspection_store_video_and_notification'
@@ -223,45 +232,79 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     elif algorithm_id == 'WaterAnalysis':
                         trigger_dag_name = 'water_analysis'
                         print("Ejecutando lógica para WaterAnalysis")
-
-                    unique_id = uuid.uuid4()
-                    if trigger_dag_name:
-                        try:
-                            trigger = TriggerDagRunOperator(
-                                task_id=str(unique_id),
-                                trigger_dag_id=trigger_dag_name,
-                                conf={'json': json_content, 'otros': otros},
-                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                                dag=kwargs.get('dag'),
-                            )
-                            trigger.execute(context=kwargs)
-                        except Exception as e:
-                            print(f"Error al desencadenar el DAG: {e}")
                 else:
-                    unique_id = uuid.uuid4()
                     trigger_dag_name = 'zips_no_algoritmos'
-                    if trigger_dag_name:
-                        try:
-                            trigger = TriggerDagRunOperator(
-                                task_id=str(unique_id),
-                                trigger_dag_id=trigger_dag_name,
-                                conf={'minio': message},
-                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                                dag=kwargs.get('dag'),
-                            )
-                            trigger.execute(context=kwargs)
-                        except Exception as e:
-                            print(f"Error al desencadenar el DAG: {e}")
-                    print("Advertencia: No se encontró AlgorithmID en el archivo ZIP.")
-                    return
+                    print("No se encontró AlgorithmID en el archivo ZIP.")
+
+                # Devolver la información necesaria para el trigger
+                return {
+                    'trigger_dag_name': trigger_dag_name,
+                    'algorithm_id': algorithm_id,
+                    'json_content': json_content,
+                    'otros': otros,
+                    'file_path_in_minio': file_path_in_minio
+                }
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido: {e}")
+        return None
+
+
+def determine_dag_to_trigger(**context):
+    """
+    Determina qué DAG debe ser desencadenado basado en los datos del XCom.
+    """
+    ti = context['ti']
+    trigger_info = ti.xcom_pull(task_ids='consume_from_topic_minio', key='trigger_info')
+    
+    if not trigger_info:
+        print("No hay información de trigger disponible.")
+        return None
+    
+    trigger_dag_name = trigger_info.get('trigger_dag_name')
+    algorithm_id = trigger_info.get('algorithm_id')
+    
+    print(f"DAG a desencadenar: {trigger_dag_name}, AlgorithmID: {algorithm_id}")
+    
+    return {
+        'trigger_dag_name': trigger_dag_name,
+        'conf': {
+            'json': trigger_info.get('json_content'),
+            'otros': trigger_info.get('otros'),
+            'minio': trigger_info.get('file_path_in_minio')
+        }
+    }
+
+
+def trigger_appropriate_dag(**context):
+    """
+    Desencadena el DAG apropiado basado en la información del XCom.
+    """
+    ti = context['ti']
+    dag_info = ti.xcom_pull(task_ids='determine_dag_to_trigger')
+    
+    if not dag_info or not dag_info.get('trigger_dag_name'):
+        print("No hay información suficiente para desencadenar un DAG.")
         return
+    
+    trigger_dag_name = dag_info['trigger_dag_name']
+    conf = dag_info['conf']
+    
+    print(f"Desencadenando DAG: {trigger_dag_name}")
+    
+    # Aquí usamos el TriggerDagRunOperator directamente dentro de la tarea
+    trigger = TriggerDagRunOperator(
+        task_id=f"trigger_{trigger_dag_name}",
+        trigger_dag_id=trigger_dag_name,
+        conf=conf,
+        dag=context['dag']
+    )
+    
+    trigger.execute(context=context)
 
 
 default_args = {
     'owner': 'sadr',
-    'depends_onpast': False,
+    'depends_on_past': False,
     'start_date': datetime(2024, 8, 8),
     'email_on_failure': False,
     'email_on_retry': False,
@@ -287,7 +330,22 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
+    provide_context=True,  # Importante para que kwargs tenga 'ti'
     dag=dag,
+)
+
+determine_dag = PythonOperator(
+    task_id='determine_dag_to_trigger',
+    python_callable=determine_dag_to_trigger,
+    provide_context=True,
+    dag=dag
+)
+
+trigger_dag = PythonOperator(
+    task_id='trigger_appropriate_dag',
+    python_callable=trigger_appropriate_dag,
+    provide_context=True,
+    dag=dag
 )
 
 trigger_monitoring = TriggerDagRunOperator(
@@ -297,4 +355,4 @@ trigger_monitoring = TriggerDagRunOperator(
     dag=dag,
 )
 
-consume_from_topic >> trigger_monitoring
+consume_from_topic >> determine_dag >> trigger_dag >> trigger_monitoring
