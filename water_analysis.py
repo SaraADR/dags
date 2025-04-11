@@ -8,7 +8,7 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta, timezone
 import io
 from sqlalchemy import  text
-from dag_utils import get_geoserver_connection, get_minio_client, execute_query
+from dag_utils import upload_to_minio_path, get_geoserver_connection, get_minio_client, execute_query
 import os
 from airflow.models import Variable
 import copy
@@ -45,9 +45,8 @@ def process_extracted_files(**kwargs):
     rutaminio = Variable.get("ruta_minIO")
     nuevos_paths = {}
     for archivo in archivos:
-        print(archivo)
         archivo_file_name = os.path.basename(archivo['file_name'])
-        archivo_content = base64.b64decode(archivo['content']) if archivo['file_name'].lower().endswith('.tif') else archivo['content']
+        archivo_content = base64.b64decode(archivo['content'])
 
 
         s3_client = get_minio_client()
@@ -56,13 +55,16 @@ def process_extracted_files(**kwargs):
         bucket_name = 'missions'
         archivo_key = f"{id_mission}/{uuid_key}/{archivo_file_name}"
 
-
-        s3_client.put_object(
-            Bucket=bucket_name,
-            Key=archivo_key,
-            Body=io.BytesIO(archivo_content),
-        )
-        print(f'{archivo_file_name} subido correctamente a MinIO.')
+        if(archivo_file_name.endswith('.tif')):
+            print(archivo)
+            print(archivo_content)
+        else:
+            s3_client.put_object(
+                Bucket=bucket_name,
+                Key=archivo_key,
+                Body=io.BytesIO(archivo_content),
+            )
+            print(f'{archivo_file_name} subido correctamente a MinIO.')
 
         print(archivo_key)
         nuevos_paths[archivo_file_name] = f"{rutaminio}/{bucket_name}/{archivo_key}"
