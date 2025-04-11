@@ -45,6 +45,7 @@ def process_extracted_files(**kwargs):
     rutaminio = Variable.get("ruta_minIO")
     nuevos_paths = {}
     for archivo in archivos:
+        print(archivo)
         archivo_file_name = os.path.basename(archivo['file_name'])
         archivo_content = base64.b64decode(archivo['content']) if archivo['file_name'].lower().endswith('.tif') else archivo['content']
 
