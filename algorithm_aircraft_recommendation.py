@@ -44,12 +44,20 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
     matched_criteria = [c for c in assignment_criteria if c['fireId'] == fire_id]
 
     available_aircrafts = []
+    aircrafts_for_criteria = []
     if matched_criteria:
         for model in matched_criteria[0]['vehicleModels']:
             matched_vehicles = [v for v in vehicles if v['model'] == model]
-            available_aircrafts.extend([v['id'] for v in matched_vehicles])
+            ids = [v['id'] for v in matched_vehicles]
+            available_aircrafts.extend(ids)
+            aircrafts_for_criteria.extend(ids)
 
-    output_interval_ms = 600_000  # 10 minutos en milisegundos (puedes ajustar)
+    # Si no hay aeronaves asociadas a este incendio, dejar vacío
+    if not available_aircrafts:
+        available_aircrafts = []
+        aircrafts_for_criteria = [""]
+
+    output_interval_ms = 600_000  # 10 minutos en ms
 
     return {
         "startDate": to_millis(start_dt),
@@ -64,15 +72,17 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
         },
         "availableAircrafts": available_aircrafts,
         "outputInterval": output_interval_ms,
-        "resourcePlanningCriteria": [{
-            "id": fire_id,  # ¡Aquí ahora es el fireId como ID único!
-            "executionId": 0,  # Este por ahora seguimos dejando 0
-            "since": to_millis(start_dt),
-            "until": to_millis(end_dt),
-            "aircrafts": available_aircrafts if available_aircrafts else [""],  # Evitar vacío total
-            "waterAmount": None,
-            "aircraftNum": len(available_aircrafts)  # Número de aeronaves disponibles
-        }],
+        "resourcePlanningCriteria": [
+            {
+                "id": fire_id,  # El ID será el mismo que el ID del incendio
+                "executionId": 2,  # Seguir la convención del ejemplo (puede ser 2 o el que uses en Airflow)
+                "since": to_millis(start_dt),
+                "until": to_millis(end_dt),
+                "aircrafts": aircrafts_for_criteria,
+                "waterAmount": None,
+                "aircraftNum": len([a for a in aircrafts_for_criteria if a])  # Solo contamos aeronaves válidas
+            }
+        ],
         "resourcePlanningResult": []
     }
 
