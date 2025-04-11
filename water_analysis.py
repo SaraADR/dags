@@ -2,12 +2,13 @@ import base64
 import json
 import re
 import uuid
+import zipfile
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta, timezone
 import io
 from sqlalchemy import  text
-from dag_utils import get_db_session, get_minio_client, execute_query
+from dag_utils import get_geoserver_connection, get_minio_client, execute_query
 import os
 from airflow.models import Variable
 import copy
@@ -15,6 +16,7 @@ import pytz
 from airflow.hooks.base_hook import BaseHook
 import requests
 import logging
+from airflow.providers.ssh.hooks.ssh import SSHHook
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
@@ -44,7 +46,8 @@ def process_extracted_files(**kwargs):
     nuevos_paths = {}
     for archivo in archivos:
         archivo_file_name = os.path.basename(archivo['file_name'])
-        archivo_content = base64.b64decode(archivo['content'])
+        archivo_content = base64.b64decode(archivo['content']) if archivo['file_name'].lower().endswith('.tif') else archivo['content']
+
 
         s3_client = get_minio_client()
 
@@ -88,8 +91,11 @@ def process_extracted_files(**kwargs):
     #Historizamos para guardar en bd y pantalla de front
     historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
 
+    #Geoserver
+    publish_to_geoserver(archivos)
     #Integramos en geonetwork
-    create_metadata_uuid_basica(archivos, json_modificado)
+    # generar_metadato_xml(json_modificado)
+    # create_metadata_uuid_basica(archivos, json_modificado)
 
 
 
@@ -130,6 +136,91 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
             execute_query('biobd', query)
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
+
+
+
+
+
+
+
+def publish_to_geoserver(archivos, **context):
+    WORKSPACE = "USV_Water_analysis_2025"
+    GENERIC_LAYER = "spain_water_analysis"
+
+    if not archivos:
+        raise Exception("No hay archivos para subir a GeoServer.")
+    
+    # Subida a GeoServer
+    base_url, auth = get_geoserver_connection("geoserver_connection")
+    headers = {"Content-type": "image/tiff"}
+
+
+    tiff_files = [f for f in archivos if f.lower().endswith('.tif')]
+    for tif_file in tiff_files:
+        with open(tif_file, 'rb') as f:
+            file_data = f.read()
+        layer_name = f"USV_Water_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        headers = {"Content-type": "image/tiff"}
+        
+
+    # Histórica
+    url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+    response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+    if response.status_code not in [201, 202]:
+        raise Exception(f"Error publicando {layer_name}: {response.text}")
+    print(f"Capa raster publicada: {layer_name}")
+
+    # Genérica
+    url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+    response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+    if response_latest.status_code not in [201, 202]:
+        raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
+    print(f"Capa genérica raster actualizada: {GENERIC_LAYER}")
+
+
+
+    shp_files = [f for f in archivos if f.lower().endswith(('.shp', '.dbf', '.shx', '.prj', '.cpg'))]
+    if shp_files:
+        # Crear zip en memoria
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+            for file in shp_files:
+                zip_file.write(file, arcname=os.path.basename(file))
+        zip_buffer.seek(0)
+    datastore_name = f"vector_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/file.shp"
+    headers = {"Content-type": "application/zip"}
+
+    response = requests.put(url, headers=headers, data=zip_buffer, auth=auth, params={"configure": "all"})
+    if response.status_code not in [201, 202]:
+        raise Exception(f"Error subiendo vectorial {datastore_name}: {response.text}")
+    print(f"Capa vectorial publicada: {datastore_name}")
+    
+
+    # # Capa histórica
+    # url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+    # response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+    # if response.status_code not in [201, 202]:
+    #     raise Exception(f"Error publicando {layer_name}: {response.text}")
+    # print(f"Capa publicada: {layer_name}")
+
+    # # Capa genérica
+    # url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+    # response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+    # if response_latest.status_code not in [201, 202]:
+    #     raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
+    # print(f"Capa genérica actualizada: {GENERIC_LAYER}")
+
+
+
+
+
+
+
+
+
+
+
  
 
 def get_geonetwork_credentials():
@@ -162,6 +253,62 @@ def get_geonetwork_credentials():
         raise Exception(f"Error al obtener credenciales: {e}")
 
 
+
+def generar_metadato_xml(json_modificado, **kwargs):
+    ruta_xml = os.path.join(os.path.dirname(__file__), 'recursos', 'archivo_xml_water.xml')
+
+    with open(ruta_xml, 'r') as f:
+        contenido = f.read()
+
+
+
+    #Leemos rutas del json
+    recursos = json_modificado.get("executionResources", [])
+    csv_url = None
+    informe_url = None
+
+    for recurso in recursos:
+        path = recurso.get("path", "")
+        if path.endswith(".csv"):
+            csv_url = f"{path}"
+        elif path.endswith(".pdf"):
+            informe_url = f"{path}"
+
+
+    # Definir manualmente los valores a reemplazar
+    titulo = "Datos procesados USV"
+    fecha =  datetime.now()
+    fecha_completa = datetime.now()
+    descripcion = "Fichero que se genera con la salida del algoritmo de Aguas"
+    # min_latitud = "-34.65"
+    # max_latitud = "-34.55"
+    # min_longitud = "-58.52"
+    # max_longitud = "-58.40"
+    wms_server_shp = "https://wms.miapp.com/capas/uso_suelo"
+
+
+    # Reemplazar cada variable del XML
+    contenido = contenido.replace("${TITULO}", titulo)
+    contenido = contenido.replace("${FECHA}", fecha)
+    contenido = contenido.replace("${FECHA_COMPLETA}", fecha_completa)
+    contenido = contenido.replace("${DESCRIPCION}", descripcion)
+    contenido = contenido.replace("${MIN_LATITUD}", min_latitud)
+    contenido = contenido.replace("${MAX_LATITUD}", max_latitud)
+    contenido = contenido.replace("${MIN_LONGITUD}", min_longitud)
+    contenido = contenido.replace("${MAX_LONGITUD}", max_longitud)
+    contenido = contenido.replace("${WMS_SERVER_SHP}", wms_server_shp)
+    contenido = contenido.replace("${CSV_URL}", csv_url)
+    contenido = contenido.replace("${INFORME_URL}", informe_url)
+
+    # Guardar el XML ya con los valores insertados (opcional)
+    ruta_final = os.path.join(os.path.dirname(__file__), 'recursos', 'metadato_generado.xml')
+    with open(ruta_final, 'w') as f:
+        f.write(contenido)
+
+    return contenido
+
+
+
 def create_metadata_uuid_basica(archivos, json_modificado):
     # Se crear un metadato compatible con GeoNetwork
     mission_id = json_modificado["metadata"][1]["value"]
@@ -183,36 +330,46 @@ def create_metadata_uuid_basica(archivos, json_modificado):
         "format": "application/json"
     }
 
-    metadata_file = io.BytesIO()
-    metadata_file.write(json.dumps(generated_metadata).encode('utf-8'))
-    metadata_file.seek(0)
-
-
     connection = BaseHook.get_connection("geonetwork_update_conn")
+    upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
     access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-    headers = {
-    'Authorization': f"Bearer {access_token}",
-    'x-xsrf-token': str(xsrf_token),
-    'Cookie': str(set_cookie_header[0]),
-    'Accept': 'application/json'
+
+    with open('/resursos/algoritmo_xml_water.xml', 'r') as f:
+            metadata_template = f.read()
+
+    ruta_xml = os.path.join(os.path.dirname(__file__), 'recursos', 'metadato.xml')
+
+    metadata_rendered = metadata_template
+    for key, value in json_modificado.items():
+        metadata_rendered = metadata_rendered.replace(f"${{{key}}}", str(value))
+
+    metadata_headers = {
+        'Authorization': f"Bearer {access_token}",
+        'x-xsrf-token': str(xsrf_token),
+        'Cookie': str(set_cookie_header[0]),
+        'Accept': 'application/json',
+        'Content-Type': 'application/xml'
     }
 
-    files = {
-        'file': ('metadata.json', metadata_file, 'application/json')
-    }
-    # 3. Subir el metadato
-    response = requests.post(
-        f"{connection.schema}{connection.host}/geonetwork/srv/api/records",
-        headers=headers,
-        files=files
+    metadata_response = requests.post(
+        upload_url,
+        headers=metadata_headers,
+        data=metadata_rendered.encode("utf-8")
     )
-    
-    print("Respuesta de creación de metadato:", response.status_code, response.text)
-    response.raise_for_status()
 
-    uuid_metadata = list(response.json()['metadataInfos'].values())[0][0]['uuid']
-    print("📄 UUID del metadato creado:", uuid_metadata)
-    return uuid_metadata
+    logging.info(f"Subida del metadato XML: {metadata_response.status_code}, {metadata_response.text}")
+    metadata_response.raise_for_status()
+    response_data = metadata_response.json()
+    metadata_infos = response_data.get("metadataInfos", {})
+    main_uuid = None
+    if metadata_infos:
+        values = list(metadata_infos.values())[0]
+        if values:
+            main_uuid = values[0].get("uuid")
+
+    if not main_uuid:
+        raise Exception("No se obtuvo UUID del metadato principal.")
+
 
 
 def upload_to_geonetwork(archivos, json_modificado, **context):
@@ -224,6 +381,7 @@ def upload_to_geonetwork(archivos, json_modificado, **context):
         # UUID común para agrupar todos los recursos
         group_uuid = str(uuid.uuid4())
         logging.info(f"UUID común para agrupación en GeoNetwork: {group_uuid}")
+
 
 
         resource_ids = []
