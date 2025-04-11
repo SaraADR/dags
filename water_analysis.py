@@ -161,8 +161,14 @@ def publish_to_geoserver(archivos, **context):
     
     # Subida a GeoServer
     base_url, auth = get_geoserver_connection("geoserver_connection")
-    headers = {"Content-type": "image/tiff"}
 
+    for archivo in archivos:
+        archivo_file_name = archivo['file_name']
+        archivo_content = base64.b64decode(archivo['content'])
+
+        # Guardar el archivo en el sistema antes de usarlo
+        with open(archivo_file_name, 'wb') as f:
+            f.write(archivo_content)
 
 
     tiff_files = [archivo['file_name'] for archivo in archivos if archivo['file_name'].lower().endswith('.tif')]
@@ -170,43 +176,45 @@ def publish_to_geoserver(archivos, **context):
     for tif_file in tiff_files:
         with open(tif_file, 'rb') as f:
             file_data = f.read()
+        
         layer_name = f"USV_Water_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         headers = {"Content-type": "image/tiff"}
-        
 
-    # Histórica
-    url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
-    response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
-    if response.status_code not in [201, 202]:
-        raise Exception(f"Error publicando {layer_name}: {response.text}")
-    print(f"Capa raster publicada: {layer_name}")
+        # Publicar capa raster en GeoServer
+        url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+        response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+        if response.status_code not in [201, 202]:
+            raise Exception(f"Error publicando {layer_name}: {response.text}")
+        print(f"Capa raster publicada: {layer_name}")
 
-    # Genérica
-    url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
-    response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
-    if response_latest.status_code not in [201, 202]:
-        raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
-    print(f"Capa genérica raster actualizada: {GENERIC_LAYER}")
-
+        # Actualizar capa genérica
+        url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+        response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+        if response_latest.status_code not in [201, 202]:
+            raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
+        print(f"Capa genérica raster actualizada: {GENERIC_LAYER}")
 
 
-    shp_files = [f for f in archivos if f.lower().endswith(('.shp', '.dbf', '.shx', '.prj', '.cpg'))]
+    shp_files = [archivo['file_name'] for archivo in archivos if archivo['file_name'].lower().endswith(('.shp', '.dbf', '.shx', '.prj', '.cpg'))]
     if shp_files:
-        # Crear zip en memoria
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-            for file in shp_files:
-                zip_file.write(file, arcname=os.path.basename(file))
+            for archivo in archivos:
+                if archivo['file_name'].lower().endswith(('.shp', '.dbf', '.shx', '.prj', '.cpg')):
+                    archivo_content = base64.b64decode(archivo['content'])
+                    zip_file.writestr(os.path.basename(archivo['file_name']), archivo_content)
         zip_buffer.seek(0)
-    datastore_name = f"vector_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/file.shp"
-    headers = {"Content-type": "application/zip"}
 
-    response = requests.put(url, headers=headers, data=zip_buffer, auth=auth, params={"configure": "all"})
-    if response.status_code not in [201, 202]:
-        raise Exception(f"Error subiendo vectorial {datastore_name}: {response.text}")
-    print(f"Capa vectorial publicada: {datastore_name}")
-    
+        datastore_name = f"vector_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/file.shp"
+        headers = {"Content-type": "application/zip"}
+
+        response = requests.put(url, headers=headers, data=zip_buffer, auth=auth, params={"configure": "all"})
+        if response.status_code not in [201, 202]:
+            raise Exception(f"Error subiendo vectorial {datastore_name}: {response.text}")
+        print(f"Capa vectorial publicada: {datastore_name}")
+        
+    print("✅ Publicación en GeoServer completada exitosamente.")
 
     # # Capa histórica
     # url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
