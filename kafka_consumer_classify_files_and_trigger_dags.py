@@ -216,7 +216,8 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                             otros.append({'file_name': file_name, 'content': encoded_content})
 
                 print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
-                print("Archivos adicionales procesados:", otros)
+                # print("Archivos adicionales procesados:", otros)
+                print("Archivos adicionales procesados:", [item['file_name'] for item in otros])
 
                 # Realiza el procesamiento basado en el AlgorithmID
                 if algorithm_id:
@@ -282,7 +283,7 @@ def there_was_kafka_message(**context):
         )
         with open(latest_log, 'r') as f:
             content = f.read()
-            return "Mensaje procesado correctamente" in content
+            return "Mensaje crudo: <cimpl.Message object at" in content
     except (ValueError, FileNotFoundError):
         return False
 
