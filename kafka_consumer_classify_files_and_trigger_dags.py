@@ -265,6 +265,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
 def there_was_kafka_message(**context):
     ti = context['ti']
     mensaje = ti.xcom_pull(task_ids='consume_from_topic_minio', key='return_value')
+    print(f"Mensaje desde XCom: {mensaje!r}")
     return mensaje is not None
 
 
