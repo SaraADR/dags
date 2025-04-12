@@ -268,10 +268,9 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
         return
     
 def there_was_kafka_message(**context):
-    ti = context['ti']
-    message = ti.xcom_pull(task_ids='consume_from_topic_minio')
-    print(f"Valor XCom obtenido: {message}")
-    return bool(message)
+    task_instance = context['ti']
+    logs = task_instance.get_logger().read(task_instance.try_number)
+    return "Mensaje procesado correctamente" in logs
 
 default_args = {
     'owner': 'sadr',
@@ -300,7 +299,6 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
-    do_xcom_push=True,
     dag=dag,
 )
 
