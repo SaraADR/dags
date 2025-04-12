@@ -19,6 +19,8 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 from airflow import settings
 from function_save_logs_to_minio import save_logs_to_minio
+from airflow.operators.python import BranchPythonOperator
+from utils.log_utils import setup_conditional_log_saving
 
 from dag_utils import get_minio_client, delete_file_sftp
 
@@ -258,6 +260,11 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido: {e}")
         return
+    
+def there_was_kafka_message(**context):
+    ti = context['ti']
+    mensaje = ti.xcom_pull(task_ids='consume_from_topic_minio', key='return_value')
+    return mensaje is not None
 
 
 default_args = {
@@ -290,11 +297,12 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-save_logs_task = PythonOperator(
-    task_id='save_logs_to_minio',
-    python_callable=save_logs_to_minio,
-    provide_context=True,
+from utils.log_utils import setup_conditional_log_saving
+
+check_logs, save_logs = setup_conditional_log_saving(
     dag=dag,
+    task_id='save_logs_to_minio',
+    condition_function=there_was_kafka_message
 )
 
-consume_from_topic >> save_logs_task
+consume_from_topic >> check_logs
