@@ -75,7 +75,8 @@ def consumer_function(message, prefix, **kwargs):
         process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
-        raise 
+        raise
+    return True
 
 
 def list_files_in_minio_folder(s3_client, bucket_name, prefix):
