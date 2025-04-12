@@ -76,7 +76,12 @@ def consumer_function(message, prefix, **kwargs):
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
         raise
-    return msg_value is not None
+    if msg_value:
+        print("Mensaje procesado correctamente", msg_value)
+        return True
+    else:
+        print("No se pudo procesar el mensaje")
+        return False
 
 
 def list_files_in_minio_folder(s3_client, bucket_name, prefix):
@@ -264,10 +269,9 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
     
 def there_was_kafka_message(**context):
     ti = context['ti']
-    mensaje = ti.xcom_pull(task_ids='consume_from_topic_minio')
-    print(f"Mensaje desde XCom: {mensaje!r}")
-    return mensaje
-
+    message = ti.xcom_pull(task_ids='consume_from_topic_minio')
+    print(f"Valor XCom obtenido: {message}")
+    return bool(message)
 
 default_args = {
     'owner': 'sadr',
