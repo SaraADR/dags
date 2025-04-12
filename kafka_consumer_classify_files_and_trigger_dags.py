@@ -268,9 +268,13 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
         return
     
 def there_was_kafka_message(**context):
-    task_instance = context['ti']
-    logs = task_instance.get_logger().read(task_instance.try_number)
-    return "Mensaje procesado correctamente" in logs
+    ti = context['ti']
+    log_path = ti.log_filepath
+    try:
+        with open(log_path) as f:
+            return any("Mensaje procesado correctamente" in line for line in f)
+    except FileNotFoundError:
+        return False
 
 default_args = {
     'owner': 'sadr',
