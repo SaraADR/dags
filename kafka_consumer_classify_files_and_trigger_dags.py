@@ -17,35 +17,12 @@ from airflow.hooks.base_hook import BaseHook
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
+from airflow import settings
 
 from dag_utils import get_minio_client, delete_file_sftp
 
 def consumer_function(message, prefix, **kwargs):
     print(f"Mensaje crudo: {message}")
-
-    trace_id = None
-
-    if hasattr(message, 'headers') and callable(message.headers):
-        headers = message.headers()
-        print(f"Headers (contenido): {headers}")
-        
-        if headers:
-            for key, value in headers:
-                # Convertir bytes a string
-                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
-                value_str = value.decode('utf-8') if isinstance(value, bytes) else value
-                
-                print(f"Header: {key_str} = {value_str}")
-                
-                if key_str == 'traceId':
-                    trace_id = value_str
-
-    if trace_id is None:
-        print("No se encontró traceId en los headers")
-    else:
-        print(f"TraceId encontrado: {trace_id}")
-
-
     try:
         msg_value = message.value().decode('utf-8')
         print("Mensaje procesado: ", msg_value)
@@ -279,7 +256,6 @@ dag = DAG(
     concurrency=1
 )
 
-
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic_minio",
@@ -290,4 +266,59 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-consume_from_topic
+def save_logs_to_minio(**context):
+    """
+    Guarda los logs de la ejecución actual en Minio
+    """
+    try:
+        # Obtener información del contexto
+        dag_id = context['dag'].dag_id
+        run_id = context['run_id']
+        task_id = 'consume_from_topic_minio'  # Tarea específica cuyos logs queremos guardar
+        execution_date = context['execution_date']
+        
+        # Construir la ruta local de logs basada en la configuración de Airflow
+        log_base_folder = settings.AIRFLOW_HOME + "/logs"
+        log_relative_path = f"{dag_id}/{task_id}/{execution_date.isoformat()}"
+        log_path = f"{log_base_folder}/{log_relative_path}.log"
+        
+        if os.path.exists(log_path):
+            # Leer el contenido del log
+            with open(log_path, 'r') as log_file:
+                log_content = log_file.read()
+            
+            # Establecer conexión con MinIO
+            s3_client = get_minio_client()
+            
+            # Guardar en Minio
+            bucket_name = 'logs'  # Asegúrate de que este bucket exista
+            key = f"{dag_id}/{run_id}/{task_id}.log"
+            
+            # Comprobar si existe el bucket, si no, crearlo
+            try:
+                s3_client.head_bucket(Bucket=bucket_name)
+            except ClientError:
+                s3_client.create_bucket(Bucket=bucket_name)
+                print(f"Bucket {bucket_name} creado")
+            
+            # Guardar el log
+            s3_client.put_object(
+                Bucket=bucket_name,
+                Key=key,
+                Body=log_content
+            )
+            
+            print(f"Log guardado en Minio: bucket={bucket_name}, key={key}")
+        else:
+            print(f"No se encontró el archivo de log en la ruta: {log_path}")
+    except Exception as e:
+        print(f"Error al guardar logs en Minio: {e}")
+
+save_logs_task = PythonOperator(
+    task_id='save_logs_to_minio',
+    python_callable=save_logs_to_minio,
+    provide_context=True,
+    dag=dag,
+)
+
+consume_from_topic >> save_logs_task
