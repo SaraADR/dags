@@ -275,6 +275,10 @@ def save_logs_to_minio(**context):
         dag_id = context['dag'].dag_id
         run_id = context['run_id']
         task_id = 'consume_from_topic_minio'
+        execution_date = context['execution_date']
+        
+        # Formato de fecha requerido: 20250325T093838
+        formatted_date = execution_date.strftime('%Y%m%dT%H%M%S')
         
         # Ruta base de logs
         log_base_folder = "/opt/airflow/logs"
@@ -322,9 +326,9 @@ def save_logs_to_minio(**context):
         # Establecer conexión con MinIO
         s3_client = get_minio_client()
         
-        # Guardar en Minio
+        # Guardar en Minio con el nuevo formato de ruta
         bucket_name = 'logs'
-        key = f"{dag_id}/{run_id}/{task_id}.log"
+        key = f"airflow/{formatted_date}-{dag_id}.txt"
         
         # Comprobar si existe el bucket, si no, crearlo
         try:
