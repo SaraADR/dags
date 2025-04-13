@@ -39,7 +39,7 @@ def consumer_function(message, prefix, **kwargs):
         print(f"Error al procesar el mensaje: {e}")
     # delete_file_sftp(msg_value)
     
-    file_path_in_minio = msg_value  
+    file_path_in_minio = msg_value
         
     # Establecer conexión con MinIO
     s3_client = get_minio_client()
@@ -305,6 +305,7 @@ from utils.log_utils import setup_conditional_log_saving
 check_logs, save_logs = setup_conditional_log_saving(
     dag=dag,
     task_id='save_logs_to_minio',
+    task_id_to_save='consume_from_topic_minio',
     condition_function=there_was_kafka_message
 )
 

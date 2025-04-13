@@ -139,6 +139,7 @@ from utils.log_utils import setup_conditional_log_saving
 check_logs, save_logs = setup_conditional_log_saving(
     dag=dag,
     task_id='save_logs_to_minio',
+    task_id_to_save='consume_from_topic',
     condition_function=there_was_kafka_message
 )
 

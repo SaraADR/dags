@@ -4,7 +4,7 @@ from datetime import datetime
 from botocore.exceptions import ClientError
 from dag_utils import get_minio_client
 
-def save_logs_to_minio(**context):
+def save_logs_to_minio(task_id_to_save, **context):
     """
     Save logs from current execution to Minio
     """
@@ -12,7 +12,7 @@ def save_logs_to_minio(**context):
         # Obtain the context variables
         dag_id = context['dag'].dag_id
         run_id = context['run_id']
-        task_id = context['task'].task_id
+        task_id = task_id_to_save
         execution_date = context['execution_date']
         
         # Required date format: 20250325T093838
