@@ -25,11 +25,11 @@ def consumer_function(message, prefix, **kwargs):
 
         if msg_value:
             process_message(msg_value)
+            return True
         else:
             print("Empty message received")      
-            return None  
-    
-
+            return None
+    return False
 
 def process_message(msg_value, **kwargs):
     if msg_value is not None and msg_value != 'null':
