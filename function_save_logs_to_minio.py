@@ -6,84 +6,85 @@ from dag_utils import get_minio_client
 
 def save_logs_to_minio(**context):
     """
-    Guarda los logs de la ejecución actual en Minio
+    Save logs from current execution to Minio
     """
     try:
-        # Obtener información del contexto
+        # Obtain the context variables
         dag_id = context['dag'].dag_id
         run_id = context['run_id']
         task_id = 'consume_from_topic_minio'
         execution_date = context['execution_date']
         
-        # Formato de fecha requerido: 20250325T093838
+        # Required date format: 20250325T093838
         formatted_date = execution_date.strftime('%Y%m%dT%H%M%S')
         
-        # Ruta base de logs
+        # Logs base folder
         log_base_folder = "/opt/airflow/logs"
-        print(f"Base de logs: {log_base_folder}")
+        print(f"Logs base folder: {log_base_folder}")
         
-        # Construir la ruta basada en la estructura observada
+        # Build the path to the logs based on the observed structure
+        # Example: /opt/airflow/logs/dag_id=dag_id/run_id=run_id
+        # Note: The run_id is usually the execution date in Airflow
+        # Example: /opt/airflow/logs/dag_id=example_dag/run_id=2023-10-01T00:00:00+00:00
         log_dir_path = f"{log_base_folder}/dag_id={dag_id}/run_id={run_id}"
-        print(f"Buscando directorio de logs en: {log_dir_path}")
+        print(f"Searching logs directory in: {log_dir_path}")
         
         if not os.path.exists(log_dir_path):
-            print(f"El directorio de logs no existe: {log_dir_path}")
-            # Intentar listar el directorio padre para ver qué hay disponible
+            print(f"Logs directory doesn't exist: {log_dir_path}")
+            # Try to list the parent directory to see if the DAG exists
             parent_dir = f"{log_base_folder}/dag_id={dag_id}"
             if os.path.exists(parent_dir):
-                print(f"Contenido del directorio del DAG: {os.listdir(parent_dir)}")
+                print(f"Content of the DAG's directory: {os.listdir(parent_dir)}")
             return
         
-        # Buscar el archivo de logs del task específico
+        # Serch for specific task logs
         task_logs = []
         for root, dirs, files in os.walk(log_dir_path):
             for file in files:
                 if task_id in file or task_id in root:
                     full_path = os.path.join(root, file)
                     task_logs.append(full_path)
-                    print(f"Archivo de log encontrado: {full_path}")
+                    print(f"Log file found: {full_path}")
         
         if not task_logs:
-            print(f"No se encontraron logs para la tarea {task_id} en {log_dir_path}")
-            # Mostrar todos los archivos disponibles
-            print("Archivos disponibles:")
+            print(f"Logs for this task were not found: {task_id} en {log_dir_path}")
+            # Show available files in the directory
+            print("Available files:")
             for root, dirs, files in os.walk(log_dir_path):
                 for file in files:
                     print(os.path.join(root, file))
             return
         
-        # Usar el primer archivo encontrado (o podrías concatenarlos todos)
+        # Use the first log file found
         log_path = task_logs[0]
         
-        # Leer el contenido del log
+        # Read the log file
         with open(log_path, 'r') as log_file:
             log_content = log_file.read()
+        print(f"Log content successfully read, size: {len(log_content)} bytes")
         
-        print(f"Contenido del log leído correctamente, tamaño: {len(log_content)} bytes")
-        
-        # Establecer conexión con MinIO
+        # Stablish connection to Minio
         s3_client = get_minio_client()
         
-        # Guardar en Minio con el nuevo formato de ruta
+        # Save to Minio with the new format
         bucket_name = 'logs'
         key = f"airflow/{formatted_date}-{dag_id}.txt"
         
-        # Comprobar si existe el bucket, si no, crearlo
+        # Check if the bucket exists, if not, create it
         try:
             s3_client.head_bucket(Bucket=bucket_name)
         except ClientError:
             print(f"Creando bucket: {bucket_name}")
             s3_client.create_bucket(Bucket=bucket_name)
         
-        # Guardar el log
+        # Save the log content to Minio
         s3_client.put_object(
             Bucket=bucket_name,
             Key=key,
             Body=log_content
         )
-        
-        print(f"Log guardado con éxito en Minio: bucket={bucket_name}, key={key}")
+        print(f"Log saved successfully to Minio: bucket={bucket_name}, key={key}")
     except Exception as e:
         import traceback
-        print(f"Error al guardar logs en Minio: {str(e)}")
+        print(f"Error saving logs to Minio: {str(e)}")
         traceback.print_exc()

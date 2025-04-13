@@ -21,33 +21,19 @@ from airflow import settings
 from function_save_logs_to_minio import save_logs_to_minio
 from airflow.operators.python import BranchPythonOperator
 from utils.log_utils import setup_conditional_log_saving
+from utils.kafka_headers import extract_trace_id
 
 from dag_utils import get_minio_client, delete_file_sftp
+KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
 
 def consumer_function(message, prefix, **kwargs):
-    print(f"Mensaje crudo: {message}")
+    print(f"{KAFKA_RAW_MESSAGE_PREFIX} {message}")
 
-    trace_id = None
-
-    if hasattr(message, 'headers') and callable(message.headers):
-        headers = message.headers()
-        print(f"Headers (contenido): {headers}")
-        
-        if headers:
-            for key, value in headers:
-                # Convertir bytes a string
-                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
-                value_str = value.decode('utf-8') if isinstance(value, bytes) else value
-                
-                print(f"Header: {key_str} = {value_str}")
-                
-                if key_str == 'traceId':
-                    trace_id = value_str
-
-    if trace_id is None:
-        print("No se encontró traceId en los headers")
-    else:
-        print(f"TraceId encontrado: {trace_id}")
+    trace_id, log_msg = extract_trace_id(message)
+    print(log_msg)
+    
+    if trace_id:
+        print(f"Processing traceId: {trace_id}")
 
     try:
         msg_value = message.value().decode('utf-8')
@@ -271,11 +257,11 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
 def there_was_kafka_message(**context):
     dag_id = context['dag'].dag_id
     run_id = context['run_id']
-    task_id = 'consume_from_topic_minio'  # El task que queremos monitorizar
+    task_id = 'consume_from_topic_minio'
     log_base = "/opt/airflow/logs"
     log_path = f"{log_base}/dag_id={dag_id}/run_id={run_id}/task_id={task_id}"
     
-    # Buscar el archivo de log más reciente
+    # Search for the latest log file
     try:
         latest_log = max(
             (os.path.join(root, f) for root, _, files in os.walk(log_path) for f in files),
@@ -283,7 +269,7 @@ def there_was_kafka_message(**context):
         )
         with open(latest_log, 'r') as f:
             content = f.read()
-            return "Mensaje crudo: <cimpl.Message object at" in content
+            return f"{KAFKA_RAW_MESSAGE_PREFIX} <cimpl.Message object at" in content
     except (ValueError, FileNotFoundError):
         return False
 

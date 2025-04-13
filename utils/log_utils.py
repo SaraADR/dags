@@ -17,7 +17,7 @@ def setup_conditional_log_saving(dag,
     """
 
     if not callable(condition_function):
-        raise ValueError("Se requiere una función 'condition_function' válida.")
+        raise ValueError("A valid 'condition_function' is required.")
 
     check_activity = ShortCircuitOperator(
         task_id='check_activity_for_logs',
