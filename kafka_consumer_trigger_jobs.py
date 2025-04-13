@@ -141,4 +141,4 @@ check_logs, save_logs = setup_conditional_log_saving(
     condition_function=there_was_kafka_message
 )
 
-consume_from_topic 
+consume_from_topic >> check_logs
