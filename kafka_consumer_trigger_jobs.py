@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 from function_save_logs_to_minio import save_logs_to_minio
 from utils.log_utils import setup_conditional_log_saving
 from utils.kafka_headers import extract_trace_id
+import os
 
 KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
 
