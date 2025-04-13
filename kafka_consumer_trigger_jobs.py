@@ -10,10 +10,16 @@ from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 from dag_utils import update_job_status
 from zoneinfo import ZoneInfo
+from function_save_logs_to_minio import save_logs_to_minio
+from utils.log_utils import setup_conditional_log_saving
+from utils.kafka_headers import extract_trace_id
+
+KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
 
 def consumer_function(message, prefix, **kwargs):
     if message is not None:
         msg_value = message.value().decode('utf-8')
+        print(f"{KAFKA_RAW_MESSAGE_PREFIX} {message}")
         print("Esto es el mensaje")
         print(f"{msg_value}")
 
@@ -77,6 +83,25 @@ def process_message(msg_value, **kwargs):
     else:
         print("No message pulled from XCom")
 
+def there_was_kafka_message(**context):
+    dag_id = context['dag'].dag_id
+    run_id = context['run_id']
+    task_id = 'consume_from_topic'
+    log_base = "/opt/airflow/logs"
+    log_path = f"{log_base}/dag_id={dag_id}/run_id={run_id}/task_id={task_id}"
+    
+    # Search for the latest log file
+    try:
+        latest_log = max(
+            (os.path.join(root, f) for root, _, files in os.walk(log_path) for f in files),
+            key=os.path.getctime
+        )
+        with open(latest_log, 'r') as f:
+            content = f.read()
+            return f"{KAFKA_RAW_MESSAGE_PREFIX} <cimpl.Message object at" in content
+    except (ValueError, FileNotFoundError):
+        return False
+
 default_args = {
     'owner': 'sadr',
     'depends_on_past': False,
@@ -106,7 +131,14 @@ consume_from_topic = ConsumeFromTopicOperator(
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_operator",
     dag=dag,
+)
 
+from utils.log_utils import setup_conditional_log_saving
+
+check_logs, save_logs = setup_conditional_log_saving(
+    dag=dag,
+    task_id='save_logs_to_minio',
+    condition_function=there_was_kafka_message
 )
 
 consume_from_topic 

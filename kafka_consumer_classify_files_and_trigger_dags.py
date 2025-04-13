@@ -31,9 +31,6 @@ def consumer_function(message, prefix, **kwargs):
 
     trace_id, log_msg = extract_trace_id(message)
     print(log_msg)
-    
-    if trace_id:
-        print(f"Processing traceId: {trace_id}")
 
     try:
         msg_value = message.value().decode('utf-8')
@@ -42,7 +39,7 @@ def consumer_function(message, prefix, **kwargs):
         print(f"Error al procesar el mensaje: {e}")
     # delete_file_sftp(msg_value)
     
-    file_path_in_minio =  msg_value  
+    file_path_in_minio = msg_value  
         
     # Establecer conexión con MinIO
     s3_client = get_minio_client()
