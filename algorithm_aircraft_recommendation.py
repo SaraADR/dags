@@ -246,7 +246,7 @@ def run_and_download_algorithm(**context):
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
         print("[INFO] Conexión SSH establecida con el servidor interno (10.38.9.6)")
 
-        cmd = 'cd /algoritms/algoritmo-recomendador-aeronaves-objetivo-5 && python3 call_recomendador.py input/input_data_aeronaves.txt'
+        cmd = 'cd /algoritms/algoritmo-recomendador-objetivo-5 && python3 call_recomendador.py input/input_data_aeronaves.txt'
         print(f"[INFO] Ejecutando comando remoto: {cmd}")
         stdin, stdout, stderr = client.exec_command(cmd)
 
