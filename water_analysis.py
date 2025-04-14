@@ -1,6 +1,7 @@
 import base64
 import json
 import re
+import tempfile
 import uuid
 import zipfile
 from airflow import DAG
@@ -147,11 +148,6 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
         print(f"Error en el proceso: {str(e)}")    
 
 
-
-
-
-
-
 def publish_to_geoserver(archivos, **context):
     WORKSPACE = "USV_Water_analysis_2025"
     GENERIC_LAYER = "spain_water_analysis"
@@ -161,17 +157,22 @@ def publish_to_geoserver(archivos, **context):
     
     # Subida a GeoServer
     base_url, auth = get_geoserver_connection("geoserver_connection")
+    temp_files = []
 
     for archivo in archivos:
         archivo_file_name = archivo['file_name']
         archivo_content = base64.b64decode(archivo['content'])
+        archivo_extension = os.path.splitext(archivo_file_name)[1]
 
         # Guardar el archivo en el sistema antes de usarlo
-        with open(archivo_file_name, 'wb') as f:
-            f.write(archivo_content)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=archivo_extension) as temp_file:
+            temp_file.write(archivo_content)
+            temp_file_path = temp_file.name  
+            temp_files.append(temp_file_path)
 
 
-    tiff_files = [archivo['file_name'] for archivo in archivos if archivo['file_name'].lower().endswith('.tif')]
+
+    tiff_files = [temp_file[0] for temp_file in temp_files if temp_file[1] == ".tif"]
 
     for tif_file in tiff_files:
         with open(tif_file, 'rb') as f:
@@ -213,7 +214,7 @@ def publish_to_geoserver(archivos, **context):
         if response.status_code not in [201, 202]:
             raise Exception(f"Error subiendo vectorial {datastore_name}: {response.text}")
         print(f"Capa vectorial publicada: {datastore_name}")
-        
+
     print("✅ Publicación en GeoServer completada exitosamente.")
 
     # # Capa histórica
