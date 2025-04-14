@@ -442,8 +442,8 @@ def create_json(params):
     print(input_data)
     return input_data
 
-
-
+def always_save_logs(**context):
+    return True
 
 # Configuración del DAG
 default_args = {
@@ -483,6 +483,14 @@ change_state_task = PythonOperator(
     provide_context=True,
     dag=dag,
 )
+from utils.log_utils import setup_conditional_log_saving
+
+check_logs, save_logs = setup_conditional_log_saving(
+    dag=dag,
+    task_id='save_logs_to_minio',
+    task_id_to_save='process_heatmap_incendios',
+    condition_function=always_save_logs
+)
 
 # Ejecución de la tarea en el DAG
-process_heatmap_task >> change_state_task
+process_heatmap_task >> change_state_task >> check_logs
