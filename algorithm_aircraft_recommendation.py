@@ -215,83 +215,125 @@ def prepare_and_upload_input(**context):
 
 # Definición de la función para ejecutar el algoritmo y descargar el resultado
 def run_and_download_algorithm(**context):
+    print("[INFO] Iniciando ejecución de run_and_download_algorithm...")
+
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
+    print(f"[INFO] Conectando a bastión {hostname} como {username}")
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
 
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file_key:
         temp_file_key.write(ssh_key_decoded)
         temp_key_path = temp_file_key.name
     os.chmod(temp_key_path, 0o600)
+    print(f"[INFO] Clave SSH temporal generada en {temp_key_path}")
 
     try:
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         bastion.connect(hostname=hostname, username=username, key_filename=temp_key_path)
+        print("[INFO] Conexión SSH establecida con el bastión")
 
-        jump = bastion.get_transport().open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
+        jump = bastion.get_transport().open_channel(
+            "direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0)
+        )
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
+        print("[INFO] Conexión SSH establecida con el servidor interno (10.38.9.6)")
 
         cmd = 'cd /algoritms/algoritmo-recomendador-aeronaves-objetivo-5 && python3 call_recomendador.py input/input_data_aeronaves.txt'
-        client.exec_command(cmd)
-        print("[INFO] Algoritmo ejecutado remotamente")
+        print(f"[INFO] Ejecutando comando remoto: {cmd}")
+        stdin, stdout, stderr = client.exec_command(cmd)
+
+        # Esperamos a que el comando finalice y mostramos la salida y errores
+        exit_status = stdout.channel.recv_exit_status()
+        if exit_status == 0:
+            print("[INFO] Algoritmo ejecutado exitosamente")
+        else:
+            print(f"[ERROR] Algoritmo terminó con error. Exit status: {exit_status}")
+            for line in stderr.readlines():
+                print(f"[ERROR OUTPUT] {line.strip()}")
 
         sftp = client.open_sftp()
+        print(f"[INFO] Listando ficheros en {SERVER_OUTPUT_DIR}")
         output_files = sftp.listdir(SERVER_OUTPUT_DIR)
+        print(f"[INFO] Ficheros encontrados: {output_files}")
+
         json_filename = next((f for f in output_files if f.endswith('.json')), None)
         if not json_filename:
-            raise Exception("[ERROR] No se encontró JSON de salida")
+            raise Exception("[ERROR] No se encontró JSON de salida en el servidor.")
 
+        print(f"[INFO] JSON encontrado: {json_filename}")
         local_tmp_output = tempfile.NamedTemporaryFile(delete=False).name
+        print(f"[INFO] Descargando {json_filename} a {local_tmp_output}")
         sftp.get(SERVER_OUTPUT_DIR + json_filename, local_tmp_output)
 
         context['ti'].xcom_push(key='json_filename', value=json_filename)
         context['ti'].xcom_push(key='local_tmp_output', value=local_tmp_output)
+        print("[INFO] Output descargado y almacenado en XComs correctamente")
 
         sftp.close()
         client.close()
         bastion.close()
-        print("[INFO] Output descargado correctamente")
+        print("[INFO] Conexiones SSH cerradas correctamente")
+
+    except Exception as e:
+        print(f"[ERROR] Error durante la ejecución de run_and_download_algorithm: {e}")
+        raise
+
     finally:
-        os.remove(temp_key_path)
+        if os.path.exists(temp_key_path):
+            os.remove(temp_key_path)
+            print(f"[INFO] Clave SSH temporal eliminada: {temp_key_path}")
 
 # Eliminar carpeta de ejecución
 
 def process_outputs(**context):
+    print("[INFO] Iniciando ejecución de process_outputs...")
+
     local_tmp_output = context['ti'].xcom_pull(key='local_tmp_output')
     json_filename = context['ti'].xcom_pull(key='json_filename')
     local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
+
+    print(f"[INFO] local_tmp_output: {local_tmp_output}")
+    print(f"[INFO] json_filename: {json_filename}")
+    print(f"[INFO] local_payload_json: {local_payload_json}")
 
     s3_client = get_minio_client()
     bucket = MINIO_BUCKET
     folder = MINIO_FOLDER
     timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    print(f"[INFO] Timestamp para histórico: {timestamp}")
 
-    # Subir JSON de resultados
-    key_current = f"{folder}/jsons/{json_filename}"
-    key_historic = f"{folder}/historic/{timestamp}_{json_filename}"
-
-    s3_client.upload_file(local_tmp_output, bucket, key_current)
-    s3_client.upload_file(local_tmp_output, bucket, key_historic)
-
-    json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
-    context['ti'].xcom_push(key='json_url', value=json_url)
-    print(f"[INFO] JSON de resultados subido: {json_url}")
-
-    # Subir payload JSON enviado a EINFOREX
-    payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
-    s3_client.upload_file(local_payload_json, bucket, payload_key)
-
-    payload_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{payload_key}"
-    context['ti'].xcom_push(key='payload_json_url', value=payload_url)
-    print(f"[INFO] Payload JSON subido: {payload_url}")
-
-    # Guardar en base de datos
-    session = get_db_session()
-    madrid_tz = pytz.timezone('Europe/Madrid')
     try:
+        # Subir JSON de resultados
+        key_current = f"{folder}/jsons/{json_filename}"
+        key_historic = f"{folder}/historic/{timestamp}_{json_filename}"
+
+        print(f"[INFO] Subiendo JSON actual a {bucket}/{key_current}")
+        s3_client.upload_file(local_tmp_output, bucket, key_current)
+        print(f"[INFO] Subiendo JSON histórico a {bucket}/{key_historic}")
+        s3_client.upload_file(local_tmp_output, bucket, key_historic)
+
+        json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
+        context['ti'].xcom_push(key='json_url', value=json_url)
+        print(f"[INFO] JSON subido y url disponible: {json_url}")
+
+        # Subir payload JSON enviado a EINFOREX
+        payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
+        print(f"[INFO] Subiendo payload a {bucket}/{payload_key}")
+        s3_client.upload_file(local_payload_json, bucket, payload_key)
+
+        payload_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{payload_key}"
+        context['ti'].xcom_push(key='payload_json_url', value=payload_url)
+        print(f"[INFO] Payload JSON subido: {payload_url}")
+
+        # Guardar en base de datos
+        session = get_db_session()
+        madrid_tz = pytz.timezone('Europe/Madrid')
+        print("[INFO] Insertando resultado en base de datos...")
+
         with open(local_tmp_output, 'r', encoding='utf-8') as f:
             output_data = json.load(f)
 
@@ -307,18 +349,26 @@ def process_outputs(**context):
         })
         session.commit()
         print("[INFO] Histórico insertado correctamente en base de datos.")
+
     except Exception as e:
         session.rollback()
-        print(f"[ERROR] Error al insertar histórico: {e}")
+        print(f"[ERROR] Error durante el proceso de outputs: {e}")
         raise
+
     finally:
         session.close()
+        print("[INFO] Sesión de base de datos cerrada correctamente.")
 
+        # Eliminar ficheros temporales locales
+        if os.path.exists(local_tmp_output):
+            os.remove(local_tmp_output)
+            print(f"[INFO] Fichero temporal local_tmp_output eliminado: {local_tmp_output}")
 
-    # Eliminar ficheros temporales locales
-    os.remove(local_tmp_output)
-    os.remove(local_payload_json)
-    print("[INFO] Ficheros temporales eliminados correctamente.")
+        if os.path.exists(local_payload_json):
+            os.remove(local_payload_json)
+            print(f"[INFO] Fichero temporal local_payload_json eliminado: {local_payload_json}")
+
+    print("[INFO] Finalizada ejecución de process_outputs")
 
 
 # Definición de la función para notificar al frontend y guardar en la base de datos
