@@ -246,19 +246,29 @@ def run_and_download_algorithm(**context):
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
         print("[INFO] Conexión SSH establecida con el servidor interno (10.38.9.6)")
 
-        cmd = 'cd /algoritms/algoritmo-recomendador-objetivo-5 && python3 call_recomendador.py input/input_data_aeronaves.txt'
+        cmd = 'cd /algoritms/algoritmo-recomendador-aeronaves-objetivo-5 && python3 call_recomendador.py input/input_data_aeronaves.txt'
         print(f"[INFO] Ejecutando comando remoto: {cmd}")
         stdin, stdout, stderr = client.exec_command(cmd)
 
-        # Esperamos a que el comando finalice y mostramos la salida y errores
+        # Log en tiempo real de la ejecución
+        print("[INFO] --- Output STDOUT del algoritmo ---")
+        for line in iter(stdout.readline, ""):
+            if line:
+                print(f"[REMOTE STDOUT] {line.strip()}")
+
+        print("[INFO] --- Output STDERR del algoritmo ---")
+        for line in iter(stderr.readline, ""):
+            if line:
+                print(f"[REMOTE STDERR] {line.strip()}")
+
+        # Confirmar finalización
         exit_status = stdout.channel.recv_exit_status()
         if exit_status == 0:
-            print("[INFO] Algoritmo ejecutado exitosamente")
+            print("[INFO] Algoritmo ejecutado exitosamente.")
         else:
             print(f"[ERROR] Algoritmo terminó con error. Exit status: {exit_status}")
-            for line in stderr.readlines():
-                print(f"[ERROR OUTPUT] {line.strip()}")
 
+        # Descargar el output
         sftp = client.open_sftp()
         print(f"[INFO] Listando ficheros en {SERVER_OUTPUT_DIR}")
         output_files = sftp.listdir(SERVER_OUTPUT_DIR)
@@ -275,12 +285,12 @@ def run_and_download_algorithm(**context):
 
         context['ti'].xcom_push(key='json_filename', value=json_filename)
         context['ti'].xcom_push(key='local_tmp_output', value=local_tmp_output)
-        print("[INFO] Output descargado y almacenado en XComs correctamente")
+        print("[INFO] Output descargado y almacenado en XComs correctamente.")
 
         sftp.close()
         client.close()
         bastion.close()
-        print("[INFO] Conexiones SSH cerradas correctamente")
+        print("[INFO] Conexiones SSH cerradas correctamente.")
 
     except Exception as e:
         print(f"[ERROR] Error durante la ejecución de run_and_download_algorithm: {e}")
