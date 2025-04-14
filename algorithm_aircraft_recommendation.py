@@ -52,12 +52,11 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
             available_aircrafts.extend(ids)
             aircrafts_for_criteria.extend(ids)
 
-    # Si no hay aeronaves asociadas a este incendio, dejar vacío
     if not available_aircrafts:
         available_aircrafts = []
         aircrafts_for_criteria = [""]
 
-    output_interval_ms = 600_000  # 10 minutos en ms
+    output_interval_ms = 600_000  # 10 minutos
 
     return {
         "startDate": to_millis(start_dt),
@@ -74,17 +73,16 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
         "outputInterval": output_interval_ms,
         "resourcePlanningCriteria": [
             {
-                "id": fire_id,  # El ID será el mismo que el ID del incendio
-                "executionId": 2,  # Seguir la convención del ejemplo (puede ser 2 o el que uses en Airflow)
                 "since": to_millis(start_dt),
                 "until": to_millis(end_dt),
                 "aircrafts": aircrafts_for_criteria,
                 "waterAmount": None,
-                "aircraftNum": len([a for a in aircrafts_for_criteria if a])  # Solo contamos aeronaves válidas
+                "aircraftNum": len([a for a in aircrafts_for_criteria if a])
             }
         ],
         "resourcePlanningResult": []
     }
+
 
 def get_planning_id_from_einforex(payload):
     """
