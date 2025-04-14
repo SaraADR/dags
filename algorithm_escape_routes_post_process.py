@@ -21,6 +21,7 @@ from sqlalchemy import text
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 import pytz
+from function_save_logs_to_minio import save_logs_to_minio
 
 
 def process_escape_routes_data(**context):
@@ -588,5 +589,13 @@ process_escape_routes_task = PythonOperator(
     dag=dag,
 )
 
+save_logs_task = PythonOperator(
+        task_id='save_logs_to_minio',
+        python_callable=save_logs_to_minio,
+        provide_context=True,
+        op_kwargs={'task_id_to_save': 'process_escape_routes'},
+        dag=dag,
+    )
 
-process_escape_routes_task 
+
+process_escape_routes_task >> save_logs_task
