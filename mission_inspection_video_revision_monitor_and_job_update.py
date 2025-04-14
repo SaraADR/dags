@@ -155,7 +155,8 @@ def generate_notify_job(**context):
         finally:
             session.close()
 
-
+def always_save_logs(**context):
+    return True
 
 
 default_args = {
@@ -209,6 +210,15 @@ generate_notify = PythonOperator(
     dag=dag,
 )
 
+from utils.log_utils import setup_conditional_log_saving
+
+check_logs, save_logs = setup_conditional_log_saving(
+    dag=dag,
+    task_id='save_logs_to_minio',
+    task_id_to_save='update_video_status',
+    condition_function=always_save_logs
+)
+
 
 # Definir dependencias
-wait_for_jobs_sensor >> update_video_task >> change_state_task >> generate_notify
+wait_for_jobs_sensor >> update_video_task >> change_state_task >> generate_notify >> check_logs
