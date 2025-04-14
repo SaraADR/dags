@@ -196,7 +196,7 @@ def publish_to_geoserver(archivos, **context):
         print(f"Capa genérica raster actualizada: {GENERIC_LAYER}")
 
 
-    shp_files = [archivo['file_name'] for archivo in archivos if archivo['file_name'].lower().endswith(('.shp', '.dbf', '.shx', '.prj', '.cpg'))]
+    shp_files = [temp_file[0] for temp_file in temp_files if temp_file[1] in ('.shp', '.dbf', '.shx', '.prj', '.cpg')]
     if shp_files:
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
@@ -217,19 +217,19 @@ def publish_to_geoserver(archivos, **context):
 
     print("✅ Publicación en GeoServer completada exitosamente.")
 
-    # # Capa histórica
-    # url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
-    # response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
-    # if response.status_code not in [201, 202]:
-    #     raise Exception(f"Error publicando {layer_name}: {response.text}")
-    # print(f"Capa publicada: {layer_name}")
+    # Capa histórica
+    url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+    response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+    if response.status_code not in [201, 202]:
+        raise Exception(f"Error publicando {layer_name}: {response.text}")
+    print(f"Capa publicada: {layer_name}")
 
-    # # Capa genérica
-    # url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
-    # response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
-    # if response_latest.status_code not in [201, 202]:
-    #     raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
-    # print(f"Capa genérica actualizada: {GENERIC_LAYER}")
+    # Capa genérica
+    url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+    response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+    if response_latest.status_code not in [201, 202]:
+        raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
+    print(f"Capa genérica actualizada: {GENERIC_LAYER}")
 
 
 
