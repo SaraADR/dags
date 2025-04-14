@@ -594,6 +594,7 @@ save_logs_task = PythonOperator(
         python_callable=save_logs_to_minio,
         provide_context=True,
         op_kwargs={'task_id_to_save': 'process_escape_routes'},
+        trigger_rule='all_done',
         dag=dag,
     )
 
