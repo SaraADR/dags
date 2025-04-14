@@ -558,7 +558,8 @@ def create_json(params):
     }
     return input_data
 
-
+def always_save_logs(**context):
+    return True
 
 
 # Configuración del DAG
@@ -589,14 +590,14 @@ process_escape_routes_task = PythonOperator(
     dag=dag,
 )
 
-save_logs_task = PythonOperator(
-        task_id='save_logs_to_minio',
-        python_callable=save_logs_to_minio,
-        provide_context=True,
-        op_kwargs={'task_id_to_save': 'process_escape_routes'},
-        trigger_rule='all_done',
-        dag=dag,
-    )
+from utils.log_utils import setup_conditional_log_saving
+
+check_logs, save_logs = setup_conditional_log_saving(
+    dag=dag,
+    task_id='save_logs_to_minio',
+    task_id_to_save='process_escape_routes',
+    condition_function=always_save_logs
+)
 
 
-process_escape_routes_task >> save_logs_task
+process_escape_routes_task >> check_logs
