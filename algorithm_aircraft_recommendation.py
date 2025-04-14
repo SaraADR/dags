@@ -28,13 +28,15 @@ INPUT_FILENAME = "input_data_aeronaves.txt"
 SERVER_INPUT_DIR = "/algoritms/algoritmo-asignacion-aeronaves-objetivo-5/input/"
 SERVER_OUTPUT_DIR = "/algoritms/algoritmo-asignacion-aeronaves-objetivo-5/output/"
 MINIO_BUCKET = "tmp"
-MINIO_FOLDER = "algorithm_aircraft_planificator_outputs"
+MINIO_FOLDER = "algorithm_aircraft_planificator_outputs" 
+SERVER_EXECUTIONS_DIR = "/algoritms/executions/"
 
-# Funciones auxiliares
-
+# Funcion de conversión de fecha a milisegundos
 def to_millis(dt):
     return int(dt.timestamp() * 1000)
 
+
+# Definición de la función para construir el payload para EINFOREX
 def build_einforex_payload(fire, vehicles, assignment_criteria):
     now = datetime.utcnow()
     start_dt = now.replace(minute=((now.minute // 10 + 1) * 10) % 60, second=0, microsecond=0)
@@ -56,7 +58,7 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
         available_aircrafts = []
         aircrafts_for_criteria = [""]
 
-    output_interval_ms = 600_000  # 10 minutos
+    output_interval_ms = 600_000
 
     return {
         "startDate": to_millis(start_dt),
@@ -83,7 +85,7 @@ def build_einforex_payload(fire, vehicles, assignment_criteria):
         "resourcePlanningResult": []
     }
 
-
+# Definición de la función para obtener el planning_id de EINFOREX
 def get_planning_id_from_einforex(payload):
     """
     Llama a la API de EINFOREX usando autenticación HTTP básica (usuario/contraseña) y devuelve el planning_id.
@@ -120,50 +122,53 @@ def get_planning_id_from_einforex(payload):
         raise
 
 
-# Tareas principales
+# Preparar y subir el input a EINFOREX
 
 def prepare_and_upload_input(**context):
-    # Cargar correctamente el conf
     raw_conf = context['dag_run'].conf
     if isinstance(raw_conf, str):
         raw_conf = json.loads(raw_conf)
 
     message = raw_conf.get('message')
     if not message:
-        raise ValueError("El input no contiene el campo 'message'.")
+        raise ValueError("Input sin campo 'message'.")
 
     user = message.get('from_user')
-
     raw_input_data = message.get('input_data')
     if not raw_input_data:
-        raise ValueError("El input no contiene 'input_data' dentro de message.")
+        raise ValueError("Input sin 'input_data'.")
 
-    if isinstance(raw_input_data, str):
-        input_data = json.loads(raw_input_data)
-    else:
-        input_data = raw_input_data
-
-    # Confirmar input recibido
-    print("[DEBUG] INPUT DATA FINAL:", input_data)
+    input_data = json.loads(raw_input_data) if isinstance(raw_input_data, str) else raw_input_data
 
     vehicles = input_data['vehicles']
     fires = input_data['fires']
     assignment_criteria = input_data['assignmentCriteria']
 
-    # Guardamos usuario para usar en notify_frontend
     context['ti'].xcom_push(key='user', value=user)
 
-    # Conexión SSH
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
 
     input_lines = []
+    local_payloads = []
+
     for fire in fires:
         payload = build_einforex_payload(fire, vehicles, assignment_criteria)
         planning_id = get_planning_id_from_einforex(payload)
         line = f"http://10.38.9.6:8080{EINFOREX_ROUTE}\n{planning_id}\n/home/airflow/modelos_vehiculo.csv\n"
         input_lines.append(line)
+        local_payloads.append({
+            "fire_id": fire['id'],
+            "planning_id": planning_id,
+            "payload": payload
+        })
+
+    # Crear carpeta de ejecución única
+    execution_folder = f"EJECUCION_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    execution_path = SERVER_EXECUTIONS_DIR + execution_folder
+    context['ti'].xcom_push(key='execution_path', value=execution_path)
+    context['ti'].xcom_push(key='execution_folder', value=execution_folder)
 
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file_key:
         temp_file_key.write(ssh_key_decoded)
@@ -181,19 +186,38 @@ def prepare_and_upload_input(**context):
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
 
         sftp = client.open_sftp()
-        with sftp.file(SERVER_INPUT_DIR + INPUT_FILENAME, 'w') as remote_file:
+
+        try:
+            sftp.mkdir(execution_path)
+            sftp.mkdir(f"{execution_path}/input")
+            sftp.mkdir(f"{execution_path}/output")
+            print(f"[INFO] Carpetas creadas en {execution_path}")
+        except IOError:
+            print(f"[WARN] Carpetas ya existentes: {execution_path}")
+
+        with sftp.file(f"{execution_path}/input/{INPUT_FILENAME}", 'w') as remote_file:
             for line in input_lines:
                 remote_file.write(line)
 
         sftp.close()
         client.close()
         bastion.close()
-        print("[INFO] Input preparado y subido correctamente")
+
+        print("[INFO] Input preparado y subido correctamente.")
 
     finally:
         os.remove(temp_key_path)
 
+    # Guardar el payload local
+    payload_filename = tempfile.NamedTemporaryFile(delete=False, suffix=".json").name
+    with open(payload_filename, 'w', encoding='utf-8') as f:
+        json.dump(local_payloads, f, indent=2)
 
+    context['ti'].xcom_push(key='local_payload_json', value=payload_filename)
+    print(f"[INFO] Payload JSON guardado localmente: {payload_filename}")
+
+
+# Definición de la función para ejecutar el algoritmo y descargar el resultado
 def run_and_download_algorithm(**context):
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
@@ -214,7 +238,7 @@ def run_and_download_algorithm(**context):
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
 
-        cmd = 'cd /algoritms/algoritmo-asignacion-aeronaves-objetivo-5 && python3 call_recomendador.py input/input_data_aeronaves.txt'
+        cmd = 'cd /algoritms/algoritmo-recomendador-aeronaves-objetivo-5 && python3 call_recomendador.py input/input_data_aeronaves.txt'
         client.exec_command(cmd)
         print("[INFO] Algoritmo ejecutado remotamente")
 
@@ -237,15 +261,19 @@ def run_and_download_algorithm(**context):
     finally:
         os.remove(temp_key_path)
 
+# Eliminar carpeta de ejecución
+
 def process_outputs(**context):
-    json_filename = context['ti'].xcom_pull(key='json_filename')
     local_tmp_output = context['ti'].xcom_pull(key='local_tmp_output')
+    json_filename = context['ti'].xcom_pull(key='json_filename')
+    local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
 
     s3_client = get_minio_client()
     bucket = MINIO_BUCKET
     folder = MINIO_FOLDER
     timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
+    # Subir JSON de resultados
     key_current = f"{folder}/jsons/{json_filename}"
     key_historic = f"{folder}/historic/{timestamp}_{json_filename}"
 
@@ -254,25 +282,23 @@ def process_outputs(**context):
 
     json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
     context['ti'].xcom_push(key='json_url', value=json_url)
+    print(f"[INFO] JSON de resultados subido: {json_url}")
 
-    with open(local_tmp_output, 'r', encoding='utf-8') as f:
-        output_data = json.load(f)
+    # Subir payload JSON enviado a EINFOREX
+    payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
+    s3_client.upload_file(local_payload_json, bucket, payload_key)
 
-    local_csv_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
-    with open(local_csv_file, 'w', newline='', encoding='utf-8') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['assignment_id', 'vehicle_id'])
-        for assignment in output_data.get('assignments', []):
-            for vehicle in assignment.get('vehicles', []):
-                writer.writerow([assignment['id'], vehicle])
+    payload_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{payload_key}"
+    context['ti'].xcom_push(key='payload_json_url', value=payload_url)
+    print(f"[INFO] Payload JSON subido: {payload_url}")
 
-    s3_client.upload_file(local_csv_file, bucket, f"{folder}/{os.path.basename(local_csv_file)}")
-    csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{folder}/{os.path.basename(local_csv_file)}"
-    context['ti'].xcom_push(key='csv_url', value=csv_url)
-
+    # Guardar en base de datos
     session = get_db_session()
     madrid_tz = pytz.timezone('Europe/Madrid')
     try:
+        with open(local_tmp_output, 'r', encoding='utf-8') as f:
+            output_data = json.load(f)
+
         session.execute(text("""
             INSERT INTO algoritmos.algoritmo_aircraft_planificator (sampled_feature, result_time, phenomenon_time, input_data, output_data)
             VALUES (:sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data)
@@ -280,19 +306,26 @@ def process_outputs(**context):
             "sampled_feature": output_data.get("assignmentId", "unknown"),
             "result_time": datetime.now(madrid_tz),
             "phenomenon_time": datetime.now(madrid_tz),
-            "input_data": json.dumps({}),
-            "output_data": json.dumps(output_data)
+            "input_data": json.dumps({}, ensure_ascii=False),
+            "output_data": json.dumps(output_data, ensure_ascii=False)
         })
         session.commit()
-    except Exception:
+        print("[INFO] Histórico insertado correctamente en base de datos.")
+    except Exception as e:
         session.rollback()
+        print(f"[ERROR] Error al insertar histórico: {e}")
         raise
     finally:
         session.close()
 
+
+    # Eliminar ficheros temporales locales
     os.remove(local_tmp_output)
-    os.remove(local_csv_file)
-    print("[INFO] Output subido a MinIO y registrado en histórico")
+    os.remove(local_payload_json)
+    print("[INFO] Ficheros temporales eliminados correctamente.")
+
+
+# Definición de la función para notificar al frontend y guardar en la base de datos
 
 def notify_frontend(**context):
     user = context['ti'].xcom_pull(key='user')
@@ -322,7 +355,9 @@ def notify_frontend(**context):
         session.close()
     print("[INFO] Notificación enviada al frontend")
 
+
 # Definición DAG
+
 default_args = {
     'owner': 'oscar',
     'start_date': days_ago(1),
@@ -366,6 +401,8 @@ notify_task = PythonOperator(
     provide_context=True,
     dag=dag
 )
+
+# Definir la secuencia de tareas y dependencias
 
 prepare_task >> run_task >> process_task >> notify_task
 
