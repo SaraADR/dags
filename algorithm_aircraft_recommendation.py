@@ -418,6 +418,9 @@ def notify_frontend(**context):
         session.close()
     print("[INFO] Notificación enviada al frontend")
 
+def always_save_logs(**context):
+    return True
+
 
 # Definición DAG
 
@@ -465,6 +468,15 @@ notify_task = PythonOperator(
     dag=dag
 )
 
+from utils.log_utils import setup_conditional_log_saving
+
+check_logs, save_logs = setup_conditional_log_saving(
+    dag=dag,
+    task_id='save_logs_to_minio',
+    task_id_to_save='run_and_download_algorithm',
+    condition_function=always_save_logs
+)
+
 # Definir la secuencia de tareas y dependencias
 
-prepare_task >> run_task >> process_task >> notify_task
+prepare_task >> run_task >> process_task >> notify_task >> check_logs
