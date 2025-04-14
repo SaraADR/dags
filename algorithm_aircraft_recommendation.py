@@ -122,7 +122,7 @@ def get_planning_id_from_einforex(payload):
         raise
 
 
-# Preparar y subir el input a EINFOREX
+# Preparar y subir el input para ejecutar el algoritmo
 
 def prepare_and_upload_input(**context):
     raw_conf = context['dag_run'].conf
@@ -150,21 +150,25 @@ def prepare_and_upload_input(**context):
     hostname, username = ssh_conn.host, ssh_conn.login
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
 
-    input_lines = []
-    local_payloads = []
+    # SOLO VAMOS A GENERAR 1 PlanningID (del primer fuego)
+    fire = fires[0]
+    payload = build_einforex_payload(fire, vehicles, assignment_criteria)
+    planning_id = get_planning_id_from_einforex(payload)
 
-    for fire in fires:
-        payload = build_einforex_payload(fire, vehicles, assignment_criteria)
-        planning_id = get_planning_id_from_einforex(payload)
-        line = f"http://10.38.9.6:8080{EINFOREX_ROUTE}\n{planning_id}\n/home/airflow/modelos_vehiculo.csv\n"
-        input_lines.append(line)
-        local_payloads.append({
-            "fire_id": fire['id'],
-            "planning_id": planning_id,
-            "payload": payload
-        })
+    # Ahora montamos el input_data_aeronaves.txt
+    input_content = f"""medios=a
+        url1=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}
+        url2=https://pre.atcservices.cirpas.gal/rest/FlightQueryService/searchByCriteria
+        url3=https://pre.atcservices.cirpas.gal/rest/FlightReportService/getReport
+        url4=https://pre.atcservices.cirpas.gal/rest/AircraftStatusService/getAll
+        url5=https://pre.atcservices.cirpas.gal/rest/AircraftBaseService/getAll
+        url6=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/update
+        user=ITMATI.DES
+        password=Cui_1234
+        modelos_aeronave=input/modelos_vehiculo.csv
+        """
 
-    # Crear carpeta de ejecución única
+    # Crear carpeta de ejecución
     execution_folder = f"EJECUCION_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     execution_path = SERVER_EXECUTIONS_DIR + execution_folder
     context['ti'].xcom_push(key='execution_path', value=execution_path)
@@ -195,9 +199,9 @@ def prepare_and_upload_input(**context):
         except IOError:
             print(f"[WARN] Carpetas ya existentes: {execution_path}")
 
+        # Subir input
         with sftp.file(f"{execution_path}/input/{INPUT_FILENAME}", 'w') as remote_file:
-            for line in input_lines:
-                remote_file.write(line)
+            remote_file.write(input_content)
 
         sftp.close()
         client.close()
@@ -207,14 +211,6 @@ def prepare_and_upload_input(**context):
 
     finally:
         os.remove(temp_key_path)
-
-    # Guardar el payload local
-    payload_filename = tempfile.NamedTemporaryFile(delete=False, suffix=".json").name
-    with open(payload_filename, 'w', encoding='utf-8') as f:
-        json.dump(local_payloads, f, indent=2)
-
-    context['ti'].xcom_push(key='local_payload_json', value=payload_filename)
-    print(f"[INFO] Payload JSON guardado localmente: {payload_filename}")
 
 
 # Definición de la función para ejecutar el algoritmo y descargar el resultado
