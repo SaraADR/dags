@@ -231,6 +231,9 @@ def insert_notification(id_mission, user):
         finally:
             session.close()
 
+def always_save_logs(**context):
+    return True
+
 
 # Configuración por defecto para el DAG
 default_args = {
@@ -267,7 +270,15 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
+from utils.log_utils import setup_conditional_log_saving
+
+check_logs, save_logs = setup_conditional_log_saving(
+    dag=dag,
+    task_id='save_logs_to_minio',
+    task_id_to_save='create_mission',
+    condition_function=always_save_logs
+)
 
 
 # Modifica la secuencia de tareas
-print_message_task >> create_mission_task 
+print_message_task >> create_mission_task >> check_logs
