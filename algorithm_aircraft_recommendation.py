@@ -238,7 +238,7 @@ def run_and_download_algorithm(**context):
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
 
-        cmd = 'cd /algoritms/algoritmo-asignacion-aeronaves-objetivo-5 && python3 call_recomendador.py input/input_data_aeronaves.txt'
+        cmd = 'cd /algoritms/algoritmo-recomendador-aeronaves-objetivo-5 && python3 call_recomendador.py input/input_data_aeronaves.txt'
         client.exec_command(cmd)
         print("[INFO] Algoritmo ejecutado remotamente")
 
