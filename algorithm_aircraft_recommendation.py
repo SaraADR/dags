@@ -167,6 +167,10 @@ def prepare_and_upload_input(**context):
         password=Cui_1234
         modelos_aeronave=input/modelos_vehiculo.csv
         """
+    
+    print(f"Informacion del input data enviado")
+    print(f"[INFO] Input content: {input_content}")
+
 
     # Crear carpeta de ejecución
     execution_folder = f"EJECUCION_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
