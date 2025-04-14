@@ -209,7 +209,8 @@ def publish_to_geoserver(archivos, **context):
         datastore_name = f"vector_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/file.shp"
         headers = {"Content-type": "application/zip"}
-
+        layer_name = f"USV_Water_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
         response = requests.put(url, headers=headers, data=zip_buffer, auth=auth, params={"configure": "all"})
         if response.status_code not in [201, 202]:
             raise Exception(f"Error subiendo vectorial {datastore_name}: {response.text}")
