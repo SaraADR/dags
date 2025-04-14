@@ -21,6 +21,7 @@ from sqlalchemy import text
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 import pytz
+from function_save_logs_to_minio import save_logs_to_minio
 
 
 def process_escape_routes_data(**context):
@@ -557,7 +558,8 @@ def create_json(params):
     }
     return input_data
 
-
+def always_save_logs(**context):
+    return True
 
 
 # Configuración del DAG
@@ -588,5 +590,14 @@ process_escape_routes_task = PythonOperator(
     dag=dag,
 )
 
+from utils.log_utils import setup_conditional_log_saving
 
-process_escape_routes_task 
+check_logs, save_logs = setup_conditional_log_saving(
+    dag=dag,
+    task_id='save_logs_to_minio',
+    task_id_to_save='process_escape_routes',
+    condition_function=always_save_logs
+)
+
+
+process_escape_routes_task >> check_logs
