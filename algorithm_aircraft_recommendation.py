@@ -157,16 +157,16 @@ def prepare_and_upload_input(**context):
 
     # Ahora montamos el input_data_aeronaves.txt
     input_content = f"""medios=a
-        url1=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}
-        url2=https://pre.atcservices.cirpas.gal/rest/FlightQueryService/searchByCriteria
-        url3=https://pre.atcservices.cirpas.gal/rest/FlightReportService/getReport
-        url4=https://pre.atcservices.cirpas.gal/rest/AircraftStatusService/getAll
-        url5=https://pre.atcservices.cirpas.gal/rest/AircraftBaseService/getAll
-        url6=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/update
-        user=ITMATI.DES
-        password=Cui_1234
-        modelos_aeronave=input/modelos_vehiculo.csv
-        """
+url1=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}
+url2=https://pre.atcservices.cirpas.gal/rest/FlightQueryService/searchByCriteria
+url3=https://pre.atcservices.cirpas.gal/rest/FlightReportService/getReport
+url4=https://pre.atcservices.cirpas.gal/rest/AircraftStatusService/getAll
+url5=https://pre.atcservices.cirpas.gal/rest/AircraftBaseService/getAll
+url6=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/update
+user=ITMATI.DES
+password=Cui_1234
+modelos_aeronave=input/modelos_vehiculo.csv
+"""
     
     print(f"Informacion del input data enviado")
     print(f"[INFO] Input content: {input_content}")
