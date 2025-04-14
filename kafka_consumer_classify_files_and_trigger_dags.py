@@ -17,34 +17,20 @@ from airflow.hooks.base_hook import BaseHook
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
+from airflow import settings
+from function_save_logs_to_minio import save_logs_to_minio
+from airflow.operators.python import BranchPythonOperator
+from utils.log_utils import setup_conditional_log_saving
+from utils.kafka_headers import extract_trace_id
 
 from dag_utils import get_minio_client, delete_file_sftp
+KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
 
 def consumer_function(message, prefix, **kwargs):
-    print(f"Mensaje crudo: {message}")
+    print(f"{KAFKA_RAW_MESSAGE_PREFIX} {message}")
 
-    trace_id = None
-
-    if hasattr(message, 'headers') and callable(message.headers):
-        headers = message.headers()
-        print(f"Headers (contenido): {headers}")
-        
-        if headers:
-            for key, value in headers:
-                # Convertir bytes a string
-                key_str = key.decode('utf-8') if isinstance(key, bytes) else key
-                value_str = value.decode('utf-8') if isinstance(value, bytes) else value
-                
-                print(f"Header: {key_str} = {value_str}")
-                
-                if key_str == 'traceId':
-                    trace_id = value_str
-
-    if trace_id is None:
-        print("No se encontró traceId en los headers")
-    else:
-        print(f"TraceId encontrado: {trace_id}")
-
+    trace_id, log_msg = extract_trace_id(message)
+    print(log_msg)
 
     try:
         msg_value = message.value().decode('utf-8')
@@ -53,7 +39,7 @@ def consumer_function(message, prefix, **kwargs):
         print(f"Error al procesar el mensaje: {e}")
     # delete_file_sftp(msg_value)
     
-    file_path_in_minio =  msg_value  
+    file_path_in_minio = msg_value
         
     # Establecer conexión con MinIO
     s3_client = get_minio_client()
@@ -72,7 +58,13 @@ def consumer_function(message, prefix, **kwargs):
         process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
-        raise 
+        raise
+    if msg_value:
+        print("Mensaje procesado correctamente", msg_value)
+        return True
+    else:
+        print("No se pudo procesar el mensaje")
+        return False
 
 
 def list_files_in_minio_folder(s3_client, bucket_name, prefix):
@@ -207,7 +199,8 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                             otros.append({'file_name': file_name, 'content': encoded_content})
 
                 print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
-                print("Archivos adicionales procesados:", otros)
+                # print("Archivos adicionales procesados:", otros)
+                print("Archivos adicionales procesados:", [item['file_name'] for item in otros])
 
                 # Realiza el procesamiento basado en el AlgorithmID
                 if algorithm_id:
@@ -257,7 +250,25 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido: {e}")
         return
-
+    
+def there_was_kafka_message(**context):
+    dag_id = context['dag'].dag_id
+    run_id = context['run_id']
+    task_id = 'consume_from_topic_minio'
+    log_base = "/opt/airflow/logs"
+    log_path = f"{log_base}/dag_id={dag_id}/run_id={run_id}/task_id={task_id}"
+    
+    # Search for the latest log file
+    try:
+        latest_log = max(
+            (os.path.join(root, f) for root, _, files in os.walk(log_path) for f in files),
+            key=os.path.getctime
+        )
+        with open(latest_log, 'r') as f:
+            content = f.read()
+            return f"{KAFKA_RAW_MESSAGE_PREFIX} <cimpl.Message object at" in content
+    except (ValueError, FileNotFoundError):
+        return False
 
 default_args = {
     'owner': 'sadr',
@@ -279,7 +290,6 @@ dag = DAG(
     concurrency=1
 )
 
-
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic_minio",
@@ -290,4 +300,13 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-consume_from_topic
+from utils.log_utils import setup_conditional_log_saving
+
+check_logs, save_logs = setup_conditional_log_saving(
+    dag=dag,
+    task_id='save_logs_to_minio',
+    task_id_to_save='consume_from_topic_minio',
+    condition_function=there_was_kafka_message
+)
+
+consume_from_topic >> check_logs
