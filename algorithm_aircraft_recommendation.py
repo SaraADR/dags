@@ -408,7 +408,9 @@ def fetch_results_from_einforex(**context):
 
     print("[INFO] Iniciando fetch_results_from_einforex...")
 
-    planning_id = context['ti'].xcom_pull(task_ids='prepare_and_upload_input', key='planning_id')
+    planning_id = 1256,
+
+    # planning_id = context['ti'].xcom_pull(task_ids='prepare_and_upload_input', key='planning_id')
     if not planning_id:
         raise ValueError("[ERROR] No se encontró planning_id en XCom")
 
