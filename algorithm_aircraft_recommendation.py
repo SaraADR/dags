@@ -350,6 +350,33 @@ def process_outputs(**context):
         context['ti'].xcom_push(key='json_url', value=json_url)
         print(f"[INFO] JSON subido y url disponible: {json_url}")
 
+        # Generar CSV desde el JSON y subir a MinIO
+        csv_filename = json_filename.replace('.json', '.csv')
+        local_csv_path = f"/tmp/{csv_filename}"
+
+        output_data = json.loads(json_content)
+        csv_data = output_data.get("resourcePlanningResult", [])
+        if not csv_data:
+            print("[WARN] El JSON no contiene resourcePlanningResult")
+
+        with open(local_csv_path, mode='w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=["since", "until", "aircrafts"])
+            writer.writeheader()
+            for row in csv_data:
+                writer.writerow({
+                    "since": row.get("since"),
+                    "until": row.get("until"),
+                    "aircrafts": ', '.join(row.get("aircrafts", []))
+                })
+
+        csv_key = f"{folder}/outputs/{csv_filename}"
+        print(f"[INFO] Subiendo CSV de resultados a {bucket}/{csv_key}")
+        s3_client.upload_file(local_csv_path, bucket, csv_key)
+
+        csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
+        context['ti'].xcom_push(key='csv_url', value=csv_url)
+        print(f"[INFO] CSV subido y url disponible: {csv_url}")
+
         # Subir payload JSON si existe
         if local_payload_json and os.path.exists(local_payload_json):
             payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
@@ -366,8 +393,6 @@ def process_outputs(**context):
         session = get_db_session()
         madrid_tz = pytz.timezone('Europe/Madrid')
         print("[INFO] Insertando resultado en base de datos...")
-
-        output_data = json.loads(json_content)
 
         session.execute(text("""
             INSERT INTO algoritmos.algoritmo_aircraft_planificator (sampled_feature, result_time, phenomenon_time, input_data, output_data)
@@ -398,8 +423,12 @@ def process_outputs(**context):
         if local_payload_json and os.path.exists(local_payload_json):
             os.remove(local_payload_json)
             print(f"[INFO] Fichero temporal local_payload_json eliminado: {local_payload_json}")
+        if os.path.exists(local_csv_path):
+            os.remove(local_csv_path)
+            print(f"[INFO] Fichero CSV temporal eliminado: {local_csv_path}")
 
     print("[INFO] Finalizada ejecución de process_outputs.")
+
 
 
 
