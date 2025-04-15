@@ -36,6 +36,25 @@ def to_millis(dt):
     return int(dt.timestamp() * 1000)
 
 
+def normalize_input_data(input_data):
+    # Convertir 'fires[].position' de array [x, y] a dict con srid, x, y, z
+    for fire in input_data.get('fires', []):
+        if isinstance(fire.get("position"), list):
+            x, y = fire["position"]
+            fire["position"] = {
+                "srid": 4326,
+                "x": x,
+                "y": y,
+                "z": 0
+            }
+
+    # Asegurar que 'reserve' tiene un 'model'
+    if 'reserve' in input_data and 'model' not in input_data['reserve']:
+        all_models = [v['model'] for v in input_data.get('vehicles', []) if 'model' in v]
+        input_data['reserve']['model'] = all_models[0] if all_models else "B407"
+
+    return input_data
+
 # Definición de la función para construir el payload para EINFOREX
 def build_einforex_payload(fire, vehicles, assignment_criteria):
     now = datetime.utcnow()
@@ -142,6 +161,9 @@ def prepare_and_upload_input(**context):
 
     input_data = json.loads(raw_input_data) if isinstance(raw_input_data, str) else raw_input_data
 
+    # Normalización del input
+    input_data = normalize_input_data(input_data)
+
     vehicles = input_data['vehicles']
     fires = input_data['fires']
     assignment_criteria = input_data['assignmentCriteria']
@@ -152,13 +174,11 @@ def prepare_and_upload_input(**context):
     hostname, username = ssh_conn.host, ssh_conn.login
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
 
-    # SOLO VAMOS A GENERAR 1 PlanningID (del primer fuego)
-    fire = fires[0]
+    fire = fires[0]  # Usamos solo el primer fuego
     payload = build_einforex_payload(fire, vehicles, assignment_criteria)
     planning_id = get_planning_id_from_einforex(payload)
     context['ti'].xcom_push(key='planning_id', value=planning_id)
 
-    # Ahora montamos el input_data_aeronaves.txt
     input_content = f"""medios=a
 url1=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}
 url2=https://pre.atcservices.cirpas.gal/rest/FlightQueryService/searchByCriteria
@@ -170,12 +190,9 @@ user=ITMATI.DES
 password=Cui_1234
 modelos_aeronave=input/modelos_vehiculo.csv
 """
-    
-    print(f"Informacion del input data enviado")
-    print(f"[INFO] Input content: {input_content}")
 
+    print(f"[INFO] Input content:\n{input_content}")
 
-    # Crear carpeta de ejecución
     execution_folder = f"EJECUCION_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     execution_path = SERVER_EXECUTIONS_DIR + execution_folder
     context['ti'].xcom_push(key='execution_path', value=execution_path)
@@ -197,7 +214,6 @@ modelos_aeronave=input/modelos_vehiculo.csv
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
 
         sftp = client.open_sftp()
-
         try:
             sftp.mkdir(execution_path)
             sftp.mkdir(f"{execution_path}/input")
@@ -206,18 +222,16 @@ modelos_aeronave=input/modelos_vehiculo.csv
         except IOError:
             print(f"[WARN] Carpetas ya existentes: {execution_path}")
 
-        # Subir input
         with sftp.file(f"{execution_path}/input/{INPUT_FILENAME}", 'w') as remote_file:
             remote_file.write(input_content)
 
         sftp.close()
         client.close()
         bastion.close()
-
         print("[INFO] Input preparado y subido correctamente.")
-
     finally:
         os.remove(temp_key_path)
+
 
 
 # Definición de la función para ejecutar el algoritmo y descargar el resultado
