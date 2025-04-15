@@ -388,6 +388,44 @@ def process_outputs(**context):
     print("[INFO] Finalizada ejecución de process_outputs")
 
 
+
+def fetch_results_from_einforex(**context):
+    from requests.auth import HTTPBasicAuth
+
+    print("[INFO] Iniciando fetch_results_from_einforex...")
+
+    planning_id = context['ti'].xcom_pull(task_ids='prepare_and_upload_input', key='planning_id')
+    if not planning_id:
+        raise ValueError("[ERROR] No se encontró planning_id en XCom")
+
+    connection = BaseHook.get_connection('einforex_planning_url')
+    url = f"{connection.host}/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}"
+    username = connection.login
+    password = connection.password
+
+    print(f"[INFO] Llamando a EINFOREX para resultados con ID: {planning_id}")
+    print(f"[INFO] URL: {url}")
+
+    try:
+        response = requests.get(url, auth=HTTPBasicAuth(username, password), timeout=30)
+        response.raise_for_status()
+        result_data = response.json()
+
+        if result_data.get("status") != "FINISHED":
+            raise ValueError(f"[ERROR] El estado del algoritmo no es FINISHED: {result_data.get('status')}")
+
+        print("[INFO] Resultados del algoritmo obtenidos correctamente.")
+        print("[INFO] Ejemplo de resultado:")
+        print(json.dumps(result_data, indent=2))
+
+        context['ti'].xcom_push(key='einforex_result', value=result_data)
+
+    except Exception as e:
+        print(f"[ERROR] Fallo al obtener resultados desde EINFOREX: {e}")
+        raise
+
+
+
 # Definición de la función para notificar al frontend y guardar en la base de datos
 
 def notify_frontend(**context):
@@ -454,6 +492,13 @@ run_task = PythonOperator(
     dag=dag
 )
 
+fetch_result_task = PythonOperator(
+    task_id='fetch_results_from_einforex',
+    python_callable=fetch_results_from_einforex,
+    provide_context=True,
+    dag=dag
+)
+
 process_task = PythonOperator(
     task_id='process_outputs',
     python_callable=process_outputs,
@@ -479,4 +524,4 @@ check_logs, save_logs = setup_conditional_log_saving(
 
 # Definir la secuencia de tareas y dependencias
 
-prepare_task >> run_task >> process_task >> notify_task >> check_logs
+prepare_task >> run_task >> fetch_result_task >> process_task >> notify_task
