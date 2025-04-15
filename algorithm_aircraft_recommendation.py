@@ -109,6 +109,8 @@ def get_planning_id_from_einforex(payload):
         )
 
         response.raise_for_status()
+        response_data = response.json()
+        print(f"[INFO] Respuesta de EINFOREX: {response_data}")
         
         planning_id = response.json().get('id')
         if planning_id is None:
