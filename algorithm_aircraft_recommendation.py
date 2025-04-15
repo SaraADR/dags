@@ -285,12 +285,15 @@ def run_and_download_algorithm(**context):
             raise Exception("[ERROR] No se encontró JSON de salida en el servidor.")
 
         print(f"[INFO] JSON encontrado: {json_filename}")
-        local_tmp_output = tempfile.NamedTemporaryFile(delete=False).name
-        print(f"[INFO] Descargando {json_filename} a {local_tmp_output}")
-        sftp.get(SERVER_OUTPUT_DIR + json_filename, local_tmp_output)
+        
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp_file:
+            sftp.get(SERVER_OUTPUT_DIR + json_filename, tmp_file.name)
+            tmp_file.seek(0)
+            file_content = tmp_file.read()
 
+        context['ti'].xcom_push(key='json_content', value=file_content)
         context['ti'].xcom_push(key='json_filename', value=json_filename)
-        context['ti'].xcom_push(key='local_tmp_output', value=local_tmp_output)
+
         print("[INFO] Output descargado y almacenado en XComs correctamente.")
 
         sftp.close()
@@ -312,17 +315,15 @@ def run_and_download_algorithm(**context):
 def process_outputs(**context):
     print("[INFO] Iniciando ejecución de process_outputs...")
 
-    local_tmp_output = context['ti'].xcom_pull(key='local_tmp_output')
+    json_content = context['ti'].xcom_pull(key='json_content')
     json_filename = context['ti'].xcom_pull(key='json_filename')
     local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
 
-    print(f"[INFO] local_tmp_output: {local_tmp_output}")
     print(f"[INFO] json_filename: {json_filename}")
     print(f"[INFO] local_payload_json: {local_payload_json}")
 
-    # Comprobamos si el fichero temporal existe
-    if not os.path.exists(local_tmp_output):
-        raise FileNotFoundError(f"[ERROR] No se encuentra el archivo temporal: {local_tmp_output}")
+    if not json_content:
+        raise ValueError("[ERROR] No se encontró el contenido del JSON en XCom")
 
     s3_client = get_minio_client()
     bucket = MINIO_BUCKET
@@ -332,14 +333,18 @@ def process_outputs(**context):
 
     session = None
     try:
-        # Subir JSON de resultados
+        # Guardar el JSON en un archivo temporal solo para subirlo
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
+            tmp_file.write(json_content)
+            tmp_file_path = tmp_file.name
+
         key_current = f"{folder}/jsons/{json_filename}"
         key_historic = f"{folder}/historic/{timestamp}_{json_filename}"
 
         print(f"[INFO] Subiendo JSON actual a {bucket}/{key_current}")
-        s3_client.upload_file(local_tmp_output, bucket, key_current)
+        s3_client.upload_file(tmp_file_path, bucket, key_current)
         print(f"[INFO] Subiendo JSON histórico a {bucket}/{key_historic}")
-        s3_client.upload_file(local_tmp_output, bucket, key_historic)
+        s3_client.upload_file(tmp_file_path, bucket, key_historic)
 
         json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
         context['ti'].xcom_push(key='json_url', value=json_url)
@@ -362,8 +367,7 @@ def process_outputs(**context):
         madrid_tz = pytz.timezone('Europe/Madrid')
         print("[INFO] Insertando resultado en base de datos...")
 
-        with open(local_tmp_output, 'r', encoding='utf-8') as f:
-            output_data = json.load(f)
+        output_data = json.loads(json_content)
 
         session.execute(text("""
             INSERT INTO algoritmos.algoritmo_aircraft_planificator (sampled_feature, result_time, phenomenon_time, input_data, output_data)
@@ -388,15 +392,14 @@ def process_outputs(**context):
         if session:
             session.close()
             print("[INFO] Sesión de base de datos cerrada correctamente.")
-        if os.path.exists(local_tmp_output):
-            os.remove(local_tmp_output)
-            print(f"[INFO] Fichero temporal local_tmp_output eliminado: {local_tmp_output}")
+        if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
+            os.remove(tmp_file_path)
+            print(f"[INFO] Fichero temporal eliminado: {tmp_file_path}")
         if local_payload_json and os.path.exists(local_payload_json):
             os.remove(local_payload_json)
             print(f"[INFO] Fichero temporal local_payload_json eliminado: {local_payload_json}")
 
     print("[INFO] Finalizada ejecución de process_outputs.")
-
 
 
 
