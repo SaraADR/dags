@@ -19,7 +19,7 @@ def consumer_function(message, **kwargs):
         msg_json = json.loads(msg_value)
         event_name = msg_json.get("eventName", "")
     
-        if event_name == "GIFAlgorithmExecution":
+        if event_name == "GIFAlgorithmExecutionEvent":
             target_dag = "algorithm_gifs_fire_prediction_post_process"
         if event_name == "FireEvolutionVectorCreatedOrUpdatedEvent":
             target_dag = "algorithm_work_zones"
