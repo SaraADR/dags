@@ -414,9 +414,6 @@ def fetch_results_from_einforex(**context):
         response.raise_for_status()
         result_data = response.json()
 
-        if result_data.get("status") != "FINISHED":
-            raise ValueError(f"[ERROR] El estado del algoritmo no es FINISHED: {result_data.get('status')}")
-
         print("[INFO] Resultados del algoritmo obtenidos correctamente.")
         print("[INFO] Ejemplo de resultado:")
         print(json.dumps(result_data, indent=2))
