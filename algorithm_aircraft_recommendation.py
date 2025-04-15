@@ -320,12 +320,17 @@ def process_outputs(**context):
     print(f"[INFO] json_filename: {json_filename}")
     print(f"[INFO] local_payload_json: {local_payload_json}")
 
+    # Comprobamos si el fichero temporal existe
+    if not os.path.exists(local_tmp_output):
+        raise FileNotFoundError(f"[ERROR] No se encuentra el archivo temporal: {local_tmp_output}")
+
     s3_client = get_minio_client()
     bucket = MINIO_BUCKET
     folder = MINIO_FOLDER
     timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     print(f"[INFO] Timestamp para histórico: {timestamp}")
 
+    session = None
     try:
         # Subir JSON de resultados
         key_current = f"{folder}/jsons/{json_filename}"
@@ -340,14 +345,17 @@ def process_outputs(**context):
         context['ti'].xcom_push(key='json_url', value=json_url)
         print(f"[INFO] JSON subido y url disponible: {json_url}")
 
-        # Subir payload JSON enviado a EINFOREX
-        payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
-        print(f"[INFO] Subiendo payload a {bucket}/{payload_key}")
-        s3_client.upload_file(local_payload_json, bucket, payload_key)
+        # Subir payload JSON si existe
+        if local_payload_json and os.path.exists(local_payload_json):
+            payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
+            print(f"[INFO] Subiendo payload a {bucket}/{payload_key}")
+            s3_client.upload_file(local_payload_json, bucket, payload_key)
 
-        payload_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{payload_key}"
-        context['ti'].xcom_push(key='payload_json_url', value=payload_url)
-        print(f"[INFO] Payload JSON subido: {payload_url}")
+            payload_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{payload_key}"
+            context['ti'].xcom_push(key='payload_json_url', value=payload_url)
+            print(f"[INFO] Payload JSON subido: {payload_url}")
+        else:
+            print("[WARN] No se encontró el payload JSON para subir")
 
         # Guardar en base de datos
         session = get_db_session()
@@ -371,24 +379,24 @@ def process_outputs(**context):
         print("[INFO] Histórico insertado correctamente en base de datos.")
 
     except Exception as e:
-        session.rollback()
+        if session:
+            session.rollback()
         print(f"[ERROR] Error durante el proceso de outputs: {e}")
         raise
 
     finally:
-        session.close()
-        print("[INFO] Sesión de base de datos cerrada correctamente.")
-
-        # Eliminar ficheros temporales locales
+        if session:
+            session.close()
+            print("[INFO] Sesión de base de datos cerrada correctamente.")
         if os.path.exists(local_tmp_output):
             os.remove(local_tmp_output)
             print(f"[INFO] Fichero temporal local_tmp_output eliminado: {local_tmp_output}")
-
-        if os.path.exists(local_payload_json):
+        if local_payload_json and os.path.exists(local_payload_json):
             os.remove(local_payload_json)
             print(f"[INFO] Fichero temporal local_payload_json eliminado: {local_payload_json}")
 
-    print("[INFO] Finalizada ejecución de process_outputs")
+    print("[INFO] Finalizada ejecución de process_outputs.")
+
 
 
 
