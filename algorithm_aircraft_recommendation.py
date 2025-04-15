@@ -443,36 +443,50 @@ def fetch_results_from_einforex(**context):
 # Definición de la función para notificar al frontend y guardar en la base de datos
 
 def notify_frontend(**context):
+    print("[INFO] Iniciando notificación al frontend...")
+
     user = context['ti'].xcom_pull(key='user')
     csv_url = context['ti'].xcom_pull(key='csv_url')
     json_url = context['ti'].xcom_pull(key='json_url')
 
+    print(f"[INFO] Usuario destino: {user}")
+    print(f"[INFO] CSV URL: {csv_url}")
+    print(f"[INFO] JSON URL: {json_url}")
+
     session = get_db_session()
     now_utc = datetime.now(pytz.utc)
+
     payload = {
         "to": user,
         "actions": [
-            {"type": "load_csv_table", "data": {"message": "Resultados disponibles."}},
-            {"type": "loadTable", "data": {"url": csv_url}},
-            {"type": "loadJson", "data": {"url": json_url, "message": "Descargar JSON de resultados."}}
+            {"type": "loadTable", "data": {"url": csv_url}},  # tabla CSV principal
+            {"type": "loadJson", "data": {"url": json_url, "message": "Descargar JSON de resultados."}},
+            {"type": "load_csv_table", "data": {"message": "Resultados disponibles."}}  # mensaje visual
         ]
     }
+
     try:
+        print("[INFO] Insertando notificación en base de datos...")
         session.execute(text("""
             INSERT INTO public.notifications (destination, "data", "date", status)
             VALUES ('ignis', :data, :date, NULL)
         """), {'data': json.dumps(payload), 'date': now_utc})
         session.commit()
-    except Exception:
+        print("[INFO] Notificación insertada correctamente.")
+    except Exception as e:
         session.rollback()
+        print(f"[ERROR] Error al insertar la notificación: {e}")
         raise
     finally:
         session.close()
-    print("[INFO] Notificación enviada al frontend")
+        print("[INFO] Sesión de base de datos cerrada.")
+
+    print("[INFO] Notificación enviada al frontend.")
+
 
 def always_save_logs(**context):
+    print("[INFO] always_save_logs ejecutado.")
     return True
-
 
 # Definición DAG
 
