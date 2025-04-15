@@ -154,6 +154,7 @@ def prepare_and_upload_input(**context):
     fire = fires[0]
     payload = build_einforex_payload(fire, vehicles, assignment_criteria)
     planning_id = get_planning_id_from_einforex(payload)
+    context['ti'].xcom_push(key='planning_id', value=planning_id)
 
     # Ahora montamos el input_data_aeronaves.txt
     input_content = f"""medios=a
