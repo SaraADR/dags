@@ -128,62 +128,49 @@ def get_planning_id_from_einforex(payload):
 
 def prepare_and_upload_input(**context):
     raw_conf = context['dag_run'].conf
-    if isinstance(raw_conf, str):
-        raw_conf = json.loads(raw_conf)
-
-    message = raw_conf.get('message', {})
+    message = raw_conf.get('message')
     user = message.get('from_user')
-    input_data_str = message.get('input_data')
-    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
-
     context['ti'].xcom_push(key='user', value=user)
 
-    # Extraer datos del nuevo formato
-    missions = input_data.get('missionData', [])
-    assignment_id = input_data.get('assignmentId', 'unknown')
-    context['ti'].xcom_push(key='assignment_id', value=assignment_id)
+    input_data = message.get('input_data')
+    if isinstance(input_data, str):
+        input_data = json.loads(input_data)
 
-    if not missions:
-        raise ValueError("[ERROR] No se proporcionaron misiones en 'missionData'")
+    # Este bloque es para compatibilidad con llamadas desde el recomendador
+    vehicles = input_data.get('vehicles', [])
+    fires = input_data.get('fires', [])
+    assignment_criteria = input_data.get('assignmentCriteria', [])
 
-    # Tomamos la primera misión como base
-    mission = missions[0]
-    aircrafts = mission.get('aircrafts', [])
-    criteria_list = mission.get('criteria', [])
+    if not vehicles or not fires or not assignment_criteria:
+        mission_data = input_data.get('missionData', [])
+        assignment_id = input_data.get('assignmentId')
+        context['ti'].xcom_push(key='assignment_id', value=assignment_id)
 
-    if not criteria_list:
-        raise ValueError("[ERROR] No se proporcionaron criterios en la misión")
+        fires = []
+        assignment_criteria = []
+        vehicles = []
 
-    start = datetime.fromisoformat(mission['startDate'].replace("Z", "+00:00"))
-    end = datetime.fromisoformat(mission['endDate'].replace("Z", "+00:00"))
+        for mission in mission_data:
+            fire_id = mission['missionID']
+            lon, lat = mission.get('lonLat', [-3.7, 40.4])
+            fires.append({
+                "id": fire_id,
+                "position": {"srid": 4326, "x": lon, "y": lat, "z": 0}
+            })
+            assignment_criteria.append({
+                "fireId": fire_id,
+                "vehicleModels": mission.get('aircrafts', [])
+            })
+            for ac in mission.get('aircrafts', []):
+                vehicles.append({
+                    "id": ac,
+                    "model": ac,
+                    "capacity": 0,
+                    "position": {"srid": 4326, "x": 0, "y": 0, "z": 0}
+                })
 
-    # Crear payload
-    payload = {
-        "startDate": to_millis(start),
-        "endDate": to_millis(end),
-        "sinceDate": to_millis(start),
-        "untilDate": to_millis(end),
-        "fireLocation": {
-            "srid": 4326,
-            "x": mission.get('lonLat', [0, 0])[0],
-            "y": mission.get('lonLat', [0, 0])[1],
-            "z": 0
-        },
-        "availableAircrafts": aircrafts,
-        "outputInterval": 600000,
-        "resourcePlanningCriteria": [
-            {
-                "since": to_millis(datetime.fromisoformat(c['dateFrom'].replace("Z", "+00:00"))),
-                "until": to_millis(datetime.fromisoformat(c['dateTo'].replace("Z", "+00:00"))),
-                "aircrafts": c.get('aircrafts', []),
-                "waterAmount": None,
-                "aircraftNum": c.get('numAircrafts', 1)
-            } for c in criteria_list
-        ],
-        "resourcePlanningResult": []
-    }
-
-    # Obtener planning ID
+    fire = fires[0]
+    payload = build_einforex_payload(fire, vehicles, assignment_criteria)
     planning_id = get_planning_id_from_einforex(payload)
     context['ti'].xcom_push(key='planning_id', value=planning_id)
 
@@ -199,38 +186,38 @@ password=Cui_1234
 modelos_aeronave=input/modelos_vehiculo.csv
 """
 
+    ssh_conn = BaseHook.get_connection("ssh_avincis_2")
+    hostname, username = ssh_conn.host, ssh_conn.login
+    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
+
     execution_folder = f"EJECUCION_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     execution_path = SERVER_EXECUTIONS_DIR + execution_folder
     context['ti'].xcom_push(key='execution_path', value=execution_path)
     context['ti'].xcom_push(key='execution_folder', value=execution_folder)
 
-    ssh_conn = BaseHook.get_connection("ssh_avincis_2")
-    ssh_key = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
-    hostname, username = ssh_conn.host, ssh_conn.login
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp_key:
-        tmp_key.write(ssh_key)
-        tmp_key_path = tmp_key.name
-
-    os.chmod(tmp_key_path, 0o600)
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file_key:
+        temp_file_key.write(ssh_key_decoded)
+        temp_key_path = temp_file_key.name
+    os.chmod(temp_key_path, 0o600)
 
     try:
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        bastion.connect(hostname=hostname, username=username, key_filename=tmp_key_path)
+        bastion.connect(hostname=hostname, username=username, key_filename=temp_key_path)
 
-        jump = bastion.get_transport().open_channel("direct-tcpip", ("10.38.9.6", 22), ("127.0.0.1", 0))
+        jump = bastion.get_transport().open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect("10.38.9.6", username="airflow-executor", sock=jump, key_filename=tmp_key_path)
+        client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
 
         sftp = client.open_sftp()
         try:
             sftp.mkdir(execution_path)
             sftp.mkdir(f"{execution_path}/input")
             sftp.mkdir(f"{execution_path}/output")
+            print(f"[INFO] Carpetas creadas en {execution_path}")
         except IOError:
-            pass
+            print(f"[WARN] Carpetas ya existentes: {execution_path}")
 
         with sftp.file(f"{execution_path}/input/{INPUT_FILENAME}", 'w') as remote_file:
             remote_file.write(input_content)
@@ -238,9 +225,10 @@ modelos_aeronave=input/modelos_vehiculo.csv
         sftp.close()
         client.close()
         bastion.close()
-
+        print("[INFO] Input preparado y subido correctamente.")
     finally:
-        os.remove(tmp_key_path)
+        os.remove(temp_key_path)
+
 
 
 
