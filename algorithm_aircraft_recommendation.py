@@ -115,7 +115,7 @@ def process_output_and_notify(**context):
                         "key": "openPlanner",
                         "data": json_url
                     },
-                    "title": "Abrir planner"
+                    "title": "Recomendación de aeronaves",
                 }
             },
             {
