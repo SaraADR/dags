@@ -101,8 +101,7 @@ def process_output_and_notify(**context):
     job_id = result.scalar()
     print(f"[INFO] Notificación registrada con ID: {job_id}")
 
-    # Leer CSV generado y parsear los datos como listas
-    
+   
     with open(csv_local_path, 'r') as f:
         reader = csv.reader(f, delimiter=';')
         rows = list(reader)
@@ -116,8 +115,7 @@ def process_output_and_notify(**context):
             {
                 "type": "loadTable",
                 "data": {
-                    "headers": headers,
-                    "rows": data_rows
+                    "url": csv_url
                 }
             },
             {
