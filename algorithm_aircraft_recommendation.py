@@ -34,9 +34,11 @@ def execute_algorithm_remote(**context):
 
 
 def process_output_and_notify(**context):
-    from io import BytesIO
 
+    raw_input_data = context['dag_run'].conf['message']['input_data']
+    input_data = json.loads(raw_input_data) if isinstance(raw_input_data, str) else raw_input_data
     assignment_id = context['dag_run'].conf['message']['input_data']['assignmentId']
+    
     user = context['ti'].xcom_pull(key='user')
     print(f"[INFO] Procesando output y notificando al frontend")
     print(f"[INFO] assignment_id: {assignment_id}")
