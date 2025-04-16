@@ -485,62 +485,62 @@ def fetch_results_from_einforex(**context):
 
 # Definición de la función para notificar al frontend y guardar en la base de datos
 
-def notify_frontend(**context):
-    print("[INFO] Iniciando notificación al frontend...")
+# def notify_frontend(**context):
+#     print("[INFO] Iniciando notificación al frontend...")
 
-    user = context['ti'].xcom_pull(key='user')
-    csv_url = context['ti'].xcom_pull(key='csv_url')
-    json_url = context['ti'].xcom_pull(key='json_url')
+#     user = context['ti'].xcom_pull(key='user')
+#     csv_url = context['ti'].xcom_pull(key='csv_url')
+#     json_url = context['ti'].xcom_pull(key='json_url')
 
-    print(f"[INFO] Usuario destino: {user}")
-    print(f"[INFO] CSV URL: {csv_url}")
-    print(f"[INFO] JSON URL: {json_url}")
+#     print(f"[INFO] Usuario destino: {user}")
+#     print(f"[INFO] CSV URL: {csv_url}")
+#     print(f"[INFO] JSON URL: {json_url}")
 
-    session = get_db_session()
-    now_utc = datetime.now(pytz.utc)
+#     session = get_db_session()
+#     now_utc = datetime.now(pytz.utc)
 
-    payload = {
-        "to": "all_users",  # ← se puede cambiar por 'ignis' o el usuario específico si es necesario
-        "actions": [
-            {
-                "type": "notify",
-                "data": {
-                    "message": "Planificación de aeronaves completada. Resultados disponibles."
-                }
-            },
-            {
-                "type": "loadTable",
-                "data": {
-                    "url": csv_url
-                }
-            },
-            {
-                "type": "loadJson",
-                "data": {
-                    "url": json_url,
-                    "message": "Descargar JSON de resultados."
-                }
-            }
-        ]
-    }
+#     payload = {
+#         "to": "all_users",  # ← se puede cambiar por 'ignis' o el usuario específico si es necesario
+#         "actions": [
+#             {
+#                 "type": "notify",
+#                 "data": {
+#                     "message": "Planificación de aeronaves completada. Resultados disponibles."
+#                 }
+#             },
+#             {
+#                 "type": "loadTable",
+#                 "data": {
+#                     "url": csv_url
+#                 }
+#             },
+#             {
+#                 "type": "loadJson",
+#                 "data": {
+#                     "url": json_url,
+#                     "message": "Descargar JSON de resultados."
+#                 }
+#             }
+#         ]
+#     }
 
-    try:
-        print("[INFO] Insertando notificación en base de datos...")
-        session.execute(text("""
-            INSERT INTO public.notifications (destination, "data", "date", status)
-            VALUES ('ignis', :data, :date, NULL)
-        """), {'data': json.dumps(payload), 'date': now_utc})
-        session.commit()
-        print("[INFO] Notificación insertada correctamente.")
-    except Exception as e:
-        session.rollback()
-        print(f"[ERROR] Error al insertar la notificación: {e}")
-        raise
-    finally:
-        session.close()
-        print("[INFO] Sesión de base de datos cerrada.")
+#     try:
+#         print("[INFO] Insertando notificación en base de datos...")
+#         session.execute(text("""
+#             INSERT INTO public.notifications (destination, "data", "date", status)
+#             VALUES ('ignis', :data, :date, NULL)
+#         """), {'data': json.dumps(payload), 'date': now_utc})
+#         session.commit()
+#         print("[INFO] Notificación insertada correctamente.")
+#     except Exception as e:
+#         session.rollback()
+#         print(f"[ERROR] Error al insertar la notificación: {e}")
+#         raise
+#     finally:
+#         session.close()
+#         print("[INFO] Sesión de base de datos cerrada.")
 
-    print("[INFO] Notificación enviada al frontend.")
+#     print("[INFO] Notificación enviada al frontend.")
 
 
 
@@ -595,12 +595,12 @@ process_task = PythonOperator(
     dag=dag
 )
 
-notify_task = PythonOperator(
-    task_id='notify_frontend',
-    python_callable=notify_frontend,
-    provide_context=True,
-    dag=dag
-)
+# notify_task = PythonOperator(
+#     task_id='notify_frontend',
+#     python_callable=notify_frontend,
+#     provide_context=True,
+#     dag=dag
+# )
 
 from utils.log_utils import setup_conditional_log_saving
 
@@ -613,4 +613,6 @@ check_logs, save_logs = setup_conditional_log_saving(
 
 # Definir la secuencia de tareas y dependencias
 
-prepare_task >> run_task >> fetch_result_task >> process_task >> notify_task
+prepare_task >> run_task >> fetch_result_task >> process_task
+
+# >> notify_task
