@@ -47,7 +47,8 @@ def process_output_and_notify(**context):
     print(f"[INFO] Descargando JSON de prueba desde MinIO: {test_json_key}")
     
     response = s3_client.get_object(Bucket=bucket, Key=test_json_key)
-    output_data = json.load(response)
+    output_data = json.load(response['Body'])
+    print("[INFO] JSON descargado desde MinIO:")
 
     # 2. Convertir JSON a CSV
     csv_data = output_data.get("resourcePlanningResult", [])
