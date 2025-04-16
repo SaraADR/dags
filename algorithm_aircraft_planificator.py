@@ -138,13 +138,52 @@ def prepare_and_upload_input(**context):
 
     context['ti'].xcom_push(key='user', value=user)
 
-    vehicles = input_data['vehicles']
-    fires = input_data['fires']
-    criteria = input_data['assignmentCriteria']
+    # Extraer datos del nuevo formato
+    missions = input_data.get('missionData', [])
+    assignment_id = input_data.get('assignmentId', 'unknown')
+    context['ti'].xcom_push(key='assignment_id', value=assignment_id)
 
-    # Tomamos el primer incendio como objetivo para planificación
-    fire = fires[0]
-    payload = build_einforex_payload(fire, vehicles, criteria)
+    if not missions:
+        raise ValueError("[ERROR] No se proporcionaron misiones en 'missionData'")
+
+    # Tomamos la primera misión como base
+    mission = missions[0]
+    aircrafts = mission.get('aircrafts', [])
+    criteria_list = mission.get('criteria', [])
+
+    if not criteria_list:
+        raise ValueError("[ERROR] No se proporcionaron criterios en la misión")
+
+    start = datetime.fromisoformat(mission['startDate'].replace("Z", "+00:00"))
+    end = datetime.fromisoformat(mission['endDate'].replace("Z", "+00:00"))
+
+    # Crear payload
+    payload = {
+        "startDate": to_millis(start),
+        "endDate": to_millis(end),
+        "sinceDate": to_millis(start),
+        "untilDate": to_millis(end),
+        "fireLocation": {
+            "srid": 4326,
+            "x": mission.get('lonLat', [0, 0])[0],
+            "y": mission.get('lonLat', [0, 0])[1],
+            "z": 0
+        },
+        "availableAircrafts": aircrafts,
+        "outputInterval": 600000,
+        "resourcePlanningCriteria": [
+            {
+                "since": to_millis(datetime.fromisoformat(c['dateFrom'].replace("Z", "+00:00"))),
+                "until": to_millis(datetime.fromisoformat(c['dateTo'].replace("Z", "+00:00"))),
+                "aircrafts": c.get('aircrafts', []),
+                "waterAmount": None,
+                "aircraftNum": c.get('numAircrafts', 1)
+            } for c in criteria_list
+        ],
+        "resourcePlanningResult": []
+    }
+
+    # Obtener planning ID
     planning_id = get_planning_id_from_einforex(payload)
     context['ti'].xcom_push(key='planning_id', value=planning_id)
 
@@ -202,6 +241,7 @@ modelos_aeronave=input/modelos_vehiculo.csv
 
     finally:
         os.remove(tmp_key_path)
+
 
 
 
