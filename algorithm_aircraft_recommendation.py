@@ -488,7 +488,6 @@ def fetch_results_from_einforex(**context):
 # Definición de la función para notificar al frontend y guardar en la base de datos
 
 def notify_frontend(**context):
-    
     print("[INFO] Iniciando notificación al frontend...")
 
     user = context['ti'].xcom_pull(key='user')
@@ -500,76 +499,69 @@ def notify_frontend(**context):
     print(f"[INFO] JSON URL: {json_url}")
 
     session = get_db_session()
-    now_utc = datetime.now(timezone.utc)
-
-    payload = {
-        "to": user,
-        "actions": [
-            {
-                "type": "notify",
-                "data": {
-                    "message": "Planificación de aeronaves completada. Revisa los resultados disponibles.",
-                    "job_id": None
-                }
-            },
-            {
-                "type": "loadTable",
-                "data": {
-                    "url": csv_url
-                }
-            },
-            {
-                "type": "loadJson",
-                "data": {
-                    "url": json_url,
-                    "message": "Descargar JSON de resultados."
-                }
-            },
-            {
-                "type": "paintCSV",
-                "data": {
-                    "url": csv_url,
-                    "action": {
-                        "key": "openPlanner",
-                        "data": json_url
-                    },
-                    "title": "Planificación de aeronaves"
-                }
-            }
-        ]
-    }
+    now_utc = datetime.now(pytz.utc)
 
     try:
-        # Insertamos la notificación para obtener el ID
+        # 1. Insertamos primero la notificación vacía para obtener el job_id
         result = session.execute(text("""
             INSERT INTO public.notifications (destination, "data", "date", status)
-            VALUES ('ignis', :data, :date, NULL)
+            VALUES ('ignis', '{}', :date, NULL)
             RETURNING id
-        """), {'data': json.dumps(payload, ensure_ascii=False), 'date': now_utc})
-        
+        """), {'date': now_utc})
         job_id = result.scalar()
-        session.commit()
         print(f"[INFO] Notificación registrada con ID: {job_id}")
 
-        # Añadimos el job_id al mensaje 'notify'
-        payload["actions"][0]["data"]["job_id"] = job_id
+        # 2. Generar payload con acciones completas
+        payload = {
+            "to": user,
+            "actions": [
+                {
+                    "type": "loadTable",
+                    "data": {
+                        "url": csv_url
+                    }
+                },
+                {
+                    "type": "paintCSV",
+                    "data": {
+                        "url": csv_url,
+                        "title": "Resultados del planificador de aeronaves",
+                        "action": {
+                            "key": "openPlanner",
+                            "data": json_url
+                        },
+                        "button": {
+                            "data": "Ver asignación en mapa",
+                            "func": "loadMapAssignments"
+                        }
+                    }
+                },
+                {
+                    "type": "notify",
+                    "data": {
+                        "message": f"Planificación completada. ID de job: {job_id}"
+                    }
+                }
+            ]
+        }
+
+        # 3. Actualizar la notificación en la base de datos
         session.execute(text("""
             UPDATE public.notifications
             SET data = :data
-            WHERE id = :id
-        """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
+            WHERE id = :job_id
+        """), {'data': json.dumps(payload), 'job_id': job_id})
         session.commit()
-
         print("[INFO] Notificación actualizada con job_id y enviada correctamente.")
 
     except Exception as e:
         session.rollback()
-        print(f"[ERROR] Error al enviar notificación al frontend: {e}")
+        print(f"[ERROR] Error al insertar o actualizar la notificación: {e}")
         raise
-
     finally:
         session.close()
         print("[INFO] Sesión de base de datos cerrada.")
+
 
 
 
