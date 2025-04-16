@@ -91,13 +91,16 @@ def execute_algorithm_remote(**context):
         print("Archivo de clave SSH temporal eliminado")
 
 def process_output_and_notify(**context):
+    from_user = context['ti'].xcom_pull(key='user')
+    message = context['dag_run'].conf.get("message", {})
+    input_data_str = message.get("input_data")
 
-    print("Procesando output y notificando al frontend")
+    # Parsear el string JSON correctamente
+    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
+    assignment_id = input_data.get("assignmentId")
 
-    input_data_str = context['dag_run'].conf['message']['input_data']
-    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data
-    
-    assignment_id = context['dag_run'].conf['message']['input_data']['assignmentId']
+    print("[INFO] Procesando output y notificando al frontend")
+    print(f"[INFO] assignment_id: {assignment_id}")
     user = context['ti'].xcom_pull(key='user')
 
     json_filename = "output.json"
