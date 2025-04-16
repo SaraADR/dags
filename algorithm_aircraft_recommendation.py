@@ -87,8 +87,8 @@ def process_output_and_notify(**context):
     )
     s3_client.upload_file(csv_local_path, bucket, csv_key)
 
-    json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{json_key}"
-    csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
+    json_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{json_key}"
+    csv_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{csv_key}"
 
     print(f"[INFO] Archivos subidos a MinIO: \n- JSON: {json_url}\n- CSV: {csv_url}")
 
@@ -106,17 +106,12 @@ def process_output_and_notify(**context):
     payload = {
         "to": user,
         "actions": [
+            
             {
                 "type": "loadTable",
                 "data": {
-                    "url": csv_url
-                }
-            },
-            {
-                "type": "paintCSV",
-                "data": {
                     "url": csv_url,
-                    "action": {
+                    "button": {
                         "key": "openPlanner",
                         "data": json_url
                     },
