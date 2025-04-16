@@ -36,25 +36,6 @@ def to_millis(dt):
     return int(dt.timestamp() * 1000)
 
 
-def normalize_input_data(input_data):
-    # Convertir 'fires[].position' de array [x, y] a dict con srid, x, y, z
-    for fire in input_data.get('fires', []):
-        if isinstance(fire.get("position"), list):
-            x, y = fire["position"]
-            fire["position"] = {
-                "srid": 4326,
-                "x": x,
-                "y": y,
-                "z": 0
-            }
-
-    # Asegurar que 'reserve' tiene un 'model'
-    if 'reserve' in input_data and 'model' not in input_data['reserve']:
-        all_models = [v['model'] for v in input_data.get('vehicles', []) if 'model' in v]
-        input_data['reserve']['model'] = all_models[0] if all_models else "B407"
-
-    return input_data
-
 # Definición de la función para construir el payload para EINFOREX
 def build_einforex_payload(fire, vehicles, assignment_criteria):
     now = datetime.utcnow()
@@ -162,7 +143,6 @@ def prepare_and_upload_input(**context):
     input_data = json.loads(raw_input_data) if isinstance(raw_input_data, str) else raw_input_data
 
     # Normalización del input
-    input_data = normalize_input_data(input_data)
 
     vehicles = input_data['vehicles']
     fires = input_data['fires']
