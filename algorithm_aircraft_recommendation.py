@@ -62,14 +62,15 @@ def process_output_and_notify(**context):
 
     csv_filename = f"{assignment_id}.csv"
     csv_local_path = f"/tmp/{csv_filename}"
+
     with open(csv_local_path, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=["fire_id", "aircrafts"])
-        writer.writeheader()
+        writer = csv.writer(f, delimiter=';')
+        writer.writerow(["fire_id", "aircrafts"])
         for row in csv_data:
-            writer.writerow({
-                "fire_id": row.get("id"),
-                "aircrafts": ", ".join(row.get("vehicles", []))
-            })
+            fire_id = row.get("id")
+            aircrafts = ", ".join(row.get("vehicles", []))
+            writer.writerow([fire_id, aircrafts])
+
 
     # 3. Subir archivos a MinIO
     timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
