@@ -101,14 +101,6 @@ def process_output_and_notify(**context):
     job_id = result.scalar()
     print(f"[INFO] Notificación registrada con ID: {job_id}")
 
-   
-    with open(csv_local_path, 'r') as f:
-        reader = csv.reader(f, delimiter=';')
-        rows = list(reader)
-
-    headers = rows[0]       # primera fila: columnas
-    data_rows = rows[1:]    # resto: datos
-
     payload = {
         "to": user,
         "actions": [
