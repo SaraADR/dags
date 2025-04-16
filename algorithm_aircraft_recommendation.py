@@ -21,6 +21,8 @@ import pytz
 from sqlalchemy import text
 from dag_utils import get_minio_client, get_db_session
 from requests.auth import HTTPBasicAuth
+from datetime import datetime, timezone
+
 
 # Constantes
 EINFOREX_ROUTE = "/atcServices/rest/ResourcePlanningAlgorithmExecutionService/save"
@@ -486,6 +488,8 @@ def fetch_results_from_einforex(**context):
 # Definición de la función para notificar al frontend y guardar en la base de datos
 
 def notify_frontend(**context):
+  
+
     print("[INFO] Iniciando notificación al frontend...")
 
     user = context['ti'].xcom_pull(key='user')
@@ -497,15 +501,17 @@ def notify_frontend(**context):
     print(f"[INFO] JSON URL: {json_url}")
 
     session = get_db_session()
-    now_utc = datetime.now(pytz.utc)
+    now_utc = datetime.now(timezone.utc)
 
+    # Payload inicial sin job_id
     payload = {
-        "to": "all_users",  # ← se puede cambiar por 'ignis' o el usuario específico si es necesario
+        "to": user,
         "actions": [
             {
                 "type": "notify",
                 "data": {
-                    "message": "Planificación de aeronaves completada. Resultados disponibles."
+                    "message": "Planificación de aeronaves completada. Revisa los resultados disponibles.",
+                    "job_id": None  # <- será reemplazado después del insert
                 }
             },
             {
@@ -525,24 +531,36 @@ def notify_frontend(**context):
     }
 
     try:
-        print("[INFO] Insertando notificación en base de datos...")
-        session.execute(text("""
+        # Insertar la notificación sin job_id para recuperar el ID autogenerado
+        result = session.execute(text("""
             INSERT INTO public.notifications (destination, "data", "date", status)
             VALUES ('ignis', :data, :date, NULL)
-        """), {'data': json.dumps(payload), 'date': now_utc})
+            RETURNING id
+        """), {'data': json.dumps(payload, ensure_ascii=False), 'date': now_utc})
+        
+        job_id = result.scalar()
         session.commit()
-        print("[INFO] Notificación insertada correctamente.")
+        print(f"[INFO] Notificación registrada con ID: {job_id}")
+
+        # Añadir job_id al payload y actualizar la fila
+        payload["actions"][0]["data"]["job_id"] = job_id
+        session.execute(text("""
+            UPDATE public.notifications
+            SET data = :data
+            WHERE id = :id
+        """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
+        session.commit()
+
+        print("[INFO] Notificación actualizada con job_id y enviada correctamente.")
+
     except Exception as e:
         session.rollback()
-        print(f"[ERROR] Error al insertar la notificación: {e}")
+        print(f"[ERROR] Error al enviar notificación al frontend: {e}")
         raise
+
     finally:
         session.close()
         print("[INFO] Sesión de base de datos cerrada.")
-
-    print("[INFO] Notificación enviada al frontend.")
-
-
 
 
 def always_save_logs(**context):
