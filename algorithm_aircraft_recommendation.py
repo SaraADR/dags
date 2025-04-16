@@ -91,7 +91,12 @@ def execute_algorithm_remote(**context):
         print("Archivo de clave SSH temporal eliminado")
 
 def process_output_and_notify(**context):
+
     print("Procesando output y notificando al frontend")
+
+    input_data_str = context['dag_run'].conf['message']['input_data']
+    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data
+    
     assignment_id = context['dag_run'].conf['message']['input_data']['assignmentId']
     user = context['ti'].xcom_pull(key='user')
 
