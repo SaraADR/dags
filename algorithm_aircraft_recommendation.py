@@ -12,11 +12,18 @@ from sqlalchemy import text
 import csv
 from dag_utils import get_minio_client, get_db_session
 
-
 def execute_algorithm_remote(**context):
+    print("Inicio de ejecución del algoritmo remoto")
+
     message = context['dag_run'].conf
+    print("Datos recibidos desde el frontend:")
+    print(json.dumps(message, indent=2))  # Muestra la estructura JSON de entrada
+
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
+    print("Contenido de input_data:")
+    print(json.dumps(input_data, indent=2))
+
     user = message['message']['from_user']
     context['ti'].xcom_push(key='user', value=user)
 
@@ -31,25 +38,18 @@ def execute_algorithm_remote(**context):
     os.chmod(temp_file_path, 0o600)
 
     try:
+        print("Estableciendo conexión SSH con bastión")
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         bastion.connect(hostname=hostname, username=username, key_filename=temp_file_path)
 
         jump_transport = bastion.get_transport()
-        jump_channel = jump_transport.open_channel(
-            "direct-tcpip",
-            dest_addr=("10.38.9.6", 22),
-            src_addr=("127.0.0.1", 0)
-        )
+        jump_channel = jump_transport.open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
 
+        print("Conectando al servidor interno")
         target_client = paramiko.SSHClient()
         target_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        target_client.connect(
-            hostname="10.38.9.6",
-            username="airflow-executor",
-            sock=jump_channel,
-            key_filename=temp_file_path
-        )
+        target_client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump_channel, key_filename=temp_file_path)
 
         sftp = target_client.open_sftp()
 
@@ -65,9 +65,11 @@ def execute_algorithm_remote(**context):
                 sftp.stat(path)
             except FileNotFoundError:
                 sftp.mkdir(path)
+                print(f"Directorio creado: {path}")
 
         with sftp.file(input_file, 'w') as remote_file:
             remote_file.write(json.dumps(input_data, indent=2))
+        print("Archivo input.json subido al servidor")
 
         sftp.close()
 
@@ -75,19 +77,21 @@ def execute_algorithm_remote(**context):
             f'python3 /algoritms/algoritmo-asignacion-aeronaves-objetivo-5/call_aircraft_dispatch.py '
             f'{input_file} {output_file}'
         )
-
+        print("Ejecutando el algoritmo remoto")
         stdin, stdout, stderr = target_client.exec_command(cmd)
         print(stdout.read().decode())
         print(stderr.read().decode())
 
         target_client.close()
         bastion.close()
+        print("Conexión SSH finalizada")
 
     finally:
         os.remove(temp_file_path)
-
+        print("Archivo de clave SSH temporal eliminado")
 
 def process_output_and_notify(**context):
+    print("Procesando output y notificando al frontend")
     assignment_id = context['dag_run'].conf['message']['input_data']['assignmentId']
     user = context['ti'].xcom_pull(key='user')
 
@@ -117,6 +121,7 @@ def process_output_and_notify(**context):
 
         sftp = client.open_sftp()
         sftp.get(json_path, local_json_path)
+        print("Output JSON descargado desde el servidor")
         sftp.close()
         client.close()
         bastion.close()
@@ -138,6 +143,7 @@ def process_output_and_notify(**context):
                 "until": row.get("until"),
                 "aircrafts": ", ".join(row.get("aircrafts", []))
             })
+    print("CSV generado a partir del JSON")
 
     s3_client = get_minio_client()
     bucket = "tmp"
@@ -147,6 +153,7 @@ def process_output_and_notify(**context):
     csv_key = f"{folder}/outputs/{assignment_id}_{timestamp}.csv"
     s3_client.upload_file(local_json_path, bucket, json_key)
     s3_client.upload_file(csv_local_path, bucket, csv_key)
+    print("Archivos subidos a MinIO")
 
     json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{json_key}"
     csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
@@ -159,6 +166,7 @@ def process_output_and_notify(**context):
         RETURNING id
     """), {'date': now_utc})
     job_id = result.scalar()
+    print(f"Notificación registrada en base de datos con ID: {job_id}")
 
     payload = {
         "to": user,
@@ -194,8 +202,7 @@ def process_output_and_notify(**context):
     """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
     session.commit()
     session.close()
-
-
+    print("Notificación enviada al frontend y proceso finalizado")
 
 default_args = {
     'owner': 'oscar',
