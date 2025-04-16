@@ -46,7 +46,7 @@ def process_output_and_notify(**context):
     test_json_key = "algorithm_aircraft_planificator_outputs/historic/input_test2.json"
     print(f"[INFO] Descargando JSON de prueba desde MinIO: {test_json_key}")
     
-    response = s3_client.get_object(bucket, test_json_key)
+    response = s3_client.get_object(Bucket=bucket, Key=test_json_key)
     output_data = json.load(response)
 
     # 2. Convertir JSON a CSV
