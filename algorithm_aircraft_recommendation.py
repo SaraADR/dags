@@ -488,8 +488,7 @@ def fetch_results_from_einforex(**context):
 # Definición de la función para notificar al frontend y guardar en la base de datos
 
 def notify_frontend(**context):
-  
-
+    
     print("[INFO] Iniciando notificación al frontend...")
 
     user = context['ti'].xcom_pull(key='user')
@@ -503,7 +502,6 @@ def notify_frontend(**context):
     session = get_db_session()
     now_utc = datetime.now(timezone.utc)
 
-    # Payload inicial sin job_id
     payload = {
         "to": user,
         "actions": [
@@ -511,7 +509,7 @@ def notify_frontend(**context):
                 "type": "notify",
                 "data": {
                     "message": "Planificación de aeronaves completada. Revisa los resultados disponibles.",
-                    "job_id": None  # <- será reemplazado después del insert
+                    "job_id": None
                 }
             },
             {
@@ -526,12 +524,23 @@ def notify_frontend(**context):
                     "url": json_url,
                     "message": "Descargar JSON de resultados."
                 }
+            },
+            {
+                "type": "paintCSV",
+                "data": {
+                    "url": csv_url,
+                    "action": {
+                        "key": "openPlanner",
+                        "data": json_url
+                    },
+                    "title": "Planificación de aeronaves"
+                }
             }
         ]
     }
 
     try:
-        # Insertar la notificación sin job_id para recuperar el ID autogenerado
+        # Insertamos la notificación para obtener el ID
         result = session.execute(text("""
             INSERT INTO public.notifications (destination, "data", "date", status)
             VALUES ('ignis', :data, :date, NULL)
@@ -542,7 +551,7 @@ def notify_frontend(**context):
         session.commit()
         print(f"[INFO] Notificación registrada con ID: {job_id}")
 
-        # Añadir job_id al payload y actualizar la fila
+        # Añadimos el job_id al mensaje 'notify'
         payload["actions"][0]["data"]["job_id"] = job_id
         session.execute(text("""
             UPDATE public.notifications
@@ -561,6 +570,7 @@ def notify_frontend(**context):
     finally:
         session.close()
         print("[INFO] Sesión de base de datos cerrada.")
+
 
 
 def always_save_logs(**context):
