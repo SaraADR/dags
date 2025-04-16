@@ -24,6 +24,9 @@ def consumer_function(message, prefix, **kwargs):
         print("Esto es el mensaje")
         print(f"{msg_value}")
 
+        trace_id, log_msg = extract_trace_id(message)
+        print(log_msg)
+
         if msg_value:
             process_message(msg_value)
             return True
