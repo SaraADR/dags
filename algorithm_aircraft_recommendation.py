@@ -2,146 +2,59 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import json
+import csv
 import base64
 import tempfile
 import os
+from io import BytesIO
 import paramiko
 from airflow.models import Variable
 from airflow.hooks.base import BaseHook
 from sqlalchemy import text
-import csv
 from dag_utils import get_minio_client, get_db_session
 
+
 def execute_algorithm_remote(**context):
-    print("Inicio de ejecución del algoritmo remoto")
+    print("[INFO] Inicio de ejecución del algoritmo remoto")
 
     message = context['dag_run'].conf
-    print("Datos recibidos desde el frontend:")
-    print(json.dumps(message, indent=2))  # Muestra la estructura JSON de entrada
+    print("[INFO] Datos recibidos desde el frontend:")
+    print(json.dumps(message, indent=2))
 
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
-    print("Contenido de input_data:")
+    print("[INFO] Contenido de input_data:")
     print(json.dumps(input_data, indent=2))
 
     user = message['message']['from_user']
     context['ti'].xcom_push(key='user', value=user)
 
-    ssh_conn = BaseHook.get_connection("ssh_avincis_2")
-    hostname = ssh_conn.host
-    username = ssh_conn.login
+    assignment_id = input_data.get("assignmentId")
+    print(f"[INFO] assignment_id: {assignment_id}")
 
-    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
-        temp_file.write(ssh_key_decoded)
-        temp_file_path = temp_file.name
-    os.chmod(temp_file_path, 0o600)
-
-    try:
-        print("Estableciendo conexión SSH con bastión")
-        bastion = paramiko.SSHClient()
-        bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        bastion.connect(hostname=hostname, username=username, key_filename=temp_file_path)
-
-        jump_transport = bastion.get_transport()
-        jump_channel = jump_transport.open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
-
-        print("Conectando al servidor interno")
-        target_client = paramiko.SSHClient()
-        target_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        target_client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump_channel, key_filename=temp_file_path)
-
-        sftp = target_client.open_sftp()
-
-        assignment_id = input_data.get("assignmentId")
-        base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
-        input_dir = f"{base_path}/input"
-        output_dir = f"{base_path}/output"
-        input_file = f"{input_dir}/input.json"
-        output_file = f"{output_dir}/output.json"
-
-        for path in [base_path, input_dir, output_dir]:
-            try:
-                sftp.stat(path)
-            except FileNotFoundError:
-                sftp.mkdir(path)
-                print(f"Directorio creado: {path}")
-
-        with sftp.file(input_file, 'w') as remote_file:
-            remote_file.write(json.dumps(input_data, indent=2))
-        print("Archivo input.json subido al servidor")
-
-        sftp.close()
-
-        cmd = (
-            f'python3 /algoritms/algoritmo-asignacion-aeronaves-objetivo-5/call_aircraft_dispatch.py '
-            f'{input_file} {output_file}'
-        )
-        print("Ejecutando el algoritmo remoto")
-        stdin, stdout, stderr = target_client.exec_command(cmd)
-        print(stdout.read().decode())
-        print(stderr.read().decode())
-
-        target_client.close()
-        bastion.close()
-        print("Conexión SSH finalizada")
-
-    finally:
-        os.remove(temp_file_path)
-        print("Archivo de clave SSH temporal eliminado")
 
 def process_output_and_notify(**context):
-    from_user = context['ti'].xcom_pull(key='user')
-    message = context['dag_run'].conf.get("message", {})
-    input_data_str = message.get("input_data")
-
-    # Parsear el string JSON correctamente
-    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
-    assignment_id = input_data.get("assignmentId")
-
     print("[INFO] Procesando output y notificando al frontend")
-    print(f"[INFO] assignment_id: {assignment_id}")
+
     user = context['ti'].xcom_pull(key='user')
+    assignment_id = json.loads(context['dag_run'].conf['message']['input_data'])['assignmentId']
+    print("[INFO] assignment_id:", assignment_id)
 
-    json_filename = "output.json"
-    json_path = f"/algoritms/executions/EJECUCION_{assignment_id}/output/{json_filename}"
-    local_json_path = f"/tmp/{assignment_id}_output.json"
+    # 1. Descargar JSON desde MinIO
+    s3_client = get_minio_client()
+    bucket = "tmp"
+    test_json_key = "algorithm_aircraft_planificator_outputs/historic/input_test2.json"
+    print(f"[INFO] Descargando JSON de prueba desde MinIO: {test_json_key}")
+    
+    response = s3_client.get_object(bucket, test_json_key)
+    output_data = json.load(response)
 
-    ssh_conn = BaseHook.get_connection("ssh_avincis_2")
-    hostname = ssh_conn.host
-    username = ssh_conn.login
-    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
-        temp_file.write(ssh_key_decoded)
-        temp_key_path = temp_file.name
-    os.chmod(temp_key_path, 0o600)
-
-    try:
-        bastion = paramiko.SSHClient()
-        bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        bastion.connect(hostname=hostname, username=username, key_filename=temp_key_path)
-
-        jump = bastion.get_transport().open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
-
-        sftp = client.open_sftp()
-        sftp.get(json_path, local_json_path)
-        print("Output JSON descargado desde el servidor")
-        sftp.close()
-        client.close()
-        bastion.close()
-    finally:
-        os.remove(temp_key_path)
-
-    with open(local_json_path, 'r') as f:
-        output_data = json.load(f)
-
+    # 2. Convertir JSON a CSV
     csv_data = output_data.get("resourcePlanningResult", [])
-    csv_filename = f"{assignment_id}.csv"
+    timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
+    csv_filename = f"{assignment_id}_{timestamp}.csv"
     csv_local_path = f"/tmp/{csv_filename}"
+
     with open(csv_local_path, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=["since", "until", "aircrafts"])
         writer.writeheader()
@@ -151,21 +64,22 @@ def process_output_and_notify(**context):
                 "until": row.get("until"),
                 "aircrafts": ", ".join(row.get("aircrafts", []))
             })
-    print("CSV generado a partir del JSON")
 
-    s3_client = get_minio_client()
-    bucket = "tmp"
-    folder = "algorithm_aircraft_planificator_outputs"
-    timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
-    json_key = f"{folder}/jsons/{assignment_id}_{timestamp}.json"
-    csv_key = f"{folder}/outputs/{assignment_id}_{timestamp}.csv"
-    s3_client.upload_file(local_json_path, bucket, json_key)
-    s3_client.upload_file(csv_local_path, bucket, csv_key)
-    print("Archivos subidos a MinIO")
+    # 3. Subir JSON y CSV a MinIO
+    json_key = f"algorithm_aircraft_planificator_outputs/jsons/{assignment_id}_{timestamp}.json"
+    csv_key = f"algorithm_aircraft_planificator_outputs/outputs/{assignment_id}_{timestamp}.csv"
+
+    s3_client.put_object(bucket, json_key, BytesIO(json.dumps(output_data).encode("utf-8")), length=len(json.dumps(output_data)))
+    s3_client.fput_object(bucket, csv_key, csv_local_path)
 
     json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{json_key}"
     csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
 
+    print("[INFO] Archivos subidos a MinIO")
+    print("[INFO] CSV URL:", csv_url)
+    print("[INFO] JSON URL:", json_url)
+
+    # 4. Insertar notificación
     session = get_db_session()
     now_utc = datetime.utcnow()
     result = session.execute(text("""
@@ -174,7 +88,7 @@ def process_output_and_notify(**context):
         RETURNING id
     """), {'date': now_utc})
     job_id = result.scalar()
-    print(f"Notificación registrada en base de datos con ID: {job_id}")
+    print(f"[INFO] Notificación registrada con ID: {job_id}")
 
     payload = {
         "to": user,
@@ -210,7 +124,8 @@ def process_output_and_notify(**context):
     """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
     session.commit()
     session.close()
-    print("Notificación enviada al frontend y proceso finalizado")
+    print("[INFO] Notificación enviada y sesión cerrada")
+
 
 default_args = {
     'owner': 'oscar',
