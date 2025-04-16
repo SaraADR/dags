@@ -131,31 +131,20 @@ def prepare_and_upload_input(**context):
     if isinstance(raw_conf, str):
         raw_conf = json.loads(raw_conf)
 
-    message = raw_conf.get('message')
-    if not message:
-        raise ValueError("Input sin campo 'message'.")
-
+    message = raw_conf.get('message', {})
     user = message.get('from_user')
-    raw_input_data = message.get('input_data')
-    if not raw_input_data:
-        raise ValueError("Input sin 'input_data'.")
-
-    input_data = json.loads(raw_input_data) if isinstance(raw_input_data, str) else raw_input_data
-
-    # Normalización del input
-
-    vehicles = input_data['vehicles']
-    fires = input_data['fires']
-    assignment_criteria = input_data['assignmentCriteria']
+    input_data_str = message.get('input_data')
+    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
 
     context['ti'].xcom_push(key='user', value=user)
 
-    ssh_conn = BaseHook.get_connection("ssh_avincis_2")
-    hostname, username = ssh_conn.host, ssh_conn.login
-    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
+    vehicles = input_data['vehicles']
+    fires = input_data['fires']
+    criteria = input_data['assignmentCriteria']
 
-    fire = fires[0]  # Usamos solo el primer fuego
-    payload = build_einforex_payload(fire, vehicles, assignment_criteria)
+    # Tomamos el primer incendio como objetivo para planificación
+    fire = fires[0]
+    payload = build_einforex_payload(fire, vehicles, criteria)
     planning_id = get_planning_id_from_einforex(payload)
     context['ti'].xcom_push(key='planning_id', value=planning_id)
 
@@ -171,36 +160,38 @@ password=Cui_1234
 modelos_aeronave=input/modelos_vehiculo.csv
 """
 
-    print(f"[INFO] Input content:\n{input_content}")
-
     execution_folder = f"EJECUCION_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     execution_path = SERVER_EXECUTIONS_DIR + execution_folder
     context['ti'].xcom_push(key='execution_path', value=execution_path)
     context['ti'].xcom_push(key='execution_folder', value=execution_folder)
 
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file_key:
-        temp_file_key.write(ssh_key_decoded)
-        temp_key_path = temp_file_key.name
-    os.chmod(temp_key_path, 0o600)
+    ssh_conn = BaseHook.get_connection("ssh_avincis_2")
+    ssh_key = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
+    hostname, username = ssh_conn.host, ssh_conn.login
+
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp_key:
+        tmp_key.write(ssh_key)
+        tmp_key_path = tmp_key.name
+
+    os.chmod(tmp_key_path, 0o600)
 
     try:
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        bastion.connect(hostname=hostname, username=username, key_filename=temp_key_path)
+        bastion.connect(hostname=hostname, username=username, key_filename=tmp_key_path)
 
-        jump = bastion.get_transport().open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
+        jump = bastion.get_transport().open_channel("direct-tcpip", ("10.38.9.6", 22), ("127.0.0.1", 0))
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
+        client.connect("10.38.9.6", username="airflow-executor", sock=jump, key_filename=tmp_key_path)
 
         sftp = client.open_sftp()
         try:
             sftp.mkdir(execution_path)
             sftp.mkdir(f"{execution_path}/input")
             sftp.mkdir(f"{execution_path}/output")
-            print(f"[INFO] Carpetas creadas en {execution_path}")
         except IOError:
-            print(f"[WARN] Carpetas ya existentes: {execution_path}")
+            pass
 
         with sftp.file(f"{execution_path}/input/{INPUT_FILENAME}", 'w') as remote_file:
             remote_file.write(input_content)
@@ -208,9 +199,10 @@ modelos_aeronave=input/modelos_vehiculo.csv
         sftp.close()
         client.close()
         bastion.close()
-        print("[INFO] Input preparado y subido correctamente.")
+
     finally:
-        os.remove(temp_key_path)
+        os.remove(tmp_key_path)
+
 
 
 
