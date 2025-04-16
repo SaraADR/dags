@@ -499,42 +499,29 @@ def notify_frontend(**context):
     session = get_db_session()
     now_utc = datetime.now(pytz.utc)
 
-    actions = []
-
-    # Mensaje visual inicial
-    actions.append({
-        "type": "notify",
-        "data": {
-            "message": "Resultados del algoritmo disponibles"
-        }
-    })
-
-    # Tabla CSV si está disponible
-    if csv_url:
-        actions.append({
-            "type": "loadTable",
-            "data": {
-                "url": csv_url
-            }
-        })
-    else:
-        print("[WARN] CSV URL no disponible. No se incluirá loadTable en la notificación.")
-
-    # JSON de resultados
-    if json_url:
-        actions.append({
-            "type": "loadJson",
-            "data": {
-                "url": json_url,
-                "message": "Descargar JSON de resultados."
-            }
-        })
-    else:
-        print("[WARN] JSON URL no disponible. No se incluirá loadJson en la notificación.")
-
     payload = {
-        "to": user,
-        "actions": actions
+        "to": "all_users",  # ← se puede cambiar por 'ignis' o el usuario específico si es necesario
+        "actions": [
+            {
+                "type": "notify",
+                "data": {
+                    "message": "Planificación de aeronaves completada. Resultados disponibles."
+                }
+            },
+            {
+                "type": "loadTable",
+                "data": {
+                    "url": csv_url
+                }
+            },
+            {
+                "type": "loadJson",
+                "data": {
+                    "url": json_url,
+                    "message": "Descargar JSON de resultados."
+                }
+            }
+        ]
     }
 
     try:
@@ -554,6 +541,7 @@ def notify_frontend(**context):
         print("[INFO] Sesión de base de datos cerrada.")
 
     print("[INFO] Notificación enviada al frontend.")
+
 
 
 
