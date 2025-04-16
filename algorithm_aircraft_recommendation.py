@@ -34,67 +34,62 @@ def execute_algorithm_remote(**context):
 
 
 def process_output_and_notify(**context):
-    print("[INFO] Procesando output y notificando al frontend")
 
-    # Obtener datos
-    raw_conf = context['dag_run'].conf
-    message = raw_conf.get('message', {})
+    print("Procesando output y notificando al frontend")
+    message = context['dag_run'].conf.get('message', {})
     input_data_str = message.get('input_data')
     input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
     assignment_id = input_data['assignmentId']
-    user = message.get('from_user')
-
+    user = context['ti'].xcom_pull(key='user')
     print(f"[INFO] assignment_id: {assignment_id}")
 
     # 1. Descargar JSON desde MinIO
     s3_client = get_minio_client()
     bucket = "tmp"
-    test_json_key = "algorithm_aircraft_planificator_outputs/historic/input_test2.json"
+    test_json_key = "algorithm_aircraft_planificator_outputs/historic/output_test4.2.json"
     print(f"[INFO] Descargando JSON de prueba desde MinIO: {test_json_key}")
 
     response = s3_client.get_object(Bucket=bucket, Key=test_json_key)
     output_data = json.load(response['Body'])
+
     print(f"[INFO] JSON descargado desde MinIO")
     print(f"[DEBUG] Claves del JSON descargado: {list(output_data.keys())}")
-    print(f"[DEBUG] Contenido 'resourcePlanningResult': {output_data.get('resourcePlanningResult')}")
+    print(f"[DEBUG] Contenido 'assignments': {output_data.get('assignments')}")
 
-    # 2. Convertir a CSV
-    csv_data = output_data.get("resourcePlanningResult", [])
-    csv_filename = f"{assignment_id}.csv"
-    csv_local_path = f"/tmp/{csv_filename}"
-
+    # 2. Transformar JSON a CSV
+    csv_data = output_data.get("assignments", [])
     print(f"[DEBUG] Preparando escritura de CSV con {len(csv_data)} filas")
 
+    csv_filename = f"{assignment_id}.csv"
+    csv_local_path = f"/tmp/{csv_filename}"
     with open(csv_local_path, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=["since", "until", "aircrafts"])
+        writer = csv.DictWriter(f, fieldnames=["fire_id", "aircrafts"])
         writer.writeheader()
         for row in csv_data:
-            print(f"[DEBUG] Fila CSV: since={row.get('since')} until={row.get('until')} aircrafts={row.get('aircrafts')}")
             writer.writerow({
-                "since": row.get("since"),
-                "until": row.get("until"),
-                "aircrafts": ", ".join(row.get("aircrafts", []))
+                "fire_id": row.get("id"),
+                "aircrafts": ", ".join(row.get("vehicles", []))
             })
 
-    # 3. Subir a MinIO
+    # 3. Subir archivos a MinIO
     timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
-    folder = "algorithm_aircraft_planificator_outputs"
-    json_key = f"{folder}/jsons/{assignment_id}_{timestamp}.json"
-    csv_key = f"{folder}/outputs/{assignment_id}_{timestamp}.csv"
+    json_key = f"algorithm_aircraft_planificator_outputs/jsons/{assignment_id}_{timestamp}.json"
+    csv_key = f"algorithm_aircraft_planificator_outputs/outputs/{assignment_id}_{timestamp}.csv"
 
-    s3_client.upload_file(csv_local_path, bucket, csv_key)
     s3_client.put_object(
         Bucket=bucket,
         Key=json_key,
         Body=BytesIO(json.dumps(output_data).encode("utf-8")),
         ContentLength=len(json.dumps(output_data).encode("utf-8"))
     )
+    s3_client.upload_file(csv_local_path, bucket, csv_key)
 
     json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{json_key}"
     csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
+
     print(f"[INFO] Archivos subidos a MinIO: \n- JSON: {json_url}\n- CSV: {csv_url}")
 
-    # 4. Guardar en la base de datos
+    # 4. Insertar notificación en base de datos
     session = get_db_session()
     now_utc = datetime.utcnow()
     result = session.execute(text("""
@@ -105,7 +100,6 @@ def process_output_and_notify(**context):
     job_id = result.scalar()
     print(f"[INFO] Notificación registrada con ID: {job_id}")
 
-    # 5. Crear payload de notificación
     payload = {
         "to": user,
         "actions": [
@@ -135,14 +129,16 @@ def process_output_and_notify(**context):
         ]
     }
 
-    print(f"[DEBUG] Payload de notificación: {json.dumps(payload, indent=2)}")
+    print(f"[DEBUG] Payload de notificación: {json.dumps(payload, indent=2, ensure_ascii=False)}")
 
     session.execute(text("""
         UPDATE public.notifications SET data = :data WHERE id = :id
     """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
     session.commit()
     session.close()
+
     print(f"[INFO] Notificación actualizada y enviada")
+
 
 
 
