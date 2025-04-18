@@ -139,14 +139,13 @@ def process_output_and_notify(**context):
         print("[INFO] Guardando resultado en algoritmos.algoritmo_aircraft_recomendador...")
 
         session.execute(text("""
-            INSERT INTO algoritmos.algoritmo_aircraft_recomendador 
-            (sampled_feature, result_time, phenomenon_time, input_data, output_data)
+            INSERT INTO algoritmos.algoritmo_aircraft_recomendador (sampled_feature, result_time, phenomenon_time, input_data, output_data)
             VALUES (:sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data)
         """), {
-            "sampled_feature": assignment_id,
-            "result_time": now,
-            "phenomenon_time": now,
-            "input_data": json.dumps(input_data, ensure_ascii=False),
+            "sampled_feature": output_data.get("assignmentId", "unknown"),
+            "result_time": datetime.now(madrid_tz),
+            "phenomenon_time": datetime.now(madrid_tz),
+            "input_data": json.dumps({}, ensure_ascii=False),
             "output_data": json.dumps(output_data, ensure_ascii=False)
         })
         session.commit()
