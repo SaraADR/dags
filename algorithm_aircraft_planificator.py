@@ -332,9 +332,8 @@ def process_outputs(**context):
     json_content = context['ti'].xcom_pull(key='json_content')
     json_filename = context['ti'].xcom_pull(key='json_filename')
     local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
-
-    print(f"[INFO] json_filename: {json_filename}")
-    print(f"[INFO] local_payload_json: {local_payload_json}")
+    assignment_id = context['ti'].xcom_pull(key='assignment_id')
+    user = context['ti'].xcom_pull(key='user')
 
     if not json_content:
         raise ValueError("[ERROR] No se encontró el contenido del JSON en XCom")
@@ -343,28 +342,23 @@ def process_outputs(**context):
     bucket = MINIO_BUCKET
     folder = MINIO_FOLDER
     timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    print(f"[INFO] Timestamp para histórico: {timestamp}")
 
     session = None
     try:
-        # Guardar el JSON en un archivo temporal solo para subirlo
+        # Guardar el JSON en MinIO (actual y copia histórica)
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
             tmp_file.write(json_content)
             tmp_file_path = tmp_file.name
 
         key_current = f"{folder}/jsons/{json_filename}"
         key_historic = f"{folder}/historic/{timestamp}_{json_filename}"
-
-        print(f"[INFO] Subiendo JSON actual a {bucket}/{key_current}")
         s3_client.upload_file(tmp_file_path, bucket, key_current)
-        print(f"[INFO] Subiendo JSON histórico a {bucket}/{key_historic}")
         s3_client.upload_file(tmp_file_path, bucket, key_historic)
 
         json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
         context['ti'].xcom_push(key='json_url', value=json_url)
-        print(f"[INFO] JSON subido y url disponible: {json_url}")
 
-        # Generar CSV desde el JSON y subir a MinIO
+        # Generar CSV desde el JSON
         csv_filename = json_filename.replace('.json', '.csv')
         local_csv_path = f"/tmp/{csv_filename}"
 
@@ -384,42 +378,71 @@ def process_outputs(**context):
                 })
 
         csv_key = f"{folder}/outputs/{csv_filename}"
-        print(f"[INFO] Subiendo CSV de resultados a {bucket}/{csv_key}")
         s3_client.upload_file(local_csv_path, bucket, csv_key)
-
         csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
         context['ti'].xcom_push(key='csv_url', value=csv_url)
-        print(f"[INFO] CSV subido y url disponible: {csv_url}")
 
-        # Subir payload JSON si existe
+        # Subir payload si aplica
         if local_payload_json and os.path.exists(local_payload_json):
             payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
-            print(f"[INFO] Subiendo payload a {bucket}/{payload_key}")
             s3_client.upload_file(local_payload_json, bucket, payload_key)
-
             payload_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{payload_key}"
             context['ti'].xcom_push(key='payload_json_url', value=payload_url)
-            print(f"[INFO] Payload JSON subido: {payload_url}")
-        else:
-            print("[WARN] No se encontró el payload JSON para subir")
 
-        # Guardar en base de datos
+        # Insertar en histórico de base de datos
         session = get_db_session()
         madrid_tz = pytz.timezone('Europe/Madrid')
-        print("[INFO] Insertando resultado en base de datos...")
-
         session.execute(text("""
-            INSERT INTO algoritmos.algoritmo_aircraft_planificator (sampled_feature, result_time, phenomenon_time, input_data, output_data)
-            VALUES (:sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data)
+            INSERT INTO algoritmos.algoritmo_aircraft_planificator (
+                sampled_feature, result_time, phenomenon_time, input_data, output_data
+            ) VALUES (
+                :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
+            )
         """), {
-            "sampled_feature": output_data.get("assignmentId", "unknown"),
+            "sampled_feature": assignment_id or "planificador",
             "result_time": datetime.now(madrid_tz),
             "phenomenon_time": datetime.now(madrid_tz),
             "input_data": json.dumps({}, ensure_ascii=False),
             "output_data": json.dumps(output_data, ensure_ascii=False)
         })
         session.commit()
-        print("[INFO] Histórico insertado correctamente en base de datos.")
+
+        # Notificación al frontend
+        result = session.execute(text("""
+            INSERT INTO public.notifications (destination, "data", "date", status)
+            VALUES ('ignis', '{}', :date, NULL)
+            RETURNING id
+        """), {'date': datetime.utcnow()})
+        job_id = result.scalar()
+
+        payload = {
+            "to": user,
+            "actions": [
+                {
+                    "type": "paintCSV",
+                    "data": {
+                        "url": csv_url,
+                        "action": {
+                            "key": "openPlanner",
+                            "data": json_url
+                        },
+                        "title": "Visualización de planificación"
+                    }
+                },
+                {
+                    "type": "notify",
+                    "data": {
+                        "message": f"Resultados del planificador disponibles. ID: {job_id}"
+                    }
+                }
+            ]
+        }
+
+        session.execute(text("""
+            UPDATE public.notifications SET data = :data WHERE id = :id
+        """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
+        session.commit()
+        print("[INFO] Notificación al frontend registrada.")
 
     except Exception as e:
         if session:
@@ -430,18 +453,15 @@ def process_outputs(**context):
     finally:
         if session:
             session.close()
-            print("[INFO] Sesión de base de datos cerrada correctamente.")
         if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
             os.remove(tmp_file_path)
-            print(f"[INFO] Fichero temporal eliminado: {tmp_file_path}")
         if local_payload_json and os.path.exists(local_payload_json):
             os.remove(local_payload_json)
-            print(f"[INFO] Fichero temporal local_payload_json eliminado: {local_payload_json}")
         if os.path.exists(local_csv_path):
             os.remove(local_csv_path)
-            print(f"[INFO] Fichero CSV temporal eliminado: {local_csv_path}")
 
     print("[INFO] Finalizada ejecución de process_outputs.")
+
 
 
 
