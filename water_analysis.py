@@ -128,9 +128,10 @@ def process_extracted_files(**kwargs):
 
     #Subimos a Geoserver el tif y ambos shapes
     publish_to_geoserver(archivos)
+
     #Integramos en geonetwork
-    # generar_metadato_xml(json_modificado)
-    # create_metadata_uuid_basica(archivos, json_modificado)
+    generar_metadato_xml(json_modificado, archivos)
+    create_metadata_uuid_basica(archivos, json_modificado)
 
 
 
@@ -350,49 +351,101 @@ def get_geonetwork_credentials():
 
 
 
-def generar_metadato_xml(json_modificado, **kwargs):
+def extraer_recursos_y_coordenadas(json_modificado):
+    recursos = json_modificado.get("executionResources", [])
+
+    archivos = {
+        "csv": [],
+        "pdf": [],
+        "tif": [],
+        "shp": [],
+        "otros": []
+    }
+
+    latitud = None
+    longitud = None
+
+    for recurso in recursos:
+        path = recurso.get("path", "")
+        extension = os.path.splitext(path)[1].lower()
+
+        # Clasificación automática
+        if extension == ".csv":
+            archivos["csv"].append(path)
+        elif extension == ".pdf":
+            archivos["pdf"].append(path)
+        elif extension == ".tif":
+            archivos["tif"].append(path)
+        elif extension == ".shp":
+            archivos["shp"].append(path)
+        else:
+            archivos["otros"].append(path)
+
+    # 🗺️ Si hay un Shapefile, intentamos extraer coordenadas
+    if archivos["shp"]:
+        latitud, longitud = extraer_coordenadas_shp(archivos["shp"][0])  # Tomamos el primer SHP
+
+    return archivos, latitud, longitud
+
+def extraer_coordenadas_shp(shp_path):
+    try:
+        gdf = gpd.read_file(shp_path)
+
+        # Seleccionamos el primer punto como referencia
+        min_long = gdf.bounds.minx.min()
+        max_long = gdf.bounds.maxx.max()
+        min_lat = gdf.bounds.miny.min()
+        max_lat = gdf.bounds.maxy.max()
+
+        print(f"✅ Bounding Box extraído: Min Long {min_long}, Max Long {max_long}, Min Lat {min_lat}, Max Lat {max_lat}")
+        return min_long, max_long, min_lat, max_lat
+    except Exception as e:
+        print(f"⚠️ Error leyendo SHP {shp_path}: {e}")
+        return None, None, None, None
+    
+
+def generar_metadato_xml(json_modificado, recursos, **kwargs):
     ruta_xml = os.path.join(os.path.dirname(__file__), 'recursos', 'archivo_xml_water.xml')
 
     with open(ruta_xml, 'r') as f:
         contenido = f.read()
 
+    archivos, _, _ = extraer_recursos_y_coordenadas(json_modificado)
+    min_long, max_long, min_lat, max_lat = extraer_coordenadas_shp(archivos["shp"][0]) if archivos["shp"] else (None, None, None, None)
+
+
+
+
+    # URLs de servicios WMS y archivos adjuntos
+    csv_urls = ",".join(archivos["csv"]) if archivos["csv"] else "No disponible"
+    informe_urls = ",".join(archivos["pdf"]) if archivos["pdf"] else "No disponible"
+    tif_urls = ",".join(archivos["tif"]) if archivos["tif"] else "No disponible"
+    
     #Leemos rutas del json
     recursos = json_modificado.get("executionResources", [])
     csv_url = None
     informe_url = None
 
-    for recurso in recursos:
-        path = recurso.get("path", "")
-        if path.endswith(".csv"):
-            csv_url = f"{path}"
-        elif path.endswith(".pdf"):
-            informe_url = f"{path}"
-
-
+   
     # Definir manualmente los valores a reemplazar
     titulo = "Datos procesados USV"
-    fecha =  datetime.now()
     fecha_completa = datetime.now()
     descripcion = "Fichero que se genera con la salida del algoritmo de Aguas"
-    # min_latitud = "-34.65"
-    # max_latitud = "-34.55"
-    # min_longitud = "-58.52"
-    # max_longitud = "-58.40"
     wms_server_shp = "https://wms.miapp.com/capas/uso_suelo"
 
 
     # Reemplazar cada variable del XML
     contenido = contenido.replace("${TITULO}", titulo)
-    contenido = contenido.replace("${FECHA}", fecha)
     contenido = contenido.replace("${FECHA_COMPLETA}", fecha_completa)
     contenido = contenido.replace("${DESCRIPCION}", descripcion)
-    contenido = contenido.replace("${MIN_LATITUD}", min_latitud)
-    contenido = contenido.replace("${MAX_LATITUD}", max_latitud)
-    contenido = contenido.replace("${MIN_LONGITUD}", min_longitud)
-    contenido = contenido.replace("${MAX_LONGITUD}", max_longitud)
     contenido = contenido.replace("${WMS_SERVER_SHP}", wms_server_shp)
-    contenido = contenido.replace("${CSV_URL}", csv_url)
-    contenido = contenido.replace("${INFORME_URL}", informe_url)
+    contenido = contenido.replace("${MIN_LONGITUD}", str(min_long) if min_long else "0")
+    contenido = contenido.replace("${MAX_LONGITUD}", str(max_long) if max_long else "0")
+    contenido = contenido.replace("${MIN_LATITUD}", str(min_lat) if min_lat else "0")
+    contenido = contenido.replace("${MAX_LATITUD}", str(max_lat) if max_lat else "0")
+    contenido = contenido.replace("${CSV_URL}", csv_urls)
+    contenido = contenido.replace("${INFORME_URL}", informe_urls)
+    contenido = contenido.replace("${TIF_URL}", tif_urls)
 
     # Guardar el XML ya con los valores insertados (opcional)
     ruta_final = os.path.join(os.path.dirname(__file__), 'recursos', 'metadato_generado.xml')
@@ -416,53 +469,59 @@ def create_metadata_uuid_basica(archivos, json_modificado):
         "abstract": f"Resultado del análisis realizado con aeronave {aircraft} el {date}. Operador: {operator}.",
         "date": date,
         "keywords": tags,
-        "contact": {
-            "name": operator,
-            "email": "contacto@ejemplo.com"
-        },
-        "language": "spa",
-        "format": "application/json"
+       # "language": "spa",
+        "dataFormat": ["application/pdf", "application/x-shapefile", "image/geotiff"]
     }
 
     connection = BaseHook.get_connection("geonetwork_update_conn")
     upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
     access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
-    with open('/resursos/algoritmo_xml_water.xml', 'r') as f:
-            metadata_template = f.read()
-
-    ruta_xml = os.path.join(os.path.dirname(__file__), 'recursos', 'metadato.xml')
-
-    metadata_rendered = metadata_template
-    for key, value in json_modificado.items():
-        metadata_rendered = metadata_rendered.replace(f"${{{key}}}", str(value))
-
-    metadata_headers = {
-        'Authorization': f"Bearer {access_token}",
-        'x-xsrf-token': str(xsrf_token),
-        'Cookie': str(set_cookie_header[0]),
-        'Accept': 'application/json',
-        'Content-Type': 'application/xml'
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "X-XSRF-TOKEN": xsrf_token,
+        "Cookie": set_cookie_header,
+        "Content-Type": "application/json"
     }
+    response = requests.post(upload_url, json=generated_metadata, headers=headers)
 
-    metadata_response = requests.post(
-        upload_url,
-        headers=metadata_headers,
-        data=metadata_rendered.encode("utf-8")
-    )
+    if response.status_code not in [200, 201]:
+        raise Exception(f"⚠️ Error creando metadato en GeoNetwork: {response.text}")
 
-    logging.info(f"Subida del metadato XML: {metadata_response.status_code}, {metadata_response.text}")
-    metadata_response.raise_for_status()
-    response_data = metadata_response.json()
-    metadata_infos = response_data.get("metadataInfos", {})
-    main_uuid = None
-    if metadata_infos:
-        values = list(metadata_infos.values())[0]
-        if values:
-            main_uuid = values[0].get("uuid")
+    record_id = response.json().get("id")
+    print(f"✅ Metadato creado con ID: {record_id}")
 
-    if not main_uuid:
-        raise Exception("No se obtuvo UUID del metadato principal.")
+    return record_id  # Retorna el ID del metadato para adjuntar archivos después
+
+
+    # with open('/resursos/algoritmo_xml_water.xml', 'r') as f:
+    #         metadata_template = f.read()
+
+    # ruta_xml = os.path.join(os.path.dirname(__file__), 'recursos', 'metadato.xml')
+
+    # metadata_rendered = metadata_template
+    # for key, value in json_modificado.items():
+    #     metadata_rendered = metadata_rendered.replace(f"${{{key}}}", str(value))
+
+
+    # metadata_response = requests.post(
+    #     upload_url,
+    #     headers=metadata_headers,
+    #     data=metadata_rendered.encode("utf-8")
+    # )
+
+    # logging.info(f"Subida del metadato XML: {metadata_response.status_code}, {metadata_response.text}")
+    # metadata_response.raise_for_status()
+    # response_data = metadata_response.json()
+    # metadata_infos = response_data.get("metadataInfos", {})
+    # main_uuid = None
+    # if metadata_infos:
+    #     values = list(metadata_infos.values())[0]
+    #     if values:
+    #         main_uuid = values[0].get("uuid")
+
+    # if not main_uuid:
+    #     raise Exception("No se obtuvo UUID del metadato principal.")
 
 
 
