@@ -256,8 +256,8 @@ def publish_to_geoserver(archivos, **context):
             elif "seafloor" in original_name.lower():
                 seafloor_files.append((original_name, temp_path))
 
-    subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url)
-    subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url)
+    subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url, auth)
+    subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url, auth)
 
     #shp_files = [temp_file[0] for temp_file in temp_files if temp_file[1] in ('.shp', '.dbf', '.shx', '.prj', '.cpg')]
     # if water_analysis_files:
@@ -301,7 +301,7 @@ def publish_to_geoserver(archivos, **context):
 
 
 
-def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url):
+def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
         if not file_group:
             return
 
