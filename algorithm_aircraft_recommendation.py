@@ -12,7 +12,9 @@ from airflow.models import Variable
 from airflow.hooks.base import BaseHook
 from sqlalchemy import text
 from dag_utils import get_minio_client, get_db_session
-
+from pytz import timezone
+madrid_tz = timezone('Europe/Madrid')
+now = datetime.now(madrid_tz)
 #VERSION PARA PRUEBAS CON JSON METIDO A PIÑON
 
 
@@ -87,8 +89,8 @@ def process_output_and_notify(**context):
     )
     s3_client.upload_file(csv_local_path, bucket, csv_key)
 
-    json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{json_key}"
-    csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
+    json_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{json_key}"
+    csv_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{csv_key}"
 
     print(f"[INFO] Archivos subidos a MinIO: \n- JSON: {json_url}\n- CSV: {csv_url}")
 
@@ -106,21 +108,16 @@ def process_output_and_notify(**context):
     payload = {
         "to": user,
         "actions": [
+            
             {
                 "type": "loadTable",
                 "data": {
-                    "url": csv_url
-                }
-            },
-            {
-                "type": "paintCSV",
-                "data": {
                     "url": csv_url,
-                    "action": {
+                    "button": {
                         "key": "openPlanner",
                         "data": json_url
                     },
-                    "title": "Abrir planner"
+                    "title": "Recomendación de aeronaves",
                 }
             },
             {
@@ -137,6 +134,27 @@ def process_output_and_notify(**context):
     session.execute(text("""
         UPDATE public.notifications SET data = :data WHERE id = :id
     """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
+
+    try:
+        print("[INFO] Guardando resultado en algoritmos.algoritmo_aircraft_recomendador...")
+
+        session.execute(text("""
+            INSERT INTO algoritmos.algoritmo_aircraft_recomendador (sampled_feature, result_time, phenomenon_time, input_data, output_data)
+            VALUES (:sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data)
+        """), {
+            "sampled_feature": output_data.get("assignmentId", "unknown"),
+            "result_time": datetime.now(madrid_tz),
+            "phenomenon_time": datetime.now(madrid_tz),
+            "input_data": json.dumps({}, ensure_ascii=False),
+            "output_data": json.dumps(output_data, ensure_ascii=False)
+        })
+        session.commit()
+        print("[INFO] Resultado insertado correctamente en la tabla.")
+    except Exception as e:
+        session.rollback()
+        print(f"[ERROR] Error al guardar en la base de datos: {e}")
+        raise
+
     session.commit()
     session.close()
 
