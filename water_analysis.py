@@ -18,6 +18,8 @@ from airflow.hooks.base_hook import BaseHook
 import requests
 import logging
 from airflow.providers.ssh.hooks.ssh import SSHHook
+import geopandas as gpd
+
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
@@ -46,16 +48,18 @@ def process_extracted_files(**kwargs):
     json_modificado = copy.deepcopy(json_content)
     rutaminio = Variable.get("ruta_minIO")
     nuevos_paths = {}
-    uuid_key = uuid.uuid4()
-    print(f"UUID generado para almacenamiento: {uuid_key}")  
+    uuid_key_seaFloor = uuid.uuid4()
+    uuid_key_waterAnalysis = uuid.uuid4()
+    print(f"UUID generado para almacenamiento, seafloor: {uuid_key_seaFloor} y waterAnalysis: {uuid_key_waterAnalysis}")  
 
     s3_client = get_minio_client()
     bucket_name = 'missions'
 
     #Subimos el zip de seaFloor a minIO
-    zip_path = hacerZipConSeaFloor(json_content, archivos)
+    archivos_path, zip_path = hacerZipConSeaFloor(json_content, archivos)
+    
     zip_file_name = os.path.basename(zip_path)
-    zip_key = f"{id_mission}/{uuid_key}/{zip_file_name}"
+    zip_key = f"{id_mission}/{uuid_key_seaFloor}/{zip_file_name}"
     with open(zip_path, 'rb') as zip_file:
         s3_client.put_object(
             Bucket=bucket_name,
@@ -70,6 +74,7 @@ def process_extracted_files(**kwargs):
         archivo_file_name = os.path.basename(archivo['file_name'])
         archivo_content = base64.b64decode(archivo['content'])
 
+        uuid_key = uuid_key_seaFloor if archivo['file_name'] in archivos_path else uuid_key_waterAnalysis
         archivo_key = f"{id_mission}/{uuid_key}/{archivo_file_name}"
 
         if(archivo_file_name.endswith('.tif')):
@@ -154,7 +159,7 @@ def hacerZipConSeaFloor(json, archivos):
         for file_path in archivos_zip_paths:
             zipf.write(file_path, arcname=os.path.basename(file_path))
     print(f"ZIP generado con archivos SeaFloor en: {output_zip_path}")
-    return output_zip_path
+    return archivos_zip_paths, output_zip_path
 
 
 
@@ -221,7 +226,7 @@ def publish_to_geoserver(archivos, **context):
 
 
 
-    #tiff_files = [temp_file[0] for temp_file in temp_files if temp_file[1] == ".tif"]
+    #SUBIMOS LOS TIFFS
     tiff_files = [path for name, path in temp_files if name.lower().endswith(".tif")]
 
     for tif_file in tiff_files:
@@ -247,6 +252,8 @@ def publish_to_geoserver(archivos, **context):
         print(f"Raster disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{layer_name}")
     
     
+
+    #SUBIMOS LOS SHAPES
     water_analysis_files = []
     seafloor_files = []
     for original_name, temp_path in temp_files:
@@ -361,8 +368,6 @@ def generar_metadato_xml(json_modificado, **kwargs):
 
     with open(ruta_xml, 'r') as f:
         contenido = f.read()
-
-
 
     #Leemos rutas del json
     recursos = json_modificado.get("executionResources", [])
