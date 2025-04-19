@@ -132,6 +132,10 @@ def process_extracted_files(**kwargs):
     # generar_metadato_xml(json_modificado)
     # create_metadata_uuid_basica(archivos, json_modificado)
 
+
+
+
+#ZIP DE DATOS SEAFLOOR
 def hacerZipConSeaFloor(json, archivos):
     archivos_zip_paths = []
 
@@ -162,7 +166,7 @@ def hacerZipConSeaFloor(json, archivos):
     return archivos_zip_paths, output_zip_path
 
 
-
+#HIStORIZACION
 def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeStamp):
     try:
         # Y guardamos en la tabla de historico
@@ -202,6 +206,8 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
         print(f"Error en el proceso: {str(e)}")    
 
 
+
+#PUBLICAR GEO
 def publish_to_geoserver(archivos, **context):
     WORKSPACE = "USV_Water_analysis_2025"
     GENERIC_LAYER = "spain_water_analysis"
@@ -265,6 +271,7 @@ def publish_to_geoserver(archivos, **context):
 
     subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url, auth)
     subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url, auth)
+    set_geoserver_style("SeaFloor", base_url, auth, "SeaFloorStyle")
 
     #shp_files = [temp_file[0] for temp_file in temp_files if temp_file[1] in ('.shp', '.dbf', '.shx', '.prj', '.cpg')]
     # if water_analysis_files:
@@ -330,7 +337,23 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
         print(f"🗺️  Vector disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{datastore_name}")
 
 
- 
+def set_geoserver_style(layer_name, base_url, auth, style_name, workspace="USV_Water_analysis_2025"):
+    url = f"{base_url}/layers/{workspace}:{layer_name}"
+    headers = {"Content-Type": "application/xml"}
+    payload = f"""
+        <layer>
+            <defaultStyle>
+                <name>{style_name}</name>
+            </defaultStyle>
+        </layer>
+    """
+    response = requests.put(url, headers=headers, data=payload, auth=auth)
+    
+    if response.status_code not in [200, 201]:
+        raise Exception(f"Error asignando estilo a {layer_name}: {response.text}")
+    
+    print(f"✅ Estilo '{style_name}' aplicado correctamente a la capa '{layer_name}'")
+
 
 def get_geonetwork_credentials():
     try:
@@ -553,6 +576,10 @@ def upload_to_geonetwork(archivos, json_modificado, **context):
     except Exception as e:
         logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
         raise
+
+
+
+
 
 
 # Definición del DAG
