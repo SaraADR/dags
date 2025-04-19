@@ -271,43 +271,7 @@ def publish_to_geoserver(archivos, **context):
 
     subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url, auth)
     subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url, auth)
-    set_geoserver_style("SeaFloor", base_url, auth, "SeaFloorStyle")
-
-    #shp_files = [temp_file[0] for temp_file in temp_files if temp_file[1] in ('.shp', '.dbf', '.shx', '.prj', '.cpg')]
-    # if water_analysis_files:
-    #     zip_buffer = io.BytesIO()
-    #     with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-    #         for archivo in archivos:
-    #             if archivo['file_name'].lower().endswith(('.shp', '.dbf', '.shx', '.prj', '.cpg')):
-    #                 archivo_content = base64.b64decode(archivo['content'])
-    #                 zip_file.writestr(os.path.basename(archivo['file_name']), archivo_content)
-    #     zip_buffer.seek(0)
-
-    #     datastore_name = f"vector_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    #     url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/file.shp"
-    #     headers = {"Content-type": "application/zip"}
-    #     layer_name = f"USV_Water_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
-    #     response = requests.put(url, headers=headers, data=zip_buffer, auth=auth, params={"configure": "all"})
-    #     if response.status_code not in [201, 202]:
-    #         raise Exception(f"Error subiendo vectorial {datastore_name}: {response.text}")
-    #     print(f"Capa vectorial publicada: {datastore_name}")
-
-
-    #     # Capa histórica
-    #     url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
-    #     response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
-    #     if response.status_code not in [201, 202]:
-    #         raise Exception(f"Error publicando {layer_name}: {response.text}")
-    #     print(f"Capa publicada: {layer_name}")
-
-    #     # Capa genérica
-    #     url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
-    #     response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
-    #     if response_latest.status_code not in [201, 202]:
-    #         raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
-    #     print(f"Capa genérica actualizada: {GENERIC_LAYER}")
-
+    #set_geoserver_style("SeaFloor", base_url, auth, "SeaFloorStyle")
 
     print("----Publicación en GeoServer completada exitosamente.----")
 
