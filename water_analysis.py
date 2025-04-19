@@ -30,6 +30,8 @@ def process_extracted_files(**kwargs):
 
     print("Archivos para procesar preparados")
 
+
+    #Extraemos el mission ID
     id_mission = None
     for metadata in json_content['metadata']:
         if metadata['name'] == 'MissionID':
@@ -38,22 +40,36 @@ def process_extracted_files(**kwargs):
 
     print(f"MissionID: {id_mission}")
 
-    uuid_key = uuid.uuid4()
-    print(f"UUID generado para almacenamiento: {uuid_key}")  
 
 
+    #Preparamos la subida a minIO de todos los archivos
     json_modificado = copy.deepcopy(json_content)
     rutaminio = Variable.get("ruta_minIO")
     nuevos_paths = {}
+    uuid_key = uuid.uuid4()
+    print(f"UUID generado para almacenamiento: {uuid_key}")  
+
+    s3_client = get_minio_client()
+    bucket_name = 'missions'
+
+    #Subimos el zip de seaFloor a minIO
+    zip_path = hacerZipConSeaFloor(json_content, archivos)
+    zip_file_name = os.path.basename(zip_path)
+    zip_key = f"{id_mission}/{uuid_key}/{zip_file_name}"
+    with open(zip_path, 'rb') as zip_file:
+        s3_client.put_object(
+            Bucket=bucket_name,
+            Key=zip_key,
+            Body=zip_file,
+            ContentType="application/zip"
+        )
+    print(f'Archivo ZIP {zip_file_name} subido correctamente a MinIO.')
+
+    #Subimos los archivos todos por separado
     for archivo in archivos:
         archivo_file_name = os.path.basename(archivo['file_name'])
         archivo_content = base64.b64decode(archivo['content'])
 
-
-        s3_client = get_minio_client()
-
-
-        bucket_name = 'missions'
         archivo_key = f"{id_mission}/{uuid_key}/{archivo_file_name}"
 
         if(archivo_file_name.endswith('.tif')):
@@ -76,6 +92,10 @@ def process_extracted_files(**kwargs):
         print(archivo_key)
         nuevos_paths[archivo_file_name] = f"{rutaminio}/{bucket_name}/{archivo_key}"
       
+
+   
+
+    #Prepoaramos y ejecutamos la historización
     for resource in json_modificado['executionResources']:
         file_name = os.path.basename(resource['path'])
         if file_name in nuevos_paths:
@@ -98,14 +118,43 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
-    #Historizamos para guardar en bd y pantalla de front
     historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
 
-    #Geoserver
+
+    #Subimos a Geoserver el tif y ambos shapes
     publish_to_geoserver(archivos)
     #Integramos en geonetwork
     # generar_metadato_xml(json_modificado)
     # create_metadata_uuid_basica(archivos, json_modificado)
+
+def hacerZipConSeaFloor(json, archivos):
+    archivos_zip_paths = []
+
+    tmp_dir = "/tmp/seafloor_zip"
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    for recurso in json['executionResources']:
+        tags = recurso.get('tag', '')
+        if 'SeaFloor' in tags:
+            path = os.path.basename(recurso.get('path', ''))
+            
+            # Buscar en archivos cargados
+            for archivo in archivos:
+                if os.path.basename(archivo['file_name']) == path:
+                    content = base64.b64decode(archivo['content'])
+                    output_file_path = os.path.join(tmp_dir, path)
+                    
+                    with open(output_file_path, 'wb') as f:
+                        f.write(content)
+                    
+                    archivos_zip_paths.append(output_file_path)
+                    break
+    output_zip_path = os.path.join(tmp_dir, 'seafloor.zip')
+    with zipfile.ZipFile(output_zip_path, 'w') as zipf:
+        for file_path in archivos_zip_paths:
+            zipf.write(file_path, arcname=os.path.basename(file_path))
+    print(f"ZIP generado con archivos SeaFloor en: {output_zip_path}")
+    return output_zip_path
 
 
 
