@@ -719,6 +719,7 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
         connection = BaseHook.get_connection("geonetwork_update_conn")
         base_url = f"{connection.schema}{connection.host}/geonetwork/srv/api"
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
+        geonetwork_url = connection.host 
 
         for archivo in archivos:
                 archivo_file_name = os.path.basename(archivo['file_name'])
@@ -741,7 +742,7 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                 'Accept': 'application/json'
             }
 
-            url = f"{base_url}/0.1/records/{uuid}/attachments"
+            url = f"{geonetwork_url}/geonetwork/srv/api/records/{uuid}/attachments"
             response = requests.post(url, files=files, headers=headers)
 
             if response.status_code not in [200, 201]:
