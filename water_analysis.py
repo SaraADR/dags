@@ -131,7 +131,7 @@ def process_extracted_files(**kwargs):
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_modificado)
+    xml_data = generate_dynamic_xml(json_content)
     resources_id = upload_to_geonetwork_xml(xml_data)
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
@@ -615,43 +615,46 @@ def upload_to_geonetwork(**context):
 
 def generate_dynamic_xml(json_modificado):
 
-        for metadata in json_modificado['metadata']:
-            if metadata['name'] == 'ExecutionID':
-                file_identifier = metadata['value']
-                break
-            if metadata['name'] == 'AlgorithmID':
-                title = metadata['value']
-                break
+    file_identifier = ""
+    title = ""
 
-        date = json_modificado['endTimestamp']
+    for metadata in json_modificado['metadata']:
+        if metadata['name'] == 'ExecutionID':
+            file_identifier = metadata['value']
+            break
+        if metadata['name'] == 'AlgorithmID':
+            title = metadata['value']
+            break
 
-        xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-        <gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
-                        xmlns:gco="http://www.isotc211.org/2005/gco"
-                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                        xsi:schemaLocation="http://www.isotc211.org/2005/gmd
-                        http://schemas.opengis.net/iso/19139/20070417/gmd/gmd.xsd">
-        <gmd:fileIdentifier>
-            <gco:CharacterString>{file_identifier}</gco:CharacterString>
-        </gmd:fileIdentifier>
-        <gmd:dateStamp>
-            <gco:Date>{date}</gco:Date>
-        </gmd:dateStamp>
-        <gmd:identificationInfo>
-            <gmd:MD_DataIdentification>
-            <gmd:citation>
-                <gmd:CI_Citation>
-                <gmd:title>
-                    <gco:CharacterString>{title}</gco:CharacterString>
-                </gmd:title>
-                </gmd:CI_Citation>
-            </gmd:citation>
-            </gmd:MD_DataIdentification>
-        </gmd:identificationInfo>
-        </gmd:MD_Metadata>
-        """
-        xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
-        return xml_encoded
+    date = json_modificado['endTimestamp']
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+    <gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
+                    xmlns:gco="http://www.isotc211.org/2005/gco"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://www.isotc211.org/2005/gmd
+                    http://schemas.opengis.net/iso/19139/20070417/gmd/gmd.xsd">
+    <gmd:fileIdentifier>
+        <gco:CharacterString>{file_identifier}</gco:CharacterString>
+    </gmd:fileIdentifier>
+    <gmd:dateStamp>
+        <gco:Date>{date}</gco:Date>
+    </gmd:dateStamp>
+    <gmd:identificationInfo>
+        <gmd:MD_DataIdentification>
+        <gmd:citation>
+            <gmd:CI_Citation>
+            <gmd:title>
+                <gco:CharacterString>{title}</gco:CharacterString>
+            </gmd:title>
+            </gmd:CI_Citation>
+        </gmd:citation>
+        </gmd:MD_DataIdentification>
+    </gmd:identificationInfo>
+    </gmd:MD_Metadata>
+    """
+    xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
+    return xml_encoded
 
 
 
