@@ -132,7 +132,7 @@ def process_extracted_files(**kwargs):
 
     #integramos con geonetwork
     xml_data = generate_dynamic_xml(json_content)
-    resources_id = upload_to_geonetwork_xml(xml_data)
+    resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
 
@@ -653,6 +653,7 @@ def generate_dynamic_xml(json_modificado):
     </gmd:identificationInfo>
     </gmd:MD_Metadata>
     """
+    print(xml)
     xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
     return xml_encoded
 
