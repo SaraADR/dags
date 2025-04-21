@@ -15,6 +15,7 @@ import tempfile
 import base64
 import json
 import csv
+import pandas as pd
 import requests
 import paramiko
 import pytz
@@ -183,7 +184,7 @@ url5=https://pre.atcservices.cirpas.gal/rest/AircraftBaseService/getAll
 url6=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/update
 user=ITMATI.DES
 password=Cui_1234
-modelos_aeronave=input/modelos_vehiculo.csv
+modelos_aeronave=Input/modelos_vehiculo.csv
 """
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
@@ -228,10 +229,6 @@ modelos_aeronave=input/modelos_vehiculo.csv
         print("[INFO] Input preparado y subido correctamente.")
     finally:
         os.remove(temp_key_path)
-
-
-
-
 
 
 # Definición de la función para ejecutar el algoritmo y descargar el resultado
@@ -327,9 +324,10 @@ def run_and_download_algorithm(**context):
 # Eliminar carpeta de ejecución
 
 def process_outputs(**context):
+   
     print("[INFO] Iniciando ejecución de process_outputs...")
-
-    json_content = context['ti'].xcom_pull(key='json_content')
+    json_content = context['ti'].xcom_pull(task_ids='fetch_results_from_einforex', key='einforex_result')
+    print(f"[INFO] JSON content: {json_content}")
     json_filename = context['ti'].xcom_pull(key='json_filename')
     local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
     assignment_id = context['ti'].xcom_pull(key='assignment_id')
@@ -344,10 +342,13 @@ def process_outputs(**context):
     timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
     session = None
+    tmp_file_path = None
+    local_csv_path = None  
+
     try:
-        # Guardar el JSON en MinIO (actual y copia histórica)
+        # Guardar JSON en archivo temporal
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
-            tmp_file.write(json_content)
+            tmp_file.write(json.dumps(json_content, ensure_ascii=False))
             tmp_file_path = tmp_file.name
 
         key_current = f"{folder}/jsons/{json_filename}"
@@ -355,43 +356,53 @@ def process_outputs(**context):
         s3_client.upload_file(tmp_file_path, bucket, key_current)
         s3_client.upload_file(tmp_file_path, bucket, key_historic)
 
-        json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
+        json_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{key_current}"
         context['ti'].xcom_push(key='json_url', value=json_url)
 
-        # Generar CSV desde el JSON
-        csv_filename = json_filename.replace('.json', '.csv')
+        output_data = json_content 
+        intervals = output_data.get("resourcePlanningResult", [])
+        aircrafts = list(set(output_data.get("availableAircrafts", [])))
+
+        if not intervals or not aircrafts:
+            raise ValueError("[ERROR] El JSON no contiene intervals o aircrafts válidos")
+
+        # Formateo estético: convertir intervalos de milisegundos a HH:MM:SS
+        headers = [
+            f"{datetime.utcfromtimestamp(i['since'] / 1000).strftime('%H:%M:%S')} - "
+            f"{datetime.utcfromtimestamp(i['until'] / 1000).strftime('%H:%M:%S')}"
+            for i in intervals
+        ]
+        table_data = {aircraft: [] for aircraft in aircrafts}
+        for i in intervals:
+            active = i.get("aircrafts", [])
+            for aircraft in aircrafts:
+                table_data[aircraft].append("YES" if aircraft in active else "NO")
+
+        df = pd.DataFrame(table_data, index=headers).transpose()
+
+        # Guardar como CSV
+        csv_filename = json_filename.replace('.json', '_table.csv')
         local_csv_path = f"/tmp/{csv_filename}"
-
-        output_data = json.loads(json_content)
-        csv_data = output_data.get("resourcePlanningResult", [])
-        if not csv_data:
-            print("[WARN] El JSON no contiene resourcePlanningResult")
-
-        with open(local_csv_path, mode='w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=["since", "until", "aircrafts"])
-            writer.writeheader()
-            for row in csv_data:
-                writer.writerow({
-                    "since": row.get("since"),
-                    "until": row.get("until"),
-                    "aircrafts": ', '.join(row.get("aircrafts", []))
-                })
+        df.to_csv(local_csv_path)
 
         csv_key = f"{folder}/outputs/{csv_filename}"
         s3_client.upload_file(local_csv_path, bucket, csv_key)
-        csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
+        csv_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{csv_key}"
         context['ti'].xcom_push(key='csv_url', value=csv_url)
 
-        # Subir payload si aplica
+        # Payload opcional
         if local_payload_json and os.path.exists(local_payload_json):
             payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
             s3_client.upload_file(local_payload_json, bucket, payload_key)
-            payload_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{payload_key}"
+            payload_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{payload_key}"
             context['ti'].xcom_push(key='payload_json_url', value=payload_url)
 
-        # Insertar en histórico de base de datos
+        # Historial en BBDD
         session = get_db_session()
         madrid_tz = pytz.timezone('Europe/Madrid')
+        assignment_id = output_data.get("assignmentId")
+        sampled_feature = int(assignment_id) if assignment_id is not None else None
+
         session.execute(text("""
             INSERT INTO algoritmos.algoritmo_aircraft_planificator (
                 sampled_feature, result_time, phenomenon_time, input_data, output_data
@@ -399,7 +410,7 @@ def process_outputs(**context):
                 :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
             )
         """), {
-            "sampled_feature": assignment_id or "planificador",
+            "sampled_feature": sampled_feature,
             "result_time": datetime.now(madrid_tz),
             "phenomenon_time": datetime.now(madrid_tz),
             "input_data": json.dumps({}, ensure_ascii=False),
@@ -419,20 +430,20 @@ def process_outputs(**context):
             "to": user,
             "actions": [
                 {
-                    "type": "paintCSV",
+                    "type": "loadTable",
                     "data": {
                         "url": csv_url,
-                        "action": {
+                        "button": {
                             "key": "openPlanner",
                             "data": json_url
                         },
-                        "title": "Visualización de planificación"
+                        "title": "Planificación de aeronaves",
                     }
                 },
                 {
                     "type": "notify",
                     "data": {
-                        "message": f"Resultados del planificador disponibles. ID: {job_id}"
+                        "message": f"Resultados del algoritmo disponibles. ID: {job_id}"
                     }
                 }
             ]
@@ -453,15 +464,14 @@ def process_outputs(**context):
     finally:
         if session:
             session.close()
-        if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
+        if tmp_file_path and os.path.exists(tmp_file_path):
             os.remove(tmp_file_path)
         if local_payload_json and os.path.exists(local_payload_json):
             os.remove(local_payload_json)
-        if os.path.exists(local_csv_path):
+        if local_csv_path and os.path.exists(local_csv_path):
             os.remove(local_csv_path)
 
     print("[INFO] Finalizada ejecución de process_outputs.")
-
 
 
 
@@ -476,7 +486,7 @@ def fetch_results_from_einforex(**context):
     # if not planning_id:
     #     raise ValueError("[ERROR] No se encontró planning_id en XCom")
     
-    planning_id = 1356
+    planning_id = 1466
 
     connection = BaseHook.get_connection('einforex_planning_url')
     url = f"{connection.host}/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}"
@@ -501,69 +511,7 @@ def fetch_results_from_einforex(**context):
         print(f"[ERROR] Fallo al obtener resultados desde EINFOREX: {e}")
         raise
 
-
-
 # Definición de la función para notificar al frontend y guardar en la base de datos
-
-# def notify_frontend(**context):
-#     print("[INFO] Iniciando notificación al frontend...")
-
-#     user = context['ti'].xcom_pull(key='user')
-#     csv_url = context['ti'].xcom_pull(key='csv_url')
-#     json_url = context['ti'].xcom_pull(key='json_url')
-
-#     print(f"[INFO] Usuario destino: {user}")
-#     print(f"[INFO] CSV URL: {csv_url}")
-#     print(f"[INFO] JSON URL: {json_url}")
-
-#     session = get_db_session()
-#     now_utc = datetime.now(pytz.utc)
-
-#     payload = {
-#         "to": "all_users",  # ← se puede cambiar por 'ignis' o el usuario específico si es necesario
-#         "actions": [
-#             {
-#                 "type": "notify",
-#                 "data": {
-#                     "message": "Planificación de aeronaves completada. Resultados disponibles."
-#                 }
-#             },
-#             {
-#                 "type": "loadTable",
-#                 "data": {
-#                     "url": csv_url
-#                 }
-#             },
-#             {
-#                 "type": "loadJson",
-#                 "data": {
-#                     "url": json_url,
-#                     "message": "Descargar JSON de resultados."
-#                 }
-#             }
-#         ]
-#     }
-
-#     try:
-#         print("[INFO] Insertando notificación en base de datos...")
-#         session.execute(text("""
-#             INSERT INTO public.notifications (destination, "data", "date", status)
-#             VALUES ('ignis', :data, :date, NULL)
-#         """), {'data': json.dumps(payload), 'date': now_utc})
-#         session.commit()
-#         print("[INFO] Notificación insertada correctamente.")
-#     except Exception as e:
-#         session.rollback()
-#         print(f"[ERROR] Error al insertar la notificación: {e}")
-#         raise
-#     finally:
-#         session.close()
-#         print("[INFO] Sesión de base de datos cerrada.")
-
-#     print("[INFO] Notificación enviada al frontend.")
-
-
-
 
 def always_save_logs(**context):
     print("[INFO] always_save_logs ejecutado.")
@@ -615,12 +563,6 @@ process_task = PythonOperator(
     dag=dag
 )
 
-# notify_task = PythonOperator(
-#     task_id='notify_frontend',
-#     python_callable=notify_frontend,
-#     provide_context=True,
-#     dag=dag
-# )
 
 from utils.log_utils import setup_conditional_log_saving
 
@@ -634,5 +576,3 @@ check_logs, save_logs = setup_conditional_log_saving(
 # Definir la secuencia de tareas y dependencias
 
 prepare_task >> run_task >> fetch_result_task >> process_task
-
-# >> notify_task
