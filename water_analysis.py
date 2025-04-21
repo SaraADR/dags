@@ -130,7 +130,6 @@ def process_extracted_files(**kwargs):
     xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
-    #link_geoserver_wms_to_metadata(resources_id, layer_name, workspace, base_url)
 
 
 
@@ -504,7 +503,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         <gmd:onLine>
             <gmd:CI_OnlineResource>
                 <gmd:linkage>
-                    <gmd:URL>{url_geoserver}</gmd:URL>
+                    <gmd:URL>https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png</gmd:URL>
                 </gmd:linkage>
                 <gmd:protocol>
                     <gco:CharacterString>OGC:WMS</gco:CharacterString>
@@ -522,6 +521,27 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
     return xml_encoded
 
 
+def aprobar_metadata(uuid):
+    access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
+    url = f"https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records/{uuid}"
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "draft": False,  # Cambia de borrador a activo
+        "approved": True # Aprueba la metadata
+    }
+
+    response = requests.put(url, json=data, headers=headers)
+
+    if response.status_code == 200:
+        print(f"✅ Metadata {uuid} aprobada correctamente.")
+    else:
+        print(f"❌ Error al aprobar metadata: {response.status_code}, {response.text}")
 
 
 def upload_to_geonetwork_xml(xml_data_array):
@@ -626,54 +646,7 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                 else:
                     logging.info(f"Recurso subido correctamente para {uuid}")
 
-
-def link_geoserver_wms_to_metadata(resource_ids, layer_name, workspace, geoserver_url):
-    connection = BaseHook.get_connection("geonetwork_update_conn")
-    access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-
-    wms_url = f"{geoserver_url}/geoserver/{workspace}/wms"
-
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "x-xsrf-token": xsrf_token,
-        "Cookie": set_cookie_header[0],
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
-
-    link_fragment = {
-        "protocol": "OGC:WMS",
-        "name": f"{workspace}:{layer_name}",
-        "description": "Servicio WMS generado dinámicamente",
-        "url": wms_url
-    }
-
-    for uuid in resource_ids:
-        response = requests.post(
-            f"{connection.schema}{connection.host}/geonetwork/srv/api/records/{uuid}/links",
-            json=link_fragment,
-            headers=headers
-        )
-
-        if response.status_code not in [200, 201]:
-            logging.error(f"Error al vincular WMS al metadato {uuid}: {response.status_code} {response.text}")
-            raise Exception("Fallo al vincular WMS")
-        else:
-            logging.info(f"WMS vinculado correctamente a {uuid}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                aprobar_metadata(uuid)
 
 
 
