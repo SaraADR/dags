@@ -359,7 +359,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
     print(workspace)
     print(layer_name)
     print(base_url)
-    url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
+    url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
 
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
@@ -389,14 +389,38 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
             <gco:CharacterString>{file_identifier}</gco:CharacterString>
         </gmd:fileIdentifier>
 
+
+        <gmd:language>
+            <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="spa">spa</gmd:LanguageCode>
+        </gmd:language>
+
+        <gmd:characterSet>
+            <gmd:MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_CharacterSetCode"
+                                    codeListValue="utf8">utf8</gmd:MD_CharacterSetCode>
+        </gmd:characterSet>
+
         <gmd:dateStamp>
             <gco:Date>{date}</gco:Date>
         </gmd:dateStamp>
 
-        <gmd:language>
-            <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/"
-                            codeListValue="spa">spa</gmd:LanguageCode>
-        </gmd:language>
+        <gmd:contact>
+            <gmd:CI_ResponsibleParty>
+                <gmd:organisationName>
+                    <gco:CharacterString>Avincis Technics</gco:CharacterString>
+                </gmd:organisationName>
+                <gmd:contactInfo>
+                    <gmd:CI_Contact>
+                        <gmd:address>
+                            <gmd:CI_Address>
+                                <gmd:electronicMailAddress>
+                                    <gco:CharacterString>admin@einforex.es</gco:CharacterString>
+                                </gmd:electronicMailAddress>
+                            </gmd:CI_Address>
+                        </gmd:address>
+                    </gmd:CI_Contact>
+                </gmd:contactInfo>
+            </gmd:CI_ResponsibleParty>
+        </gmd:contact>
 
 
         <gmd:referenceSystemInfo>
@@ -413,13 +437,27 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
 
         <gmd:identificationInfo>
             <gmd:MD_DataIdentification>
-            <gmd:citation>
-                <gmd:CI_Citation>
-                <gmd:title>
-                    <gco:CharacterString>{title}</gco:CharacterString>
-                </gmd:title>
-                </gmd:CI_Citation>
-            </gmd:citation>
+                <gmd:citation>
+                    <gmd:CI_Citation>
+                        <gmd:title>
+                            <gco:CharacterString>{title}</gco:CharacterString>
+                        </gmd:title>
+
+                        <!-- ✅ FECHA DE PUBLICACIÓN -->
+                        <gmd:date>
+                            <gmd:CI_Date>
+                                <gmd:date>
+                                    <gco:Date>{date}</gco:Date>
+                                </gmd:date>
+                                <gmd:dateType>
+                                    <gmd:CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#CI_DateTypeCode"
+                                                        codeListValue="publication">publication</gmd:CI_DateTypeCode>
+                                </gmd:dateType>
+                            </gmd:CI_Date>
+                        </gmd:date>
+
+                    </gmd:CI_Citation>
+                </gmd:citation>
             </gmd:MD_DataIdentification>
         </gmd:identificationInfo>
 
