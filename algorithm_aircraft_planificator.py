@@ -359,8 +359,7 @@ def process_outputs(**context):
         json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
         context['ti'].xcom_push(key='json_url', value=json_url)
 
-        # === PROCESAR JSON ===
-        output_data = json.loads(json_content)
+        output_data = json_content 
         intervals = output_data.get("resourcePlanningResult", [])
         aircrafts = list(set(output_data.get("availableAircrafts", [])))
 
