@@ -183,7 +183,7 @@ url5=https://pre.atcservices.cirpas.gal/rest/AircraftBaseService/getAll
 url6=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/update
 user=ITMATI.DES
 password=Cui_1234
-modelos_aeronave=input/modelos_vehiculo.csv
+modelos_aeronave=Input/modelos_vehiculo.csv
 """
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
@@ -228,10 +228,6 @@ modelos_aeronave=input/modelos_vehiculo.csv
         print("[INFO] Input preparado y subido correctamente.")
     finally:
         os.remove(temp_key_path)
-
-
-
-
 
 
 # Definición de la función para ejecutar el algoritmo y descargar el resultado
@@ -463,9 +459,6 @@ def process_outputs(**context):
     print("[INFO] Finalizada ejecución de process_outputs.")
 
 
-
-
-
 def fetch_results_from_einforex(**context):
     from requests.auth import HTTPBasicAuth
 
@@ -476,7 +469,7 @@ def fetch_results_from_einforex(**context):
     # if not planning_id:
     #     raise ValueError("[ERROR] No se encontró planning_id en XCom")
     
-    planning_id = 1356
+    planning_id = 1466
 
     connection = BaseHook.get_connection('einforex_planning_url')
     url = f"{connection.host}/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}"
@@ -505,63 +498,62 @@ def fetch_results_from_einforex(**context):
 
 # Definición de la función para notificar al frontend y guardar en la base de datos
 
-# def notify_frontend(**context):
-#     print("[INFO] Iniciando notificación al frontend...")
+def notify_frontend(**context):
+    print("[INFO] Iniciando notificación al frontend...")
 
-#     user = context['ti'].xcom_pull(key='user')
-#     csv_url = context['ti'].xcom_pull(key='csv_url')
-#     json_url = context['ti'].xcom_pull(key='json_url')
+    user = context['ti'].xcom_pull(key='user')
+    csv_url = context['ti'].xcom_pull(key='csv_url')
+    json_url = context['ti'].xcom_pull(key='json_url')
 
-#     print(f"[INFO] Usuario destino: {user}")
-#     print(f"[INFO] CSV URL: {csv_url}")
-#     print(f"[INFO] JSON URL: {json_url}")
+    print(f"[INFO] Usuario destino: {user}")
+    print(f"[INFO] CSV URL: {csv_url}")
+    print(f"[INFO] JSON URL: {json_url}")
 
-#     session = get_db_session()
-#     now_utc = datetime.now(pytz.utc)
+    session = get_db_session()
+    now_utc = datetime.now(pytz.utc)
 
-#     payload = {
-#         "to": "all_users",  # ← se puede cambiar por 'ignis' o el usuario específico si es necesario
-#         "actions": [
-#             {
-#                 "type": "notify",
-#                 "data": {
-#                     "message": "Planificación de aeronaves completada. Resultados disponibles."
-#                 }
-#             },
-#             {
-#                 "type": "loadTable",
-#                 "data": {
-#                     "url": csv_url
-#                 }
-#             },
-#             {
-#                 "type": "loadJson",
-#                 "data": {
-#                     "url": json_url,
-#                     "message": "Descargar JSON de resultados."
-#                 }
-#             }
-#         ]
-#     }
+    payload = {
+        "to": "all_users",  # ← se puede cambiar por 'ignis' o el usuario específico si es necesario
+        "actions": [
+            {
+                "type": "notify",
+                "data": {
+                    "message": "Planificación de aeronaves completada. Resultados disponibles."
+                }
+            },
+            {
+                "type": "loadTable",
+                "data": {
+                    "url": csv_url
+                }
+            },
+            {
+                "type": "loadJson",
+                "data": {
+                    "url": json_url,
+                    "message": "Descargar JSON de resultados."
+                }
+            }
+        ]
+    }
 
-#     try:
-#         print("[INFO] Insertando notificación en base de datos...")
-#         session.execute(text("""
-#             INSERT INTO public.notifications (destination, "data", "date", status)
-#             VALUES ('ignis', :data, :date, NULL)
-#         """), {'data': json.dumps(payload), 'date': now_utc})
-#         session.commit()
-#         print("[INFO] Notificación insertada correctamente.")
-#     except Exception as e:
-#         session.rollback()
-#         print(f"[ERROR] Error al insertar la notificación: {e}")
-#         raise
-#     finally:
-#         session.close()
-#         print("[INFO] Sesión de base de datos cerrada.")
+    try:
+        print("[INFO] Insertando notificación en base de datos...")
+        session.execute(text("""
+            INSERT INTO public.notifications (destination, "data", "date", status)
+            VALUES ('ignis', :data, :date, NULL)
+        """), {'data': json.dumps(payload), 'date': now_utc})
+        session.commit()
+        print("[INFO] Notificación insertada correctamente.")
+    except Exception as e:
+        session.rollback()
+        print(f"[ERROR] Error al insertar la notificación: {e}")
+        raise
+    finally:
+        session.close()
+        print("[INFO] Sesión de base de datos cerrada.")
 
-#     print("[INFO] Notificación enviada al frontend.")
-
+    print("[INFO] Notificación enviada al frontend.")
 
 
 

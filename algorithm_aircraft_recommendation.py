@@ -39,6 +39,7 @@ def execute_algorithm_remote(**context):
 
 def process_output_and_notify(**context):
 
+    # 1. Obtener datos de entrada y usuario
     print("Procesando output y notificando al frontend")
     message = context['dag_run'].conf.get('message', {})
     input_data_str = message.get('input_data')
@@ -66,6 +67,8 @@ def process_output_and_notify(**context):
 
     csv_filename = f"{assignment_id}.csv"
     csv_local_path = f"/tmp/{csv_filename}"
+
+    # Escribir CSV con los datos transformados
 
     with open(csv_local_path, 'w', newline='') as f:
         writer = csv.writer(f, delimiter=';')
@@ -130,6 +133,8 @@ def process_output_and_notify(**context):
     }
 
     print(f"[DEBUG] Payload de notificación: {json.dumps(payload, indent=2, ensure_ascii=False)}")
+
+    # Actualizar notificación en la base de datos con el payload 
 
     session.execute(text("""
         UPDATE public.notifications SET data = :data WHERE id = :id
