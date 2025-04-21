@@ -432,7 +432,10 @@ def process_outputs(**context):
                 "type": "loadTable",
                 "data": {
                     "url": csv_url,
-
+                    "button": {
+                        "key": "openPlanner",
+                        "data": json_url
+                    },
                     "title": "Planificación de aeronaves",
                 }
             },
