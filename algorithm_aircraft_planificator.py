@@ -348,7 +348,7 @@ def process_outputs(**context):
     try:
         # Guardar JSON en archivo temporal
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
-            tmp_file.write(json_content)
+            tmp_file.write(json.dumps(json_content, ensure_ascii=False))
             tmp_file_path = tmp_file.name
 
         key_current = f"{folder}/jsons/{json_filename}"
