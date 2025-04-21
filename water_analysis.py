@@ -29,7 +29,6 @@ def process_extracted_files(**kwargs):
     if not json_content:
         print("Ha habido un error con el traspaso de los documentos")
         return
-
     print("Archivos para procesar preparados")
 
 
@@ -43,23 +42,22 @@ def process_extracted_files(**kwargs):
     print(f"MissionID: {id_mission}")
 
 
-
     #Preparamos la subida a minIO de todos los archivos
     json_modificado = copy.deepcopy(json_content)
     rutaminio = Variable.get("ruta_minIO")
     nuevos_paths = {}
-    uuid_key_seaFloor = uuid.uuid4()
-    uuid_key_waterAnalysis = uuid.uuid4()
-    print(f"UUID generado para almacenamiento, seafloor: {uuid_key_seaFloor} y waterAnalysis: {uuid_key_waterAnalysis}")  
+    uuid_key = uuid.uuid4()
+    print(f"UUID generado para almacenamiento {uuid_key}")  
 
     s3_client = get_minio_client()
     bucket_name = 'missions'
+
 
     #Subimos el zip de seaFloor a minIO
     archivos_path, zip_path = hacerZipConSeaFloor(json_content, archivos)
     
     zip_file_name = os.path.basename(zip_path)
-    zip_key = f"{id_mission}/{uuid_key_seaFloor}/{zip_file_name}"
+    zip_key = f"{id_mission}/{uuid_key}/{zip_file_name}"
     with open(zip_path, 'rb') as zip_file:
         s3_client.put_object(
             Bucket=bucket_name,
@@ -69,12 +67,12 @@ def process_extracted_files(**kwargs):
         )
     print(f'Archivo ZIP {zip_file_name} subido correctamente a MinIO.')
 
+
     #Subimos los archivos todos por separado
     for archivo in archivos:
         archivo_file_name = os.path.basename(archivo['file_name'])
         archivo_content = base64.b64decode(archivo['content'])
 
-        uuid_key = uuid_key_seaFloor if archivo['file_name'] in archivos_path else uuid_key_waterAnalysis
         archivo_key = f"{id_mission}/{uuid_key}/{archivo_file_name}"
 
         if(archivo_file_name.endswith('.tif')):
@@ -98,7 +96,6 @@ def process_extracted_files(**kwargs):
         nuevos_paths[archivo_file_name] = f"{rutaminio}/{bucket_name}/{archivo_key}"
       
 
-   
 
     #Prepoaramos y ejecutamos la historización
     for resource in json_modificado['executionResources']:
@@ -106,8 +103,6 @@ def process_extracted_files(**kwargs):
         if file_name in nuevos_paths:
             print(f"Actualizando path de {file_name}")
             resource['path'] = nuevos_paths[file_name]
-
-
 
     startTimeStamp = json_modificado['startTimestamp']
     endTimeStamp = json_modificado['endTimestamp']
@@ -123,6 +118,7 @@ def process_extracted_files(**kwargs):
     )
     print(f'Archivo JSON subido correctamente a MinIO.')
 
+    #Metodo para la historización
     historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
 
 
@@ -135,10 +131,6 @@ def process_extracted_files(**kwargs):
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
-
-    #Integramos en geonetwork
-    #generar_metadato_xml(json_modificado, archivos)
-    #create_metadata_uuid_basica(archivos, json_modificado)
 
 
 
@@ -174,7 +166,8 @@ def hacerZipConSeaFloor(json, archivos):
     return archivos_zip_paths, output_zip_path
 
 
-#HIStORIZACION
+
+#HISTORIZACION
 def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeStamp):
     try:
         # Y guardamos en la tabla de historico
@@ -358,260 +351,6 @@ def get_geonetwork_credentials():
 
 
 
-def extraer_recursos_y_coordenadas(json_modificado):
-    recursos = json_modificado.get("executionResources", [])
-
-    archivos = {
-        "csv": [],
-        "pdf": [],
-        "tif": [],
-        "shp": [],
-        "otros": []
-    }
-
-    latitud = None
-    longitud = None
-
-    for recurso in recursos:
-        path = recurso.get("path", "")
-        extension = os.path.splitext(path)[1].lower()
-
-        # Clasificación automática
-        if extension == ".csv":
-            archivos["csv"].append(path)
-        elif extension == ".pdf":
-            archivos["pdf"].append(path)
-        elif extension == ".tif":
-            archivos["tif"].append(path)
-        elif extension == ".shp":
-            archivos["shp"].append(path)
-        else:
-            archivos["otros"].append(path)
-
-    # 🗺️ Si hay un Shapefile, intentamos extraer coordenadas
-    if archivos["shp"]:
-        min_long, max_long, min_lat, max_lat = extraer_coordenadas_shp(archivos["shp"][0])  # Tomamos el primer SHP
-
-    return archivos, min_long, max_long, min_lat, max_lat
-
-def extraer_coordenadas_shp(shp_path):
-    try:
-        gdf = gpd.read_file(shp_path)
-
-        # Seleccionamos el primer punto como referencia
-        min_long = gdf.bounds.minx.min()
-        max_long = gdf.bounds.maxx.max()
-        min_lat = gdf.bounds.miny.min()
-        max_lat = gdf.bounds.maxy.max()
-
-        print(f"✅ Bounding Box extraído: Min Long {min_long}, Max Long {max_long}, Min Lat {min_lat}, Max Lat {max_lat}")
-        return min_long, max_long, min_lat, max_lat
-    except Exception as e:
-        print(f"⚠️ Error leyendo SHP {shp_path}: {e}")
-        return None, None, None, None
-    
-
-def generar_metadato_xml(json_modificado, recursos, **kwargs):
-    ruta_xml_local = os.path.join(os.path.dirname(__file__), "recursos", "archivo_xml_water.xml")
-    s3_client = get_minio_client()
-    bucket_name = 'missions'
-
-    try:
-        response = requests.get(url_minio, stream=True)
-        response.raise_for_status()
-        
-        with open(ruta_xml_local, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        
-        print(f"✅ XML descargado correctamente: {ruta_xml_local}")
-
-    except Exception as e:
-        print(f"⚠️ Error descargando XML desde MinIO: {e}")
-
-    with open(ruta_xml_local, 'r') as f:
-        contenido = f.read()
-
-    archivos, _, _, _, _= extraer_recursos_y_coordenadas(json_modificado)
-    min_long, max_long, min_lat, max_lat = extraer_coordenadas_shp(archivos["shp"][0]) if archivos["shp"] else (None, None, None, None)
-
-
-
-
-    # URLs de servicios WMS y archivos adjuntos
-    csv_urls = ",".join(archivos["csv"]) if archivos["csv"] else "No disponible"
-    informe_urls = ",".join(archivos["pdf"]) if archivos["pdf"] else "No disponible"
-    tif_urls = ",".join(archivos["tif"]) if archivos["tif"] else "No disponible"
-    
-   
-    # Definir manualmente los valores a reemplazar
-    titulo = "Datos procesados USV"
-    fecha_completa = datetime.now()
-    descripcion = "Fichero que se genera con la salida del algoritmo de Aguas"
-    wms_server_shp = "https://wms.miapp.com/capas/uso_suelo"
-
-
-    # Reemplazar cada variable del XML
-    contenido = contenido.replace("${TITULO}", titulo)
-    contenido = contenido.replace("${FECHA_COMPLETA}", fecha_completa)
-    contenido = contenido.replace("${DESCRIPCION}", descripcion)
-    contenido = contenido.replace("${WMS_SERVER_SHP}", wms_server_shp)
-    contenido = contenido.replace("${MIN_LONGITUD}", str(min_long) if min_long else "0")
-    contenido = contenido.replace("${MAX_LONGITUD}", str(max_long) if max_long else "0")
-    contenido = contenido.replace("${MIN_LATITUD}", str(min_lat) if min_lat else "0")
-    contenido = contenido.replace("${MAX_LATITUD}", str(max_lat) if max_lat else "0")
-    contenido = contenido.replace("${CSV_URL}", csv_urls)
-    contenido = contenido.replace("${INFORME_URL}", informe_urls)
-    contenido = contenido.replace("${TIF_URL}", tif_urls)
-
-    # Guardar el XML ya con los valores insertados (opcional)
-    ruta_final = os.path.join(os.path.dirname(__file__), 'recursos', 'metadato_generado.xml')
-    with open(ruta_final, 'w') as f:
-        f.write(contenido)
-
-    return contenido
-
-
-
-def create_metadata_uuid_basica(archivos, json_modificado):
-    # Se crear un metadato compatible con GeoNetwork
-    mission_id = json_modificado["metadata"][1]["value"]
-    date = json_modificado["metadata"][6]["value"]
-    operator = json_modificado["metadata"][4]["value"]
-    aircraft = json_modificado["metadata"][2]["value"]
-    tags = list({tag for r in json_modificado["executionResources"] for tag in r["tag"].split(",")})
-
-    generated_metadata = {
-        "title": f"Análisis de Agua - Misión {mission_id}",
-        "abstract": f"Resultado del análisis realizado con aeronave {aircraft} el {date}. Operador: {operator}.",
-        "date": date,
-        "keywords": tags,
-       # "language": "spa",
-        "dataFormat": ["application/pdf", "application/x-shapefile", "image/geotiff"]
-    }
-
-    connection = BaseHook.get_connection("geonetwork_update_conn")
-    upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
-    access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "X-XSRF-TOKEN": xsrf_token,
-        "Cookie": set_cookie_header,
-        "Content-Type": "application/json"
-    }
-    response = requests.post(upload_url, json=generated_metadata, headers=headers)
-
-    if response.status_code not in [200, 201]:
-        raise Exception(f"⚠️ Error creando metadato en GeoNetwork: {response.text}")
-
-    record_id = response.json().get("id")
-    print(f"✅ Metadato creado con ID: {record_id}")
-
-    return record_id  # Retorna el ID del metadato para adjuntar archivos después
-
-
-    # with open('/resursos/algoritmo_xml_water.xml', 'r') as f:
-    #         metadata_template = f.read()
-
-    # ruta_xml = os.path.join(os.path.dirname(__file__), 'recursos', 'metadato.xml')
-
-    # metadata_rendered = metadata_template
-    # for key, value in json_modificado.items():
-    #     metadata_rendered = metadata_rendered.replace(f"${{{key}}}", str(value))
-
-
-    # metadata_response = requests.post(
-    #     upload_url,
-    #     headers=metadata_headers,
-    #     data=metadata_rendered.encode("utf-8")
-    # )
-
-    # logging.info(f"Subida del metadato XML: {metadata_response.status_code}, {metadata_response.text}")
-    # metadata_response.raise_for_status()
-    # response_data = metadata_response.json()
-    # metadata_infos = response_data.get("metadataInfos", {})
-    # main_uuid = None
-    # if metadata_infos:
-    #     values = list(metadata_infos.values())[0]
-    #     if values:
-    #         main_uuid = values[0].get("uuid")
-
-    # if not main_uuid:
-    #     raise Exception("No se obtuvo UUID del metadato principal.")
-
-
-def upload_to_geonetwork(**context):
-    try:
-        connection = BaseHook.get_connection("geonetwork_update_conn")
-        upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
-        access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-        xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
-
-        resource_ids = []
-
-        for xml_data in xml_data_array:
-            xml_decoded = base64.b64decode(xml_data).decode('utf-8')
-
-            logging.info(f"XML DATA: {xml_data}")
-            logging.info(xml_decoded)
-
-            files = {
-                'file': ('metadata.xml', xml_decoded, 'text/xml'),
-            }
-
-            headers = {
-                'Authorization': f"Bearer {access_token}",
-                'x-xsrf-token': str(xsrf_token),
-                'Cookie': str(set_cookie_header[0]),
-                'Accept': 'application/json'
-            }
-
-            response = requests.post(upload_url, files=files, headers=headers)
-            logging.info(f"Respuesta completa de GeoNetwork: {response.status_code}, {response.text}")
-
-            response.raise_for_status()
-            response_data = response.json()
-
-            # Extraer el identificador correcto desde metadataInfos
-            metadata_infos = response_data.get("metadataInfos", {})
-            if metadata_infos:
-                metadata_values = list(metadata_infos.values())[0]  # Obtener la primera lista de metadatos
-                if metadata_values:
-                    resource_id = metadata_values[0].get("uuid")  # Extraer el verdadero identificador
-                else:
-                    resource_id = None
-            else:
-                resource_id = None
-
-            if not resource_id:
-                logging.error(f"No se encontró un identificador válido en la respuesta de GeoNetwork: {response_data}")
-                continue
-
-            logging.info(f"Identificador del recurso en GeoNetwork: {resource_id}")
-            resource_ids.append(resource_id)
-
-        if not resource_ids:
-            raise Exception("No se generó ningún resource_id en GeoNetwork.")
-
-        context['ti'].xcom_push(key='resource_id', value=resource_ids)
-        return resource_ids
-
-    except Exception as e:
-        logging.error(f"Error al subir el archivo a GeoNetwork: {e}")
-        raise
-
-
-
-
-
-
-
-
-
-
-
-
 
 def generate_dynamic_xml(json_modificado):
 
@@ -722,34 +461,39 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
         geonetwork_url = connection.host 
 
         for archivo in archivos:
-                archivo_file_name = os.path.basename(archivo['file_name'])
-                archivo_content = base64.b64decode(archivo['content'])
-                if(archivo_file_name.endswith('.tif')):
-                    tiff_filename = archivo_file_name
-                    tiff_bytes = archivo_content
-                    break
+            archivo_file_name = os.path.basename(archivo['file_name'])
+            archivo_content = base64.b64decode(archivo['content'])
 
+            ext = os.path.splitext(archivo_file_name)[1].lower()
+            mime_type = {
+                    '.tif': 'image/tiff',
+                    '.tiff': 'image/tiff',
+                    '.png': 'image/png',
+                    '.pdf': 'application/pdf',
+                    '.txt': 'text/plain',
+                    '.sh': 'application/x-sh'  
+            }.get(ext, 'application/octet-stream')
+            
+            for uuid in resource_ids:
+                files = {
+                    'file': (archivo_file_name, io.BytesIO(archivo_content), mime_type),
+                }
 
-        for uuid in resource_ids:
-            files = {
-                'file': (tiff_filename, io.BytesIO(tiff_bytes), 'image/tiff'),
-            }
+                headers = {
+                    'Authorization': f"Bearer {access_token}",
+                    'x-xsrf-token': str(xsrf_token),
+                    'Cookie': str(set_cookie_header[0]),
+                    'Accept': 'application/json'
+                }
 
-            headers = {
-                'Authorization': f"Bearer {access_token}",
-                'x-xsrf-token': str(xsrf_token),
-                'Cookie': str(set_cookie_header[0]),
-                'Accept': 'application/json'
-            }
+                url = f"{geonetwork_url}/geonetwork/srv/api/records/{uuid}/attachments"
+                response = requests.post(url, files=files, headers=headers)
 
-            url = f"{geonetwork_url}/geonetwork/srv/api/records/{uuid}/attachments"
-            response = requests.post(url, files=files, headers=headers)
-
-            if response.status_code not in [200, 201]:
-                logging.error(f"Error subiendo TIFF a {uuid}: {response.status_code} {response.text}")
-                raise Exception("Fallo al subir el adjunto")
-            else:
-                logging.info(f"TIFF subido correctamente para {uuid}")
+                if response.status_code not in [200, 201]:
+                    logging.error(f"Error subiendo recurso a {uuid}: {response.status_code} {response.text}")
+                    raise Exception("Fallo al subir el adjunto")
+                else:
+                    logging.info(f"Recurso subido correctamente para {uuid}")
 
 
 
