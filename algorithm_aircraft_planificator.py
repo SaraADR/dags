@@ -326,7 +326,7 @@ def process_outputs(**context):
     import pandas as pd
 
     print("[INFO] Iniciando ejecución de process_outputs...")
-    json_content = context['ti'].xcom_pull(key='json_content')
+    json_content = context['ti'].xcom_pull(task_ids='fetch_results_from_einforex', key='einforex_result')
     print(f"[INFO] JSON content: {json_content}")
     json_filename = context['ti'].xcom_pull(key='json_filename')
     local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
