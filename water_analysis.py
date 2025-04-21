@@ -391,7 +391,9 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         <gmd:fileIdentifier>
             <gco:CharacterString>{file_identifier}</gco:CharacterString>
         </gmd:fileIdentifier>
-
+        <gmd:abstract>
+        <gco:CharacterString>Datos de análisis de aguas </gco:CharacterString>
+        </gmd:abstract>
 
         <gmd:language>
             <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="spa">spa</gmd:LanguageCode>
@@ -489,14 +491,18 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
             </gmd:MD_LegalConstraints>
         </gmd:resourceConstraints>
 
+
         <gmd:graphicOverview>
             <gmd:MD_BrowseGraphic>
                 <gmd:fileName>
-                <gco:CharacterString>{url_geoserver}</gco:CharacterString>
+                <gco:CharacterString>resources.get?uuid={file_identifier}&amp;fname=thumbnail.png</gco:CharacterString>
                 </gmd:fileName>
                 <gmd:fileDescription>
                 <gco:CharacterString>Vista previa</gco:CharacterString>
                 </gmd:fileDescription>
+                <gmd:fileType>
+                <gco:CharacterString>image/png</gco:CharacterString>
+                </gmd:fileType>
             </gmd:MD_BrowseGraphic>
         </gmd:graphicOverview>
 
