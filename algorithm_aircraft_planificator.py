@@ -15,6 +15,7 @@ import tempfile
 import base64
 import json
 import csv
+import pandas as pd
 import requests
 import paramiko
 import pytz
@@ -323,6 +324,7 @@ def run_and_download_algorithm(**context):
 # Eliminar carpeta de ejecución
 
 def process_outputs(**context):
+
     print("[INFO] Iniciando ejecución de process_outputs...")
 
     json_content = context['ti'].xcom_pull(key='json_content')
@@ -354,24 +356,27 @@ def process_outputs(**context):
         json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
         context['ti'].xcom_push(key='json_url', value=json_url)
 
-        # Generar CSV desde el JSON
-        csv_filename = json_filename.replace('.json', '.csv')
-        local_csv_path = f"/tmp/{csv_filename}"
-
+        # Procesar JSON a CSV tipo tabla
         output_data = json.loads(json_content)
-        csv_data = output_data.get("resourcePlanningResult", [])
-        if not csv_data:
-            print("[WARN] El JSON no contiene resourcePlanningResult")
+        intervals = output_data.get("resourcePlanningResult", [])
+        aircrafts = list(set(output_data.get("availableAircrafts", [])))
 
-        with open(local_csv_path, mode='w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=["since", "until", "aircrafts"])
-            writer.writeheader()
-            for row in csv_data:
-                writer.writerow({
-                    "since": row.get("since"),
-                    "until": row.get("until"),
-                    "aircrafts": ', '.join(row.get("aircrafts", []))
-                })
+        if not intervals or not aircrafts:
+            raise ValueError("[ERROR] JSON no contiene intervals o aircrafts válidos")
+
+        headers = [f"{i['since']} - {i['until']}" for i in intervals]
+        table_data = {aircraft: [] for aircraft in aircrafts}
+        for i in intervals:
+            active = i.get("aircrafts", [])
+            for aircraft in aircrafts:
+                table_data[aircraft].append("YES" if aircraft in active else "NO")
+
+        df = pd.DataFrame(table_data, index=headers).transpose()
+
+        # Guardar CSV
+        csv_filename = json_filename.replace('.json', '_table.csv')
+        local_csv_path = f"/tmp/{csv_filename}"
+        df.to_csv(local_csv_path)
 
         csv_key = f"{folder}/outputs/{csv_filename}"
         s3_client.upload_file(local_csv_path, bucket, csv_key)
@@ -394,8 +399,8 @@ def process_outputs(**context):
             ) VALUES (
                 :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
             )
-        """),{
-            "sampled_feature": output_data.get("assignmentId", "unknown"),
+        """), {
+            "sampled_feature": assignment_id or "planificador",
             "result_time": datetime.now(madrid_tz),
             "phenomenon_time": datetime.now(madrid_tz),
             "input_data": json.dumps({}, ensure_ascii=False),
@@ -415,22 +420,18 @@ def process_outputs(**context):
             "to": user,
             "actions": [
                 {
-                    "type": "paintCSV",
+                    "type": "loadTable",
                     "data": {
-                        "url": csv_url,
-                        "action": {
-                            "key": "openPlanner",
-                            "data": json_url
-                        },
-                        "title": "Visualización de planificación"
+                        "url": csv_url
                     }
                 },
                 {
                     "type": "notify",
                     "data": {
-                        "message": f"Resultados del planificador disponibles. ID: {job_id}"
+                        "message": f"Tabla de planificación disponible. ID: {job_id}"
                     }
-                }
+                },
+                
             ]
         }
 
@@ -459,101 +460,64 @@ def process_outputs(**context):
     print("[INFO] Finalizada ejecución de process_outputs.")
 
 
-def fetch_results_from_einforex(**context):
-    from requests.auth import HTTPBasicAuth
-
-    print("[INFO] Iniciando fetch_results_from_einforex...")
-
-
-    # # planning_id = context['ti'].xcom_pull(task_ids='prepare_and_upload_input', key='planning_id')
-    # if not planning_id:
-    #     raise ValueError("[ERROR] No se encontró planning_id en XCom")
-    
-    planning_id = 1466
-
-    connection = BaseHook.get_connection('einforex_planning_url')
-    url = f"{connection.host}/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}"
-    username = connection.login
-    password = connection.password
-
-    print(f"[INFO] Llamando a EINFOREX para resultados con ID: {planning_id}")
-    print(f"[INFO] URL: {url}")
-
-    try:
-        response = requests.get(url, auth=HTTPBasicAuth(username, password), timeout=30)
-        response.raise_for_status()
-        result_data = response.json()
-
-        print("[INFO] Resultados del algoritmo obtenidos correctamente.")
-        print("[INFO] Ejemplo de resultado:")
-        print(json.dumps(result_data, indent=2))
-
-        context['ti'].xcom_push(key='einforex_result', value=result_data)
-
-    except Exception as e:
-        print(f"[ERROR] Fallo al obtener resultados desde EINFOREX: {e}")
-        raise
-
-
-
 # Definición de la función para notificar al frontend y guardar en la base de datos
 
-def notify_frontend(**context):
-    print("[INFO] Iniciando notificación al frontend...")
+# def notify_frontend(**context):
+#     print("[INFO] Iniciando notificación al frontend...")
 
-    user = context['ti'].xcom_pull(key='user')
-    csv_url = context['ti'].xcom_pull(key='csv_url')
-    json_url = context['ti'].xcom_pull(key='json_url')
+#     user = context['ti'].xcom_pull(key='user')
+#     csv_url = context['ti'].xcom_pull(key='csv_url')
+#     json_url = context['ti'].xcom_pull(key='json_url')
 
-    print(f"[INFO] Usuario destino: {user}")
-    print(f"[INFO] CSV URL: {csv_url}")
-    print(f"[INFO] JSON URL: {json_url}")
+#     print(f"[INFO] Usuario destino: {user}")
+#     print(f"[INFO] CSV URL: {csv_url}")
+#     print(f"[INFO] JSON URL: {json_url}")
 
-    session = get_db_session()
-    now_utc = datetime.now(pytz.utc)
+#     session = get_db_session()
+#     now_utc = datetime.now(pytz.utc)
 
-    payload = {
-        "to": "all_users",  # ← se puede cambiar por 'ignis' o el usuario específico si es necesario
-        "actions": [
-            {
-                "type": "notify",
-                "data": {
-                    "message": "Planificación de aeronaves completada. Resultados disponibles."
-                }
-            },
-            {
-                "type": "loadTable",
-                "data": {
-                    "url": csv_url
-                }
-            },
-            {
-                "type": "loadJson",
-                "data": {
-                    "url": json_url,
-                    "message": "Descargar JSON de resultados."
-                }
-            }
-        ]
-    }
+#     payload = {
+#         "to": "all_users",  # ← se puede cambiar por 'ignis' o el usuario específico si es necesario
+#         "actions": [
+#             {
+#                 "type": "notify",
+#                 "data": {
+#                     "message": "Planificación de aeronaves completada. Resultados disponibles."
+#                 }
+#             },
+#             {
+#                 "type": "loadTable",
+#                 "data": {
+#                     "url": csv_url
+#                 }
+#             },
+#             {
+#                 "type": "loadJson",
+#                 "data": {
+#                     "url": json_url,
+#                     "message": "Descargar JSON de resultados."
+#                 }
+#             }
+#         ]
+#     }
 
-    try:
-        print("[INFO] Insertando notificación en base de datos...")
-        session.execute(text("""
-            INSERT INTO public.notifications (destination, "data", "date", status)
-            VALUES ('ignis', :data, :date, NULL)
-        """), {'data': json.dumps(payload), 'date': now_utc})
-        session.commit()
-        print("[INFO] Notificación insertada correctamente.")
-    except Exception as e:
-        session.rollback()
-        print(f"[ERROR] Error al insertar la notificación: {e}")
-        raise
-    finally:
-        session.close()
-        print("[INFO] Sesión de base de datos cerrada.")
+#     try:
+#         print("[INFO] Insertando notificación en base de datos...")
+#         session.execute(text("""
+#             INSERT INTO public.notifications (destination, "data", "date", status)
+#             VALUES ('ignis', :data, :date, NULL)
+#         """), {'data': json.dumps(payload), 'date': now_utc})
+#         session.commit()
+#         print("[INFO] Notificación insertada correctamente.")
+#     except Exception as e:
+#         session.rollback()
+#         print(f"[ERROR] Error al insertar la notificación: {e}")
+#         raise
+#     finally:
+#         session.close()
+#         print("[INFO] Sesión de base de datos cerrada.")
 
-    print("[INFO] Notificación enviada al frontend.")
+#     print("[INFO] Notificación enviada al frontend.")
 
 
 
