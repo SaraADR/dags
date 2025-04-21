@@ -326,8 +326,8 @@ def process_outputs(**context):
     import pandas as pd
 
     print("[INFO] Iniciando ejecución de process_outputs...")
-    print("Contenido del json:" + json_content)
     json_content = context['ti'].xcom_pull(key='json_content')
+    print(f"[INFO] JSON content: {json_content}")
     json_filename = context['ti'].xcom_pull(key='json_filename')
     local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
     assignment_id = context['ti'].xcom_pull(key='assignment_id')
