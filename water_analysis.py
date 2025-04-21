@@ -130,7 +130,7 @@ def process_extracted_files(**kwargs):
     xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
-    link_geoserver_wms_to_metadata(resources_id, layer_name, workspace, base_url)
+    #link_geoserver_wms_to_metadata(resources_id, layer_name, workspace, base_url)
 
 
 
