@@ -15,6 +15,7 @@ import tempfile
 import base64
 import json
 import csv
+import pandas as pd
 import requests
 import paramiko
 import pytz
@@ -323,8 +324,7 @@ def run_and_download_algorithm(**context):
 # Eliminar carpeta de ejecución
 
 def process_outputs(**context):
-    import pandas as pd
-
+   
     print("[INFO] Iniciando ejecución de process_outputs...")
     json_content = context['ti'].xcom_pull(task_ids='fetch_results_from_einforex', key='einforex_result')
     print(f"[INFO] JSON content: {json_content}")
@@ -366,7 +366,12 @@ def process_outputs(**context):
         if not intervals or not aircrafts:
             raise ValueError("[ERROR] El JSON no contiene intervals o aircrafts válidos")
 
-        headers = [f"{i['since']} - {i['until']}" for i in intervals]
+        # Formateo estético: convertir intervalos de milisegundos a HH:MM:SS
+        headers = [
+            f"{datetime.utcfromtimestamp(i['since'] / 1000).strftime('%H:%M:%S')} - "
+            f"{datetime.utcfromtimestamp(i['until'] / 1000).strftime('%H:%M:%S')}"
+            for i in intervals
+        ]
         table_data = {aircraft: [] for aircraft in aircrafts}
         for i in intervals:
             active = i.get("aircrafts", [])
@@ -395,8 +400,6 @@ def process_outputs(**context):
         # Historial en BBDD
         session = get_db_session()
         madrid_tz = pytz.timezone('Europe/Madrid')
-
-        # Aseguramos que sampled_feature sea un entero o None (no string como 'unknown')
         assignment_id = output_data.get("assignmentId")
         sampled_feature = int(assignment_id) if assignment_id is not None else None
 
@@ -415,7 +418,6 @@ def process_outputs(**context):
         })
         session.commit()
 
-
         # Notificación al frontend
         result = session.execute(text("""
             INSERT INTO public.notifications (destination, "data", "date", status)
@@ -425,28 +427,27 @@ def process_outputs(**context):
         job_id = result.scalar()
 
         payload = {
-        "to": user,
-        "actions": [
-            
-            {
-                "type": "loadTable",
-                "data": {
-                    "url": csv_url,
-                    "button": {
-                        "key": "openPlanner",
-                        "data": json_url
-                    },
-                    "title": "Planificación de aeronaves",
+            "to": user,
+            "actions": [
+                {
+                    "type": "loadTable",
+                    "data": {
+                        "url": csv_url,
+                        "button": {
+                            "key": "openPlanner",
+                            "data": json_url
+                        },
+                        "title": "Planificación de aeronaves",
+                    }
+                },
+                {
+                    "type": "notify",
+                    "data": {
+                        "message": f"Resultados del algoritmo disponibles. ID: {job_id}"
+                    }
                 }
-            },
-            {
-                "type": "notify",
-                "data": {
-                    "message": f"Resultados del algoritmo disponibles. ID: {job_id}"
-                }
-            }
-        ]
-    }
+            ]
+        }
 
         session.execute(text("""
             UPDATE public.notifications SET data = :data WHERE id = :id
@@ -471,6 +472,7 @@ def process_outputs(**context):
             os.remove(local_csv_path)
 
     print("[INFO] Finalizada ejecución de process_outputs.")
+
 
 
 
