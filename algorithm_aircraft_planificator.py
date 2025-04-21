@@ -395,6 +395,11 @@ def process_outputs(**context):
         # Historial en BBDD
         session = get_db_session()
         madrid_tz = pytz.timezone('Europe/Madrid')
+
+        # Aseguramos que sampled_feature sea un entero o None (no string como 'unknown')
+        assignment_id = output_data.get("assignmentId")
+        sampled_feature = int(assignment_id) if assignment_id is not None else None
+
         session.execute(text("""
             INSERT INTO algoritmos.algoritmo_aircraft_planificator (
                 sampled_feature, result_time, phenomenon_time, input_data, output_data
@@ -402,13 +407,14 @@ def process_outputs(**context):
                 :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
             )
         """), {
-            "sampled_feature": output_data.get("assignmentId", "unknown"),
+            "sampled_feature": sampled_feature,
             "result_time": datetime.now(madrid_tz),
             "phenomenon_time": datetime.now(madrid_tz),
             "input_data": json.dumps({}, ensure_ascii=False),
             "output_data": json.dumps(output_data, ensure_ascii=False)
         })
         session.commit()
+
 
         # Notificación al frontend
         result = session.execute(text("""
