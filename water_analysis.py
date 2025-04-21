@@ -123,14 +123,14 @@ def process_extracted_files(**kwargs):
 
 
     #Subimos a Geoserver el tif y ambos shapes
-    publish_to_geoserver(archivos)
+    layer_name, workspace, base_url = publish_to_geoserver(archivos)
 
 
     #integramos con geonetwork
     xml_data = generate_dynamic_xml(json_content)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
-
+    link_geoserver_wms_to_metadata(resources_id, layer_name, workspace, base_url)
 
 
 
@@ -275,7 +275,7 @@ def publish_to_geoserver(archivos, **context):
     #set_geoserver_style("SeaFloor", base_url, auth, "SeaFloorStyle")
 
     print("----Publicación en GeoServer completada exitosamente.----")
-
+    return layer_name, WORKSPACE, base_url
 
 
 
@@ -496,7 +496,39 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                     logging.info(f"Recurso subido correctamente para {uuid}")
 
 
+def link_geoserver_wms_to_metadata(resource_ids, layer_name, workspace, geoserver_url):
+    connection = BaseHook.get_connection("geonetwork_update_conn")
+    access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
+    wms_url = f"{geoserver_url}/geoserver/{workspace}/wms"
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "x-xsrf-token": xsrf_token,
+        "Cookie": set_cookie_header[0],
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    link_fragment = {
+        "protocol": "OGC:WMS",
+        "name": f"{workspace}:{layer_name}",
+        "description": "Servicio WMS generado dinámicamente",
+        "url": wms_url
+    }
+
+    for uuid in resource_ids:
+        response = requests.post(
+            f"{connection.schema}{connection.host}/geonetwork/srv/api/records/{uuid}/links",
+            json=link_fragment,
+            headers=headers
+        )
+
+        if response.status_code not in [200, 201]:
+            logging.error(f"Error al vincular WMS al metadato {uuid}: {response.status_code} {response.text}")
+            raise Exception("Fallo al vincular WMS")
+        else:
+            logging.info(f"WMS vinculado correctamente a {uuid}")
 
 
 
