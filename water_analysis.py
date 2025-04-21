@@ -359,7 +359,9 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
     print(workspace)
     print(layer_name)
     print(base_url)
-    url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
+    #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
+    url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
+
 
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
@@ -500,13 +502,13 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         <gmd:onLine>
             <gmd:CI_OnlineResource>
                 <gmd:linkage>
-                <gmd:URL>{url_geoserver}</gmd:URL>
+                    <gmd:URL>{url_geoserver}</gmd:URL>
                 </gmd:linkage>
                 <gmd:protocol>
-                <gco:CharacterString>OGC:WMS</gco:CharacterString>
+                    <gco:CharacterString>OGC:WMS</gco:CharacterString>
                 </gmd:protocol>
                 <gmd:name>
-                <gco:CharacterString>WaterAnalysis</gco:CharacterString>
+                    <gco:CharacterString>{layer_name}</gco:CharacterString>
                 </gmd:name>
             </gmd:CI_OnlineResource>
         </gmd:onLine>
@@ -587,7 +589,7 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
         for archivo in archivos:
             archivo_file_name = os.path.basename(archivo['file_name'])
             archivo_content = base64.b64decode(archivo['content'])
-            print("-------------------- XXX  -------------------------")
+            print("--------------------  XXX  ------------------------")
             print(archivo_file_name)
             print(resource_ids)
 
