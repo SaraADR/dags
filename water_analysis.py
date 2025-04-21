@@ -485,8 +485,11 @@ def upload_to_geonetwork_xml(xml_data_array):
                     'Cookie': str(set_cookie_header[0]),
                     'Accept': 'application/json'
                 }
+                params = {
+                    "uuidProcessing": "OVERWRITE"
+                }
 
-                response = requests.post(upload_url, files=files, headers=headers)
+                response = requests.post(upload_url, files=files, headers=headers , params=params)
                 logging.info(f"Respuesta completa de GeoNetwork: {response.status_code}, {response.text}")
 
                 response.raise_for_status()
