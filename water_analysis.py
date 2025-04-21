@@ -365,7 +365,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         if metadata['name'] == 'ExecutionID':
             file_identifier = metadata['value']
         elif metadata['name'] == 'AlgorithmID':
-            title = metadata['value']
+            title = metadata['value'] + datetime.now().strftime('%Y%m%d_%H%M%S')
 
 
     date = json_modificado['endTimestamp']
@@ -402,6 +402,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         <gmd:dateStamp>
             <gco:Date>{date}</gco:Date>
         </gmd:dateStamp>
+        
 
         <gmd:contact>
             <gmd:CI_ResponsibleParty>
@@ -488,10 +489,27 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         <gmd:graphicOverview>
             <gmd:MD_BrowseGraphic>
                 <gmd:fileName>
-                    <gco:CharacterString>{url_geoserver}</gco:CharacterString>
+                <gco:CharacterString>{url_geoserver}</gco:CharacterString>
                 </gmd:fileName>
+                <gmd:fileDescription>
+                <gco:CharacterString>Vista previa</gco:CharacterString>
+                </gmd:fileDescription>
             </gmd:MD_BrowseGraphic>
         </gmd:graphicOverview>
+
+        <gmd:onLine>
+            <gmd:CI_OnlineResource>
+                <gmd:linkage>
+                <gmd:URL>{url_geoserver}</gmd:URL>
+                </gmd:linkage>
+                <gmd:protocol>
+                <gco:CharacterString>OGC:WMS</gco:CharacterString>
+                </gmd:protocol>
+                <gmd:name>
+                <gco:CharacterString>WaterAnalysis</gco:CharacterString>
+                </gmd:name>
+            </gmd:CI_OnlineResource>
+        </gmd:onLine>
     </gmd:MD_Metadata>
 
     """
