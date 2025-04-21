@@ -419,22 +419,28 @@ def process_outputs(**context):
         job_id = result.scalar()
 
         payload = {
-            "to": user,
-            "actions": [
-                {
-                    "type": "loadTable",
-                    "data": {
-                        "url": csv_url
-                    }
-                },
-                {
-                    "type": "notify",
-                    "data": {
-                        "message": f"Tabla de planificación disponible. ID: {job_id}"
-                    }
+        "to": user,
+        "actions": [
+            
+            {
+                "type": "loadTable",
+                "data": {
+                    "url": csv_url,
+                    "button": {
+                        "key": "openPlanner",
+                        "data": json_url
+                    },
+                    "title": "Planificación de aeronaves",
                 }
-            ]
-        }
+            },
+            {
+                "type": "notify",
+                "data": {
+                    "message": f"Resultados del algoritmo disponibles. ID: {job_id}"
+                }
+            }
+        ]
+    }
 
         session.execute(text("""
             UPDATE public.notifications SET data = :data WHERE id = :id
