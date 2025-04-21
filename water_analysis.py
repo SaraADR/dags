@@ -587,8 +587,9 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
         for archivo in archivos:
             archivo_file_name = os.path.basename(archivo['file_name'])
             archivo_content = base64.b64decode(archivo['content'])
-
+            print("-------------------- XXX  -------------------------")
             print(archivo_file_name)
+            print(resource_ids)
 
             ext = os.path.splitext(archivo_file_name)[1].lower()
             mime_type = {
