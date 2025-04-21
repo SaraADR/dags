@@ -402,7 +402,7 @@ def process_outputs(**context):
                 :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
             )
         """), {
-            "sampled_feature": assignment_id or "planificador",
+            "sampled_feature": output_data.get("assignmentId", "unknown"),
             "result_time": datetime.now(madrid_tz),
             "phenomenon_time": datetime.now(madrid_tz),
             "input_data": json.dumps({}, ensure_ascii=False),
