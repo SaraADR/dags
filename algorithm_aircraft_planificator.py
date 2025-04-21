@@ -15,13 +15,13 @@ import tempfile
 import base64
 import json
 import csv
-import pandas as pd
 import requests
 import paramiko
 import pytz
 from sqlalchemy import text
 from dag_utils import get_minio_client, get_db_session
 from requests.auth import HTTPBasicAuth
+import pandas as pd
 
 # Constantes
 EINFOREX_ROUTE = "/atcServices/rest/ResourcePlanningAlgorithmExecutionService/save"
@@ -324,7 +324,7 @@ def run_and_download_algorithm(**context):
 # Eliminar carpeta de ejecución
 
 def process_outputs(**context):
-
+    
     print("[INFO] Iniciando ejecución de process_outputs...")
 
     json_content = context['ti'].xcom_pull(key='json_content')
@@ -430,8 +430,7 @@ def process_outputs(**context):
                     "data": {
                         "message": f"Tabla de planificación disponible. ID: {job_id}"
                     }
-                },
-                
+                }
             ]
         }
 
@@ -459,6 +458,41 @@ def process_outputs(**context):
 
     print("[INFO] Finalizada ejecución de process_outputs.")
 
+
+def fetch_results_from_einforex(**context):
+    from requests.auth import HTTPBasicAuth
+
+    print("[INFO] Iniciando fetch_results_from_einforex...")
+
+
+    # # planning_id = context['ti'].xcom_pull(task_ids='prepare_and_upload_input', key='planning_id')
+    # if not planning_id:
+    #     raise ValueError("[ERROR] No se encontró planning_id en XCom")
+    
+    planning_id = 1466
+
+    connection = BaseHook.get_connection('einforex_planning_url')
+    url = f"{connection.host}/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}"
+    username = connection.login
+    password = connection.password
+
+    print(f"[INFO] Llamando a EINFOREX para resultados con ID: {planning_id}")
+    print(f"[INFO] URL: {url}")
+
+    try:
+        response = requests.get(url, auth=HTTPBasicAuth(username, password), timeout=30)
+        response.raise_for_status()
+        result_data = response.json()
+
+        print("[INFO] Resultados del algoritmo obtenidos correctamente.")
+        print("[INFO] Ejemplo de resultado:")
+        print(json.dumps(result_data, indent=2))
+
+        context['ti'].xcom_push(key='einforex_result', value=result_data)
+
+    except Exception as e:
+        print(f"[ERROR] Fallo al obtener resultados desde EINFOREX: {e}")
+        raise
 
 # Definición de la función para notificar al frontend y guardar en la base de datos
 
