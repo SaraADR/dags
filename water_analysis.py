@@ -359,7 +359,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
     print(workspace)
     print(layer_name)
     print(base_url)
-    url_geoserver = f"{base_url}/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
+    url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
 
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
