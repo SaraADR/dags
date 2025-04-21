@@ -127,7 +127,7 @@ def process_extracted_files(**kwargs):
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
     link_geoserver_wms_to_metadata(resources_id, layer_name, workspace, base_url)
@@ -352,33 +352,65 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
 
     file_identifier = ""
     title = ""
+    print(workspace)
+    print(layer_name)
+    print(base_url)
+    url_geoserver = f"{base_url}/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
 
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
             file_identifier = metadata['value']
-            break
-        if metadata['name'] == 'AlgorithmID':
+        elif metadata['name'] == 'AlgorithmID':
             title = metadata['value']
-            break
+
 
     date = json_modificado['endTimestamp']
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-    <gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
-                    xmlns:gco="http://www.isotc211.org/2005/gco"
-                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xsi:schemaLocation="http://www.isotc211.org/2005/gmd
-                    http://schemas.opengis.net/iso/19139/20070417/gmd/gmd.xsd">
+    <gmd:MD_Metadata 
+        xmlns:gmd="http://www.isotc211.org/2005/gmd"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:gco="http://www.isotc211.org/2005/gco"
+        xmlns:srv="http://www.isotc211.org/2005/srv"
+        xmlns:gmx="http://www.isotc211.org/2005/gmx"
+        xmlns:gts="http://www.isotc211.org/2005/gts"
+        xmlns:gsr="http://www.isotc211.org/2005/gsr"
+        xmlns:gmi="http://www.isotc211.org/2005/gmi"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:xlink="http://www.w3.org/1999/xlink"
+        xsi:schemaLocation="http://www.isotc211.org/2005/gmd 
+                            http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd">
+
     <gmd:fileIdentifier>
         <gco:CharacterString>{file_identifier}</gco:CharacterString>
     </gmd:fileIdentifier>
+
     <gmd:dateStamp>
         <gco:Date>{date}</gco:Date>
     </gmd:dateStamp>
+
+    <gmd:language>
+        <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/"
+                          codeListValue="spa">spa</gmd:LanguageCode>
+    </gmd:language>
+
+
+    <gmd:referenceSystemInfo>
+        <gmd:MD_ReferenceSystem>
+            <gmd:referenceSystemIdentifier>
+                <gmd:RS_Identifier>
+                    <gmd:code>
+                        <gco:CharacterString>EPSG:4326</gco:CharacterString>
+                    </gmd:code>
+                </gmd:RS_Identifier>
+            </gmd:referenceSystemIdentifier>
+        </gmd:MD_ReferenceSystem>
+    </gmd:referenceSystemInfo>
+
     <gmd:identificationInfo>
         <gmd:MD_DataIdentification>
         <gmd:citation>
@@ -390,7 +422,40 @@ def generate_dynamic_xml(json_modificado):
         </gmd:citation>
         </gmd:MD_DataIdentification>
     </gmd:identificationInfo>
+
+    <gmd:descriptiveKeywords>
+        <gmd:MD_Keywords>
+            <gmd:keyword>
+                <gco:CharacterString>GeoNetwork</gco:CharacterString>
+            </gmd:keyword>
+            <gmd:keyword>
+                <gco:CharacterString>Metadatos</gco:CharacterString>
+            </gmd:keyword>
+            <gmd:type>
+                <gmd:MD_KeywordTypeCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_KeywordTypeCode"
+                                        codeListValue="theme">theme</gmd:MD_KeywordTypeCode>
+            </gmd:type>
+        </gmd:MD_Keywords>
+    </gmd:descriptiveKeywords>
     </gmd:MD_Metadata>
+
+    <gmd:resourceConstraints>
+    <gmd:MD_LegalConstraints>
+        <gmd:otherConstraints>
+            <gco:CharacterString>Acceso en línea</gco:CharacterString>
+        </gmd:otherConstraints>
+    </gmd:MD_LegalConstraints>
+</gmd:resourceConstraints>
+
+<gmd:graphicOverview>
+    <gmd:MD_BrowseGraphic>
+        <gmd:fileName>
+            <gco:CharacterString>{url_geoserver}</gco:CharacterString>
+        </gmd:fileName>
+    </gmd:MD_BrowseGraphic>
+</gmd:graphicOverview>
+
+
     """
     print(xml)
     xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
