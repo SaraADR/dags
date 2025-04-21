@@ -356,7 +356,7 @@ def process_outputs(**context):
         s3_client.upload_file(tmp_file_path, bucket, key_current)
         s3_client.upload_file(tmp_file_path, bucket, key_historic)
 
-        json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
+        json_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{key_current}"
         context['ti'].xcom_push(key='json_url', value=json_url)
 
         output_data = json_content 
@@ -382,14 +382,14 @@ def process_outputs(**context):
 
         csv_key = f"{folder}/outputs/{csv_filename}"
         s3_client.upload_file(local_csv_path, bucket, csv_key)
-        csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
+        csv_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{csv_key}"
         context['ti'].xcom_push(key='csv_url', value=csv_url)
 
         # Payload opcional
         if local_payload_json and os.path.exists(local_payload_json):
             payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
             s3_client.upload_file(local_payload_json, bucket, payload_key)
-            payload_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{payload_key}"
+            payload_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{payload_key}"
             context['ti'].xcom_push(key='payload_json_url', value=payload_url)
 
         # Historial en BBDD
