@@ -326,8 +326,7 @@ def process_outputs(**context):
     import pandas as pd
 
     print("[INFO] Iniciando ejecución de process_outputs...")
-
-    # Recuperar datos del contexto de Airflow
+    print("Contenido del json:" + json_content)
     json_content = context['ti'].xcom_pull(key='json_content')
     json_filename = context['ti'].xcom_pull(key='json_filename')
     local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
@@ -343,8 +342,11 @@ def process_outputs(**context):
     timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
     session = None
+    tmp_file_path = None
+    local_csv_path = None  
+
     try:
-        # Guardar el JSON original en MinIO (actual y copia histórica)
+        # Guardar JSON en archivo temporal
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
             tmp_file.write(json_content)
             tmp_file_path = tmp_file.name
@@ -357,7 +359,7 @@ def process_outputs(**context):
         json_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{key_current}"
         context['ti'].xcom_push(key='json_url', value=json_url)
 
-        # === Construcción del CSV tipo tabla: aeronaves vs intervalos ===
+        # === PROCESAR JSON ===
         output_data = json.loads(json_content)
         intervals = output_data.get("resourcePlanningResult", [])
         aircrafts = list(set(output_data.get("availableAircrafts", [])))
@@ -365,10 +367,7 @@ def process_outputs(**context):
         if not intervals or not aircrafts:
             raise ValueError("[ERROR] El JSON no contiene intervals o aircrafts válidos")
 
-        # Construir columnas con el formato legible de intervalos
         headers = [f"{i['since']} - {i['until']}" for i in intervals]
-
-        # Crear matriz aeronaves x intervalos, con YES/NO
         table_data = {aircraft: [] for aircraft in aircrafts}
         for i in intervals:
             active = i.get("aircrafts", [])
@@ -377,25 +376,24 @@ def process_outputs(**context):
 
         df = pd.DataFrame(table_data, index=headers).transpose()
 
-        # Guardar tabla como CSV
+        # Guardar como CSV
         csv_filename = json_filename.replace('.json', '_table.csv')
         local_csv_path = f"/tmp/{csv_filename}"
         df.to_csv(local_csv_path)
 
-        # Subir CSV a MinIO
         csv_key = f"{folder}/outputs/{csv_filename}"
         s3_client.upload_file(local_csv_path, bucket, csv_key)
         csv_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{csv_key}"
         context['ti'].xcom_push(key='csv_url', value=csv_url)
 
-        # Subir payload si existe
+        # Payload opcional
         if local_payload_json and os.path.exists(local_payload_json):
             payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
             s3_client.upload_file(local_payload_json, bucket, payload_key)
             payload_url = f"https://minio.avincis.cuatrodigital.com/{bucket}/{payload_key}"
             context['ti'].xcom_push(key='payload_json_url', value=payload_url)
 
-        # Guardar en histórico en base de datos
+        # Historial en BBDD
         session = get_db_session()
         madrid_tz = pytz.timezone('Europe/Madrid')
         session.execute(text("""
@@ -454,16 +452,14 @@ def process_outputs(**context):
     finally:
         if session:
             session.close()
-        if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
+        if tmp_file_path and os.path.exists(tmp_file_path):
             os.remove(tmp_file_path)
         if local_payload_json and os.path.exists(local_payload_json):
             os.remove(local_payload_json)
-        if os.path.exists(local_csv_path):
+        if local_csv_path and os.path.exists(local_csv_path):
             os.remove(local_csv_path)
 
     print("[INFO] Finalizada ejecución de process_outputs.")
-
-
 
 
 
