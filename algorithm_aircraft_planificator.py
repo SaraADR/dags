@@ -343,7 +343,7 @@ def process_outputs(**context):
 
     session = None
     tmp_file_path = None
-    local_csv_path = None  
+    local_csv_path = None
 
     try:
         # Guardar JSON en archivo temporal
@@ -359,14 +359,19 @@ def process_outputs(**context):
         json_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{key_current}"
         context['ti'].xcom_push(key='json_url', value=json_url)
 
-        output_data = json_content 
+        output_data = json_content
         intervals = output_data.get("resourcePlanningResult", [])
         aircrafts = list(set(output_data.get("availableAircrafts", [])))
 
         if not intervals or not aircrafts:
             raise ValueError("[ERROR] El JSON no contiene intervals o aircrafts válidos")
 
-        headers = [f"{i['since']} - {i['until']}" for i in intervals]
+        # Crear tabla de resultados
+        headers = [
+            f"{datetime.utcfromtimestamp(i['since'] / 1000).strftime('%H:%M:%S')} - "
+            f"{datetime.utcfromtimestamp(i['until'] / 1000).strftime('%H:%M:%S')}"
+            for i in intervals
+        ]
         table_data = {aircraft: [] for aircraft in aircrafts}
         for i in intervals:
             active = i.get("aircrafts", [])
@@ -395,8 +400,6 @@ def process_outputs(**context):
         # Historial en BBDD
         session = get_db_session()
         madrid_tz = pytz.timezone('Europe/Madrid')
-
-        # Aseguramos que sampled_feature sea un entero o None (no string como 'unknown')
         assignment_id = output_data.get("assignmentId")
         sampled_feature = int(assignment_id) if assignment_id is not None else None
 
@@ -415,7 +418,6 @@ def process_outputs(**context):
         })
         session.commit()
 
-
         # Notificación al frontend
         result = session.execute(text("""
             INSERT INTO public.notifications (destination, "data", "date", status)
@@ -425,25 +427,23 @@ def process_outputs(**context):
         job_id = result.scalar()
 
         payload = {
-        "to": user,
-        "actions": [
-            
-            {
-                "type": "loadTable",
-                "data": {
-                    "url": csv_url,
-
-                    "title": "Planificación de aeronaves",
+            "to": user,
+            "actions": [
+                {
+                    "type": "loadTable",
+                    "data": {
+                        "url": csv_url,
+                        "title": "Planificación de aeronaves"
+                    }
+                },
+                {
+                    "type": "notify",
+                    "data": {
+                        "message": f"Resultados del algoritmo disponibles. ID: {job_id}"
+                    }
                 }
-            },
-            {
-                "type": "notify",
-                "data": {
-                    "message": f"Resultados del algoritmo disponibles. ID: {job_id}"
-                }
-            }
-        ]
-    }
+            ]
+        }
 
         session.execute(text("""
             UPDATE public.notifications SET data = :data WHERE id = :id
@@ -468,6 +468,7 @@ def process_outputs(**context):
             os.remove(local_csv_path)
 
     print("[INFO] Finalizada ejecución de process_outputs.")
+
 
 
 
