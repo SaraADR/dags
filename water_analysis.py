@@ -365,7 +365,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         if metadata['name'] == 'ExecutionID':
             file_identifier = metadata['value']
         elif metadata['name'] == 'AlgorithmID':
-            title = metadata['value'] + datetime.now().strftime('%Y%m%d_%H%M%S')
+            title = metadata['value'] + ' ' + datetime.now().strftime('%Y%m%d_%H%M%S')
 
 
     date = json_modificado['endTimestamp']
@@ -587,6 +587,8 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
         for archivo in archivos:
             archivo_file_name = os.path.basename(archivo['file_name'])
             archivo_content = base64.b64decode(archivo['content'])
+
+            print(archivo_file_name)
 
             ext = os.path.splitext(archivo_file_name)[1].lower()
             mime_type = {
