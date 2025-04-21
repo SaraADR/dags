@@ -15,6 +15,7 @@ import tempfile
 import base64
 import json
 import csv
+import pandas as pd
 import requests
 import paramiko
 import pytz
@@ -323,11 +324,11 @@ def run_and_download_algorithm(**context):
 # Eliminar carpeta de ejecución
 
 def process_outputs(**context):
-    import pandas as pd
+    
 
     print("[INFO] Iniciando ejecución de process_outputs...")
-    json_content = context['ti'].xcom_pull(task_ids='fetch_results_from_einforex', key='einforex_result')
-    print(f"[INFO] JSON content: {json_content}")
+
+    json_content = context['ti'].xcom_pull(key='json_content')
     json_filename = context['ti'].xcom_pull(key='json_filename')
     local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
     assignment_id = context['ti'].xcom_pull(key='assignment_id')
@@ -341,14 +342,16 @@ def process_outputs(**context):
     folder = MINIO_FOLDER
     timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 
-    session = None
-    tmp_file_path = None
-    local_csv_path = None  
+    def build_minio_url(bucket, key):
+        extra = BaseHook.get_connection('minio_conn').extra_dejson
+        endpoint = extra['endpoint_url']
+        return f"{endpoint.rstrip('/')}/{bucket}/{key}"
 
+    session = None
+    local_csv_path = None
     try:
-        # Guardar JSON en archivo temporal
         with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
-            tmp_file.write(json.dumps(json_content, ensure_ascii=False))
+            tmp_file.write(json.dumps(json_content) if isinstance(json_content, dict) else json_content)
             tmp_file_path = tmp_file.name
 
         key_current = f"{folder}/jsons/{json_filename}"
@@ -356,18 +359,23 @@ def process_outputs(**context):
         s3_client.upload_file(tmp_file_path, bucket, key_current)
         s3_client.upload_file(tmp_file_path, bucket, key_historic)
 
-        json_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{key_current}"
+        json_url = build_minio_url(bucket, key_current)
         context['ti'].xcom_push(key='json_url', value=json_url)
 
-        output_data = json_content 
+        # Procesar JSON a CSV tipo tabla
+        output_data = json.loads(json_content) if isinstance(json_content, str) else json_content
         intervals = output_data.get("resourcePlanningResult", [])
         aircrafts = list(set(output_data.get("availableAircrafts", [])))
 
         if not intervals or not aircrafts:
             raise ValueError("[ERROR] El JSON no contiene intervals o aircrafts válidos")
 
-        headers = [f"{i['since']} - {i['until']}" for i in intervals]
+        def format_interval(ms):
+            return datetime.utcfromtimestamp(ms / 1000).strftime('%H:%M:%S')
+
+        headers = [f"{format_interval(i['since'])} - {format_interval(i['until'])}" for i in intervals]
         table_data = {aircraft: [] for aircraft in aircrafts}
+
         for i in intervals:
             active = i.get("aircrafts", [])
             for aircraft in aircrafts:
@@ -375,31 +383,26 @@ def process_outputs(**context):
 
         df = pd.DataFrame(table_data, index=headers).transpose()
 
-        # Guardar como CSV
+        # Guardar CSV
         csv_filename = json_filename.replace('.json', '_table.csv')
         local_csv_path = f"/tmp/{csv_filename}"
         df.to_csv(local_csv_path)
 
         csv_key = f"{folder}/outputs/{csv_filename}"
         s3_client.upload_file(local_csv_path, bucket, csv_key)
-        csv_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{csv_key}"
+        csv_url = build_minio_url(bucket, csv_key)
         context['ti'].xcom_push(key='csv_url', value=csv_url)
 
-        # Payload opcional
+        # Subir payload si aplica
         if local_payload_json and os.path.exists(local_payload_json):
             payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
             s3_client.upload_file(local_payload_json, bucket, payload_key)
-            payload_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{payload_key}"
+            payload_url = build_minio_url(bucket, payload_key)
             context['ti'].xcom_push(key='payload_json_url', value=payload_url)
 
-        # Historial en BBDD
+        # Insertar en base de datos
         session = get_db_session()
         madrid_tz = pytz.timezone('Europe/Madrid')
-
-        # Aseguramos que sampled_feature sea un entero o None (no string como 'unknown')
-        assignment_id = output_data.get("assignmentId")
-        sampled_feature = int(assignment_id) if assignment_id is not None else None
-
         session.execute(text("""
             INSERT INTO algoritmos.algoritmo_aircraft_planificator (
                 sampled_feature, result_time, phenomenon_time, input_data, output_data
@@ -407,7 +410,7 @@ def process_outputs(**context):
                 :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
             )
         """), {
-            "sampled_feature": sampled_feature,
+            "sampled_feature": output_data.get("assignmentId", 0),
             "result_time": datetime.now(madrid_tz),
             "phenomenon_time": datetime.now(madrid_tz),
             "input_data": json.dumps({}, ensure_ascii=False),
@@ -415,8 +418,6 @@ def process_outputs(**context):
         })
         session.commit()
 
-
-        # Notificación al frontend
         result = session.execute(text("""
             INSERT INTO public.notifications (destination, "data", "date", status)
             VALUES ('ignis', '{}', :date, NULL)
@@ -425,33 +426,18 @@ def process_outputs(**context):
         job_id = result.scalar()
 
         payload = {
-        "to": user,
-        "actions": [
-            
-            {
-                "type": "loadTable",
-                "data": {
-                    "url": csv_url,
-                    "button": {
-                        "key": "openPlanner",
-                        "data": json_url
-                    },
-                    "title": "Planificación de aeronaves",
-                }
-            },
-            {
-                "type": "notify",
-                "data": {
-                    "message": f"Resultados del algoritmo disponibles. ID: {job_id}"
-                }
-            }
-        ]
-    }
+            "to": user,
+            "actions": [
+                {"type": "loadTable", "data": {"url": csv_url}},
+                {"type": "notify", "data": {"message": f"Tabla de planificación disponible. ID: {job_id}"}}
+            ]
+        }
 
         session.execute(text("""
             UPDATE public.notifications SET data = :data WHERE id = :id
         """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
         session.commit()
+
         print("[INFO] Notificación al frontend registrada.")
 
     except Exception as e:
@@ -463,7 +449,7 @@ def process_outputs(**context):
     finally:
         if session:
             session.close()
-        if tmp_file_path and os.path.exists(tmp_file_path):
+        if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
             os.remove(tmp_file_path)
         if local_payload_json and os.path.exists(local_payload_json):
             os.remove(local_payload_json)
@@ -471,6 +457,7 @@ def process_outputs(**context):
             os.remove(local_csv_path)
 
     print("[INFO] Finalizada ejecución de process_outputs.")
+
 
 
 
