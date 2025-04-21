@@ -449,7 +449,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
                             <gco:CharacterString>{title}</gco:CharacterString>
                         </gmd:title>
 
-                        <!-- ✅ FECHA DE PUBLICACIÓN -->
+
                         <gmd:date>
                             <gmd:CI_Date>
                                 <gmd:date>
@@ -508,8 +508,8 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
 
         <gmd:onLine>
             <gmd:CI_OnlineResource>
-                <gmd:linkage>
-                    <gmd:URL>https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png</gmd:URL>
+                <gmd:linkage>             
+                    <gmd:URL>https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms</gmd:URL>
                 </gmd:linkage>
                 <gmd:protocol>
                     <gco:CharacterString>OGC:WMS</gco:CharacterString>
@@ -521,33 +521,12 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         </gmd:onLine>
     </gmd:MD_Metadata>
 
-    """
+    """ 
+    #<gmd:URL>https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png</gmd:URL>
     print(xml)
     xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
     return xml_encoded
 
-
-def aprobar_metadata(uuid):
-    access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-    url = f"https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records/{uuid}"
-    
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "draft": False,  # Cambia de borrador a activo
-        "approved": True # Aprueba la metadata
-    }
-
-    response = requests.put(url, json=data, headers=headers)
-
-    if response.status_code == 200:
-        print(f"✅ Metadata {uuid} aprobada correctamente.")
-    else:
-        print(f"❌ Error al aprobar metadata: {response.status_code}, {response.text}")
 
 
 def upload_to_geonetwork_xml(xml_data_array):
@@ -651,8 +630,6 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                     raise Exception("Fallo al subir el adjunto")
                 else:
                     logging.info(f"Recurso subido correctamente para {uuid}")
-
-                aprobar_metadata(uuid)
 
 
 
