@@ -302,21 +302,13 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     print(f"Capa vectorial publicada: {datastore_name}")
     print(f"🗺️  Vector disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{datastore_name}")
 
-    # Crear un directorio temporal
-    temp_dir = tempfile.mkdtemp()
-    
-    # Copiar todos los archivos del shapefile al directorio temporal
-    for original_name, temp_path in file_group:
-        nombre_archivo = os.path.basename(original_name)
-        temp_dest = os.path.join(temp_dir, nombre_archivo)
-        shutil.copy(temp_path, temp_dest)
-    
+
     shapefile_path = None
-    for original_name, _ in file_group:
+    for original_name, ruta_temporal in file_group:
         if original_name.lower().endswith(".shp"):
-            shapefile_path = os.path.join(temp_dir, original_name)
+            shapefile_path = ruta_temporal
             break
-    
+
     if not shapefile_path:
         raise Exception("No se encontró el archivo .shp dentro del grupo.")
 
@@ -330,20 +322,8 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
             "name": datastore_name,
             "title": datastore_name,
             "srs": datos["srs"],
-            "nativeBoundingBox": {
-                "minx": datos["bounding_box"]["minx"],
-                "miny": datos["bounding_box"]["miny"],
-                "maxx": datos["bounding_box"]["maxx"],
-                "maxy": datos["bounding_box"]["maxy"],
-                "crs": datos["srs"]
-            },
-            "latLonBoundingBox": {
-                "minx": datos["bounding_box"]["minx"],
-                "miny": datos["bounding_box"]["miny"],
-                "maxx": datos["bounding_box"]["maxx"],
-                "maxy": datos["bounding_box"]["maxy"],
-                "crs": datos["srs"]
-            }
+            "nativeBoundingBox": datos["bounding_box"] | {"crs": datos["srs"]},
+            "latLonBoundingBox": datos["bounding_box"] | {"crs": datos["srs"]}
         }
     }
 
@@ -351,9 +331,9 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     response = requests.post(url, json=data, headers=headers, auth=auth)
 
     if response.status_code in [201, 200]:
-        print(f"✅ Capa {datastore_name} publicada correctamente en GeoServer.")
+        print(f" Capa {datastore_name} publicada correctamente en GeoServer.")
     else:
-        print(f"❌ Error al publicar la capa {datastore_name}: {response.status_code}, {response.text}")
+        print(f" Error al publicar la capa {datastore_name}: {response.status_code}, {response.text}")
 
 
 
