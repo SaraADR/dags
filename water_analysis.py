@@ -218,78 +218,63 @@ def publish_to_geoserver(archivos, **context):
     # Subida a GeoServer
     base_url, auth = get_geoserver_connection("geoserver_connection")
     temp_files = []
-    temp_dir = tempfile.mkdtemp()
-    try:
-        for archivo in archivos:
-            archivo_file_name = archivo['file_name']
-            archivo_content = base64.b64decode(archivo['content'])
-            archivo_extension = os.path.splitext(archivo_file_name)[1]
 
-            file_path = os.path.join(temp_dir, archivo_file_name)
-            with open(file_path, 'wb') as f:
-                f.write(archivo_content)
-            temp_files.append((archivo_file_name, file_path))
-             # Clasificar archivos
-        water_analysis_files = [] 
-        seafloor_files = []
+    for archivo in archivos:
+        archivo_file_name = archivo['file_name']
+        archivo_content = base64.b64decode(archivo['content'])
+        archivo_extension = os.path.splitext(archivo_file_name)[1]
 
-        for name, path in temp_files:
-            ext = os.path.splitext(name)[1].lower()
-            if ext in ('.shp', '.dbf', '.shx', '.prj', '.cpg'):
-                if "wateranalysis" in name.lower():
-                    water_analysis_files.append((name, path))
-                elif "seafloor" in name.lower():
-                    seafloor_files.append((name, path))
+        # Guardar el archivo en el sistema antes de usarlo
+        with tempfile.NamedTemporaryFile(delete=False, suffix=archivo_extension) as temp_file:
+            temp_file.write(archivo_content)
+            temp_file_path = temp_file.name  
+            temp_files.append((archivo_file_name, temp_file_path))
 
-        subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url, auth)
-        subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url, auth)
 
-        #SUBIMOS LOS TIFFS
-        tiff_files = [path for name, path in temp_files if name.lower().endswith(".tif")]
 
-        for tif_file in tiff_files:
-            with open(tif_file, 'rb') as f:
-                file_data = f.read()
-            
-            layer_name = f"USV_Water_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            headers = {"Content-type": "image/tiff"}
+    #SUBIMOS LOS TIFFS
+    tiff_files = [path for name, path in temp_files if name.lower().endswith(".tif")]
 
-            # Publicar capa raster en GeoServer
-            url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
-            response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
-            if response.status_code not in [201, 202]:
-                raise Exception(f"Error publicando {layer_name}: {response.text}")
-            print(f"Capa raster publicada: {layer_name}")
-
-            # Actualizar capa genérica
-            url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
-            response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
-            if response_latest.status_code not in [201, 202]:
-                raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
-            print(f"Capa genérica raster actualizada: {GENERIC_LAYER}")
-            print(f"Raster disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{layer_name}")
+    for tif_file in tiff_files:
+        with open(tif_file, 'rb') as f:
+            file_data = f.read()
         
-        
+        layer_name = f"USV_Water_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        headers = {"Content-type": "image/tiff"}
 
-    # #SUBIMOS LOS SHAPES
-    # water_analysis_files = []
-    # seafloor_files = []
-    # for original_name, temp_path in temp_files:
-    #     if os.path.splitext(original_name)[1].lower() in ('.shp', '.dbf', '.shx', '.prj', '.cpg'):
-    #         if "wateranalysis" in original_name.lower():
-    #             water_analysis_files.append((original_name, temp_path))
-    #         elif "seafloor" in original_name.lower():
-    #             seafloor_files.append((original_name, temp_path))
+        # Publicar capa raster en GeoServer
+        url_new = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{layer_name}/file.geotiff"
+        response = requests.put(url_new, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+        if response.status_code not in [201, 202]:
+            raise Exception(f"Error publicando {layer_name}: {response.text}")
+        print(f"Capa raster publicada: {layer_name}")
 
-    # subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url, auth)
-    # subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url, auth)
+        # Actualizar capa genérica
+        url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
+        response_latest = requests.put(url_latest, headers=headers, data=file_data, auth=auth, params={"configure": "all"})
+        if response_latest.status_code not in [201, 202]:
+            raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
+        print(f"Capa genérica raster actualizada: {GENERIC_LAYER}")
+        print(f"Raster disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{layer_name}")
+    
+    
+
+    #SUBIMOS LOS SHAPES
+    water_analysis_files = []
+    seafloor_files = []
+    for original_name, temp_path in temp_files:
+        if os.path.splitext(original_name)[1].lower() in ('.shp', '.dbf', '.shx', '.prj', '.cpg'):
+            if "wateranalysis" in original_name.lower():
+                water_analysis_files.append((original_name, temp_path))
+            elif "seafloor" in original_name.lower():
+                seafloor_files.append((original_name, temp_path))
+
+    subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url, auth)
+    subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url, auth)
     #set_geoserver_style("SeaFloor", base_url, auth, "SeaFloorStyle")
 
-        print("----Publicación en GeoServer completada exitosamente.----")
-        return layer_name, WORKSPACE, base_url
-    finally:
-        # Limpieza del directorio temporal
-        shutil.rmtree(temp_dir)
+    print("----Publicación en GeoServer completada exitosamente.----")
+    return layer_name, WORKSPACE, base_url
 
 
 
@@ -297,6 +282,8 @@ def publish_to_geoserver(archivos, **context):
 def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     if not file_group:
         return
+    
+    print(file_group)
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
@@ -315,10 +302,6 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     print(f"Capa vectorial publicada: {datastore_name}")
     print(f"🗺️  Vector disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{datastore_name}")
 
-    publicar_capa_en_geoserver(WORKSPACE, datastore_name, file_group, base_url, auth)
-
-
-def publicar_capa_en_geoserver(workspace, datastore_name, file_group, base_url, auth):
     # Crear un directorio temporal
     temp_dir = tempfile.mkdtemp()
     
@@ -339,7 +322,7 @@ def publicar_capa_en_geoserver(workspace, datastore_name, file_group, base_url, 
     # Extraer datos del shapefile
     datos = extraer_datos_shapefile(shapefile_path)
 
-    url = f"{base_url}/workspaces/{workspace}/datastores/{datastore_name}/featuretypes"
+    url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/featuretypes"
 
     data = {
         "featureType": {
@@ -370,6 +353,9 @@ def publicar_capa_en_geoserver(workspace, datastore_name, file_group, base_url, 
         print(f"✅ Capa {datastore_name} publicada correctamente en GeoServer.")
     else:
         print(f"❌ Error al publicar la capa {datastore_name}: {response.status_code}, {response.text}")
+
+
+
 
 
 def extraer_datos_shapefile(shapefile_path):
