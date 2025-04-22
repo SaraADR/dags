@@ -377,7 +377,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
      
     fecha_completa = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
     fecha = fecha_completa.date()
-    thumbnail = ''
+    thumbnail = f'https://minioapi.avincis.cuatrodigital.com/browser/missions/112255%2F8bbce105-2356-466c-b35c-0e30fd99a29c%2F20241023T103654_bathy.png'
     min_longitud = 1.0
     max_longitud = 2.0
     min_latitud = 3.0
@@ -469,6 +469,14 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         <gmd:metadataStandardVersion>
             <gco:CharacterString>1.0</gco:CharacterString>
         </gmd:metadataStandardVersion>
+
+        <gmd:graphicOverview>
+            <gmd:MD_BrowseGraphic>
+            <gmd:fileName>
+                <gco:CharacterString>${thumbnail}</gco:CharacterString>
+            </gmd:fileName>
+            </gmd:MD_BrowseGraphic>
+        </gmd:graphicOverview>
 
 
         <gmd:identificationInfo>
