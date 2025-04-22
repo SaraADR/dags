@@ -307,7 +307,8 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     
     # Copiar todos los archivos del shapefile al directorio temporal
     for original_name, temp_path in file_group:
-        temp_dest = os.path.join(temp_dir, original_name)
+        nombre_archivo = os.path.basename(original_name)
+        temp_dest = os.path.join(temp_dir, nombre_archivo)
         shutil.copy(temp_path, temp_dest)
     
     shapefile_path = None
