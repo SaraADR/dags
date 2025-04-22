@@ -11,7 +11,7 @@ import paramiko
 from airflow.models import Variable
 from airflow.hooks.base import BaseHook
 from sqlalchemy import text
-from dag_utils import get_minio_client, get_db_session
+from dag_utils import get_minio_client, get_db_session, minio_api
 from pytz import timezone
 madrid_tz = timezone('Europe/Madrid')
 now = datetime.now(madrid_tz)
@@ -92,8 +92,10 @@ def process_output_and_notify(**context):
     )
     s3_client.upload_file(csv_local_path, bucket, csv_key)
 
-    json_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{json_key}"
-    csv_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket}/{csv_key}"
+    base_url = minio_api()
+
+    json_url = f"{base_url}/{bucket}/{json_key}"
+    csv_url = f"{base_url}/{bucket}/{csv_key}"
 
     print(f"[INFO] Archivos subidos a MinIO: \n- JSON: {json_url}\n- CSV: {csv_url}")
 
