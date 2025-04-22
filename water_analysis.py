@@ -540,13 +540,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
                     </gmd:CI_ResponsibleParty>
                 </gmd:pointOfContact>
                 <gmd:resourceMaintenance/>
-                <gmd:graphicOverview>
-                    <gmd:MD_BrowseGraphic>
-                    <gmd:fileName>
-                        <gco:CharacterString>${thumbnail}</gco:CharacterString>
-                    </gmd:fileName>
-                    </gmd:MD_BrowseGraphic>
-                </gmd:graphicOverview>
+
                 <gmd:descriptiveKeywords>
                     <gmd:MD_Keywords>
                     <gmd:keyword>
