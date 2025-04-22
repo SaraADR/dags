@@ -766,7 +766,7 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                         'Content-Type': 'application/json'
                     }
 
-                    response_thumbnail = requests.post(thumbnail_url, json=payload, headers=thumbnail_headers)
+                    response_thumbnail = requests.put(thumbnail_url, json=payload, headers=thumbnail_headers)
 
                     if response_thumbnail.status_code not in [200, 201]:
                         logging.error(f"Error al establecer el thumbnail para {uuid}: {response_thumbnail.status_code} {response_thumbnail.text}")
