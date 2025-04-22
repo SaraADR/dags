@@ -19,6 +19,7 @@ import logging
 from airflow.providers.ssh.hooks.ssh import SSHHook
 import geopandas as gpd
 import rasterio
+from xml.sax.saxutils import escape
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
@@ -413,6 +414,9 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
     print(f"WMS Server TIFF: {wms_layer_tiff}")
 
 
+    wms_server_shp_escape =  escape(wms_server_shp)
+    wfs_server_shp_escape =  escape(wfs_server_shp)
+    wms_server_shp_escape =  escape(wms_server_shp)
 
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
@@ -729,7 +733,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
-                                <gmd:URL>{wms_server_shp}</gmd:URL>
+                                <gmd:URL>{wms_server_shp_escape}</gmd:URL>
                             </gmd:linkage>
                             <gmd:protocol>
                                 <gco:CharacterString>OGC:WMS</gco:CharacterString>
@@ -749,7 +753,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
-                                <gmd:URL>{wms_server_tiff}</gmd:URL>
+                                <gmd:URL>{wms_server_tiff_escape}</gmd:URL>
                             </gmd:linkage>
                             <gmd:protocol>
                                 <gco:CharacterString>OGC:WMS</gco:CharacterString>
@@ -769,7 +773,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
-                                <gmd:URL>{wfs_server_shp}</gmd:URL>
+                                <gmd:URL>{wfs_server_shp_escape}</gmd:URL>
                             </gmd:linkage>
                             <gmd:protocol>
                                 <gco:CharacterString>OGC:WFS-1.0.0-http-get-capabilities</gco:CharacterString>
