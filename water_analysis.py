@@ -400,9 +400,14 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
 
     descripcion = "Resultado del algoritmo de waterAnalysis"
 
-    #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
-    #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
-    url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png"
+    # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
+    # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
+    # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png"
+
+
+    wfs_server_shp_escaped = xml.sax.saxutils.escape(wfs_server_shp)
+    wms_server_shp_escaped = xml.sax.saxutils.escape(wms_server_shp)
+    wms_server_tiff_escaped = xml.sax.saxutils.escape(wms_server_tiff)
 
     print(f"WMS Server SHP: {wms_server_shp}")
     print(f"WFS Server SHP: {wfs_server_shp}")
@@ -706,7 +711,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
-                                <gmd:URL>{wms_server_shp}</gmd:URL>
+                                <gmd:URL>{wms_server_shp_escaped}</gmd:URL>
                             </gmd:linkage>
                             <gmd:protocol>
                                 <gco:CharacterString>OGC:WMS</gco:CharacterString>
@@ -726,7 +731,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
-                                <gmd:URL>{wms_server_tiff}</gmd:URL>
+                                <gmd:URL>{wms_server_tiff_escaped}</gmd:URL>
                             </gmd:linkage>
                             <gmd:protocol>
                                 <gco:CharacterString>OGC:WMS</gco:CharacterString>
@@ -746,7 +751,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
-                                <gmd:URL>{wfs_server_shp}</gmd:URL>
+                                <gmd:URL>{wfs_server_shp_escaped}</gmd:URL>
                             </gmd:linkage>
                             <gmd:protocol>
                                 <gco:CharacterString>OGC:WFS-1.0.0-http-get-capabilities</gco:CharacterString>
