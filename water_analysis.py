@@ -402,7 +402,7 @@ def set_geoserver_style(layer_name, base_url, auth, style_name, workspace="USV_W
 def get_geonetwork_credentials():
     try:
 
-        conn = BaseHook.get_connection('geonetwork_conn')
+        conn = BaseHook.get_connection('geonetwork_credentials')
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
@@ -608,7 +608,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
 
 def upload_to_geonetwork_xml(xml_data_array):
         try:
-            connection = BaseHook.get_connection("geonetwork_update_conn")
+            connection = BaseHook.get_connection("geonetwork_connection")
             upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
             access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
 
@@ -665,7 +665,7 @@ def upload_to_geonetwork_xml(xml_data_array):
 
 
 def upload_tiff_attachment(resource_ids, metadata_input, archivos):
-        connection = BaseHook.get_connection("geonetwork_update_conn")
+        connection = BaseHook.get_connection("geonetwork_connection")
         base_url = f"{connection.schema}{connection.host}/geonetwork/srv/api"
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
         geonetwork_url = connection.host 
