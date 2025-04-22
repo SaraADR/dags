@@ -55,6 +55,12 @@ def process_output_and_notify(**context):
     response = s3_client.get_object(Bucket=bucket, Key=test_json_key)
     output_data = json.load(response['Body'])
 
+    # Añadir missionId a cada assignment
+    for assignment in output_data.get("assignments", []):
+        fire_id = assignment.get("id")
+        mission_id = obtener_id_mision(fire_id) if fire_id else None
+        assignment["missionId"] = mission_id
+
     print(f"[INFO] JSON descargado desde MinIO")
     print(f"[DEBUG] Claves del JSON descargado: {list(output_data.keys())}")
     print(f"[DEBUG] Contenido 'assignments': {output_data.get('assignments')}")
