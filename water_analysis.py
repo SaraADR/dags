@@ -33,6 +33,7 @@ def process_extracted_files(**kwargs):
 
 
     #Extraemos el mission ID
+    uuid_key = str(uuid.uuid4())
     id_mission = None
     for metadata in json_content['metadata']:
         if metadata['name'] == 'MissionID':
@@ -126,7 +127,7 @@ def process_extracted_files(**kwargs):
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, id_mission, uuid_key)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
@@ -359,7 +360,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mission, uuid_key, url):
 
     descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
 
@@ -491,6 +492,19 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
                     </gmd:date>
                     </gmd:CI_Citation>
                 </gmd:citation>
+                <gmd:graphicOverview>
+                    <gmd:MD_BrowseGraphic>
+                        <gmd:fileName>
+                            <gco:CharacterString>{url}</gco:CharacterString>
+                        </gmd:fileName>
+                        <gmd:fileDescription>
+                            <gco:CharacterString>Vista previa del análisis de agua</gco:CharacterString>
+                        </gmd:fileDescription>
+                        <gmd:fileType>
+                            <gco:CharacterString>image/png</gco:CharacterString>
+                        </gmd:fileType>
+                    </gmd:MD_BrowseGraphic>
+                </gmd:graphicOverview>
                 <gmd:abstract>
                     <gco:CharacterString>${descripcion}</gco:CharacterString>
                 </gmd:abstract>
