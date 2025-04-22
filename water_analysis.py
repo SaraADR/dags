@@ -297,8 +297,17 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     if not file_group:
         return
     
-    print(file_group)
+    print("NN-----------------------------------------------------------NN")
+    for nombre_original, ruta_temporal in file_group:
+        logging.info(f"🔹 Archivo encontrado: {nombre_original} → {ruta_temporal}")
+    required_extensions = [".shp", ".dbf", ".shx"]
+    presentes = {os.path.splitext(name)[1].lower(): path for name, path in file_group}
 
+    for ext in required_extensions:
+        if ext not in presentes:
+            logging.warning(f"⚠️ Falta {ext} en {nombre_capa}. Esto podría causar errores.")
+    
+  
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
         for nombre_original, ruta_temporal in file_group:
