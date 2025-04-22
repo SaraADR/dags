@@ -417,6 +417,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
     wms_server_shp_escape =  escape(wms_server_shp)
     wfs_server_shp_escape =  escape(wfs_server_shp)
     wms_server_shp_escape =  escape(wms_server_shp)
+    wms_server_tiff_escape = escape(wms_server_tiff)
 
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
