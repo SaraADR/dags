@@ -137,7 +137,7 @@ def process_extracted_files(**kwargs):
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, ruta_png)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, ruta_png, uuid_key)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
@@ -370,7 +370,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_png):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_png, uuid_key):
 
     descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
 
@@ -480,12 +480,14 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_
             <gco:CharacterString>1.0</gco:CharacterString>
         </gmd:metadataStandardVersion>
 
-        <gmd:graphicOverview>
-            <gmd:MD_BrowseGraphic>
-                <gmd:fileName>
-                    <gmd:URL>{ruta_png}</gmd:URL>
-                </gmd:fileName>
-            </gmd:MD_BrowseGraphic>
+              <gmd:graphicOverview>
+        <gmd:MD_BrowseGraphic>
+            <gmd:fileName>
+            <gco:CharacterString>
+                https://minioapi.avincis.cuatrodigital.com/missions/112255/{uuid_key}/20241023T103654_bathy.png
+            </gco:CharacterString>
+            </gmd:fileName>
+        </gmd:MD_BrowseGraphic>
         </gmd:graphicOverview>
 
 
