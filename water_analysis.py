@@ -19,7 +19,7 @@ import requests
 import logging
 from airflow.providers.ssh.hooks.ssh import SSHHook
 import geopandas as gpd
-
+import shutil
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
@@ -302,17 +302,26 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
 
     publicar_capa_en_geoserver(WORKSPACE, datastore_name, file_group, base_url, auth)
 
+
 def publicar_capa_en_geoserver(workspace, datastore_name, file_group, base_url, auth):
-    # Buscar el archivo .shp para cargar con geopandas
+    # Crear un directorio temporal
+    temp_dir = tempfile.mkdtemp()
+    
+    # Copiar todos los archivos del shapefile al directorio temporal
+    for original_name, temp_path in file_group:
+        temp_dest = os.path.join(temp_dir, original_name)
+        shutil.copy(temp_path, temp_dest)
+    
     shapefile_path = None
-    for name, path in file_group:
-        if name.lower().endswith('.shp'):
-            shapefile_path = path
+    for original_name, _ in file_group:
+        if original_name.lower().endswith(".shp"):
+            shapefile_path = os.path.join(temp_dir, original_name)
             break
     
     if not shapefile_path:
-        raise Exception("No se encontró el archivo .shp en el grupo de archivos.")
-    
+        raise Exception("No se encontró el archivo .shp dentro del grupo.")
+
+    # Extraer datos del shapefile
     datos = extraer_datos_shapefile(shapefile_path)
 
     url = f"{base_url}/workspaces/{workspace}/datastores/{datastore_name}/featuretypes"
@@ -347,7 +356,7 @@ def publicar_capa_en_geoserver(workspace, datastore_name, file_group, base_url, 
     else:
         print(f"❌ Error al publicar la capa {datastore_name}: {response.status_code}, {response.text}")
 
-        
+
 def extraer_datos_shapefile(shapefile_path):
     # Cargar el shapefile
     gdf = gpd.read_file(shapefile_path)
