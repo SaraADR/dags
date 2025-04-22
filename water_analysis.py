@@ -223,14 +223,14 @@ def publish_to_geoserver(archivos, **context):
         archivo_file_name = archivo['file_name']
         archivo_content = base64.b64decode(archivo['content'])
         archivo_extension = os.path.splitext(archivo_file_name)[1]
+        nombre_base = os.path.splitext(archivo_file_name)[0]
+        temp_file_path = os.path.join("/tmp", f"{nombre_base}{archivo_extension}")
 
         # Guardar el archivo en el sistema antes de usarlo
-        with tempfile.NamedTemporaryFile(delete=False, suffix=archivo_extension) as temp_file:
+        with open(temp_file_path, 'wb') as temp_file:
             temp_file.write(archivo_content)
-            temp_file_path = temp_file.name  
-            temp_files.append((archivo_file_name, temp_file_path))
 
-
+        temp_files.append((archivo_file_name, temp_file_path))
 
     #SUBIMOS LOS TIFFS
     tiff_files = [path for name, path in temp_files if name.lower().endswith(".tif")]
