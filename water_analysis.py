@@ -760,21 +760,6 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                 else:
                     logging.info(f"Recurso subido correctamente para {uuid}")
 
-                if ext == '.png':
-
-                    url = f"{base_url}/records/{uuid}"
-
-                    data = {
-                        "thumbnail": archivo_file_name,  
-                    }
-
-                    response = requests.patch(url, json=data, headers=headers)
-
-                    if response.status_code != 200:
-                        logging.error(f"Error actualizando miniatura para {uuid}: {response.status_code} {response.text}")
-                        raise Exception("Error al actualizar la miniatura")
-                    else:
-                        logging.info(f"Miniatura asociada correctamente para el recurso {uuid}")
 
 
 # Definición del DAG
