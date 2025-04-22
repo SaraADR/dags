@@ -222,7 +222,10 @@ def publish_to_geoserver(archivos, **context):
     for archivo in archivos:
         archivo_file_name = archivo['file_name']
         archivo_content = base64.b64decode(archivo['content'])
+
+        archivo_file_name = os.path.basename(archivo_file_name)
         archivo_extension = os.path.splitext(archivo_file_name)[1]
+
         nombre_base = os.path.splitext(archivo_file_name)[0]
         temp_file_path = os.path.join("/tmp", f"{nombre_base}{archivo_extension}")
 
