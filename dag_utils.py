@@ -219,6 +219,11 @@ def get_minio_client():
         config=Config(signature_version='s3v4')
     )
 
+def minio_api():
+    """Conexión a la API de MinIO."""
+    connection = BaseHook.get_connection('minio_api')
+
+
 def print_directory_contents(directory):
     print(f"Contenido del directorio: {directory}")
     for root, dirs, files in os.walk(directory):
