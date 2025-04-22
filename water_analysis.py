@@ -412,6 +412,9 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
     wms_server_shp = wms_server_shp.replace('/rest/', '/')
     wfs_server_shp = wfs_server_shp.replace('/rest/', '/')
     wms_server_tiff = wms_server_tiff.replace('/rest/', '/')
+     wms_server_shp = wms_server_shp.replace('/geoserver/', '/')
+    wfs_server_shp = wfs_server_shp.replace('/geoserver/', '/')
+    wms_server_tiff = wms_server_tiff.replace('/geoserver/', '/')
 
 
     wms_server_shp_escape =  escape(wms_server_shp)
