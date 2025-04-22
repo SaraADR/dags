@@ -128,6 +128,8 @@ def delete_old_files_from_minio(conn_id, bucket_name='temp', expiration_hours=24
         s3_client = boto3.client(
             's3',
             endpoint_url=extra['endpoint_url'],
+            aws_access_key_id=extra['aws_access_key_id'],
+            aws_secret_access_key=extra['aws_secret_access_key'],
             config=Config(signature_version='s3v4')
         )
 
@@ -224,8 +226,6 @@ def minio_api():
     return boto3.client(
         's3',
         endpoint_url=extra['endpoint_url'],
-        aws_access_key_id=extra['aws_access_key_id'],
-        aws_secret_access_key=extra['aws_secret_access_key'],
         config=Config(signature_version='s3v4')
     )
 
