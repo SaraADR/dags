@@ -260,18 +260,32 @@ def publish_to_geoserver(archivos, **context):
     
 
     #SUBIMOS LOS SHAPES
-    water_analysis_files = []
-    seafloor_files = []
-    for original_name, temp_path in temp_files:
-        if os.path.splitext(original_name)[1].lower() in ('.shp', '.dbf', '.shx', '.prj', '.cpg'):
-            if "wateranalysis" in original_name.lower():
-                water_analysis_files.append((original_name, temp_path))
-            elif "seafloor" in original_name.lower():
-                seafloor_files.append((original_name, temp_path))
+    # water_analysis_files = []
+    # seafloor_files = []
+    # for original_name, temp_path in temp_files:
+    #     if os.path.splitext(original_name)[1].lower() in ('.shp', '.dbf', '.shx', '.prj', '.cpg'):
+    #         if "wateranalysis" in original_name.lower():
+    #             water_analysis_files.append((original_name, temp_path))
+    #         elif "seafloor" in original_name.lower():
+    #             seafloor_files.append((original_name, temp_path))
 
-    subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url, auth)
-    subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url, auth)
+    # subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url, auth)
+    # subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url, auth)
     #set_geoserver_style("SeaFloor", base_url, auth, "SeaFloorStyle")
+
+
+    shapefile_groups = {}
+
+    for original_name, temp_path in temp_files:
+        ext = os.path.splitext(original_name)[1].lower()
+        if ext in ('.shp', '.dbf', '.shx', '.prj', '.cpg'):
+            base_name = os.path.splitext(original_name)[0]  
+            shapefile_groups.setdefault(base_name, []).append((original_name, temp_path))
+
+    # Subir cada grupo
+    for base_name, file_group in shapefile_groups.items():
+        nombre_capa = os.path.basename(base_name)  
+        subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth)
 
     print("----Publicación en GeoServer completada exitosamente.----")
     return layer_name, WORKSPACE, base_url
