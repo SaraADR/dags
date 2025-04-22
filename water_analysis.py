@@ -398,7 +398,7 @@ def get_geonetwork_credentials():
 
 def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff):
 
-    descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
+    descripcion = "Resultado del algoritmo de waterAnalysis"
 
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
