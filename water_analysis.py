@@ -729,7 +729,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
-                                <gmd:URL>{wms_server_shp_escaped}</gmd:URL>
+                                <gmd:URL>{wms_server_shp}</gmd:URL>
                             </gmd:linkage>
                             <gmd:protocol>
                                 <gco:CharacterString>OGC:WMS</gco:CharacterString>
@@ -749,7 +749,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
-                                <gmd:URL>{wms_server_tiff_escaped}</gmd:URL>
+                                <gmd:URL>{wms_server_tiff}</gmd:URL>
                             </gmd:linkage>
                             <gmd:protocol>
                                 <gco:CharacterString>OGC:WMS</gco:CharacterString>
@@ -769,7 +769,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
-                                <gmd:URL>{wfs_server_shp_escaped}</gmd:URL>
+                                <gmd:URL>{wfs_server_shp}</gmd:URL>
                             </gmd:linkage>
                             <gmd:protocol>
                                 <gco:CharacterString>OGC:WFS-1.0.0-http-get-capabilities</gco:CharacterString>
