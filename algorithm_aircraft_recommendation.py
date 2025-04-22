@@ -97,6 +97,7 @@ def process_output_and_notify(**context):
     json_url = f"{base_url}/{bucket}/{json_key}"
     csv_url = f"{base_url}/{bucket}/{csv_key}"
 
+    
     print(f"[INFO] Archivos subidos a MinIO: \n- JSON: {json_url}\n- CSV: {csv_url}")
 
     # 4. Insertar notificación en base de datos
