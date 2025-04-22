@@ -476,7 +476,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
                 <gmd:citation>
                     <gmd:CI_Citation>
                     <gmd:title>
-                        <gco:CharacterString>${titulo}</gco:CharacterString>
+                        <gco:CharacterString>{titulo}</gco:CharacterString>
                     </gmd:title>
                     <gmd:date>
                         <gmd:CI_Date>
@@ -492,7 +492,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
                     </gmd:CI_Citation>
                 </gmd:citation>
                 <gmd:abstract>
-                    <gco:CharacterString>${descripcion}</gco:CharacterString>
+                    <gco:CharacterString>{descripcion}</gco:CharacterString>
                 </gmd:abstract>
                 <gmd:status>
                     <gmd:MD_ProgressCode codeListValue="completed"
@@ -753,6 +753,17 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                     logging.info(f"Recurso subido correctamente para {uuid}")
 
                 if ext == '.png':
+
+                    attachments_url = f"{base_url}/records/{uuid}/attachments"
+                    response_attachments = requests.get(attachments_url, headers=headers)
+
+                    if response_attachments.status_code == 200:
+                        attachments = response_attachments.json()
+                        print(json.dumps(attachments, indent=2))  # Para ver bien qué hay
+                    else:
+                        print(f"Error al obtener los attachments: {response_attachments.status_code} {response_attachments.text}")
+
+
                     thumbnail_url = f"{base_url}/records/{uuid}/attachments/thumbnail"
                     payload = {
                         "filename": archivo_file_name
@@ -766,7 +777,7 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                         'Content-Type': 'application/json'
                     }
 
-                    response_thumbnail = requests.put(thumbnail_url, json=payload, headers=thumbnail_headers)
+                    response_thumbnail = requests.post(thumbnail_url, json=payload, headers=thumbnail_headers)
 
                     if response_thumbnail.status_code not in [200, 201]:
                         logging.error(f"Error al establecer el thumbnail para {uuid}: {response_thumbnail.status_code} {response_thumbnail.text}")
