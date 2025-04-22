@@ -766,7 +766,7 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
 
                     thumbnail_api = f"{base_url}/records/{uuid}/thumbnail"
                     payload = {
-                        "url": f"attachments/{archivo_file_name}"  # asegúrate que sea sólo el path relativo
+                        "url": f"attachments/{archivo_file_name}" 
                     }
 
                     headers = {
