@@ -402,10 +402,6 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
 
     descripcion = "Resultado del algoritmo de waterAnalysis"
 
-    # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
-    # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
-    # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png"
-
     print(f"WMS Server SHP: {wms_server_shp}")
     print(f"WFS Server SHP: {wfs_server_shp}")
     print(f"WMS Server TIFF: {wms_server_tiff}")
@@ -413,11 +409,17 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
     print(f"WFS Server SHP: {wms_description_shp}")
     print(f"WMS Server TIFF: {wms_layer_tiff}")
 
+    wms_server_shp = wms_server_shp.replace('/rest/', '/')
+    wfs_server_shp = wfs_server_shp.replace('/rest/', '/')
+    wms_server_tiff = wms_server_tiff.replace('/rest/', '/')
+
 
     wms_server_shp_escape =  escape(wms_server_shp)
     wfs_server_shp_escape =  escape(wfs_server_shp)
     wms_server_shp_escape =  escape(wms_server_shp)
     wms_server_tiff_escape = escape(wms_server_tiff)
+
+    print(f"WMS Server SHP: {wms_server_shp_escape}")
 
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
