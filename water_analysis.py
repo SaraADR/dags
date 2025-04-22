@@ -483,9 +483,9 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_
               <gmd:graphicOverview>
         <gmd:MD_BrowseGraphic>
             <gmd:fileName>
-            <gco:CharacterString>
+            <gmd:URL>
                 https://minioapi.avincis.cuatrodigital.com/missions/112255/{uuid_key}/20241023T103654_bathy.png
-            </gco:CharacterString>
+            </gmd:URL>
             </gmd:fileName>
         </gmd:MD_BrowseGraphic>
         </gmd:graphicOverview>
