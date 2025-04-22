@@ -135,11 +135,11 @@ def process_extracted_files(**kwargs):
 
 
     #Subimos a Geoserver el tif y ambos shapes
-    layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff = publish_to_geoserver(archivos)
+    layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp = publish_to_geoserver(archivos)
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
@@ -310,7 +310,7 @@ def publish_to_geoserver(archivos, **context):
         wfs_layer_shp = f"{WORKSPACE}:{nombre_capa}"
 
     print("----Publicación en GeoServer completada exitosamente.----")
-    return layer_name, WORKSPACE, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff
+    return layer_name, WORKSPACE, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp
 
 
 
@@ -396,7 +396,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp):
 
     descripcion = "Resultado del algoritmo de waterAnalysis"
 
@@ -419,9 +419,6 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
     min_latitud = coordenadas_tif["min_latitud"]
     max_latitud = coordenadas_tif["max_latitud"]
 
-
-    wfs_server_shp = ''
-    wfs_layer_shp = ''
     wfs_description_shp = ''
     informe_url = ''
     informe_description = ''
