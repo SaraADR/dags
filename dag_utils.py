@@ -237,6 +237,30 @@ def print_directory_contents(directory):
             print(f"{subindent}{f}")
     print("------------------------------------------")    
 
+def obtener_id_mision(fire_id):
+    """
+    Obtiene el mission_id (idMision) a partir del fire_id desde la tabla mss_mission_fire.
+    """
+    try:
+        session = get_db_session()
+        
+        query = text("""
+            SELECT mission_id 
+            FROM missions.mss_mission_fire 
+            WHERE fire_id = :fire_id;
+        """)
+        
+        result = session.execute(query, {'fire_id': fire_id}).fetchone()
+
+        if result:
+            return result[0]
+        else:
+            print(f"No se encontró mission_id para fire_id: {fire_id}")
+            return None
+
+    except Exception as e:
+        print(f"Error al obtener mission_id: {e}")
+        return None
 
 
 def duration_to_seconds(duration: str) -> int:

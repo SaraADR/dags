@@ -11,7 +11,7 @@ import paramiko
 from airflow.models import Variable
 from airflow.hooks.base import BaseHook
 from sqlalchemy import text
-from dag_utils import get_minio_client, get_db_session, minio_api
+from dag_utils import get_minio_client, get_db_session, minio_api, obtener_id_mision
 from pytz import timezone
 madrid_tz = timezone('Europe/Madrid')
 now = datetime.now(madrid_tz)
@@ -37,35 +37,8 @@ def execute_algorithm_remote(**context):
     print(f"[INFO] assignment_id: {assignment_id}")
 
 
-def obtener_id_mision(fire_id):
-    """
-    Obtiene el mission_id (idMision) a partir del fire_id desde la tabla mss_mission_fire.
-    """
-    try:
-        session = get_db_session()
-        
-        query = text("""
-            SELECT mission_id 
-            FROM missions.mss_mission_fire 
-            WHERE fire_id = :fire_id;
-        """)
-        
-        result = session.execute(query, {'fire_id': fire_id}).fetchone()
-
-        if result:
-            return result[0]
-        else:
-            print(f"[WARN] No se encontró mission_id para fire_id: {fire_id}")
-            return None
-
-    except Exception as e:
-        print(f"[ERROR] Error al obtener mission_id: {e}")
-        return None
-
-
 def process_output_and_notify(**context):
 
-    # 1. Obtener datos de entrada y usuario
     print("Procesando output y notificando al frontend")
     message = context['dag_run'].conf.get('message', {})
     input_data_str = message.get('input_data')
@@ -74,7 +47,6 @@ def process_output_and_notify(**context):
     user = context['ti'].xcom_pull(key='user')
     print(f"[INFO] assignment_id: {assignment_id}")
 
-    # 1. Descargar JSON desde MinIO
     s3_client = get_minio_client()
     bucket = "tmp"
     test_json_key = "algorithm_aircraft_planificator_outputs/historic/output_test4.2.json"
@@ -83,32 +55,40 @@ def process_output_and_notify(**context):
     response = s3_client.get_object(Bucket=bucket, Key=test_json_key)
     output_data = json.load(response['Body'])
 
+    # Añadir missionId a cada assignment
+    for assignment in output_data.get("assignments", []):
+        fire_id = assignment.get("id")
+        mission_id = obtener_id_mision(fire_id) if fire_id else None
+        assignment["missionId"] = mission_id
+
     print(f"[INFO] JSON descargado desde MinIO")
     print(f"[DEBUG] Claves del JSON descargado: {list(output_data.keys())}")
     print(f"[DEBUG] Contenido 'assignments': {output_data.get('assignments')}")
 
-    # 2. Transformar JSON a CSV
     csv_data = output_data.get("assignments", [])
     print(f"[DEBUG] Preparando escritura de CSV con {len(csv_data)} filas")
 
     csv_filename = f"{assignment_id}.csv"
     csv_local_path = f"/tmp/{csv_filename}"
 
-    # Escribir CSV con los datos transformados
+    # Extraer primer fire_id para convertir a mission_id
+    fire_id = csv_data[0].get("id") if csv_data else None
+    mission_id = obtener_id_mision(fire_id) if fire_id else None
+    print(f"[INFO] Misión ID obtenida: {mission_id}")
 
     with open(csv_local_path, 'w', newline='') as f:
         writer = csv.writer(f, delimiter=';')
         writer.writerow(["fire_id", "aircrafts"])
         for row in csv_data:
-            fire_id = row.get("id")
+            fire = row.get("id")
             aircrafts = ", ".join(row.get("vehicles", []))
-            writer.writerow([fire_id, aircrafts])
+            writer.writerow([fire, aircrafts])
 
-
-    # 3. Subir archivos a MinIO
     timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
     json_key = f"algorithm_aircraft_planificator_outputs/jsons/{assignment_id}_{timestamp}.json"
     csv_key = f"algorithm_aircraft_planificator_outputs/outputs/{assignment_id}_{timestamp}.csv"
+
+    output_data["missionId"] = mission_id
 
     s3_client.put_object(
         Bucket=bucket,
@@ -119,13 +99,11 @@ def process_output_and_notify(**context):
     s3_client.upload_file(csv_local_path, bucket, csv_key)
 
     base_url = minio_api()
-
     json_url = f"{base_url}/{bucket}/{json_key}"
     csv_url = f"{base_url}/{bucket}/{csv_key}"
 
     print(f"[INFO] Archivos subidos a MinIO: \n- JSON: {json_url}\n- CSV: {csv_url}")
 
-    # 4. Insertar notificación en base de datos
     session = get_db_session()
     now_utc = datetime.utcnow()
     result = session.execute(text("""
@@ -136,14 +114,9 @@ def process_output_and_notify(**context):
     job_id = result.scalar()
     print(f"[INFO] Notificación registrada con ID: {job_id}")
 
-    fire_id = output_data.get("fireId")
-    mission_id = obtener_id_mision(fire_id) if fire_id else None
-    print(f"[INFO] Misión ID obtenida: {mission_id}")
-
     payload = {
         "to": user,
         "actions": [
-            
             {
                 "type": "loadTable",
                 "data": {
@@ -166,8 +139,6 @@ def process_output_and_notify(**context):
     }
 
     print(f"[DEBUG] Payload de notificación: {json.dumps(payload, indent=2, ensure_ascii=False)}")
-
-    # Actualizar notificación en la base de datos con el payload 
 
     session.execute(text("""
         UPDATE public.notifications SET data = :data WHERE id = :id
@@ -195,7 +166,6 @@ def process_output_and_notify(**context):
 
     session.commit()
     session.close()
-
     print(f"[INFO] Notificación actualizada y enviada")
 
 
