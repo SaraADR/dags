@@ -766,7 +766,7 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
 
                     thumbnail_api = f"{base_url}/records/{uuid}/thumbnail"
                     payload = {
-                        "url": f"https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records/{uuid}/attachments/{archivo_file_name}"
+                        "url": f"/geonetwork/srv/api/records/{uuid}/attachments/{archivo_file_name}"
                     }
                     headers['Content-Type'] = 'application/json'
 
