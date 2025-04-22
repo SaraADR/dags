@@ -766,21 +766,17 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
 
                     thumbnail_api = f"{base_url}/records/{uuid}/thumbnail"
                     payload = {
-                        "url": f"attachments/{archivo_file_name}" 
+                        "url": f"https://eiiob.dev.cuatrodigital.com/geonetwork/srv/api/records/{uuid}/attachments/{archivo_file_name}"
                     }
-
-                    headers = {
-                        'Authorization': f"Bearer {access_token}",
-                        'x-xsrf-token': str(xsrf_token),
-                        'Cookie': str(set_cookie_header[0]),
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    }
+                    headers['Content-Type'] = 'application/json'
 
                     response_thumbnail = requests.put(thumbnail_api, json=payload, headers=headers)
 
                     if response_thumbnail.status_code != 200:
+                        logging.error(f"Error al establecer el thumbnail: {response_thumbnail.status_code} {response_thumbnail.text}")
                         raise Exception(f"Fallo al establecer el thumbnail: {response_thumbnail.text}")
+                    else:
+                        logging.info(f"Thumbnail establecido correctamente para {uuid}")
 
 
 # Definición del DAG
