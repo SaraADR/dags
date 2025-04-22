@@ -135,11 +135,12 @@ def process_extracted_files(**kwargs):
 
 
     #Subimos a Geoserver el tif y ambos shapes
-    layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp = publish_to_geoserver(archivos)
+    layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, url_new = publish_to_geoserver(archivos)
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission, url_new)
+
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
@@ -310,7 +311,7 @@ def publish_to_geoserver(archivos, **context):
         wfs_layer_shp = f"{WORKSPACE}:{nombre_capa}"
 
     print("----Publicación en GeoServer completada exitosamente.----")
-    return layer_name, WORKSPACE, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp
+    return layer_name, WORKSPACE, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, url_new
 
 
 
@@ -396,7 +397,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,url_new, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission, url_new):
 
     descripcion = "Resultado del algoritmo de waterAnalysis"
 
@@ -720,6 +721,25 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,url_ne
                     </gmd:distributorContact>
                     </gmd:MD_Distributor>
                 </gmd:distributor>
+                
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 
             </gmd:MD_Distribution>
         </gmd:distributionInfo>
