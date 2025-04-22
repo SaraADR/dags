@@ -222,6 +222,12 @@ def get_minio_client():
 def minio_api():
     """Conexión a la API de MinIO."""
     connection = BaseHook.get_connection('minio_api')
+    extra = json.loads(connection.extra)
+    return boto3.client(
+        's3',
+        endpoint_url=extra['endpoint_url'],
+        config=Config(signature_version='s3v4')
+    )
 
 
 def print_directory_contents(directory):
