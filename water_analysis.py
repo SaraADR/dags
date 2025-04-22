@@ -360,7 +360,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mission, uuid_key, url):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mission, uuid_key, url_latest):
 
     descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
 
@@ -495,7 +495,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mi
                 <gmd:graphicOverview>
                     <gmd:MD_BrowseGraphic>
                         <gmd:fileName>
-                            <gco:CharacterString>{url}</gco:CharacterString>
+                            <gco:CharacterString>{url_latest}</gco:CharacterString>
                         </gmd:fileName>
                         <gmd:fileDescription>
                             <gco:CharacterString>Vista previa del análisis de agua</gco:CharacterString>
