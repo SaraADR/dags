@@ -217,10 +217,8 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
         print(f"Error en el proceso: {str(e)}")    
 
 def obtener_coordenadas_tif(name, content):
-    archivo_contenido = base64.b64decode(content)  # Decodificamos el contenido
-
-    with rasterio.open(io.BytesIO(archivo_contenido)) as dataset:
-        bounds = dataset.bounds  # Obtiene las coordenadas del TIFF
+    with rasterio.open(io.BytesIO(content)) as dataset:
+        bounds = dataset.bounds  
         coordenadas = {
             "min_longitud": bounds.left,
             "max_longitud": bounds.right,
@@ -386,7 +384,7 @@ def get_geonetwork_credentials():
 
 def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_key, coordenadas_tif):
 
-    descripcion = "Datos de WaterAnalysis"
+    descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
 
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
@@ -629,97 +627,6 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
                 
 
 
-        
-
-
-        <gmd:distributionInfo>
-            <gmd:MD_Distribution>
-                <gmd:distributor>
-                    <gmd:MD_Distributor>
-                    <gmd:distributorContact>
-                        <gmd:CI_ResponsibleParty>
-                            <gmd:individualName>
-                                <gco:CharacterString>I+D</gco:CharacterString>
-                            </gmd:individualName>
-                            <gmd:organisationName>
-                                <gco:CharacterString>Avincis</gco:CharacterString>
-                            </gmd:organisationName>
-                            <gmd:contactInfo>
-                                <gmd:CI_Contact>
-                                <gmd:address>
-                                    <gmd:CI_Address>
-                                        <gmd:electronicMailAddress>
-                                            <gco:CharacterString>soporte@einforex.es</gco:CharacterString>
-                                        </gmd:electronicMailAddress>
-                                    </gmd:CI_Address>
-                                </gmd:address>
-                                <gmd:onlineResource>
-                                    <gmd:CI_OnlineResource>
-                                        <gmd:linkage>
-                                            <gmd:URL>https://www.avincis.com</gmd:URL>
-                                        </gmd:linkage>
-                                        <gmd:protocol gco:nilReason="missing">
-                                            <gco:CharacterString/>
-                                        </gmd:protocol>
-                                        <gmd:name gco:nilReason="missing">
-                                            <gco:CharacterString/>
-                                        </gmd:name>
-                                        <gmd:description gco:nilReason="missing">
-                                            <gco:CharacterString/>
-                                        </gmd:description>
-                                    </gmd:CI_OnlineResource>
-                                </gmd:onlineResource>
-                                </gmd:CI_Contact>
-                            </gmd:contactInfo>
-                            <gmd:role>
-                                <gmd:CI_RoleCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode"
-                                                codeListValue="distributor"/>
-                            </gmd:role>
-                        </gmd:CI_ResponsibleParty>
-                    </gmd:distributorContact>
-                    </gmd:MD_Distributor>
-                </gmd:distributor>
-                <gmd:transferOptions>
-                    <gmd:MD_DigitalTransferOptions>
-  
-                    
-
-                    
-
-                    
-
-                    
-               
-                <gmd:onLine>
-                    <gmd:CI_OnlineResource>
-                        <gmd:linkage>
-                            <gmd:URL>https://minioapi.avincis.cuatrodigital.com/missions/112255/c92ed006-3585-4022-a803-2e5ca49587d6/20241023T103654_mosaic.tif</gmd:URL>
-                        </gmd:linkage>
-                        <gmd:protocol>
-                            <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
-                        </gmd:protocol>
-                        <gmd:name>
-                            <gco:CharacterString>Archivo GeoTIFF de la misión</gco:CharacterString>
-                        </gmd:name>
-                        <gmd:function>
-                            <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
-                                                    codeListValue="download"/>
-                        </gmd:function>
-                    </gmd:CI_OnlineResource>
-                </gmd:onLine>
-
-     
-
-
-                    </gmd:MD_DigitalTransferOptions>
-                </gmd:transferOptions>
-            </gmd:MD_Distribution>
-        </gmd:distributionInfo>
-
-
-
-
-        
 
         
         <gmd:dataQualityInfo>
