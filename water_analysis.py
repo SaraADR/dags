@@ -280,25 +280,46 @@ def publish_to_geoserver(archivos, **context):
 
 
 def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
-        if not file_group:
-            return
+    if not file_group:
+        return
 
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
-            for nombre_original, ruta_temporal in file_group:
-                with open(ruta_temporal, 'rb') as f:
-                    zip_file.writestr(nombre_original, f.read())
-        zip_buffer.seek(0)
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
+        for nombre_original, ruta_temporal in file_group:
+            with open(ruta_temporal, 'rb') as f:
+                zip_file.writestr(nombre_original, f.read())
+    zip_buffer.seek(0)
 
-        datastore_name = f"{nombre_capa}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/file.shp"
-        headers = {"Content-type": "application/zip"}
+    datastore_name = f"{nombre_capa}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/file.shp"
+    headers = {"Content-type": "application/zip"}
 
-        response = requests.put(url, headers=headers, data=zip_buffer, auth=auth, params={"configure": "all"})
-        if response.status_code not in [201, 202]:
-            raise Exception(f"Error subiendo vectorial {datastore_name}: {response.text}")
-        print(f"Capa vectorial publicada: {datastore_name}")
-        print(f"🗺️  Vector disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{datastore_name}")
+    response = requests.put(url, headers=headers, data=zip_buffer, auth=auth, params={"configure": "all"})
+    if response.status_code not in [201, 202]:
+        raise Exception(f"Error subiendo vectorial {datastore_name}: {response.text}")
+    print(f"Capa vectorial publicada: {datastore_name}")
+    print(f"🗺️  Vector disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{datastore_name}")
+
+    publicar_capa_en_geoserver(WORKSPACE, datastore_name, base_url, auth)
+
+def publicar_capa_en_geoserver(workspace, datastore_name, base_url, auth):
+    url = f"{base_url}/workspaces/{workspace}/datastores/{datastore_name}/featuretypes"
+    
+    data = {
+        "featureType": {
+            "name": datastore_name,
+            "title": datastore_name,
+            "srs": "EPSG:4326"  
+        }
+    }
+
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(url, json=data, headers=headers, auth=auth)
+
+    if response.status_code in [201, 200]:
+        print(f"✅ Capa {datastore_name} publicada correctamente en GeoServer.")
+    else:
+        print(f"❌ Error al publicar la capa {datastore_name}: {response.status_code}, {response.text}")
 
 
 def set_geoserver_style(layer_name, base_url, auth, style_name, workspace="USV_Water_analysis_2025"):
@@ -389,11 +410,9 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
                             http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd">
 
         <gmd:fileIdentifier>
-            <gco:CharacterString>{file_identifier}</gco:CharacterString>
+            <gco:CharacterString>{url_geoserver}</gco:CharacterString>
         </gmd:fileIdentifier>
-        <gmd:abstract>
-        <gco:CharacterString>Datos de análisis de aguas </gco:CharacterString>
-        </gmd:abstract>
+
 
         <gmd:language>
             <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="spa">spa</gmd:LanguageCode>
@@ -449,7 +468,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
                             <gco:CharacterString>{title}</gco:CharacterString>
                         </gmd:title>
 
-
+                        <!-- ✅ FECHA DE PUBLICACIÓN -->
                         <gmd:date>
                             <gmd:CI_Date>
                                 <gmd:date>
@@ -493,17 +512,17 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
 
 
         <gmd:graphicOverview>
-            <gmd:MD_BrowseGraphic>
-                <gmd:fileName>
-                <gco:CharacterString>resources.get?uuid={file_identifier}&amp;fname=thumbnail.png</gco:CharacterString>
-                </gmd:fileName>
-                <gmd:fileDescription>
-                <gco:CharacterString>Vista previa</gco:CharacterString>
-                </gmd:fileDescription>
-                <gmd:fileType>
-                <gco:CharacterString>image/png</gco:CharacterString>
-                </gmd:fileType>
-            </gmd:MD_BrowseGraphic>
+        <gmd:MD_BrowseGraphic>
+            <gmd:fileName>
+            <gco:CharacterString>resources.get?uuid={file_identifier}&amp;fname=thumbnail.png</gco:CharacterString>
+            </gmd:fileName>
+            <gmd:fileDescription>
+            <gco:CharacterString>Vista previa</gco:CharacterString>
+            </gmd:fileDescription>
+            <gmd:fileType>
+            <gco:CharacterString>image/png</gco:CharacterString>
+            </gmd:fileType>
+        </gmd:MD_BrowseGraphic>
         </gmd:graphicOverview>
 
         <gmd:onLine>
@@ -522,7 +541,6 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
     </gmd:MD_Metadata>
 
     """ 
-    #<gmd:URL>https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png</gmd:URL>
     print(xml)
     xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
     return xml_encoded
