@@ -481,13 +481,11 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_
         </gmd:metadataStandardVersion>
 
         <gmd:graphicOverview>
-        <gmd:MD_BrowseGraphic>
-            <gmd:fileName>
-            <gco:CharacterString>
-                {ruta_png}
-            </gco:CharacterString>
-            </gmd:fileName>
-        </gmd:MD_BrowseGraphic>
+            <gmd:MD_BrowseGraphic>
+                <gmd:fileName>
+                    <gmd:URL>{ruta_png}</gmd:URL>
+                </gmd:fileName>
+            </gmd:MD_BrowseGraphic>
         </gmd:graphicOverview>
 
 
