@@ -37,6 +37,32 @@ def execute_algorithm_remote(**context):
     print(f"[INFO] assignment_id: {assignment_id}")
 
 
+def obtener_id_mision(fire_id):
+    """
+    Obtiene el mission_id (idMision) a partir del fire_id desde la tabla mss_mission_fire.
+    """
+    try:
+        session = get_db_session()
+        
+        query = text("""
+            SELECT mission_id 
+            FROM missions.mss_mission_fire 
+            WHERE fire_id = :fire_id;
+        """)
+        
+        result = session.execute(query, {'fire_id': fire_id}).fetchone()
+
+        if result:
+            return result[0]
+        else:
+            print(f"[WARN] No se encontró mission_id para fire_id: {fire_id}")
+            return None
+
+    except Exception as e:
+        print(f"[ERROR] Error al obtener mission_id: {e}")
+        return None
+
+
 def process_output_and_notify(**context):
 
     # 1. Obtener datos de entrada y usuario
@@ -97,7 +123,6 @@ def process_output_and_notify(**context):
     json_url = f"{base_url}/{bucket}/{json_key}"
     csv_url = f"{base_url}/{bucket}/{csv_key}"
 
-    
     print(f"[INFO] Archivos subidos a MinIO: \n- JSON: {json_url}\n- CSV: {csv_url}")
 
     # 4. Insertar notificación en base de datos
@@ -110,6 +135,10 @@ def process_output_and_notify(**context):
     """), {'date': now_utc})
     job_id = result.scalar()
     print(f"[INFO] Notificación registrada con ID: {job_id}")
+
+    fire_id = output_data.get("fireId")
+    mission_id = obtener_id_mision(fire_id) if fire_id else None
+    print(f"[INFO] Misión ID obtenida: {mission_id}")
 
     payload = {
         "to": user,
@@ -124,6 +153,7 @@ def process_output_and_notify(**context):
                         "data": json_url
                     },
                     "title": "Recomendación de aeronaves",
+                    "missionId": mission_id
                 }
             },
             {
