@@ -86,10 +86,19 @@ def process_extracted_files(**kwargs):
             )
             print(f'{archivo_file_name} subido correctamente a MinIO.')
         else:
+            content_type = "application/octet-stream"  # valor por defecto
+            if archivo_file_name.endswith('.png'):
+                content_type = "image/png"
+            elif archivo_file_name.endswith('.jpg') or archivo_file_name.endswith('.jpeg'):
+                content_type = "image/jpeg"
+            elif archivo_file_name.endswith('.pdf'):
+                content_type = "application/pdf"
+
             s3_client.put_object(
                 Bucket=bucket_name,
                 Key=archivo_key,
                 Body=io.BytesIO(archivo_content),
+                ContentType=content_type
             )
             print(f'{archivo_file_name} subido correctamente a MinIO.')
 
@@ -656,7 +665,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
     </gmd:MD_Metadata>
 
     """ 
-    print(xml)
+    # print(xml)
     xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
     return xml_encoded
 
