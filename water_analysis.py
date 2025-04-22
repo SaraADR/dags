@@ -764,12 +764,12 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                         print(f"Error al obtener los attachments: {response_attachments.status_code} {response_attachments.text}")
 
 
-                    thumbnail_url = f"{base_url}/records/{uuid}/attachments/thumbnail"
+                    thumbnail_api = f"{base_url}/records/{uuid}/thumbnail"
                     payload = {
-                        "filename": archivo_file_name
+                        "url": f"attachments/{archivo_file_name}"  # asegúrate que sea sólo el path relativo
                     }
 
-                    thumbnail_headers = {
+                    headers = {
                         'Authorization': f"Bearer {access_token}",
                         'x-xsrf-token': str(xsrf_token),
                         'Cookie': str(set_cookie_header[0]),
@@ -777,13 +777,10 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                         'Content-Type': 'application/json'
                     }
 
-                    response_thumbnail = requests.post(thumbnail_url, json=payload, headers=thumbnail_headers)
+                    response_thumbnail = requests.put(thumbnail_api, json=payload, headers=headers)
 
-                    if response_thumbnail.status_code not in [200, 201]:
-                        logging.error(f"Error al establecer el thumbnail para {uuid}: {response_thumbnail.status_code} {response_thumbnail.text}")
-                        raise Exception("Fallo al establecer el thumbnail")
-                    else:
-                        logging.info(f"Thumbnail establecido correctamente para {uuid} con {archivo_file_name}")
+                    if response_thumbnail.status_code != 200:
+                        raise Exception(f"Fallo al establecer el thumbnail: {response_thumbnail.text}")
 
 
 # Definición del DAG
