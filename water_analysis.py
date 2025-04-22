@@ -396,7 +396,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,url_new, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission):
 
     descripcion = "Resultado del algoritmo de waterAnalysis"
 
@@ -557,6 +557,19 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
                     </gmd:date>
                     </gmd:CI_Citation>
                 </gmd:citation>
+                <gmd:graphicOverview>
+                    <gmd:MD_BrowseGraphic>
+                        <gmd:fileName>
+                            <gco:CharacterString>{url_new}</gco:CharacterString>
+                        </gmd:fileName>
+                        <gmd:fileDescription>
+                            <gco:CharacterString>Vista previa del análisis de agua</gco:CharacterString>
+                        </gmd:fileDescription>
+                        <gmd:fileType>
+                            <gco:CharacterString>image/png</gco:CharacterString>
+                        </gmd:fileType>
+                    </gmd:MD_BrowseGraphic>
+                </gmd:graphicOverview>
                 <gmd:abstract>
                     <gco:CharacterString>{descripcion}</gco:CharacterString>
                 </gmd:abstract>
