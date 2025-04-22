@@ -1,7 +1,6 @@
 import base64
 import json
 import re
-import tempfile
 import uuid
 import zipfile
 from airflow import DAG
@@ -9,7 +8,7 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta, timezone
 import io
 from sqlalchemy import  text
-from dag_utils import upload_to_minio_path, get_geoserver_connection, get_minio_client, execute_query
+from dag_utils import  get_geoserver_connection, get_minio_client, execute_query
 import os
 from airflow.models import Variable
 import copy
@@ -19,7 +18,7 @@ import requests
 import logging
 from airflow.providers.ssh.hooks.ssh import SSHHook
 import geopandas as gpd
-import shutil
+import rasterio
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
@@ -33,7 +32,6 @@ def process_extracted_files(**kwargs):
 
 
     #Extraemos el mission ID
-    uuid_key = str(uuid.uuid4())
     id_mission = None
     for metadata in json_content['metadata']:
         if metadata['name'] == 'MissionID':
@@ -68,7 +66,7 @@ def process_extracted_files(**kwargs):
         )
     print(f'Archivo ZIP {zip_file_name} subido correctamente a MinIO.')
 
-
+    ruta_png = None
     #Subimos los archivos todos por separado
     for archivo in archivos:
         archivo_file_name = os.path.basename(archivo['file_name'])
@@ -85,17 +83,31 @@ def process_extracted_files(**kwargs):
                 ContentType="image/tiff"
             )
             print(f'{archivo_file_name} subido correctamente a MinIO.')
+
+            #Sacamos su lot lang
+            coordenadas_tif = obtener_coordenadas_tif(archivo_file_name, archivo_content)
+
         else:
+            content_type = "application/octet-stream"  # valor por defecto
+            if archivo_file_name.endswith('.png'):
+                content_type = "image/png"
+                ruta_png = f"{rutaminio}/{bucket_name}/{archivo_key}"
+            elif archivo_file_name.endswith('.jpg') or archivo_file_name.endswith('.jpeg'):
+                content_type = "image/jpeg"
+            elif archivo_file_name.endswith('.pdf'):
+                content_type = "application/pdf"
+
             s3_client.put_object(
                 Bucket=bucket_name,
                 Key=archivo_key,
                 Body=io.BytesIO(archivo_content),
+                ContentType=content_type
             )
             print(f'{archivo_file_name} subido correctamente a MinIO.')
 
         print(archivo_key)
         nuevos_paths[archivo_file_name] = f"{rutaminio}/{bucket_name}/{archivo_key}"
-      
+    print(ruta_png)
 
 
     #Preparamos y ejecutamos la historización
@@ -123,11 +135,11 @@ def process_extracted_files(**kwargs):
 
 
     #Subimos a Geoserver el tif y ambos shapes
-    layer_name, workspace, base_url = publish_to_geoserver(archivos)
+    layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp = publish_to_geoserver(archivos)
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, id_mission, uuid_key)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
@@ -204,7 +216,17 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
 
-
+def obtener_coordenadas_tif(name, content):
+    with rasterio.open(io.BytesIO(content)) as dataset:
+        bounds = dataset.bounds  
+        coordenadas = {
+            "min_longitud": bounds.left,
+            "max_longitud": bounds.right,
+            "min_latitud": bounds.bottom,
+            "max_latitud": bounds.top
+        }
+    
+    return coordenadas
 
 #PUBLICAR GEO
 def publish_to_geoserver(archivos, **context):
@@ -236,6 +258,9 @@ def publish_to_geoserver(archivos, **context):
 
     #SUBIMOS LOS TIFFS
     tiff_files = [path for name, path in temp_files if name.lower().endswith(".tif")]
+    wms_server_tiff = None
+    wms_layer_tiff = None
+    wms_description_tiff = "Capa raster GeoTIFF publicada en GeoServer"
 
     for tif_file in tiff_files:
         with open(tif_file, 'rb') as f:
@@ -250,6 +275,8 @@ def publish_to_geoserver(archivos, **context):
         if response.status_code not in [201, 202]:
             raise Exception(f"Error publicando {layer_name}: {response.text}")
         print(f"Capa raster publicada: {layer_name}")
+        wms_server_tiff = f"{base_url}/geoserver/{WORKSPACE}/wms"
+        wms_layer_tiff = f"{WORKSPACE}:{layer_name}"
 
         # Actualizar capa genérica
         url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
@@ -261,6 +288,9 @@ def publish_to_geoserver(archivos, **context):
 
     #SUBIMOS LOS SHAPES
     shapefile_groups = {}
+    wfs_server_shp = None
+    wfs_layer_shp = None
+    wfs_description_shp = "Capa vectorial publicada en GeoServer vía WFS."
 
     for original_name, temp_path in temp_files:
         ext = os.path.splitext(original_name)[1].lower()
@@ -273,8 +303,14 @@ def publish_to_geoserver(archivos, **context):
         nombre_capa = os.path.basename(base_name)  
         subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth)
 
+        wms_server_shp = f"{base_url}/geoserver/{WORKSPACE}/wms"
+        wms_layer_shp = f"{WORKSPACE}:{nombre_capa}"
+        wms_description_shp = f"Capa vectorial {nombre_capa} publicada en GeoServer"
+        wfs_server_shp = f"{base_url}/geoserver/{WORKSPACE}/ows?service=WFS&request=GetCapabilities"
+        wfs_layer_shp = f"{WORKSPACE}:{nombre_capa}"
+
     print("----Publicación en GeoServer completada exitosamente.----")
-    return layer_name, WORKSPACE, base_url
+    return layer_name, WORKSPACE, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp
 
 
 
@@ -360,15 +396,25 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mission, uuid_key, url_latest):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission):
 
-    descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
+    descripcion = "Resultado del algoritmo de waterAnalysis"
 
-    #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
-    #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
-    url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png"
+    # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
+    # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
+    # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png"
 
 
+    wfs_server_shp_escaped = xml.sax.saxutils.escape(wfs_server_shp)
+    wms_server_shp_escaped = xml.sax.saxutils.escape(wms_server_shp)
+    wms_server_tiff_escaped = xml.sax.saxutils.escape(wms_server_tiff)
+
+    print(f"WMS Server SHP: {wms_server_shp}")
+    print(f"WFS Server SHP: {wfs_server_shp}")
+    print(f"WMS Server TIFF: {wms_server_tiff}")
+    print(f"WMS Server SHP: {wms_layer_shp}")
+    print(f"WFS Server SHP: {wms_description_shp}")
+    print(f"WMS Server TIFF: {wms_layer_tiff}")
 
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
@@ -378,11 +424,19 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mi
      
     fecha_completa = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
     fecha = fecha_completa.date()
-    thumbnail = ''
-    min_longitud = 1.0
-    max_longitud = 2.0
-    min_latitud = 3.0
-    max_latitud = 4.0
+    min_longitud = coordenadas_tif["min_longitud"]
+    max_longitud = coordenadas_tif["max_longitud"]
+    min_latitud = coordenadas_tif["min_latitud"]
+    max_latitud = coordenadas_tif["max_latitud"]
+
+    wfs_description_shp = ''
+    informe_url = ''
+    informe_description = ''
+    csv_url = ''
+    csv_description = ''
+    tif_url = ''
+    tif_description = ''
+
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
     <gmd:MD_Metadata 
@@ -471,13 +525,23 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mi
             <gco:CharacterString>1.0</gco:CharacterString>
         </gmd:metadataStandardVersion>
 
+              <gmd:graphicOverview>
+        <gmd:MD_BrowseGraphic>
+            <gmd:fileName>
+            <gco:CharacterString>
+                {base_url}/missions/{id_mission}/{uuid_key}/{layer_name}
+            </gco:CharacterString>
+            </gmd:fileName>
+        </gmd:MD_BrowseGraphic>
+        </gmd:graphicOverview>
+
 
         <gmd:identificationInfo>
             <srv:SV_ServiceIdentification>
                 <gmd:citation>
                     <gmd:CI_Citation>
                     <gmd:title>
-                        <gco:CharacterString>${titulo}</gco:CharacterString>
+                        <gco:CharacterString>{titulo}</gco:CharacterString>
                     </gmd:title>
                     <gmd:date>
                         <gmd:CI_Date>
@@ -492,21 +556,8 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mi
                     </gmd:date>
                     </gmd:CI_Citation>
                 </gmd:citation>
-                <gmd:graphicOverview>
-                    <gmd:MD_BrowseGraphic>
-                        <gmd:fileName>
-                            <gco:CharacterString>{url_latest}</gco:CharacterString>
-                        </gmd:fileName>
-                        <gmd:fileDescription>
-                            <gco:CharacterString>Vista previa del análisis de agua</gco:CharacterString>
-                        </gmd:fileDescription>
-                        <gmd:fileType>
-                            <gco:CharacterString>image/png</gco:CharacterString>
-                        </gmd:fileType>
-                    </gmd:MD_BrowseGraphic>
-                </gmd:graphicOverview>
                 <gmd:abstract>
-                    <gco:CharacterString>${descripcion}</gco:CharacterString>
+                    <gco:CharacterString>{descripcion}</gco:CharacterString>
                 </gmd:abstract>
                 <gmd:status>
                     <gmd:MD_ProgressCode codeListValue="completed"
@@ -585,16 +636,16 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mi
                     <gmd:geographicElement>
                         <gmd:EX_GeographicBoundingBox>
                             <gmd:westBoundLongitude>
-                                <gco:Decimal>${min_longitud}</gco:Decimal>
+                                <gco:Decimal>{min_longitud}</gco:Decimal>
                             </gmd:westBoundLongitude>
                             <gmd:eastBoundLongitude>
-                                <gco:Decimal>${max_longitud}</gco:Decimal>
+                                <gco:Decimal>{max_longitud}</gco:Decimal>
                             </gmd:eastBoundLongitude>
                             <gmd:southBoundLatitude>
-                                <gco:Decimal>${min_latitud}</gco:Decimal>
+                                <gco:Decimal>{min_latitud}</gco:Decimal>
                             </gmd:southBoundLatitude>
                             <gmd:northBoundLatitude>
-                                <gco:Decimal>${max_latitud}</gco:Decimal>
+                                <gco:Decimal>{max_latitud}</gco:Decimal>
                             </gmd:northBoundLatitude>
                         </gmd:EX_GeographicBoundingBox>
                     </gmd:geographicElement>
@@ -608,7 +659,170 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mi
         </gmd:identificationInfo>
                 
 
-
+<gmd:distributionInfo>
+            <gmd:MD_Distribution>
+                <gmd:distributor>
+                    <gmd:MD_Distributor>
+                    <gmd:distributorContact>
+                        <gmd:CI_ResponsibleParty>
+                            <gmd:individualName>
+                                <gco:CharacterString>I+D</gco:CharacterString>
+                            </gmd:individualName>
+                            <gmd:organisationName>
+                                <gco:CharacterString>Avincis</gco:CharacterString>
+                            </gmd:organisationName>
+                            <gmd:contactInfo>
+                                <gmd:CI_Contact>
+                                <gmd:address>
+                                    <gmd:CI_Address>
+                                        <gmd:electronicMailAddress>
+                                            <gco:CharacterString>soporte@einforex.es</gco:CharacterString>
+                                        </gmd:electronicMailAddress>
+                                    </gmd:CI_Address>
+                                </gmd:address>
+                                <gmd:onlineResource>
+                                    <gmd:CI_OnlineResource>
+                                        <gmd:linkage>
+                                            <gmd:URL>https://www.avincis.com</gmd:URL>
+                                        </gmd:linkage>
+                                        <gmd:protocol gco:nilReason="missing">
+                                            <gco:CharacterString/>
+                                        </gmd:protocol>
+                                        <gmd:name gco:nilReason="missing">
+                                            <gco:CharacterString/>
+                                        </gmd:name>
+                                        <gmd:description gco:nilReason="missing">
+                                            <gco:CharacterString/>
+                                        </gmd:description>
+                                    </gmd:CI_OnlineResource>
+                                </gmd:onlineResource>
+                                </gmd:CI_Contact>
+                            </gmd:contactInfo>
+                            <gmd:role>
+                                <gmd:CI_RoleCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode"
+                                                codeListValue="distributor"/>
+                            </gmd:role>
+                        </gmd:CI_ResponsibleParty>
+                    </gmd:distributorContact>
+                    </gmd:MD_Distributor>
+                </gmd:distributor>
+                <gmd:transferOptions>
+                    <gmd:MD_DigitalTransferOptions>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>{wms_server_shp_escaped}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>OGC:WMS</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>{wms_layer_shp}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:description>
+                                <gco:CharacterString>{wms_description_shp}</gco:CharacterString>
+                            </gmd:description>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>{wms_server_tiff_escaped}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>OGC:WMS</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>{wms_layer_tiff}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:description>
+                                <gco:CharacterString>{wms_description_tiff}</gco:CharacterString>
+                            </gmd:description>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>{wfs_server_shp_escaped}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>OGC:WFS-1.0.0-http-get-capabilities</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>{wfs_layer_shp}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:description>
+                                <gco:CharacterString>{wfs_description_shp}</gco:CharacterString>
+                            </gmd:description>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>{informe_url}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>{informe_description}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>{csv_url}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>{csv_description}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>{tif_url}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>{tif_description}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    </gmd:MD_DigitalTransferOptions>
+                </gmd:transferOptions>
+            </gmd:MD_Distribution>
+        </gmd:distributionInfo>
 
         
         <gmd:dataQualityInfo>
@@ -658,7 +872,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, id_mi
     </gmd:MD_Metadata>
 
     """ 
-    print(xml)
+    # print(xml)
     xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
     return xml_encoded
 
@@ -766,27 +980,6 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                 else:
                     logging.info(f"Recurso subido correctamente para {uuid}")
 
-                if ext == '.png':
-                    thumbnail_url = f"{base_url}/records/{uuid}/attachments/thumbnail"
-                    payload = {
-                        "filename": archivo_file_name
-                    }
-
-                    thumbnail_headers = {
-                        'Authorization': f"Bearer {access_token}",
-                        'x-xsrf-token': str(xsrf_token),
-                        'Cookie': str(set_cookie_header[0]),
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    }
-
-                    response_thumbnail = requests.put(thumbnail_url, json=payload, headers=thumbnail_headers)
-
-                    if response_thumbnail.status_code not in [200, 201]:
-                        logging.error(f"Error al establecer el thumbnail para {uuid}: {response_thumbnail.status_code} {response_thumbnail.text}")
-                        raise Exception("Fallo al establecer el thumbnail")
-                    else:
-                        logging.info(f"Thumbnail establecido correctamente para {uuid} con {archivo_file_name}")
 
 
 # Definición del DAG
