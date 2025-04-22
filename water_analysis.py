@@ -101,7 +101,6 @@ def process_extracted_files(**kwargs):
     for resource in json_modificado['executionResources']:
         file_name = os.path.basename(resource['path'])
         if file_name in nuevos_paths:
-            print(f"Actualizando path de {file_name}")
             resource['path'] = nuevos_paths[file_name]
 
     startTimeStamp = json_modificado['startTimestamp']
@@ -362,8 +361,7 @@ def get_geonetwork_credentials():
 
 def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
 
-    file_identifier = ""
-    title = ""
+    descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
 
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
@@ -374,12 +372,16 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
             file_identifier = metadata['value']
-        elif metadata['name'] == 'AlgorithmID':
-            title = metadata['value'] + ' ' + datetime.now().strftime('%Y%m%d_%H%M%S')
 
-
+    titulo = "WaterAnalysis: " + file_identifier 
      
-    date = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
+    fecha_completa = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
+    fecha = fecha_completa.date()
+    thumbnail = ''
+    min_longitud = 1.0
+    max_longitud = 2.0
+    min_latitud = 3.0
+    max_latitud = 4.0
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
     <gmd:MD_Metadata 
@@ -396,135 +398,255 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         xsi:schemaLocation="http://www.isotc211.org/2005/gmd 
                             http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd">
 
-        <gmd:fileIdentifier>
-            <gco:CharacterString>{file_identifier}</gco:CharacterString>
-        </gmd:fileIdentifier>
-
-
+                            
         <gmd:language>
-            <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="spa">spa</gmd:LanguageCode>
+            <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" codeListValue="es"/>
         </gmd:language>
 
         <gmd:characterSet>
-            <gmd:MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_CharacterSetCode"
-                                    codeListValue="utf8">utf8</gmd:MD_CharacterSetCode>
+            <gmd:MD_CharacterSetCode codeListValue="utf8"
+                                codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_CharacterSetCode"/>
         </gmd:characterSet>
 
-        <gmd:dateStamp>
-            <gco:Date>{date}</gco:Date>
-        </gmd:dateStamp>
-        
+        <gmd:hierarchyLevel>
+            <gmd:MD_ScopeCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_ScopeCode"
+                                codeListValue="dataset"/>
+        </gmd:hierarchyLevel>
+
 
         <gmd:contact>
             <gmd:CI_ResponsibleParty>
+                <gmd:individualName>
+                    <gco:CharacterString>I+D</gco:CharacterString>
+                </gmd:individualName>
                 <gmd:organisationName>
-                    <gco:CharacterString>Avincis Technics</gco:CharacterString>
+                    <gco:CharacterString>Avincis</gco:CharacterString>
                 </gmd:organisationName>
                 <gmd:contactInfo>
                     <gmd:CI_Contact>
-                        <gmd:address>
-                            <gmd:CI_Address>
-                                <gmd:electronicMailAddress>
-                                    <gco:CharacterString>admin@einforex.es</gco:CharacterString>
-                                </gmd:electronicMailAddress>
-                            </gmd:CI_Address>
-                        </gmd:address>
+                    <gmd:address>
+                        <gmd:CI_Address>
+                            <gmd:electronicMailAddress>
+                                <gco:CharacterString>soporte@einforex.es</gco:CharacterString>
+                            </gmd:electronicMailAddress>
+                        </gmd:CI_Address>
+                    </gmd:address>
+                    <gmd:onlineResource>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>https://www.avincis.com</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol gco:nilReason="missing">
+                                <gco:CharacterString/>
+                            </gmd:protocol>
+                            <gmd:name gco:nilReason="missing">
+                                <gco:CharacterString/>
+                            </gmd:name>
+                            <gmd:description gco:nilReason="missing">
+                                <gco:CharacterString/>
+                            </gmd:description>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onlineResource>
                     </gmd:CI_Contact>
                 </gmd:contactInfo>
+                <gmd:role>
+                    <gmd:CI_RoleCode codeListValue="author"
+                                    codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode"/>
+                </gmd:role>
             </gmd:CI_ResponsibleParty>
         </gmd:contact>
 
+        
+        <gmd:dateStamp>
+            <gco:DateTime>${fecha_completa}</gco:DateTime>
+        </gmd:dateStamp>
 
-        <gmd:referenceSystemInfo>
-            <gmd:MD_ReferenceSystem>
-                <gmd:referenceSystemIdentifier>
-                    <gmd:RS_Identifier>
-                        <gmd:code>
-                            <gco:CharacterString>EPSG:4326</gco:CharacterString>
-                        </gmd:code>
-                    </gmd:RS_Identifier>
-                </gmd:referenceSystemIdentifier>
-            </gmd:MD_ReferenceSystem>
-        </gmd:referenceSystemInfo>
+        <gmd:metadataStandardName>
+            <gco:CharacterString>ISO 19115:2003/19139</gco:CharacterString>
+        </gmd:metadataStandardName>
+
+
+        <gmd:metadataStandardVersion>
+            <gco:CharacterString>1.0</gco:CharacterString>
+        </gmd:metadataStandardVersion>
+
 
         <gmd:identificationInfo>
-            <gmd:MD_DataIdentification>
+            <srv:SV_ServiceIdentification>
                 <gmd:citation>
                     <gmd:CI_Citation>
-                        <gmd:title>
-                            <gco:CharacterString>{title}</gco:CharacterString>
-                        </gmd:title>
-
-                        <!-- ✅ FECHA DE PUBLICACIÓN -->
-                        <gmd:date>
-                            <gmd:CI_Date>
-                                <gmd:date>
-                                    <gco:Date>{date}</gco:Date>
-                                </gmd:date>
-                                <gmd:dateType>
-                                    <gmd:CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#CI_DateTypeCode"
-                                                        codeListValue="publication">publication</gmd:CI_DateTypeCode>
-                                </gmd:dateType>
-                            </gmd:CI_Date>
-                        </gmd:date>
-
+                    <gmd:title>
+                        <gco:CharacterString>${titulo}</gco:CharacterString>
+                    </gmd:title>
+                    <gmd:date>
+                        <gmd:CI_Date>
+                            <gmd:date>
+                                <gco:Date>${fecha}</gco:Date>
+                            </gmd:date>
+                            <gmd:dateType>
+                                <gmd:CI_DateTypeCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode"
+                                                    codeListValue="publication"/>
+                            </gmd:dateType>
+                        </gmd:CI_Date>
+                    </gmd:date>
                     </gmd:CI_Citation>
                 </gmd:citation>
-            </gmd:MD_DataIdentification>
+                <gmd:abstract>
+                    <gco:CharacterString>${descripcion}</gco:CharacterString>
+                </gmd:abstract>
+                <gmd:status>
+                    <gmd:MD_ProgressCode codeListValue="completed"
+                                        codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_ProgressCode"/>
+                </gmd:status>
+                <gmd:pointOfContact>
+                    <gmd:CI_ResponsibleParty>
+                    <gmd:individualName>
+                        <gco:CharacterString>I+D</gco:CharacterString>
+                    </gmd:individualName>
+                    <gmd:organisationName>
+                        <gco:CharacterString>Avincis</gco:CharacterString>
+                    </gmd:organisationName>
+                    <gmd:contactInfo>
+                        <gmd:CI_Contact>
+                            <gmd:address>
+                                <gmd:CI_Address>
+                                <gmd:electronicMailAddress>
+                                    <gco:CharacterString>soporte@einforex.es</gco:CharacterString>
+                                </gmd:electronicMailAddress>
+                                </gmd:CI_Address>
+                            </gmd:address>
+                            <gmd:onlineResource>
+                                <gmd:CI_OnlineResource>
+                                <gmd:linkage>
+                                    <gmd:URL>https://www.avincis.com</gmd:URL>
+                                </gmd:linkage>
+                                <gmd:protocol gco:nilReason="missing">
+                                    <gco:CharacterString/>
+                                </gmd:protocol>
+                                <gmd:name gco:nilReason="missing">
+                                    <gco:CharacterString/>
+                                </gmd:name>
+                                <gmd:description gco:nilReason="missing">
+                                    <gco:CharacterString/>
+                                </gmd:description>
+                                </gmd:CI_OnlineResource>
+                            </gmd:onlineResource>
+                        </gmd:CI_Contact>
+                    </gmd:contactInfo>
+                    <gmd:role>
+                        <gmd:CI_RoleCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode"
+                                        codeListValue="author"/>
+                    </gmd:role>
+                    </gmd:CI_ResponsibleParty>
+                </gmd:pointOfContact>
+                <gmd:resourceMaintenance/>
+                <gmd:graphicOverview>
+                    <gmd:MD_BrowseGraphic>
+                    <gmd:fileName>
+                        <gco:CharacterString>${thumbnail}</gco:CharacterString>
+                    </gmd:fileName>
+                    </gmd:MD_BrowseGraphic>
+                </gmd:graphicOverview>
+                <gmd:descriptiveKeywords>
+                    <gmd:MD_Keywords>
+                    <gmd:keyword>
+                        <gco:CharacterString>WMS</gco:CharacterString>
+                    </gmd:keyword>
+                    <gmd:keyword>
+                        <gco:CharacterString>WFS</gco:CharacterString>
+                    </gmd:keyword>
+                    <gmd:keyword>
+                        <gco:CharacterString>Biodiversidad</gco:CharacterString>
+                    </gmd:keyword>
+                    <gmd:keyword>
+                        <gco:CharacterString>Inspección acuática</gco:CharacterString>
+                    </gmd:keyword>
+                    <gmd:keyword>
+                        <gco:CharacterString>USV</gco:CharacterString>
+                    </gmd:keyword>
+                    </gmd:MD_Keywords>
+                </gmd:descriptiveKeywords>
+                <srv:serviceType>
+                    <gco:LocalName codeSpace="www.w3c.org">OGC:WMS</gco:LocalName>
+                </srv:serviceType>
+                <srv:serviceTypeVersion>
+                    <gco:CharacterString>1.3.0</gco:CharacterString>
+                </srv:serviceTypeVersion>
+                <srv:extent>
+                    <gmd:EX_Extent xmlns:xs="http://www.w3.org/2001/XMLSchema">
+                    <gmd:geographicElement>
+                        <gmd:EX_GeographicBoundingBox>
+                            <gmd:westBoundLongitude>
+                                <gco:Decimal>${min_longitud}</gco:Decimal>
+                            </gmd:westBoundLongitude>
+                            <gmd:eastBoundLongitude>
+                                <gco:Decimal>${max_longitud}</gco:Decimal>
+                            </gmd:eastBoundLongitude>
+                            <gmd:southBoundLatitude>
+                                <gco:Decimal>${min_latitud}</gco:Decimal>
+                            </gmd:southBoundLatitude>
+                            <gmd:northBoundLatitude>
+                                <gco:Decimal>${max_latitud}</gco:Decimal>
+                            </gmd:northBoundLatitude>
+                        </gmd:EX_GeographicBoundingBox>
+                    </gmd:geographicElement>
+                    </gmd:EX_Extent>
+                </srv:extent>
+                <srv:couplingType>
+                    <srv:SV_CouplingType codeListValue="tight"
+                                        codeList="http://www.isotc211.org/2005/iso19119/resources/Codelist/gmxCodelists.xml#SV_CouplingType"/>
+                </srv:couplingType>
+            </srv:SV_ServiceIdentification>
         </gmd:identificationInfo>
-
-        <gmd:descriptiveKeywords>
-            <gmd:MD_Keywords>
-                <gmd:keyword>
-                    <gco:CharacterString>GeoNetwork</gco:CharacterString>
-                </gmd:keyword>
-                <gmd:keyword>
-                    <gco:CharacterString>Metadatos</gco:CharacterString>
-                </gmd:keyword>
-                <gmd:type>
-                    <gmd:MD_KeywordTypeCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_KeywordTypeCode"
-                                            codeListValue="theme">theme</gmd:MD_KeywordTypeCode>
-                </gmd:type>
-            </gmd:MD_Keywords>
-        </gmd:descriptiveKeywords>
+                
 
 
-            <gmd:resourceConstraints>
-            <gmd:MD_LegalConstraints>
-                <gmd:otherConstraints>
-                    <gco:CharacterString>Acceso en línea</gco:CharacterString>
-                </gmd:otherConstraints>
-            </gmd:MD_LegalConstraints>
-        </gmd:resourceConstraints>
 
+        
+        <gmd:dataQualityInfo>
+            <gmd:DQ_DataQuality>
+                <gmd:scope>
+                    <gmd:DQ_Scope>
+                    <gmd:level>
+                        <gmd:MD_ScopeCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_ScopeCode"
+                                            codeListValue="service"/>
+                    </gmd:level>
+                    </gmd:DQ_Scope>
+                </gmd:scope>
+                <gmd:lineage>
+                    <gmd:LI_Lineage/>
+                </gmd:lineage>
+            </gmd:DQ_DataQuality>
+        </gmd:dataQualityInfo>
 
-        <gmd:graphicOverview>
-        <gmd:MD_BrowseGraphic>
-            <gmd:fileName>
-            <gco:CharacterString>resources.get?uuid={file_identifier}&amp;fname=thumbnail.png</gco:CharacterString>
-            </gmd:fileName>
-            <gmd:fileDescription>
-            <gco:CharacterString>Vista previa</gco:CharacterString>
-            </gmd:fileDescription>
-            <gmd:fileType>
-            <gco:CharacterString>image/png</gco:CharacterString>
-            </gmd:fileType>
-        </gmd:MD_BrowseGraphic>
-        </gmd:graphicOverview>
-
-        <gmd:onLine>
-            <gmd:CI_OnlineResource>
-                <gmd:linkage>             
-                    <gmd:URL>https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms</gmd:URL>
-                </gmd:linkage>
-                <gmd:protocol>
-                    <gco:CharacterString>OGC:WMS</gco:CharacterString>
-                </gmd:protocol>
+        <gmd:applicationSchemaInfo>
+            <gmd:MD_ApplicationSchemaInformation>
                 <gmd:name>
-                    <gco:CharacterString>{layer_name}</gco:CharacterString>
+                    <gmd:CI_Citation>
+                    <gmd:title gco:nilReason="missing">
+                        <gco:CharacterString/>
+                    </gmd:title>
+                    <gmd:date>
+                        <gmd:CI_Date>
+                            <gmd:date>
+                                <gco:Date/>
+                            </gmd:date>
+                            <gmd:dateType>
+                                <gmd:CI_DateTypeCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_DateTypeCode"
+                                                    codeListValue=""/>
+                            </gmd:dateType>
+                        </gmd:CI_Date>
+                    </gmd:date>
+                    </gmd:CI_Citation>
                 </gmd:name>
-            </gmd:CI_OnlineResource>
-        </gmd:onLine>
+                <gmd:schemaLanguage gco:nilReason="missing">
+                    <gco:CharacterString/>
+                </gmd:schemaLanguage>
+                <gmd:constraintLanguage gco:nilReason="missing">
+                    <gco:CharacterString/>
+                </gmd:constraintLanguage>
+            </gmd:MD_ApplicationSchemaInformation>
+        </gmd:applicationSchemaInfo>
     </gmd:MD_Metadata>
 
     """ 
@@ -636,7 +758,27 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                 else:
                     logging.info(f"Recurso subido correctamente para {uuid}")
 
+                if ext == '.png':
+                    thumbnail_url = f"{base_url}/records/{uuid}/attachments/thumbnail"
+                    payload = {
+                        "filename": archivo_file_name
+                    }
 
+                    thumbnail_headers = {
+                        'Authorization': f"Bearer {access_token}",
+                        'x-xsrf-token': str(xsrf_token),
+                        'Cookie': str(set_cookie_header[0]),
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+
+                    response_thumbnail = requests.post(thumbnail_url, json=payload, headers=thumbnail_headers)
+
+                    if response_thumbnail.status_code not in [200, 201]:
+                        logging.error(f"Error al establecer el thumbnail para {uuid}: {response_thumbnail.status_code} {response_thumbnail.text}")
+                        raise Exception("Fallo al establecer el thumbnail")
+                    else:
+                        logging.info(f"Thumbnail establecido correctamente para {uuid} con {archivo_file_name}")
 
 
 # Definición del DAG
