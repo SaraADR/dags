@@ -97,7 +97,7 @@ def process_extracted_files(**kwargs):
       
 
 
-    #Prepoaramos y ejecutamos la historización
+    #Preparamos y ejecutamos la historización
     for resource in json_modificado['executionResources']:
         file_name = os.path.basename(resource['path'])
         if file_name in nuevos_paths:
@@ -130,7 +130,6 @@ def process_extracted_files(**kwargs):
     xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
-
 
 
 
@@ -284,9 +283,6 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     if not file_group:
         return
     
-    print("NN-----------------------------------------------------------NN")
-    for nombre_original, ruta_temporal in file_group:
-        logging.info(f"🔹 Archivo encontrado: {nombre_original} → {ruta_temporal}")
     required_extensions = [".shp", ".dbf", ".shx"]
     presentes = {os.path.splitext(name)[1].lower(): path for name, path in file_group}
 
@@ -294,7 +290,6 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
         if ext not in presentes:
             logging.warning(f"⚠️ Falta {ext} en {nombre_capa}. Esto podría causar errores.")
     
-  
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w') as zip_file:
         for nombre_original, ruta_temporal in file_group:
@@ -313,62 +308,7 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     print(f"Vector disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{datastore_name}")
 
 
-    # shapefile_path = None
-    # for original_name, ruta_temporal in file_group:
-    #     if original_name.lower().endswith(".shp"):
-    #         shapefile_path = ruta_temporal
-    #         break
 
-    # if not shapefile_path:
-    #     raise Exception("No se encontró el archivo .shp dentro del grupo.")
-
-    # # Extraer datos del shapefile
-    # datos = extraer_datos_shapefile(shapefile_path)
-
-    # print(f"datos shapefile {datos}")
-
-    # url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/featuretypes"
-
-    # data = {
-    #     "featureType": {
-    #         "name": datastore_name,
-    #         "title": datastore_name,
-    #         "srs": datos["srs"],
-    #         "nativeBoundingBox": datos["bounding_box"] | {"crs": datos["srs"]},
-    #         "latLonBoundingBox": datos["bounding_box"] | {"crs": datos["srs"]}
-    #     }
-    # }
-
-    # headers = {"Content-Type": "application/json"}
-    # response = requests.post(url, json=data, headers=headers, auth=auth)
-
-    # if response.status_code in [201, 200]:
-    #     print(f" Capa {datastore_name} publicada correctamente en GeoServer.")
-    # else:
-    #     print(f" Error al publicar la capa {datastore_name}: {response.status_code}, {response.text}")
-
-
-
-
-
-def extraer_datos_shapefile(shapefile_path):
-    # Cargar el shapefile
-    gdf = gpd.read_file(shapefile_path)
-
-    # Obtener la proyección (SRS)
-    srs = gdf.crs.to_string() if gdf.crs else "EPSG:4326"  # Default si no hay CRS definido
-
-    # Obtener BoundingBox
-    minx, miny, maxx, maxy = gdf.total_bounds
-
-    # Obtener nombres de atributos
-    atributos = list(gdf.columns)
-
-    return {
-        "srs": srs,
-        "bounding_box": {"minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy},
-        "atributos": atributos
-    }
 
 def set_geoserver_style(layer_name, base_url, auth, style_name, workspace="USV_Water_analysis_2025"):
     url = f"{base_url}/layers/{workspace}:{layer_name}"
@@ -424,9 +364,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
 
     file_identifier = ""
     title = ""
-    print(workspace)
-    print(layer_name)
-    print(base_url)
+
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
     url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png"
@@ -440,7 +378,8 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
             title = metadata['value'] + ' ' + datetime.now().strftime('%Y%m%d_%H%M%S')
 
 
-    date = json_modificado['endTimestamp']
+     
+    date = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
     <gmd:MD_Metadata 
@@ -458,7 +397,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
                             http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd">
 
         <gmd:fileIdentifier>
-            <gco:CharacterString>{url_geoserver}</gco:CharacterString>
+            <gco:CharacterString>{file_identifier}</gco:CharacterString>
         </gmd:fileIdentifier>
 
 
