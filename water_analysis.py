@@ -754,29 +754,19 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
 
                 if ext == '.png':
 
-                    attachments_url = f"{base_url}/records/{uuid}/attachments"
-                    response_attachments = requests.get(attachments_url, headers=headers)
+                    url = f"{base_url}/records/{uuid}"
 
-                    if response_attachments.status_code == 200:
-                        attachments = response_attachments.json()
-                        print(json.dumps(attachments, indent=2))  # Para ver bien qué hay
-                    else:
-                        print(f"Error al obtener los attachments: {response_attachments.status_code} {response_attachments.text}")
-
-
-                    thumbnail_api = f"{base_url}/records/{uuid}/thumbnail"
-                    payload = {
-                        "url": f"/geonetwork/srv/api/records/{uuid}/attachments/{archivo_file_name}"
+                    data = {
+                        "thumbnail": archivo_file_name,  
                     }
-                    headers['Content-Type'] = 'application/json'
 
-                    response_thumbnail = requests.put(thumbnail_api, json=payload, headers=headers)
+                    response = requests.put(url, json=data, headers=headers)
 
-                    if response_thumbnail.status_code != 200:
-                        logging.error(f"Error al establecer el thumbnail: {response_thumbnail.status_code} {response_thumbnail.text}")
-                        raise Exception(f"Fallo al establecer el thumbnail: {response_thumbnail.text}")
+                    if response.status_code != 200:
+                        logging.error(f"Error actualizando miniatura para {uuid}: {response.status_code} {response.text}")
+                        raise Exception("Error al actualizar la miniatura")
                     else:
-                        logging.info(f"Thumbnail establecido correctamente para {uuid}")
+                        logging.info(f"Miniatura asociada correctamente para el recurso {uuid}")
 
 
 # Definición del DAG
