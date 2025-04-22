@@ -1,8 +1,6 @@
 import base64
-import html
 import json
 import re
-import tempfile
 import uuid
 import zipfile
 from airflow import DAG
@@ -10,7 +8,7 @@ from airflow.operators.python_operator import PythonOperator
 from datetime import datetime, timedelta, timezone
 import io
 from sqlalchemy import  text
-from dag_utils import upload_to_minio_path, get_geoserver_connection, get_minio_client, execute_query
+from dag_utils import  get_geoserver_connection, get_minio_client, execute_query
 import os
 from airflow.models import Variable
 import copy
@@ -20,7 +18,7 @@ import requests
 import logging
 from airflow.providers.ssh.hooks.ssh import SSHHook
 import geopandas as gpd
-import shutil
+import rasterio
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
@@ -85,6 +83,10 @@ def process_extracted_files(**kwargs):
                 ContentType="image/tiff"
             )
             print(f'{archivo_file_name} subido correctamente a MinIO.')
+
+            #Sacamos su lot lang
+            coordenadas_tif = obtener_coordenadas_tif(archivo_file_name, archivo_content)
+
         else:
             content_type = "application/octet-stream"  # valor por defecto
             if archivo_file_name.endswith('.png'):
@@ -137,7 +139,7 @@ def process_extracted_files(**kwargs):
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, ruta_png, uuid_key)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
@@ -214,7 +216,19 @@ def historizacion(output_data, input_data, mission_id, startTimeStamp, endTimeSt
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
 
+def obtener_coordenadas_tif(name, content):
+    archivo_contenido = base64.b64decode(content)  # Decodificamos el contenido
 
+    with rasterio.open(io.BytesIO(archivo_contenido)) as dataset:
+        bounds = dataset.bounds  # Obtiene las coordenadas del TIFF
+        coordenadas = {
+            "min_longitud": bounds.left,
+            "max_longitud": bounds.right,
+            "min_latitud": bounds.bottom,
+            "max_latitud": bounds.top
+        }
+    
+    return coordenadas
 
 #PUBLICAR GEO
 def publish_to_geoserver(archivos, **context):
@@ -370,9 +384,9 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_png, uuid_key):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_key, coordenadas_tif):
 
-    descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
+    descripcion = "Datos de WaterAnalysis"
 
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?layers={workspace}:{layer_name}"
     #url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&request=GetMap&layers={layer_name}&width=800&height=600&srs=EPSG:32629&bbox=512107.0,4703136.32,512300.92,4703286.42&format=image/png"
@@ -388,10 +402,10 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_
      
     fecha_completa = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
     fecha = fecha_completa.date()
-    min_longitud = 1.0
-    max_longitud = 2.0
-    min_latitud = 3.0
-    max_latitud = 4.0
+    min_longitud = coordenadas_tif["min_longitud"]
+    max_longitud = coordenadas_tif["max_longitud"]
+    min_latitud = coordenadas_tif["min_latitud"]
+    max_latitud = coordenadas_tif["max_latitud"]
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
     <gmd:MD_Metadata 
@@ -483,9 +497,9 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_
               <gmd:graphicOverview>
         <gmd:MD_BrowseGraphic>
             <gmd:fileName>
-            <gmd:URL>
+            <gco:CharacterString>
                 https://minioapi.avincis.cuatrodigital.com/missions/112255/{uuid_key}/20241023T103654_bathy.png
-            </gmd:URL>
+            </gco:CharacterString>
             </gmd:fileName>
         </gmd:MD_BrowseGraphic>
         </gmd:graphicOverview>
@@ -615,6 +629,97 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_
                 
 
 
+        
+
+
+        <gmd:distributionInfo>
+            <gmd:MD_Distribution>
+                <gmd:distributor>
+                    <gmd:MD_Distributor>
+                    <gmd:distributorContact>
+                        <gmd:CI_ResponsibleParty>
+                            <gmd:individualName>
+                                <gco:CharacterString>I+D</gco:CharacterString>
+                            </gmd:individualName>
+                            <gmd:organisationName>
+                                <gco:CharacterString>Avincis</gco:CharacterString>
+                            </gmd:organisationName>
+                            <gmd:contactInfo>
+                                <gmd:CI_Contact>
+                                <gmd:address>
+                                    <gmd:CI_Address>
+                                        <gmd:electronicMailAddress>
+                                            <gco:CharacterString>soporte@einforex.es</gco:CharacterString>
+                                        </gmd:electronicMailAddress>
+                                    </gmd:CI_Address>
+                                </gmd:address>
+                                <gmd:onlineResource>
+                                    <gmd:CI_OnlineResource>
+                                        <gmd:linkage>
+                                            <gmd:URL>https://www.avincis.com</gmd:URL>
+                                        </gmd:linkage>
+                                        <gmd:protocol gco:nilReason="missing">
+                                            <gco:CharacterString/>
+                                        </gmd:protocol>
+                                        <gmd:name gco:nilReason="missing">
+                                            <gco:CharacterString/>
+                                        </gmd:name>
+                                        <gmd:description gco:nilReason="missing">
+                                            <gco:CharacterString/>
+                                        </gmd:description>
+                                    </gmd:CI_OnlineResource>
+                                </gmd:onlineResource>
+                                </gmd:CI_Contact>
+                            </gmd:contactInfo>
+                            <gmd:role>
+                                <gmd:CI_RoleCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode"
+                                                codeListValue="distributor"/>
+                            </gmd:role>
+                        </gmd:CI_ResponsibleParty>
+                    </gmd:distributorContact>
+                    </gmd:MD_Distributor>
+                </gmd:distributor>
+                <gmd:transferOptions>
+                    <gmd:MD_DigitalTransferOptions>
+  
+                    
+
+                    
+
+                    
+
+                    
+               
+                <gmd:onLine>
+                    <gmd:CI_OnlineResource>
+                        <gmd:linkage>
+                            <gmd:URL>https://minioapi.avincis.cuatrodigital.com/missions/112255/c92ed006-3585-4022-a803-2e5ca49587d6/20241023T103654_mosaic.tif</gmd:URL>
+                        </gmd:linkage>
+                        <gmd:protocol>
+                            <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
+                        </gmd:protocol>
+                        <gmd:name>
+                            <gco:CharacterString>Archivo GeoTIFF de la misión</gco:CharacterString>
+                        </gmd:name>
+                        <gmd:function>
+                            <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                    codeListValue="download"/>
+                        </gmd:function>
+                    </gmd:CI_OnlineResource>
+                </gmd:onLine>
+
+     
+
+
+                    </gmd:MD_DigitalTransferOptions>
+                </gmd:transferOptions>
+            </gmd:MD_Distribution>
+        </gmd:distributionInfo>
+
+
+
+
+        
 
         
         <gmd:dataQualityInfo>
