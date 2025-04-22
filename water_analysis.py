@@ -300,16 +300,42 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     print(f"Capa vectorial publicada: {datastore_name}")
     print(f"🗺️  Vector disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{datastore_name}")
 
-    publicar_capa_en_geoserver(WORKSPACE, datastore_name, base_url, auth)
+    publicar_capa_en_geoserver(WORKSPACE, datastore_name, file_group, base_url, auth)
 
-def publicar_capa_en_geoserver(workspace, datastore_name, base_url, auth):
-    url = f"{base_url}/workspaces/{workspace}/datastores/{datastore_name}/featuretypes"
+def publicar_capa_en_geoserver(workspace, datastore_name, file_group, base_url, auth):
+    # Buscar el archivo .shp para cargar con geopandas
+    shapefile_path = None
+    for name, path in file_group:
+        if name.lower().endswith('.shp'):
+            shapefile_path = path
+            break
     
+    if not shapefile_path:
+        raise Exception("No se encontró el archivo .shp en el grupo de archivos.")
+    
+    datos = extraer_datos_shapefile(shapefile_path)
+
+    url = f"{base_url}/workspaces/{workspace}/datastores/{datastore_name}/featuretypes"
+
     data = {
         "featureType": {
             "name": datastore_name,
             "title": datastore_name,
-            "srs": "EPSG:4326"  
+            "srs": datos["srs"],
+            "nativeBoundingBox": {
+                "minx": datos["bounding_box"]["minx"],
+                "miny": datos["bounding_box"]["miny"],
+                "maxx": datos["bounding_box"]["maxx"],
+                "maxy": datos["bounding_box"]["maxy"],
+                "crs": datos["srs"]
+            },
+            "latLonBoundingBox": {
+                "minx": datos["bounding_box"]["minx"],
+                "miny": datos["bounding_box"]["miny"],
+                "maxx": datos["bounding_box"]["maxx"],
+                "maxy": datos["bounding_box"]["maxy"],
+                "crs": datos["srs"]
+            }
         }
     }
 
@@ -321,6 +347,25 @@ def publicar_capa_en_geoserver(workspace, datastore_name, base_url, auth):
     else:
         print(f"❌ Error al publicar la capa {datastore_name}: {response.status_code}, {response.text}")
 
+        
+def extraer_datos_shapefile(shapefile_path):
+    # Cargar el shapefile
+    gdf = gpd.read_file(shapefile_path)
+
+    # Obtener la proyección (SRS)
+    srs = gdf.crs.to_string() if gdf.crs else "EPSG:4326"  # Default si no hay CRS definido
+
+    # Obtener BoundingBox
+    minx, miny, maxx, maxy = gdf.total_bounds
+
+    # Obtener nombres de atributos
+    atributos = list(gdf.columns)
+
+    return {
+        "srs": srs,
+        "bounding_box": {"minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy},
+        "atributos": atributos
+    }
 
 def set_geoserver_style(layer_name, base_url, auth, style_name, workspace="USV_Water_analysis_2025"):
     url = f"{base_url}/layers/{workspace}:{layer_name}"
