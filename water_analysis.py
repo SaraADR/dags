@@ -405,9 +405,6 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
     # url_geoserver = f"https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/{workspace}/wms?service=WMS&amp;request=GetMap&amp;layers={layer_name}&amp;width=800&amp;height=600&amp;srs=EPSG:32629&amp;bbox=512107.0,4703136.32,512300.92,4703286.42&amp;format=image/png"
 
 
-    wfs_server_shp_escaped = xml.sax.saxutils.escape(wfs_server_shp)
-    wms_server_shp_escaped = xml.sax.saxutils.escape(wms_server_shp)
-    wms_server_tiff_escaped = xml.sax.saxutils.escape(wms_server_tiff)
 
     print(f"WMS Server SHP: {wms_server_shp}")
     print(f"WFS Server SHP: {wfs_server_shp}")
@@ -429,6 +426,10 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
     min_latitud = coordenadas_tif["min_latitud"]
     max_latitud = coordenadas_tif["max_latitud"]
 
+
+    wms_server_tiff_escaped = ''
+    wms_server_shp_escaped = ''
+    wfs_server_shp_escaped = ''
     wfs_description_shp = ''
     informe_url = ''
     informe_description = ''
