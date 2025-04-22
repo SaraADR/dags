@@ -445,7 +445,7 @@ def process_outputs(**context):
                 {
                     "type": "notify",
                     "data": {
-                        "message": f"Resultados del algoritmo disponibles. ID: {job_id}"
+                        "message": f"Resultados del algoritmo de planificación disponibles. ID: {job_id}"
                     }
                 }
             ]
