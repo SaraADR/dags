@@ -135,11 +135,11 @@ def process_extracted_files(**kwargs):
 
 
     #Subimos a Geoserver el tif y ambos shapes
-    layer_name, workspace, base_url = publish_to_geoserver(archivos)
+    layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff = publish_to_geoserver(archivos)
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
@@ -258,6 +258,9 @@ def publish_to_geoserver(archivos, **context):
 
     #SUBIMOS LOS TIFFS
     tiff_files = [path for name, path in temp_files if name.lower().endswith(".tif")]
+    wms_server_tiff = None
+    wms_layer_tiff = None
+    wms_description_tiff = "Capa raster GeoTIFF publicada en GeoServer"
 
     for tif_file in tiff_files:
         with open(tif_file, 'rb') as f:
@@ -272,6 +275,8 @@ def publish_to_geoserver(archivos, **context):
         if response.status_code not in [201, 202]:
             raise Exception(f"Error publicando {layer_name}: {response.text}")
         print(f"Capa raster publicada: {layer_name}")
+        wms_server_tiff = f"{base_url}/geoserver/{WORKSPACE}/wms"
+        wms_layer_tiff = f"{WORKSPACE}:{layer_name}"
 
         # Actualizar capa genérica
         url_latest = f"{base_url}/workspaces/{WORKSPACE}/coveragestores/{GENERIC_LAYER}/file.geotiff"
@@ -283,6 +288,9 @@ def publish_to_geoserver(archivos, **context):
 
     #SUBIMOS LOS SHAPES
     shapefile_groups = {}
+    wfs_server_shp = None
+    wfs_layer_shp = None
+    wfs_description_shp = "Capa vectorial publicada en GeoServer vía WFS."
 
     for original_name, temp_path in temp_files:
         ext = os.path.splitext(original_name)[1].lower()
@@ -295,8 +303,14 @@ def publish_to_geoserver(archivos, **context):
         nombre_capa = os.path.basename(base_name)  
         subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth)
 
+        wms_server_shp = f"{base_url}/geoserver/{WORKSPACE}/wms"
+        wms_layer_shp = f"{WORKSPACE}:{nombre_capa}"
+        wms_description_shp = f"Capa vectorial {nombre_capa} publicada en GeoServer"
+        wfs_server_shp = f"{base_url}/geoserver/{WORKSPACE}/ows?service=WFS&request=GetCapabilities"
+        wfs_layer_shp = f"{WORKSPACE}:{nombre_capa}"
+
     print("----Publicación en GeoServer completada exitosamente.----")
-    return layer_name, WORKSPACE, base_url
+    return layer_name, WORKSPACE, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff
 
 
 
@@ -382,7 +396,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_key, coordenadas_tif):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff):
 
     descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
 
@@ -404,6 +418,18 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
     max_longitud = coordenadas_tif["max_longitud"]
     min_latitud = coordenadas_tif["min_latitud"]
     max_latitud = coordenadas_tif["max_latitud"]
+
+
+    wfs_server_shp = ''
+    wfs_layer_shp = ''
+    wfs_description_shp = ''
+    informe_url = ''
+    informe_description = ''
+    csv_url = ''
+    csv_description = ''
+    tif_url = ''
+    tif_description = ''
+
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
     <gmd:MD_Metadata 
@@ -626,7 +652,170 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, uuid_
         </gmd:identificationInfo>
                 
 
-
+<gmd:distributionInfo>
+            <gmd:MD_Distribution>
+                <gmd:distributor>
+                    <gmd:MD_Distributor>
+                    <gmd:distributorContact>
+                        <gmd:CI_ResponsibleParty>
+                            <gmd:individualName>
+                                <gco:CharacterString>I+D</gco:CharacterString>
+                            </gmd:individualName>
+                            <gmd:organisationName>
+                                <gco:CharacterString>Avincis</gco:CharacterString>
+                            </gmd:organisationName>
+                            <gmd:contactInfo>
+                                <gmd:CI_Contact>
+                                <gmd:address>
+                                    <gmd:CI_Address>
+                                        <gmd:electronicMailAddress>
+                                            <gco:CharacterString>soporte@einforex.es</gco:CharacterString>
+                                        </gmd:electronicMailAddress>
+                                    </gmd:CI_Address>
+                                </gmd:address>
+                                <gmd:onlineResource>
+                                    <gmd:CI_OnlineResource>
+                                        <gmd:linkage>
+                                            <gmd:URL>https://www.avincis.com</gmd:URL>
+                                        </gmd:linkage>
+                                        <gmd:protocol gco:nilReason="missing">
+                                            <gco:CharacterString/>
+                                        </gmd:protocol>
+                                        <gmd:name gco:nilReason="missing">
+                                            <gco:CharacterString/>
+                                        </gmd:name>
+                                        <gmd:description gco:nilReason="missing">
+                                            <gco:CharacterString/>
+                                        </gmd:description>
+                                    </gmd:CI_OnlineResource>
+                                </gmd:onlineResource>
+                                </gmd:CI_Contact>
+                            </gmd:contactInfo>
+                            <gmd:role>
+                                <gmd:CI_RoleCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_RoleCode"
+                                                codeListValue="distributor"/>
+                            </gmd:role>
+                        </gmd:CI_ResponsibleParty>
+                    </gmd:distributorContact>
+                    </gmd:MD_Distributor>
+                </gmd:distributor>
+                <gmd:transferOptions>
+                    <gmd:MD_DigitalTransferOptions>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>${wms_server_shp}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>OGC:WMS</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>${wms_layer_shp}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:description>
+                                <gco:CharacterString>${wms_description_shp}</gco:CharacterString>
+                            </gmd:description>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>${wms_server_tiff}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>OGC:WMS</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>${wms_layer_tiff}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:description>
+                                <gco:CharacterString>${wms_description_tiff}</gco:CharacterString>
+                            </gmd:description>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>${wfs_server_shp}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>OGC:WFS-1.0.0-http-get-capabilities</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>${wfs_layer_shp}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:description>
+                                <gco:CharacterString>${wfs_description_shp}</gco:CharacterString>
+                            </gmd:description>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>${informe_url}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>${informe_description}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>${csv_url}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>${csv_description}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>${tif_url}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>${tif_description}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
+                    </gmd:MD_DigitalTransferOptions>
+                </gmd:transferOptions>
+            </gmd:MD_Distribution>
+        </gmd:distributionInfo>
 
         
         <gmd:dataQualityInfo>
