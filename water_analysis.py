@@ -473,11 +473,13 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         </gmd:metadataStandardVersion>
 
         <gmd:graphicOverview>
-            <gmd:MD_BrowseGraphic>
+        <gmd:MD_BrowseGraphic>
             <gmd:fileName>
-                <gco:CharacterString>https://minioapi.avincis.cuatrodigital.com/missions/112255%2F8bbce105-2356-466c-b35c-0e30fd99a29c%2F20241023T103654_bathy.png</gco:CharacterString>
+            <gco:CharacterString>
+                https://minioapi.avincis.cuatrodigital.com/missions/112255/8bbce105-2356-466c-b35c-0e30fd99a29c/20241023T103654_bathy.png
+            </gco:CharacterString>
             </gmd:fileName>
-            </gmd:MD_BrowseGraphic>
+        </gmd:MD_BrowseGraphic>
         </gmd:graphicOverview>
 
 
