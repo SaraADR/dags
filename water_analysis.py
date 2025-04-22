@@ -136,11 +136,11 @@ def process_extracted_files(**kwargs):
 
 
     #Subimos a Geoserver el tif y ambos shapes
-    layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, url_new = publish_to_geoserver(archivos)
+    layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, url_new, wfs_description_shp = publish_to_geoserver(archivos)
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission, url_new)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp)
 
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
@@ -312,7 +312,7 @@ def publish_to_geoserver(archivos, **context):
         wfs_layer_shp = f"{WORKSPACE}:{nombre_capa}"
 
     print("----Publicación en GeoServer completada exitosamente.----")
-    return layer_name, WORKSPACE, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, url_new
+    return layer_name, WORKSPACE, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, url_new, wfs_description_shp
 
 
 
@@ -398,29 +398,21 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission, url_new):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp):
 
     descripcion = "Resultado del algoritmo de waterAnalysis"
 
-    print(f"WMS Server SHP: {wms_server_shp}")
-    print(f"WFS Server SHP: {wfs_server_shp}")
-    print(f"WMS Server TIFF: {wms_server_tiff}")
-    print(f"WMS Server SHP: {wms_layer_shp}")
-    print(f"WFS Server SHP: {wms_description_shp}")
-    print(f"WMS Server TIFF: {wms_layer_tiff}")
 
+    #SHAPES
     wms_server_shp = wms_server_shp.replace('/rest/', '/')
     wfs_server_shp = wfs_server_shp.replace('/rest/', '/')
     wms_server_tiff = wms_server_tiff.replace('/rest/', '/')
-
-
-
     wms_server_shp_escape =  escape(wms_server_shp)
     wfs_server_shp_escape =  escape(wfs_server_shp)
     wms_server_shp_escape =  escape(wms_server_shp)
     wms_server_tiff_escape = escape(wms_server_tiff)
 
-    print(f"WMS Server SHP: {wms_server_shp_escape}")
+
 
     for metadata in json_modificado['metadata']:
         if metadata['name'] == 'ExecutionID':
@@ -436,13 +428,13 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
     max_latitud = coordenadas_tif["max_latitud"]
 
 
-    wfs_description_shp = ''
-    informe_url = ''
-    informe_description = ''
+
+    informe_url = 'attachments/informe.pdf'
+    informe_description = 'Informe generado por el algoritmo'
     csv_url = ''
     csv_description = ''
     tif_url = ''
-    tif_description = ''
+    tif_description = 'Tiff generado por el algoritmo'
 
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
