@@ -68,7 +68,7 @@ def process_extracted_files(**kwargs):
         )
     print(f'Archivo ZIP {zip_file_name} subido correctamente a MinIO.')
 
-
+    ruta_png = None
     #Subimos los archivos todos por separado
     for archivo in archivos:
         archivo_file_name = os.path.basename(archivo['file_name'])
@@ -89,6 +89,7 @@ def process_extracted_files(**kwargs):
             content_type = "application/octet-stream"  # valor por defecto
             if archivo_file_name.endswith('.png'):
                 content_type = "image/png"
+                ruta_png = f"{rutaminio}/{bucket_name}/{archivo_key}"
             elif archivo_file_name.endswith('.jpg') or archivo_file_name.endswith('.jpeg'):
                 content_type = "image/jpeg"
             elif archivo_file_name.endswith('.pdf'):
@@ -104,7 +105,7 @@ def process_extracted_files(**kwargs):
 
         print(archivo_key)
         nuevos_paths[archivo_file_name] = f"{rutaminio}/{bucket_name}/{archivo_key}"
-      
+    print(ruta_png)
 
 
     #Preparamos y ejecutamos la historización
@@ -136,7 +137,7 @@ def process_extracted_files(**kwargs):
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, ruta_png)
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
 
@@ -369,7 +370,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url, ruta_png):
 
     descripcion = "Por ahora esta es una descripción de prueba hasta que sepamos donde está la real"
 
@@ -387,8 +388,6 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
      
     fecha_completa = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
     fecha = fecha_completa.date()
-    thumbnail = "https://minioapi.avincis.cuatrodigital.com/missions/112255%2F8bbce105-2356-466c-b35c-0e30fd99a29c%2F20241023T103654_bathy.png"
-    thumbnail_xml_safe = html.escape(thumbnail)
     min_longitud = 1.0
     max_longitud = 2.0
     min_latitud = 3.0
@@ -485,7 +484,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url):
         <gmd:MD_BrowseGraphic>
             <gmd:fileName>
             <gco:CharacterString>
-                https://minioapi.avincis.cuatrodigital.com/missions/112255/8bbce105-2356-466c-b35c-0e30fd99a29c/20241023T103654_bathy.png
+                {ruta_png}
             </gco:CharacterString>
             </gmd:fileName>
         </gmd:MD_BrowseGraphic>
