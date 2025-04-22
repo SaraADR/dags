@@ -82,6 +82,8 @@ def process_output_and_notify(**context):
     json_key = f"algorithm_aircraft_planificator_outputs/jsons/{assignment_id}_{timestamp}.json"
     csv_key = f"algorithm_aircraft_planificator_outputs/outputs/{assignment_id}_{timestamp}.csv"
 
+    output_data["missionId"] = mission_id
+
     s3_client.put_object(
         Bucket=bucket,
         Key=json_key,
