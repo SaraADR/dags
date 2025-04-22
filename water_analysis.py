@@ -259,24 +259,8 @@ def publish_to_geoserver(archivos, **context):
             raise Exception(f"Error actualizando capa genérica: {response_latest.text}")
         print(f"Capa genérica raster actualizada: {GENERIC_LAYER}")
         print(f"Raster disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{layer_name}")
-    
-    
 
     #SUBIMOS LOS SHAPES
-    # water_analysis_files = []
-    # seafloor_files = []
-    # for original_name, temp_path in temp_files:
-    #     if os.path.splitext(original_name)[1].lower() in ('.shp', '.dbf', '.shx', '.prj', '.cpg'):
-    #         if "wateranalysis" in original_name.lower():
-    #             water_analysis_files.append((original_name, temp_path))
-    #         elif "seafloor" in original_name.lower():
-    #             seafloor_files.append((original_name, temp_path))
-
-    # subir_zip_shapefile(water_analysis_files, "waterAnalysis", WORKSPACE, base_url, auth)
-    # subir_zip_shapefile(seafloor_files, "seaFloor", WORKSPACE, base_url, auth)
-    #set_geoserver_style("SeaFloor", base_url, auth, "SeaFloorStyle")
-
-
     shapefile_groups = {}
 
     for original_name, temp_path in temp_files:
@@ -326,40 +310,42 @@ def subir_zip_shapefile(file_group, nombre_capa, WORKSPACE, base_url, auth):
     if response.status_code not in [201, 202]:
         raise Exception(f"Error subiendo vectorial {datastore_name}: {response.text}")
     print(f"Capa vectorial publicada: {datastore_name}")
-    print(f"🗺️  Vector disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{datastore_name}")
+    print(f"Vector disponible en: {base_url}/geoserver/{WORKSPACE}/wms?layers={WORKSPACE}:{datastore_name}")
 
 
-    shapefile_path = None
-    for original_name, ruta_temporal in file_group:
-        if original_name.lower().endswith(".shp"):
-            shapefile_path = ruta_temporal
-            break
+    # shapefile_path = None
+    # for original_name, ruta_temporal in file_group:
+    #     if original_name.lower().endswith(".shp"):
+    #         shapefile_path = ruta_temporal
+    #         break
 
-    if not shapefile_path:
-        raise Exception("No se encontró el archivo .shp dentro del grupo.")
+    # if not shapefile_path:
+    #     raise Exception("No se encontró el archivo .shp dentro del grupo.")
 
-    # Extraer datos del shapefile
-    datos = extraer_datos_shapefile(shapefile_path)
+    # # Extraer datos del shapefile
+    # datos = extraer_datos_shapefile(shapefile_path)
 
-    url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/featuretypes"
+    # print(f"datos shapefile {datos}")
 
-    data = {
-        "featureType": {
-            "name": datastore_name,
-            "title": datastore_name,
-            "srs": datos["srs"],
-            "nativeBoundingBox": datos["bounding_box"] | {"crs": datos["srs"]},
-            "latLonBoundingBox": datos["bounding_box"] | {"crs": datos["srs"]}
-        }
-    }
+    # url = f"{base_url}/workspaces/{WORKSPACE}/datastores/{datastore_name}/featuretypes"
 
-    headers = {"Content-Type": "application/json"}
-    response = requests.post(url, json=data, headers=headers, auth=auth)
+    # data = {
+    #     "featureType": {
+    #         "name": datastore_name,
+    #         "title": datastore_name,
+    #         "srs": datos["srs"],
+    #         "nativeBoundingBox": datos["bounding_box"] | {"crs": datos["srs"]},
+    #         "latLonBoundingBox": datos["bounding_box"] | {"crs": datos["srs"]}
+    #     }
+    # }
 
-    if response.status_code in [201, 200]:
-        print(f" Capa {datastore_name} publicada correctamente en GeoServer.")
-    else:
-        print(f" Error al publicar la capa {datastore_name}: {response.status_code}, {response.text}")
+    # headers = {"Content-Type": "application/json"}
+    # response = requests.post(url, json=data, headers=headers, auth=auth)
+
+    # if response.status_code in [201, 200]:
+    #     print(f" Capa {datastore_name} publicada correctamente en GeoServer.")
+    # else:
+    #     print(f" Error al publicar la capa {datastore_name}: {response.status_code}, {response.text}")
 
 
 
