@@ -214,7 +214,7 @@ def generate_xml(**kwargs):
     organization_name = 'Avincis'
     email_address = ' admin@einforex.es'
     protocol = 'OGC:WMS-1.3.0-http-get-map'
-    wms_link_conn =  BaseHook.get_connection('geonetwork_conn')
+    wms_link_conn =  BaseHook.get_connection('geonetwork_credentials')
     wms_link = wms_link_conn.host
             
      
@@ -319,7 +319,7 @@ def generate_xml(**kwargs):
 def get_geonetwork_credentials():
     try:
 
-        conn = BaseHook.get_connection('geonetwork_conn')
+        conn = BaseHook.get_connection('geonetwork_credentials')
         credential_dody = {
             "username" : conn.login,
             "password" : conn.password
@@ -350,7 +350,7 @@ def get_geonetwork_credentials():
 # Función para subir el XML y devolver el ID del recurso
 def upload_to_geonetwork(**context):
     try:
-        connection = BaseHook.get_connection("geonetwork_update_conn")
+        connection = BaseHook.get_connection("geonetwork_connection")
         upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
         access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
         xml_data_array = context['ti'].xcom_pull(task_ids='generate_xml')
@@ -897,7 +897,7 @@ def assign_owner_to_resource(**context):
     try:
         logging.info("INICIANDO ASIGNACIÓN DE PROPIETARIO...")
 
-        connection = BaseHook.get_connection("geonetwork_update_conn")
+        connection = BaseHook.get_connection("geonetwork_connection")
         geonetwork_url = connection.host  
 
         resource_ids = context['ti'].xcom_pull(task_ids='upload_to_geonetwork', key='resource_id')
