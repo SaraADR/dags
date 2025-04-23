@@ -141,7 +141,7 @@ def process_extracted_files(**kwargs):
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp, ruta_png)
 
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
@@ -161,7 +161,7 @@ def process_extracted_files(**kwargs):
 
     nombre_tiff= os.path.basename(archivo_tiff["file_name"])
     uuid_var = resources_id[0]
-    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=archivo_tiff)
+    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=nombre_tiff)
 
 
 
@@ -417,7 +417,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp, ruta_png):
 
     descripcion = "Resultado del algoritmo de waterAnalysis"
 
@@ -547,7 +547,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
         <gmd:MD_BrowseGraphic>
             <gmd:fileName>
             <gco:CharacterString>
-                {base_url_sinrest}/missions/{id_mission}/{uuid_key}/{layer_name}
+                {ruta_png}
             </gco:CharacterString>
             </gmd:fileName>
         </gmd:MD_BrowseGraphic>
@@ -887,7 +887,6 @@ def agregar_pdf_y_re_subir_simple(xml_base64, uuid_var, nombre):
     connection = BaseHook.get_connection("geonetwork_connection")
     base_url = f"{connection.schema}{connection.host}"
     access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-    file_name = nombre['file_name']
     # Decodificamos XML
     xml_str = base64.b64decode(xml_base64).decode('utf-8')
 
@@ -896,7 +895,7 @@ def agregar_pdf_y_re_subir_simple(xml_base64, uuid_var, nombre):
     <gmd:onLine xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
       <gmd:CI_OnlineResource>
         <gmd:linkage>
-          <gmd:URL>{base_url}/geonetwork/srv/api/records/{uuid_var}/attachments/{file_name}</gmd:URL>
+          <gmd:URL>{base_url}/geonetwork/srv/api/records/{uuid_var}/attachments/{nombre}</gmd:URL>
         </gmd:linkage>
         <gmd:name>
           <gco:CharacterString>{nombre}</gco:CharacterString>
