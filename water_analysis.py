@@ -98,6 +98,7 @@ def process_extracted_files(**kwargs):
                 content_type = "image/jpeg"
             elif archivo_file_name.endswith('.pdf'):
                 content_type = "application/pdf"
+                ruta_pdf = f"{rutaminio}/{bucket_name}/{archivo_key}"
 
             s3_client.put_object(
                 Bucket=bucket_name,
@@ -141,7 +142,7 @@ def process_extracted_files(**kwargs):
 
 
     #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp, ruta_png)
+    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp, ruta_png, ruta_pdf)
 
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
@@ -155,7 +156,6 @@ def process_extracted_files(**kwargs):
         raise Exception("No se encontró archivo tif para referenciar")
 
     nombre_pdf = os.path.basename(archivo_pdf["file_name"])
-    print(f"NOMBRE PDF!!!! {nombre_pdf}")
     uuid_var = resources_id[0]
     agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=nombre_pdf)
 
@@ -417,7 +417,7 @@ def get_geonetwork_credentials():
 
 
 
-def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp, ruta_png):
+def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff, wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp, ruta_png, ruta_pdf):
 
     descripcion = "Resultado del algoritmo de waterAnalysis"
 
@@ -793,6 +793,23 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                             </gmd:function>
                         </gmd:CI_OnlineResource>
                     </gmd:onLine>
+                       <gmd:onLine>
+                        <gmd:CI_OnlineResource>
+                            <gmd:linkage>
+                                <gmd:URL>{ruta_pdf}</gmd:URL>
+                            </gmd:linkage>
+                            <gmd:protocol>
+                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
+                            </gmd:protocol>
+                            <gmd:name>
+                                <gco:CharacterString>{informe_description}</gco:CharacterString>
+                            </gmd:name>
+                            <gmd:function>
+                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
+                                                        codeListValue="download"/>
+                            </gmd:function>
+                        </gmd:CI_OnlineResource>
+                    </gmd:onLine>
 
                     </gmd:MD_DigitalTransferOptions>
                 </gmd:transferOptions>
@@ -847,7 +864,6 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
             </gmd:MD_ApplicationSchemaInformation>
         </gmd:applicationSchemaInfo>
     </gmd:MD_Metadata>
-
     """ 
     # print(xml)
     xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
