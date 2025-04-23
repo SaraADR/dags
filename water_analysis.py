@@ -420,7 +420,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
 
     descripcion = "Resultado del algoritmo de waterAnalysis"
 
-
+    base_url_sinrest = base_url.replace('/rest/', '/')
     #SHAPES
     wms_server_shp = wms_server_shp.replace('/rest/', '/')
     wfs_server_shp = wfs_server_shp.replace('/rest/', '/')
@@ -546,7 +546,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
         <gmd:MD_BrowseGraphic>
             <gmd:fileName>
             <gco:CharacterString>
-                {base_url}/missions/{id_mission}/{uuid_key}/{layer_name}
+                {base_url_sinrest}/missions/{id_mission}/{uuid_key}/{layer_name}
             </gco:CharacterString>
             </gmd:fileName>
         </gmd:MD_BrowseGraphic>
@@ -822,36 +822,8 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                             </gmd:function>
                         </gmd:CI_OnlineResource>
                     </gmd:onLine>
-                    <gmd:onLine>
-                        <gmd:CI_OnlineResource>
-                            <gmd:linkage>
-                                <gmd:URL>{tif_url}</gmd:URL>
-                            </gmd:linkage>
-                            <gmd:protocol>
-                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
-                            </gmd:protocol>
-                            <gmd:name>
-                                <gco:CharacterString>{tif_description}</gco:CharacterString>
-                            </gmd:name>
-                            <gmd:function>
-                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
-                                                        codeListValue="download"/>
-                            </gmd:function>
-                        </gmd:CI_OnlineResource>
-                    </gmd:onLine>
                     </gmd:MD_DigitalTransferOptions>
                 </gmd:transferOptions>
-
-
-
-
-
-
-
-
-
-
-
 
                 
             </gmd:MD_Distribution>
@@ -923,7 +895,7 @@ def agregar_pdf_y_re_subir_simple(xml_base64, uuid_var, nombre):
     <gmd:onLine xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
       <gmd:CI_OnlineResource>
         <gmd:linkage>
-          <gmd:URL>{base_url}/geonetwork/srv/api/records/{uuid_var}/attachments/{nombre}</gmd:URL>
+          <gmd:URL>{base_url}/geonetwork/srv/api/records/{uuid_var}/attachments/{nombre['file_name']}</gmd:URL>
         </gmd:linkage>
         <gmd:name>
           <gco:CharacterString>{nombre}</gco:CharacterString>
