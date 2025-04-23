@@ -543,15 +543,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
             <gco:CharacterString>1.0</gco:CharacterString>
         </gmd:metadataStandardVersion>
 
-              <gmd:graphicOverview>
-        <gmd:MD_BrowseGraphic>
-            <gmd:fileName>
-            <gco:CharacterString>
-                {ruta_png}
-            </gco:CharacterString>
-            </gmd:fileName>
-        </gmd:MD_BrowseGraphic>
-        </gmd:graphicOverview>
+
 
 
         <gmd:identificationInfo>
@@ -574,18 +566,14 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                     </gmd:date>
                     </gmd:CI_Citation>
                 </gmd:citation>
-                <gmd:graphicOverview>
-                    <gmd:MD_BrowseGraphic>
-                        <gmd:fileName>
-                            <gco:CharacterString>{url_new}</gco:CharacterString>
-                        </gmd:fileName>
-                        <gmd:fileDescription>
-                            <gco:CharacterString>Vista previa del análisis de agua</gco:CharacterString>
-                        </gmd:fileDescription>
-                        <gmd:fileType>
-                            <gco:CharacterString>image/png</gco:CharacterString>
-                        </gmd:fileType>
-                    </gmd:MD_BrowseGraphic>
+              <gmd:graphicOverview>
+                <gmd:MD_BrowseGraphic>
+                    <gmd:fileName>
+                    <gco:CharacterString>
+                        {ruta_png}
+                    </gco:CharacterString>
+                    </gmd:fileName>
+                </gmd:MD_BrowseGraphic>
                 </gmd:graphicOverview>
                 <gmd:abstract>
                     <gco:CharacterString>{descripcion}</gco:CharacterString>
@@ -806,23 +794,6 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                         </gmd:CI_OnlineResource>
                     </gmd:onLine>
 
-                    <gmd:onLine>
-                        <gmd:CI_OnlineResource>
-                            <gmd:linkage>
-                                <gmd:URL>{csv_url}</gmd:URL>
-                            </gmd:linkage>
-                            <gmd:protocol>
-                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
-                            </gmd:protocol>
-                            <gmd:name>
-                                <gco:CharacterString>{csv_description}</gco:CharacterString>
-                            </gmd:name>
-                            <gmd:function>
-                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
-                                                        codeListValue="download"/>
-                            </gmd:function>
-                        </gmd:CI_OnlineResource>
-                    </gmd:onLine>
                     </gmd:MD_DigitalTransferOptions>
                 </gmd:transferOptions>
 
