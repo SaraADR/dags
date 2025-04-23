@@ -804,23 +804,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                             </gmd:function>
                         </gmd:CI_OnlineResource>
                     </gmd:onLine>
-                    <gmd:onLine>
-                        <gmd:CI_OnlineResource>
-                            <gmd:linkage>
-                                <gmd:URL>{informe_url}</gmd:URL>
-                            </gmd:linkage>
-                            <gmd:protocol>
-                                <gco:CharacterString>WWW:DOWNLOAD-1.0-http--download</gco:CharacterString>
-                            </gmd:protocol>
-                            <gmd:name>
-                                <gco:CharacterString>{informe_description}</gco:CharacterString>
-                            </gmd:name>
-                            <gmd:function>
-                                <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
-                                                        codeListValue="download"/>
-                            </gmd:function>
-                        </gmd:CI_OnlineResource>
-                    </gmd:onLine>
+
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
                             <gmd:linkage>
