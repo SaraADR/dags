@@ -909,7 +909,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
     xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
     return xml_encoded
 
-def agregar_pdf_y_re_subir_simple(xml_base64, uuid, nombre):
+def agregar_pdf_y_re_subir_simple(xml_base64, uuid_var, nombre):
     # Datos de conexión
     connection = BaseHook.get_connection("geonetwork_connection")
     base_url = f"{connection.schema}{connection.host}"
@@ -923,7 +923,7 @@ def agregar_pdf_y_re_subir_simple(xml_base64, uuid, nombre):
     <gmd:onLine xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
       <gmd:CI_OnlineResource>
         <gmd:linkage>
-          <gmd:URL>{base_url}/geonetwork/srv/api/records/{uuid}/attachments/{nombre}</gmd:URL>
+          <gmd:URL>{base_url}/geonetwork/srv/api/records/{uuid_var}/attachments/{nombre}</gmd:URL>
         </gmd:linkage>
         <gmd:name>
           <gco:CharacterString>{nombre}</gco:CharacterString>
