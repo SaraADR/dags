@@ -155,12 +155,12 @@ def process_extracted_files(**kwargs):
         raise Exception("No se encontró archivo tif para referenciar")
 
     nombre_pdf = os.path.basename(archivo_pdf["file_name"])
-    uuid = resources_id[0]
-    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid=uuid,nombre_pdf=nombre_pdf)
+    uuid_var = resources_id[0]
+    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre_pdf=nombre_pdf)
 
     nombre_tiff= os.path.basename(archivo_tiff["file_name"])
-    uuid = resources_id[0]
-    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid=uuid,archivo_tiff=archivo_tiff)
+    uuid_var = resources_id[0]
+    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid=uuid_var,archivo_tiff=archivo_tiff)
 
 
 
