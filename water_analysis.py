@@ -155,6 +155,7 @@ def process_extracted_files(**kwargs):
         raise Exception("No se encontró archivo tif para referenciar")
 
     nombre_pdf = os.path.basename(archivo_pdf["file_name"])
+    print(f"NOMBRE PDF!!!! {nombre_pdf}")
     uuid_var = resources_id[0]
     agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=nombre_pdf)
 
@@ -886,7 +887,7 @@ def agregar_pdf_y_re_subir_simple(xml_base64, uuid_var, nombre):
     connection = BaseHook.get_connection("geonetwork_connection")
     base_url = f"{connection.schema}{connection.host}"
     access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
-    file_name = nombre.get('file_name')
+    file_name = nombre['file_name']
     # Decodificamos XML
     xml_str = base64.b64decode(xml_base64).decode('utf-8')
 
