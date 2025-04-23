@@ -21,6 +21,7 @@ import geopandas as gpd
 import rasterio
 from xml.sax.saxutils import escape
 
+
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
     archivos = kwargs['dag_run'].conf.get('otros', [])
@@ -144,6 +145,23 @@ def process_extracted_files(**kwargs):
 
     resources_id = upload_to_geonetwork_xml([xml_data])
     upload_tiff_attachment(resources_id, xml_data, archivos)
+
+    archivo_pdf = next((a for a in archivos if a["file_name"].lower().endswith(".pdf")), None)
+    if not archivo_pdf:
+        raise Exception("No se encontró archivo PDF para referenciar")
+    
+    archivo_tiff = next((a for a in archivos if a["file_name"].lower().endswith(".tif")), None)
+    if not archivo_tiff:
+        raise Exception("No se encontró archivo tif para referenciar")
+
+    nombre_pdf = os.path.basename(archivo_pdf["file_name"])
+    uuid = resources_id[0]
+    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid=uuid,nombre_pdf=nombre_pdf)
+
+    nombre_tiff= os.path.basename(archivo_tiff["file_name"])
+    uuid = resources_id[0]
+    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid=uuid,archivo_tiff=archivo_tiff)
+
 
 
 
@@ -907,6 +925,64 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
     xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
     return xml_encoded
 
+def agregar_pdf_y_re_subir_simple(xml_base64, uuid, nombre):
+    # Datos de conexión
+    connection = BaseHook.get_connection("geonetwork_connection")
+    base_url = f"{connection.schema}{connection.host}"
+    access_token, xsrf_token, set_cookie_header = get_geonetwork_credentials()
+
+    # Decodificamos XML
+    xml_str = base64.b64decode(xml_base64).decode('utf-8')
+
+    # Bloque XML del onLine
+    online_block = f"""
+    <gmd:onLine xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
+      <gmd:CI_OnlineResource>
+        <gmd:linkage>
+          <gmd:URL>{base_url}/geonetwork/srv/api/records/{uuid}/attachments/{nombre}</gmd:URL>
+        </gmd:linkage>
+        <gmd:name>
+          <gco:CharacterString>{nombre}</gco:CharacterString>
+        </gmd:name>
+        <gmd:description>
+          <gco:CharacterString>Informe técnico de la misión</gco:CharacterString>
+        </gmd:description>
+        <gmd:function>
+          <gmd:CI_OnLineFunctionCode codeListValue="download" codeList="https://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"/>
+        </gmd:function>
+      </gmd:CI_OnlineResource>
+    </gmd:onLine>
+    """
+
+    # Insertamos justo antes del cierre de distributionInfo
+    if "</gmd:distributionInfo>" in xml_str:
+        xml_str_mod = xml_str.replace("</gmd:distributionInfo>", f"{online_block}\n</gmd:distributionInfo>")
+    else:
+        raise Exception("No se encontró <gmd:distributionInfo> en el XML original")
+
+    # Codificamos nuevamente
+    xml_mod = xml_str_mod.encode('utf-8')
+
+    # Subida a GeoNetwork
+    upload_url = f"{base_url}/geonetwork/srv/api/records"
+    headers = {
+        'Authorization': f"Bearer {access_token}",
+        'x-xsrf-token': str(xsrf_token),
+        'Cookie': str(set_cookie_header[0]),
+        'Accept': 'application/json'
+    }
+
+    files = {
+        'file': ('metadata.xml', xml_mod, 'text/xml'),
+    }
+
+    params = {
+        "uuidProcessing": "OVERWRITE"
+    }
+
+    response = requests.post(upload_url, files=files, headers=headers, params=params)
+    print(f"GeoNetwork response: {response.status_code} - {response.text}")
+    response.raise_for_status()
 
 
 def upload_to_geonetwork_xml(xml_data_array):
