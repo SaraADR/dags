@@ -69,6 +69,9 @@ def process_extracted_files(**kwargs):
     print(f'Archivo ZIP {zip_file_name} subido correctamente a MinIO.')
 
     ruta_png = None
+    ruta_tiff = None
+    ruta_csv = None
+    ruta_pdf = None
     #Subimos los archivos todos por separado
     for archivo in archivos:
         archivo_file_name = os.path.basename(archivo['file_name'])
@@ -159,13 +162,13 @@ def process_extracted_files(**kwargs):
     if not archivo_tiff:
         raise Exception("No se encontró archivo tif para referenciar")
 
-    nombre_pdf = os.path.basename(archivo_pdf["file_name"])
-    uuid_var = resources_id[0]
-    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=nombre_pdf)
+    # nombre_pdf = os.path.basename(archivo_pdf["file_name"])
+    # uuid_var = resources_id[0]
+    # agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=nombre_pdf)
 
-    nombre_tiff= os.path.basename(archivo_tiff["file_name"])
-    uuid_var = resources_id[0]
-    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=nombre_tiff)
+    # nombre_tiff= os.path.basename(archivo_tiff["file_name"])
+    # uuid_var = resources_id[0]
+    # agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=nombre_tiff)
 
 
 
@@ -455,7 +458,6 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
 
     informe_description = 'Informe generado por el algoritmo'
     csv_description = 'Csv generado por el algoritmo'
-
     tif_description = 'Tiff generado por el algoritmo'
 
 
@@ -683,6 +685,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
 
 <gmd:distributionInfo>
             <gmd:MD_Distribution>
+                
                 <gmd:distributor>
                     <gmd:MD_Distributor>
                     <gmd:distributorContact>
@@ -734,7 +737,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
 
 
 
-<gmd:transferOptions>
+                <gmd:transferOptions>
                     <gmd:MD_DigitalTransferOptions>
                     <gmd:onLine>
                         <gmd:CI_OnlineResource>
@@ -772,7 +775,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
                             </gmd:description>
                             <gmd:function>
                                 <gmd:CI_OnLineFunctionCode codeList="http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#CI_OnLineFunctionCode"
-                                                        codeListValue="download"/>
+                                                        codeListValue="information"/>
                             </gmd:function>
                         </gmd:CI_OnlineResource>
                     </gmd:onLine>
