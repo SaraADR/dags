@@ -895,7 +895,7 @@ def agregar_pdf_y_re_subir_simple(xml_base64, uuid_var, nombre):
     <gmd:onLine xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco">
       <gmd:CI_OnlineResource>
         <gmd:linkage>
-          <gmd:URL>{base_url}/geonetwork/srv/api/records/{uuid_var}/attachments/{nombre['file_name']}</gmd:URL>
+          <gmd:URL>{base_url}/geonetwork/srv/api/records/{uuid_var}/attachments/{nombre[0]}</gmd:URL>
         </gmd:linkage>
         <gmd:name>
           <gco:CharacterString>{nombre}</gco:CharacterString>
