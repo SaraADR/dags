@@ -160,7 +160,7 @@ def process_extracted_files(**kwargs):
 
     nombre_tiff= os.path.basename(archivo_tiff["file_name"])
     uuid_var = resources_id[0]
-    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid=uuid_var,archivo_tiff=archivo_tiff)
+    agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,archivo_tiff=archivo_tiff)
 
 
 
