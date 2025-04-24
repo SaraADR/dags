@@ -426,6 +426,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,url_ne
     min_latitud = coordenadas_tif["min_latitud"]
     max_latitud = coordenadas_tif["max_latitud"]
 
+    
 
     wms_server_tiff_escaped = ''
     wms_server_shp_escaped = ''

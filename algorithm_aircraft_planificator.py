@@ -432,7 +432,7 @@ def process_outputs(**context):
             "to": user,
             "actions": [
                 {
-                    "type": "loadTable",
+                    "type": "loadChart",
                     "data": {
                         "url": csv_url,
                         "button": {
