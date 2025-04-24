@@ -125,7 +125,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
                 "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
                 "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)),
-                "dia_fin": (datetime.datetime.now() - datetime.timedelta(days=10)).strftime("%Y-%m-%d"),
+                "dia_fin": (datetime.datetime.now() - datetime.timedelta(int(Variable.get("dNBR_diasFinIncendio", default_var=30)),)).strftime("%Y-%m-%d"),
                 "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
             }
             print(params)
