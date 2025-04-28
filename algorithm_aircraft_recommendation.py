@@ -19,62 +19,137 @@ now = datetime.now(madrid_tz)
 
 
 def execute_algorithm_remote(**context):
-    print("[INFO] Inicio de ejecución del algoritmo remoto")
+    print("Inicio de ejecución del algoritmo remoto")
 
     message = context['dag_run'].conf
-    print("[INFO] Datos recibidos desde el frontend:")
-    print(json.dumps(message, indent=2))
+    print("Datos recibidos desde el frontend:")
+    print(json.dumps(message, indent=2))  # Muestra la estructura JSON de entrada
 
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
-    print("[INFO] Contenido de input_data:")
+    print("Contenido de input_data:")
     print(json.dumps(input_data, indent=2))
 
     user = message['message']['from_user']
     context['ti'].xcom_push(key='user', value=user)
 
-    assignment_id = input_data.get("assignmentId")
-    print(f"[INFO] assignment_id: {assignment_id}")
+    ssh_conn = BaseHook.get_connection("ssh_avincis_2")
+    hostname = ssh_conn.host
+    username = ssh_conn.login
+
+    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+        temp_file.write(ssh_key_decoded)
+        temp_file_path = temp_file.name
+    os.chmod(temp_file_path, 0o600)
+
+    try:
+        print("Estableciendo conexión SSH con bastión")
+        bastion = paramiko.SSHClient()
+        bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        bastion.connect(hostname=hostname, username=username, key_filename=temp_file_path)
+
+        jump_transport = bastion.get_transport()
+        jump_channel = jump_transport.open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
+
+        print("Conectando al servidor interno")
+        target_client = paramiko.SSHClient()
+        target_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        target_client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump_channel, key_filename=temp_file_path)
+
+        sftp = target_client.open_sftp()
+
+        assignment_id = input_data.get("assignmentId")
+        base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
+        input_dir = f"{base_path}/input"
+        output_dir = f"{base_path}/output"
+        input_file = f"{input_dir}/input.json"
+        output_file = f"{output_dir}/output.json"
+
+        for path in [base_path, input_dir, output_dir]:
+            try:
+                sftp.stat(path)
+            except FileNotFoundError:
+                sftp.mkdir(path)
+                print(f"Directorio creado: {path}")
+
+        with sftp.file(input_file, 'w') as remote_file:
+            remote_file.write(json.dumps(input_data, indent=2))
+        print("Archivo input.json subido al servidor")
+
+        sftp.close()
+
+        cmd = (
+            f'python3 /algoritms/algoritmo-asignacion-aeronaves-objetivo-5/call_aircraft_dispatch.py '
+            f'{input_file} {output_file}'
+        )
+        print("Ejecutando el algoritmo remoto")
+        stdin, stdout, stderr = target_client.exec_command(cmd)
+        print(stdout.read().decode())
+        print(stderr.read().decode())
+
+        target_client.close()
+        bastion.close()
+        print("Conexión SSH finalizada")
+
+    finally:
+        os.remove(temp_file_path)
+        print("Archivo de clave SSH temporal eliminado")
 
 
 def process_output_and_notify(**context):
 
-    print("Procesando output y notificando al frontend")
-    message = context['dag_run'].conf.get('message', {})
-    input_data_str = message.get('input_data')
-    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
-    assignment_id = input_data['assignmentId']
     user = context['ti'].xcom_pull(key='user')
-    print(f"[INFO] assignment_id: {assignment_id}")
+    message = context['dag_run'].conf.get("message", {})
+    input_data_str = message.get("input_data")
+    input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
+    assignment_id = input_data.get("assignmentId")
 
-    s3_client = get_minio_client()
-    bucket = "tmp"
-    test_json_key = "algorithm_aircraft_planificator_outputs/historic/output_test4.2.json"
-    print(f"[INFO] Descargando JSON de prueba desde MinIO: {test_json_key}")
+    print("[INFO] Procesando output real del algoritmo")
 
-    response = s3_client.get_object(Bucket=bucket, Key=test_json_key)
-    output_data = json.load(response['Body'])
+    ssh_conn = BaseHook.get_connection("ssh_avincis_2")
+    hostname, username = ssh_conn.host, ssh_conn.login
+    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
 
-    # Añadir missionId a cada assignment
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+        temp_file.write(ssh_key_decoded)
+        temp_key_path = temp_file.name
+    os.chmod(temp_key_path, 0o600)
+
+    local_json_path = f"/tmp/{assignment_id}_output.json"
+
+    try:
+        bastion = paramiko.SSHClient()
+        bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        bastion.connect(hostname=hostname, username=username, key_filename=temp_key_path)
+
+        jump = bastion.get_transport().open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
+
+        sftp = client.open_sftp()
+        output_path = f"/algoritms/executions/EJECUCION_{assignment_id}/output/output.json"
+        sftp.get(output_path, local_json_path)
+        sftp.close()
+        client.close()
+        bastion.close()
+
+    finally:
+        os.remove(temp_key_path)
+
+    with open(local_json_path, 'r') as f:
+        output_data = json.load(f)
+
+    # Añadir missionId por cada fire_id
     for assignment in output_data.get("assignments", []):
         fire_id = assignment.get("id")
         mission_id = obtener_id_mision(fire_id) if fire_id else None
         assignment["missionId"] = mission_id
 
-    print(f"[INFO] JSON descargado desde MinIO")
-    print(f"[DEBUG] Claves del JSON descargado: {list(output_data.keys())}")
-    print(f"[DEBUG] Contenido 'assignments': {output_data.get('assignments')}")
-
     csv_data = output_data.get("assignments", [])
-    print(f"[DEBUG] Preparando escritura de CSV con {len(csv_data)} filas")
-
     csv_filename = f"{assignment_id}.csv"
     csv_local_path = f"/tmp/{csv_filename}"
-
-    # Extraer primer fire_id para convertir a mission_id
-    fire_id = csv_data[0].get("id") if csv_data else None
-    mission_id = obtener_id_mision(fire_id) if fire_id else None
-    print(f"[INFO] Misión ID obtenida: {mission_id}")
 
     with open(csv_local_path, 'w', newline='') as f:
         writer = csv.writer(f, delimiter=';')
@@ -84,25 +159,19 @@ def process_output_and_notify(**context):
             aircrafts = ", ".join(row.get("vehicles", []))
             writer.writerow([fire, aircrafts])
 
+    s3_client = get_minio_client()
+    bucket = "tmp"
+    folder = "algorithm_aircraft_planificator_outputs"
     timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
-    json_key = f"algorithm_aircraft_planificator_outputs/jsons/{assignment_id}_{timestamp}.json"
-    csv_key = f"algorithm_aircraft_planificator_outputs/outputs/{assignment_id}_{timestamp}.csv"
+    json_key = f"{folder}/jsons/{assignment_id}_{timestamp}.json"
+    csv_key = f"{folder}/outputs/{assignment_id}_{timestamp}.csv"
 
-    output_data["missionId"] = mission_id
-
-    s3_client.put_object(
-        Bucket=bucket,
-        Key=json_key,
-        Body=BytesIO(json.dumps(output_data).encode("utf-8")),
-        ContentLength=len(json.dumps(output_data).encode("utf-8"))
-    )
+    s3_client.upload_file(local_json_path, bucket, json_key)
     s3_client.upload_file(csv_local_path, bucket, csv_key)
 
     base_url = minio_api()
     json_url = f"{base_url}/{bucket}/{json_key}"
     csv_url = f"{base_url}/{bucket}/{csv_key}"
-
-    print(f"[INFO] Archivos subidos a MinIO: \n- JSON: {json_url}\n- CSV: {csv_url}")
 
     session = get_db_session()
     now_utc = datetime.utcnow()
@@ -112,8 +181,6 @@ def process_output_and_notify(**context):
         RETURNING id
     """), {'date': now_utc})
     job_id = result.scalar()
-    print(f"[INFO] Notificación registrada con ID: {job_id}")
-
     payload = {
         "to": user,
         "actions": [
@@ -125,8 +192,7 @@ def process_output_and_notify(**context):
                         "key": "openPlanner",
                         "data": json_url
                     },
-                    "title": "Recomendación de aeronaves",
-                    "missionId": mission_id
+                    "title": "Recomendación de aeronaves"
                 }
             },
             {
@@ -138,11 +204,11 @@ def process_output_and_notify(**context):
         ]
     }
 
-    print(f"[DEBUG] Payload de notificación: {json.dumps(payload, indent=2, ensure_ascii=False)}")
-
     session.execute(text("""
         UPDATE public.notifications SET data = :data WHERE id = :id
     """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
+    session.commit()
+    session.close()
 
     try:
         print("[INFO] Guardando resultado en algoritmos.algoritmo_aircraft_recomendador...")
@@ -167,8 +233,6 @@ def process_output_and_notify(**context):
     session.commit()
     session.close()
     print(f"[INFO] Notificación actualizada y enviada")
-
-
 
 
 default_args = {
@@ -203,7 +267,7 @@ process_task = PythonOperator(
     dag=dag
 )
 
-execute_task >> process_task
+execute_task >> process_task 
 
 
 
