@@ -16,66 +16,90 @@ from pytz import timezone
 madrid_tz = timezone('Europe/Madrid')
 
 def execute_algorithm_remote(**context):
+    print("Inicio de ejecución del algoritmo remoto")
+
     message = context['dag_run'].conf
+    print("Datos recibidos desde el frontend:")
+    print(json.dumps(message, indent=2))
+
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
+    print("Contenido de input_data (original):")
+    print(json.dumps(input_data, indent=2))
 
     input_data["assignmentId"] = 1356
-    for fire in input_data.get("fires", []):
-        fire["level"] = 3
+    if "fires" in input_data:
+        for fire in input_data["fires"]:
+            fire["level"] = 3
+
+    print("Contenido de input_data (modificado):")
+    print(json.dumps(input_data, indent=2))
 
     user = message['message']['from_user']
     context['ti'].xcom_push(key='user', value=user)
 
-    bastion_conn = BaseHook.get_connection("ssh_avincis_2")
-    bastion_host = bastion_conn.host
-    bastion_user = bastion_conn.login
-    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
+    ssh_conn_bastion = BaseHook.get_connection("ssh_avincis_2")
+    hostname = ssh_conn_bastion.host
+    username_bastion = ssh_conn_bastion.login
+    password_bastion = ssh_conn_bastion.password
 
-    target_conn = BaseHook.get_connection("ssh_citmaga_password")
-    target_user = target_conn.login
-    target_pass = target_conn.password
-
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
-        temp_file.write(ssh_key_decoded)
-        temp_key_path = temp_file.name
-    os.chmod(temp_key_path, 0o600)
+    ssh_conn_internal = BaseHook.get_connection("ssh_citmaga_password")
+    username_internal = ssh_conn_internal.login
+    password_internal = ssh_conn_internal.password
 
     try:
+        print("Estableciendo conexión SSH con bastión")
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        bastion.connect(hostname=bastion_host, username=bastion_user, key_filename=temp_key_path)
+        bastion.connect(hostname=hostname, username=username_bastion, password=password_bastion)
 
-        jump = bastion.get_transport().open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname="10.38.9.6", username=target_user, password=target_pass, sock=jump)
+        jump_transport = bastion.get_transport()
+        jump_channel = jump_transport.open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
 
-        sftp = client.open_sftp()
+        print("Conectando al servidor interno como citmaga")
+        target_client = paramiko.SSHClient()
+        target_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        target_client.connect(hostname="10.38.9.6", username=username_internal, password=password_internal, sock=jump_channel)
+
+        sftp = target_client.open_sftp()
+
+        assignment_id = 1356
         timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
-        base_path = f"/algoritms/executions/EJECUCION_1356_{timestamp}"
-        input_file = f"{base_path}/input/input.json"
-        output_file = f"{base_path}/output/output.json"
+        execution_folder = f"EJECUCION_{assignment_id}_{timestamp}"
+        base_path = f"/algoritms/executions/{execution_folder}"
+        input_dir = f"{base_path}/input"
+        output_dir = f"{base_path}/output"
+        input_file = f"{input_dir}/input.json"
+        output_file = f"{output_dir}/output.json"
 
-        for path in [base_path, f"{base_path}/input", f"{base_path}/output"]:
+        for path in [base_path, input_dir, output_dir]:
             try:
                 sftp.stat(path)
             except FileNotFoundError:
                 sftp.mkdir(path)
+                print(f"Directorio creado: {path}")
 
-        with sftp.file(input_file, 'w') as f:
-            f.write(json.dumps(input_data, indent=2))
+        with sftp.file(input_file, 'w') as remote_file:
+            remote_file.write(json.dumps(input_data, indent=2))
+        print("Archivo input.json subido al servidor")
+
         sftp.close()
 
-        cmd = f"python3 /algoritms/algoritmo-asignacion-aeronaves-objetivo-5/call_aircraft_dispatch.py {input_file} {output_file}"
-        stdin, stdout, stderr = client.exec_command(cmd)
+        cmd = f'python3 /algoritms/algoritmo-asignacion-aeronaves-objetivo-5/call_aircraft_dispatch.py {input_file} {output_file}'
+        print("Ejecutando el algoritmo remoto...")
+        stdin, stdout, stderr = target_client.exec_command(cmd)
+        print("STDOUT:")
         print(stdout.read().decode())
+        print("STDERR:")
         print(stderr.read().decode())
 
-        client.close()
+        target_client.close()
         bastion.close()
-    finally:
-        os.remove(temp_key_path)
+        print("Conexión SSH finalizada correctamente")
+
+    except Exception as e:
+        print(f"[ERROR] Fallo en la ejecución remota: {e}")
+        raise
 
 
 def process_output_and_notify(**context):
