@@ -20,11 +20,11 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 import geopandas as gpd
 import rasterio
 from xml.sax.saxutils import escape
-
+from botocore.exceptions import ClientError
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
-    archivos = kwargs['dag_run'].conf.get('otros', [])
+    otros = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
 
     if not json_content:
@@ -32,143 +32,141 @@ def process_extracted_files(**kwargs):
         return
     print("Archivos para procesar preparados")
 
-
-    #Extraemos el mission ID
-    id_mission = None
-    for metadata in json_content['metadata']:
-        if metadata['name'] == 'MissionID':
-            id_mission = metadata['value']
-            break
-
-    print(f"MissionID: {id_mission}")
-
-
-    #Preparamos la subida a minIO de todos los archivos
-    json_modificado = copy.deepcopy(json_content)
-    rutaminio = Variable.get("ruta_minIO")
-    nuevos_paths = {}
-    uuid_key = uuid.uuid4()
-    print(f"UUID generado para almacenamiento {uuid_key}")  
-
     s3_client = get_minio_client()
-    bucket_name = 'missions'
+    archivos = []
+    files = list_files_in_minio_folder(s3_client, 'tmp', 'sftp/')
 
 
-    #Subimos el zip de seaFloor a minIO
-    archivos_path, zip_path = hacerZipConSeaFloor(json_content, archivos)
+    # #Extraemos el mission ID
+    # id_mission = None
+    # for metadata in json_content['metadata']:
+    #     if metadata['name'] == 'MissionID':
+    #         id_mission = metadata['value']
+    #         break
+
+    # print(f"MissionID: {id_mission}")
+
+
+    # #Preparamos la subida a minIO de todos los archivos
+    # json_modificado = copy.deepcopy(json_content)
+    # rutaminio = Variable.get("ruta_minIO")
+    # nuevos_paths = {}
+    # uuid_key = uuid.uuid4()
+    # print(f"UUID generado para almacenamiento {uuid_key}")  
+
+    #
+    # bucket_name = 'missions'
+
+
+
+    # #Subimos el zip de seaFloor a minIO
+    # archivos_path, zip_path = hacerZipConSeaFloor(json_content, archivos)
     
-    zip_file_name = os.path.basename(zip_path)
-    zip_key = f"{id_mission}/{uuid_key}/{zip_file_name}"
-    with open(zip_path, 'rb') as zip_file:
-        s3_client.put_object(
-            Bucket=bucket_name,
-            Key=zip_key,
-            Body=zip_file,
-            ContentType="application/zip"
-        )
-    print(f'Archivo ZIP {zip_file_name} subido correctamente a MinIO.')
+    # zip_file_name = os.path.basename(zip_path)
+    # zip_key = f"{id_mission}/{uuid_key}/{zip_file_name}"
+    # with open(zip_path, 'rb') as zip_file:
+    #     s3_client.put_object(
+    #         Bucket=bucket_name,
+    #         Key=zip_key,
+    #         Body=zip_file,
+    #         ContentType="application/zip"
+    #     )
+    # print(f'Archivo ZIP {zip_file_name} subido correctamente a MinIO.')
 
-    ruta_png = None
-    ruta_tiff = None
-    ruta_csv = None
-    ruta_pdf = None
-    #Subimos los archivos todos por separado
-    for archivo in archivos:
-        archivo_file_name = os.path.basename(archivo['file_name'])
-        archivo_content = base64.b64decode(archivo['content'])
+    # ruta_png = None
+    # ruta_tiff = None
+    # ruta_csv = None
+    # ruta_pdf = None
+    # #Subimos los archivos todos por separado
+    # for archivo in archivos:
+    #     archivo_file_name = os.path.basename(archivo['file_name'])
+    #     archivo_content = base64.b64decode(archivo['content'])
 
-        archivo_key = f"{id_mission}/{uuid_key}/{archivo_file_name}"
+    #     archivo_key = f"{id_mission}/{uuid_key}/{archivo_file_name}"
 
-        if(archivo_file_name.endswith('.tif')):
-            print(type(archivo_content))
-            s3_client.put_object(
-                Bucket=bucket_name,
-                Key=archivo_key,
-                Body=io.BytesIO(archivo_content),
-                ContentType="image/tiff"
-            )
-            print(f'{archivo_file_name} subido correctamente a MinIO.')
+    #     if(archivo_file_name.endswith('.tif')):
+    #         print(type(archivo_content))
+    #         s3_client.put_object(
+    #             Bucket=bucket_name,
+    #             Key=archivo_key,
+    #             Body=io.BytesIO(archivo_content),
+    #             ContentType="image/tiff"
+    #         )
+    #         print(f'{archivo_file_name} subido correctamente a MinIO.')
 
-            #Sacamos su lot lang
-            coordenadas_tif = obtener_coordenadas_tif(archivo_file_name, archivo_content)
-            ruta_tiff = f"{rutaminio}/{bucket_name}/{archivo_key}"
+    #         #Sacamos su lot lang
+    #         coordenadas_tif = obtener_coordenadas_tif(archivo_file_name, archivo_content)
+    #         ruta_tiff = f"{rutaminio}/{bucket_name}/{archivo_key}"
 
-        else:
-            content_type = "application/octet-stream"  # valor por defecto
-            if archivo_file_name.endswith('.png'):
-                content_type = "image/png"
-                ruta_png = f"{rutaminio}/{bucket_name}/{archivo_key}"
-            elif archivo_file_name.endswith('.jpg') or archivo_file_name.endswith('.jpeg'):
-                content_type = "image/jpeg"
-            elif archivo_file_name.endswith('.csv') :
-                content_type = "text/csv"
-                ruta_csv = f"{rutaminio}/{bucket_name}/{archivo_key}"
-            elif archivo_file_name.endswith('.pdf'):
-                content_type = "application/pdf"
-                ruta_pdf = f"{rutaminio}/{bucket_name}/{archivo_key}"
+    #     else:
+    #         content_type = "application/octet-stream"  # valor por defecto
+    #         if archivo_file_name.endswith('.png'):
+    #             content_type = "image/png"
+    #             ruta_png = f"{rutaminio}/{bucket_name}/{archivo_key}"
+    #         elif archivo_file_name.endswith('.jpg') or archivo_file_name.endswith('.jpeg'):
+    #             content_type = "image/jpeg"
+    #         elif archivo_file_name.endswith('.csv') :
+    #             content_type = "text/csv"
+    #             ruta_csv = f"{rutaminio}/{bucket_name}/{archivo_key}"
+    #         elif archivo_file_name.endswith('.pdf'):
+    #             content_type = "application/pdf"
+    #             ruta_pdf = f"{rutaminio}/{bucket_name}/{archivo_key}"
 
-            s3_client.put_object(
-                Bucket=bucket_name,
-                Key=archivo_key,
-                Body=io.BytesIO(archivo_content),
-                ContentType=content_type
-            )
-            print(f'{archivo_file_name} subido correctamente a MinIO.')
+    #         s3_client.put_object(
+    #             Bucket=bucket_name,
+    #             Key=archivo_key,
+    #             Body=io.BytesIO(archivo_content),
+    #             ContentType=content_type
+    #         )
+    #         print(f'{archivo_file_name} subido correctamente a MinIO.')
 
-            print(f"archivo_key {archivo_key}"  )
-        nuevos_paths[archivo_file_name] = f"{rutaminio}/{bucket_name}/{archivo_key}"
-    print(f"Rutapng: {ruta_png}")
-
-
-    #Preparamos y ejecutamos la historización
-    for resource in json_modificado['executionResources']:
-        file_name = os.path.basename(resource['path'])
-        if file_name in nuevos_paths:
-            resource['path'] = nuevos_paths[file_name]
-
-    startTimeStamp = json_modificado['startTimestamp']
-    endTimeStamp = json_modificado['endTimestamp']
-
-    json_str = json.dumps(json_modificado).encode('utf-8')
-    json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
-
-    s3_client.put_object(
-        Bucket='missions',
-        Key=json_key,
-        Body=io.BytesIO(json_str),
-        ContentType='application/json'
-    )
-    print(f'Archivo JSON subido correctamente a MinIO.')
-
-    #Metodo para la historización
-    historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
+    #         print(f"archivo_key {archivo_key}"  )
+    #     nuevos_paths[archivo_file_name] = f"{rutaminio}/{bucket_name}/{archivo_key}"
+    # print(f"Rutapng: {ruta_png}")
 
 
-    #Subimos a Geoserver el tif y ambos shapes
-    layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, url_new, wfs_description_shp = publish_to_geoserver(archivos)
+    # #Preparamos y ejecutamos la historización
+    # for resource in json_modificado['executionResources']:
+    #     file_name = os.path.basename(resource['path'])
+    #     if file_name in nuevos_paths:
+    #         resource['path'] = nuevos_paths[file_name]
+
+    # startTimeStamp = json_modificado['startTimestamp']
+    # endTimeStamp = json_modificado['endTimestamp']
+
+    # json_str = json.dumps(json_modificado).encode('utf-8')
+    # json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
+
+    # s3_client.put_object(
+    #     Bucket='missions',
+    #     Key=json_key,
+    #     Body=io.BytesIO(json_str),
+    #     ContentType='application/json'
+    # )
+    # print(f'Archivo JSON subido correctamente a MinIO.')
+
+    # #Metodo para la historización
+    # historizacion(json_modificado, json_content, id_mission, startTimeStamp, endTimeStamp )
 
 
-    #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp, ruta_png, ruta_pdf, ruta_csv, ruta_tiff)
+    # #Subimos a Geoserver el tif y ambos shapes
+    # layer_name, workspace, base_url, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, url_new, wfs_description_shp = publish_to_geoserver(archivos)
 
-    resources_id = upload_to_geonetwork_xml([xml_data])
-    upload_tiff_attachment(resources_id, xml_data, archivos)
 
-    archivo_pdf = next((a for a in archivos if a["file_name"].lower().endswith(".pdf")), None)
-    if not archivo_pdf:
-        raise Exception("No se encontró archivo PDF para referenciar")
+    # #integramos con geonetwork
+    # xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_shp, wms_layer_shp, wms_description_shp, wms_server_tiff, wms_layer_tiff, wms_description_tiff,  wfs_server_shp, wfs_layer_shp, id_mission, url_new, wfs_description_shp, ruta_png, ruta_pdf, ruta_csv, ruta_tiff)
+
+    # resources_id = upload_to_geonetwork_xml([xml_data])
+    # upload_tiff_attachment(resources_id, xml_data, archivos)
+
+    # archivo_pdf = next((a for a in archivos if a["file_name"].lower().endswith(".pdf")), None)
+    # if not archivo_pdf:
+    #     raise Exception("No se encontró archivo PDF para referenciar")
     
-    archivo_tiff = next((a for a in archivos if a["file_name"].lower().endswith(".tif")), None)
-    if not archivo_tiff:
-        raise Exception("No se encontró archivo tif para referenciar")
+    # archivo_tiff = next((a for a in archivos if a["file_name"].lower().endswith(".tif")), None)
+    # if not archivo_tiff:
+    #     raise Exception("No se encontró archivo tif para referenciar")
 
-    # nombre_pdf = os.path.basename(archivo_pdf["file_name"])
-    # uuid_var = resources_id[0]
-    # agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=nombre_pdf)
-
-    # nombre_tiff= os.path.basename(archivo_tiff["file_name"])
-    # uuid_var = resources_id[0]
-    # agregar_pdf_y_re_subir_simple(xml_base64=xml_data,uuid_var=uuid_var,nombre=nombre_tiff)
 
 
 
@@ -1071,6 +1069,26 @@ def upload_tiff_attachment(resource_ids, metadata_input, archivos):
                 else:
                     logging.info(f"Recurso subido correctamente para {uuid}")
 
+def list_files_in_minio_folder(s3_client, bucket_name, prefix):
+    """
+    Lista todos los archivos dentro de un prefijo (directorio) en MinIO.
+    """
+
+    print(bucket_name),
+    print(prefix)
+    try:
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+        
+        if 'Contents' not in response:
+            print(f"No se encontraron archivos en la carpeta: {prefix}")
+            return []
+
+        files = [content['Key'] for content in response['Contents']]
+        return files
+
+    except ClientError as e:
+        print(f"Error al listar archivos en MinIO: {str(e)}")
+        return []
 
 
 # Definición del DAG
