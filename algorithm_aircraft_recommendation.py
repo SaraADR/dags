@@ -105,7 +105,6 @@ def execute_algorithm_remote(**context):
 
 
 def process_output_and_notify(**context):
-
     user = context['ti'].xcom_pull(key='user')
     message = context['dag_run'].conf.get("message", {})
     input_data_str = message.get("input_data")
@@ -137,17 +136,23 @@ def process_output_and_notify(**context):
 
         sftp = client.open_sftp()
 
-        # Buscar carpeta real con timestamp
+        # Buscar carpeta con timestamp asociada al assignment_id
         base_path = "/algoritms/executions"
-        folders = sftp.listdir(base_path)
+        try:
+            folders = sftp.listdir(base_path)
+        except IOError as e:
+            raise Exception(f"[ERROR] No se pudo listar {base_path}: {e}")
+
         execution_folders = [f for f in folders if f.startswith(f"EJECUCION_{assignment_id}_")]
-
         if not execution_folders:
-            raise Exception(f"No se encontró carpeta de ejecución para assignment_id {assignment_id}")
+            raise Exception(f"[ERROR] No se encontró carpeta de ejecución para assignment_id {assignment_id}")
 
-        # Ordenarlas y coger la última
+        # Seleccionar la más reciente (última)
         execution_folder = sorted(execution_folders)[-1]
+        print(f"[INFO] Carpeta de ejecución detectada: {execution_folder}")
+
         output_path = f"{base_path}/{execution_folder}/output/output.json"
+        print(f"[INFO] Descargando archivo desde: {output_path}")
         sftp.get(output_path, local_json_path)
 
         sftp.close()
@@ -156,7 +161,9 @@ def process_output_and_notify(**context):
 
     finally:
         os.remove(temp_key_path)
+        print("[INFO] Clave SSH temporal eliminada")
 
+    # Procesar el JSON como siempre
     with open(local_json_path, 'r') as f:
         output_data = json.load(f)
 
