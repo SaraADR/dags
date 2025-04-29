@@ -92,6 +92,7 @@ def execute_algorithm_remote(**context):
             f'{input_file} {output_file}'
         )
         print("Ejecutando el algoritmo remoto")
+        print(f"Comando a ejecutar: {cmd}")
         stdin, stdout, stderr = target_client.exec_command(cmd)
         print(stdout.read().decode())
         print(stderr.read().decode())
