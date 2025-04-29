@@ -59,9 +59,8 @@ def execute_algorithm_remote(**context):
 
         sftp = target_client.open_sftp()
 
-        assignment_id = input_data.get("assignmentId")
-        if not isinstance(assignment_id, int):
-            assignment_id = 1356  # Puedes cambiar el número por otro valor que quieras por defecto
+        assignment_id = 1356 
+        
 
         base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
         input_dir = f"{base_path}/input"
@@ -85,6 +84,9 @@ def execute_algorithm_remote(**context):
         with sftp.file(input_file, 'w') as remote_file:
             remote_file.write(json.dumps(input_data, indent=2))
         print("Archivo input.json subido al servidor")
+        print(json.dumps(input_data, indent=2))
+
+
 
         sftp.close()
 
