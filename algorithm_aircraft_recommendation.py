@@ -79,8 +79,10 @@ def execute_algorithm_remote(**context):
 
         with sftp.file(input_file, 'w') as remote_file:
             remote_file.write(json.dumps(input_data, indent=2))
+            print(json.dumps(input_data, indent=2))
         print("Archivo input.json subido al servidor")
-        print(f"Ruta del archivo modificado de entrada: {input_file}")
+        
+        
         sftp.close()
 
         cmd = (
