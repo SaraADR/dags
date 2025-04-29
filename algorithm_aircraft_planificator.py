@@ -432,7 +432,7 @@ def process_outputs(**context):
             "to": user,
             "actions": [
                 {
-                    "type": "loadTable",
+                    "type": "loadChart",
                     "data": {
                         "url": csv_url,
                         "button": {
@@ -484,12 +484,10 @@ def fetch_results_from_einforex(**context):
     print("[INFO] Iniciando fetch_results_from_einforex...")
 
 
-    # # planning_id = context['ti'].xcom_pull(task_ids='prepare_and_upload_input', key='planning_id')
-    # if not planning_id:
-    #     raise ValueError("[ERROR] No se encontró planning_id en XCom")
+    planning_id = context['ti'].xcom_pull(task_ids='prepare_and_upload_input', key='planning_id')
+    if not planning_id:
+        raise ValueError("[ERROR] No se encontró planning_id en XCom")
     
-    planning_id = 1466
-
     connection = BaseHook.get_connection('einforex_planning_url')
     url = f"{connection.host}/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}"
     username = connection.login

@@ -451,6 +451,7 @@ def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_k
     min_latitud = coordenadas_tif["min_latitud"]
     max_latitud = coordenadas_tif["max_latitud"]
 
+    
 
 
 
