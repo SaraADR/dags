@@ -15,6 +15,7 @@ from dag_utils import get_minio_client, get_db_session, minio_api, obtener_id_mi
 from pytz import timezone
 madrid_tz = timezone('Europe/Madrid')
 now = datetime.now(madrid_tz)
+from datetime import datetime
 #VERSION PARA PRUEBAS CON JSON METIDO A PIÑON
 
 
@@ -61,7 +62,9 @@ def execute_algorithm_remote(**context):
         sftp = target_client.open_sftp()
 
         assignment_id = 1536
-        base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
+        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+        execution_folder = f"EJECUCION_{assignment_id}_{timestamp}"
+        base_path = f"/algoritms/executions/{execution_folder}"
         input_dir = f"{base_path}/input"
         output_dir = f"{base_path}/output"
         input_file = f"{input_dir}/input.json"
@@ -77,7 +80,7 @@ def execute_algorithm_remote(**context):
         with sftp.file(input_file, 'w') as remote_file:
             remote_file.write(json.dumps(input_data, indent=2))
         print("Archivo input.json subido al servidor")
-
+        print(f"Ruta del archivo modificado de entrada: {input_file}")
         sftp.close()
 
         cmd = (
