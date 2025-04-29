@@ -28,9 +28,17 @@ def execute_algorithm_remote(**context):
 
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
-    print("Contenido de input_data:")
+    print("Contenido de input_data (original):")
     print(json.dumps(input_data, indent=2))
-    
+
+    # 🔥 MODIFICAR LOS CAMPOS:
+    input_data["assignmentId"] = 1356
+    if "fires" in input_data:
+        for fire in input_data["fires"]:
+            fire["level"] = 3
+
+    print("Contenido de input_data (modificado):")
+    print(json.dumps(input_data, indent=2))
 
     user = message['message']['from_user']
     context['ti'].xcom_push(key='user', value=user)
@@ -61,7 +69,7 @@ def execute_algorithm_remote(**context):
 
         sftp = target_client.open_sftp()
 
-        assignment_id = 1536
+        assignment_id = 1356
         timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
         execution_folder = f"EJECUCION_{assignment_id}_{timestamp}"
         base_path = f"/algoritms/executions/{execution_folder}"
@@ -82,7 +90,6 @@ def execute_algorithm_remote(**context):
             print(json.dumps(input_data, indent=2))
         print("Archivo input.json subido al servidor")
         
-        
         sftp.close()
 
         cmd = (
@@ -101,6 +108,7 @@ def execute_algorithm_remote(**context):
     finally:
         os.remove(temp_file_path)
         print("Archivo de clave SSH temporal eliminado")
+
 
 
 def process_output_and_notify(**context):
