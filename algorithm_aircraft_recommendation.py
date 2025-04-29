@@ -59,7 +59,7 @@ def execute_algorithm_remote(**context):
 
         sftp = target_client.open_sftp()
 
-        assignment_id = input_data.get("assignmentId")
+        assignment_id = 1536
         base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
         input_dir = f"{base_path}/input"
         output_dir = f"{base_path}/output"
