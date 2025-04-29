@@ -31,7 +31,6 @@ def execute_algorithm_remote(**context):
     print("Contenido de input_data (original):")
     print(json.dumps(input_data, indent=2))
 
-    # 🔥 MODIFICAR LOS CAMPOS:
     input_data["assignmentId"] = 1356
     if "fires" in input_data:
         for fire in input_data["fires"]:
@@ -46,18 +45,13 @@ def execute_algorithm_remote(**context):
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname = ssh_conn.host
     username = ssh_conn.login
-
-    ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
-        temp_file.write(ssh_key_decoded)
-        temp_file_path = temp_file.name
-    os.chmod(temp_file_path, 0o600)
+    password = ssh_conn.password
 
     try:
         print("Estableciendo conexión SSH con bastión")
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        bastion.connect(hostname=hostname, username=username, key_filename=temp_file_path)
+        bastion.connect(hostname=hostname, username=username, password=password)
 
         jump_transport = bastion.get_transport()
         jump_channel = jump_transport.open_channel("direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0))
@@ -65,7 +59,7 @@ def execute_algorithm_remote(**context):
         print("Conectando al servidor interno")
         target_client = paramiko.SSHClient()
         target_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        target_client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump_channel, key_filename=temp_file_path)
+        target_client.connect(hostname="10.38.9.6", username=username, password=password, sock=jump_channel)
 
         sftp = target_client.open_sftp()
 
@@ -106,8 +100,7 @@ def execute_algorithm_remote(**context):
         print("Conexión SSH finalizada")
 
     finally:
-        os.remove(temp_file_path)
-        print("Archivo de clave SSH temporal eliminado")
+        print("Cerrando conexión SSH")
 
 
 
