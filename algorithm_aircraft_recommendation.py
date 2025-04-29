@@ -136,8 +136,20 @@ def process_output_and_notify(**context):
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
 
         sftp = client.open_sftp()
-        output_path = f"/algoritms/executions/EJECUCION_{assignment_id}/output/output.json"
+
+        # Buscar carpeta real con timestamp
+        base_path = "/algoritms/executions"
+        folders = sftp.listdir(base_path)
+        execution_folders = [f for f in folders if f.startswith(f"EJECUCION_{assignment_id}_")]
+
+        if not execution_folders:
+            raise Exception(f"No se encontró carpeta de ejecución para assignment_id {assignment_id}")
+
+        # Ordenarlas y coger la última
+        execution_folder = sorted(execution_folders)[-1]
+        output_path = f"{base_path}/{execution_folder}/output/output.json"
         sftp.get(output_path, local_json_path)
+
         sftp.close()
         client.close()
         bastion.close()
