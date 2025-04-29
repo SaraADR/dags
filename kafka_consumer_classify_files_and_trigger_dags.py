@@ -218,12 +218,24 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                         print("Ejecutando lógica para WaterAnalysis")
 
                     unique_id = uuid.uuid4()
-                    if trigger_dag_name:
+                    if trigger_dag_name and trigger_dag_name != 'water_analysis':
                         try:
                             trigger = TriggerDagRunOperator(
                                 task_id=str(unique_id),
                                 trigger_dag_id=trigger_dag_name,
                                 conf={'json': json_content, 'otros': otros},
+                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                                dag=kwargs.get('dag'),
+                            )
+                            trigger.execute(context=kwargs)
+                        except Exception as e:
+                            print(f"Error al desencadenar el DAG: {e}")
+                    elif trigger_dag_name and trigger_dag_name == 'water_analysis':
+                        try:
+                            trigger = TriggerDagRunOperator(
+                                task_id=str(unique_id),
+                                trigger_dag_id=trigger_dag_name,
+                                conf={'json': json_content, 'otros': message},
                                 execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 dag=kwargs.get('dag'),
                             )
