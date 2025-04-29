@@ -23,20 +23,13 @@ def execute_algorithm_remote(**context):
 
     message = context['dag_run'].conf
     print("Datos recibidos desde el frontend:")
-    print(json.dumps(message, indent=2))
+    print(json.dumps(message, indent=2))  # Muestra la estructura JSON de entrada
 
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str) if isinstance(input_data_str, str) else input_data_str
-
-    print("Contenido de input_data (original):")
+    print("Contenido de input_data:")
     print(json.dumps(input_data, indent=2))
-
-    input_data["assignmentId"] = 1356
-    for fire in input_data.get("fires", []):
-        fire["level"] = 3
-
-    print("Contenido de input_data (modificado):")
-    print(json.dumps(input_data, indent=2))
+    
 
     user = message['message']['from_user']
     context['ti'].xcom_push(key='user', value=user)
@@ -67,7 +60,7 @@ def execute_algorithm_remote(**context):
 
         sftp = target_client.open_sftp()
 
-        assignment_id = input_data["assignmentId"]
+        assignment_id = 1536
         base_path = f"/algoritms/executions/EJECUCION_{assignment_id}"
         input_dir = f"{base_path}/input"
         output_dir = f"{base_path}/output"
@@ -92,7 +85,6 @@ def execute_algorithm_remote(**context):
             f'{input_file} {output_file}'
         )
         print("Ejecutando el algoritmo remoto")
-        print(f"Comando a ejecutar: {cmd}")
         stdin, stdout, stderr = target_client.exec_command(cmd)
         print(stdout.read().decode())
         print(stderr.read().decode())
@@ -104,7 +96,6 @@ def execute_algorithm_remote(**context):
     finally:
         os.remove(temp_file_path)
         print("Archivo de clave SSH temporal eliminado")
-
 
 
 def process_output_and_notify(**context):
