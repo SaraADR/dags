@@ -15,14 +15,13 @@ def execute_docker_process(**context):
     if not conf:
         print("Error: No se recibió configuración desde el DAG.")
         return
-    
+
     print("Datos recibidos del DAG:")
     print(json.dumps(conf, indent=4))
 
     event_name = conf.get("eventName", "UnknownEvent")
     data_str = conf.get("data", {})
 
-    
     if isinstance(data_str, str):
         try:
             data = json.loads(data_str)  # Convertir de string JSON a estructura Python
@@ -32,9 +31,8 @@ def execute_docker_process(**context):
     else:
         data = data_str
 
-    
     if isinstance(data, dict):
-        data = [data]  
+        data = [data]
     elif not isinstance(data, list):
         print("Error: 'data' no es una lista ni un diccionario válido")
         return
@@ -46,6 +44,34 @@ def execute_docker_process(**context):
         print("Advertencia: No hay datos válidos para procesar.")
         return
 
+    # Validación: Evitar duplicados por mission_id
+    fire_id = data[0].get("id")
+    if not fire_id:
+        print("Error: No se encontró fire_id en los datos")
+        return
+
+    mission_id = obtener_id_mision(fire_id)
+    if not mission_id:
+        print("Error: No se pudo obtener mission_id desde fire_id")
+        return
+
+    try:
+        session = get_db_session()
+        query = text("""
+            SELECT COUNT(*) FROM algoritmos.algoritmo_gifs_fire_prediction
+            WHERE sampled_feature = :mission_id
+        """)
+        count = session.execute(query, {'mission_id': mission_id}).scalar()
+
+        if count > 0:
+            print(f"Ya existe una ejecución registrada para mission_id {mission_id}. Abortando DAG.")
+            return
+
+    except Exception as e:
+        print(f"Error al verificar duplicados en BD: {str(e)}")
+        return
+
+    # ⬇️ Continúa el flujo original
     remote_file_path = "/home/admin3/grandes-incendios-forestales/share_data_host/inputs/input_automatic.json"
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
