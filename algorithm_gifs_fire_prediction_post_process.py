@@ -15,13 +15,14 @@ def execute_docker_process(**context):
     if not conf:
         print("Error: No se recibió configuración desde el DAG.")
         return
-
+    
     print("Datos recibidos del DAG:")
     print(json.dumps(conf, indent=4))
 
     event_name = conf.get("eventName", "UnknownEvent")
     data_str = conf.get("data", {})
 
+    
     if isinstance(data_str, str):
         try:
             data = json.loads(data_str)  # Convertir de string JSON a estructura Python
@@ -31,8 +32,9 @@ def execute_docker_process(**context):
     else:
         data = data_str
 
+    
     if isinstance(data, dict):
-        data = [data]
+        data = [data]  
     elif not isinstance(data, list):
         print("Error: 'data' no es una lista ni un diccionario válido")
         return
@@ -44,34 +46,6 @@ def execute_docker_process(**context):
         print("Advertencia: No hay datos válidos para procesar.")
         return
 
-    # Validación: Evitar duplicados por mission_id
-    fire_id = data[0].get("id")
-    if not fire_id:
-        print("Error: No se encontró fire_id en los datos")
-        return
-
-    mission_id = obtener_id_mision(fire_id)
-    if not mission_id:
-        print("Error: No se pudo obtener mission_id desde fire_id")
-        return
-
-    try:
-        session = get_db_session()
-        query = text("""
-            SELECT COUNT(*) FROM algoritmos.algoritmo_gifs_fire_prediction
-            WHERE sampled_feature = :mission_id
-        """)
-        count = session.execute(query, {'mission_id': mission_id}).scalar()
-
-        if count > 0:
-            print(f"Ya existe una ejecución registrada para mission_id {mission_id}. Abortando DAG.")
-            return
-
-    except Exception as e:
-        print(f"Error al verificar duplicados en BD: {str(e)}")
-        return
-
-    # ⬇️ Continúa el flujo original
     remote_file_path = "/home/admin3/grandes-incendios-forestales/share_data_host/inputs/input_automatic.json"
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
 
@@ -140,7 +114,7 @@ def obtener_id_mision(fire_id):
         return None
 
 def obtener_mission_id_task(**context):
-    """ Accede al servidor vía SSH, descarga output.json, y obtiene mission_id utilizando fire_id. """
+    """Accede al servidor vía SSH, descarga output.json, y obtiene mission_id utilizando fire_id."""
     remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
     local_output_path = "/tmp/output.json"
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")
@@ -148,22 +122,20 @@ def obtener_mission_id_task(**context):
     try:
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
-
             sftp.get(remote_output_path, local_output_path)
             print(f"Archivo descargado correctamente: {local_output_path}")
-
             sftp.close()
 
         with open(local_output_path, "r") as file:
             resultado_json = json.load(file)
 
         fire_id = resultado_json[0]["id"]
-
         mission_id = obtener_id_mision(fire_id)
 
         if mission_id:
             print(f"Mission ID obtenido correctamente: {mission_id}")
             context['task_instance'].xcom_push(key='mission_id', value=mission_id)
+            context['task_instance'].xcom_push(key='fire_id', value=fire_id)  
         else:
             print(f"No se encontró mission_id para fire_id: {fire_id}")
 
@@ -173,11 +145,13 @@ def obtener_mission_id_task(**context):
         print(f"Error en la tarea de obtener mission_id: {str(e)}")
         raise
 
+
 def guardar_resultados_task(**context):
     """
-    Obtiene mission_id desde XCom, descarga output.json desde el servidor y guarda los datos en la BD.
+    Obtiene mission_id y fire_id desde XCom, descarga output.json desde el servidor, y guarda los datos en la BD.
     """
     mission_id = context['task_instance'].xcom_pull(task_ids='obtener_mission_id', key='mission_id')
+    fire_id = context['task_instance'].xcom_pull(task_ids='obtener_mission_id', key='fire_id')  # 🔁 Añadido
     input_data = context['dag_run'].conf.get("data")  
 
     if not mission_id:
@@ -201,43 +175,53 @@ def guardar_resultados_task(**context):
         print("Error: 'input_data' no es una lista ni un diccionario válido")
         return
 
-    # Ruta del archivo en el servidor y local
     remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
     local_output_path = "/tmp/output.json"
     ssh_hook = SSHHook(ssh_conn_id="my_ssh_conn")  
 
     try:
-        # Descargar output.json desde el servidor
         with ssh_hook.get_conn() as ssh_client:
             sftp = ssh_client.open_sftp()
             sftp.get(remote_output_path, local_output_path)
             sftp.close()
 
-        # Leer JSON descargado (output del algoritmo)
         with open(local_output_path, "r") as file:
             output_data_json = json.load(file)
 
-        # Incluir el estado "FINISHED" dentro del JSON de salida
-        output_data = {"estado": "FINISHED", "data": output_data_json}
+        
+        output_data = {
+            "estado": "FINISHED",
+            "type": 1,
+            "fire_id": fire_id,
+            "data": output_data_json
+        }
 
     except FileNotFoundError:
         print("output.json no encontrado, registrando estado 'ERROR'.")
-        output_data = {"estado": "ERROR", "comentario": "output.json no encontrado"}
+        output_data = {
+            "estado": "ERROR",
+            "comentario": "output.json no encontrado",
+            "type": 1,
+            "fire_id": fire_id
+        }
     except Exception as e:
         print(f"Error en la tarea de guardar resultados: {str(e)}")
-        output_data = {"estado": "ERROR", "comentario": str(e)}
+        output_data = {
+            "estado": "ERROR",
+            "comentario": str(e),
+            "type": 1,
+            "fire_id": fire_id
+        }
 
-    # Insertar datos en la BD
     try:
         session = get_db_session()
-
-        fecha_hoy = datetime.datetime.now(datetime.timezone.utc)  # `result_time` y `phenomenon_time` → fecha actual
+        fecha_hoy = datetime.datetime.now(datetime.timezone.utc)
 
         datos = {
             'sampled_feature': mission_id,
             'result_time': fecha_hoy,
             'phenomenon_time': fecha_hoy,
-            'input_data': json.dumps(input_data),
+            'input_data': json.dumps({"fire_id": fire_id}),  
             'output_data': json.dumps(output_data)
         }
 
@@ -252,8 +236,6 @@ def guardar_resultados_task(**context):
         result = session.execute(query, datos)
         session.commit()
         fid = result.fetchone()[0]
-
-        # Guardar fid en XCom para futuras tareas
         context['task_instance'].xcom_push(key='fid', value=fid)
 
         print(f"Datos insertados correctamente en algoritmo_gifs_fire_prediction con fid {fid}")
@@ -291,7 +273,7 @@ execute_docker_task = PythonOperator(
 )
 
 # Obtención del mission_id desde la base de datos
-obtener_mission_id_task = PythonOperator(
+obtener_mission_id = PythonOperator(
     task_id='obtener_mission_id',
     python_callable=obtener_mission_id_task,
     provide_context=True,
@@ -299,11 +281,11 @@ obtener_mission_id_task = PythonOperator(
 )
 
 # Guardado de los resultados en la base de datos
-guardar_resultados_task = PythonOperator(
+guardar_resultados = PythonOperator(
     task_id='guardar_resultados',
     python_callable=guardar_resultados_task,
     provide_context=True,
     dag=dag,
 )
 
-execute_docker_task >> obtener_mission_id_task >> guardar_resultados_task
+execute_docker_task >> obtener_mission_id >> guardar_resultados
