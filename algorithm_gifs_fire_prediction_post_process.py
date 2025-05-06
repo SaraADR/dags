@@ -189,10 +189,17 @@ def guardar_resultados_task(**context):
             output_data_json = json.load(file)
 
         
+        # Traducir la predicción a texto "Sí"/"No"
+        prediccion_binaria = output_data_json[0].get("prediccion", 0)
+        prediccion_texto = "Sí" if prediccion_binaria == 1 else "No"
+        print(f"Predicción: {prediccion_texto}")
+
+        # Construir output_data
         output_data = {
             "estado": "FINISHED",
             "type": 1,
             "fire_id": fire_id,
+            "prediccion": prediccion_texto,
             "data": output_data_json
         }
 
