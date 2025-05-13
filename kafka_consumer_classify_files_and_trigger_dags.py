@@ -216,6 +216,10 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     elif algorithm_id == 'WaterAnalysis':
                         trigger_dag_name = 'water_analysis'
                         print("Ejecutando lógica para WaterAnalysis")
+                    elif algorithm_id == 'MetashapeCartografia':
+                        trigger_dag_name = 'algorithm_metashape'
+                        print("Ejecutando lógica para MetaShape")
+
 
                     unique_id = uuid.uuid4()
                     if trigger_dag_name and trigger_dag_name != 'water_analysis':
