@@ -236,7 +236,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                             trigger.execute(context=kwargs)
                         except Exception as e:
                             print(f"Error al desencadenar el DAG: {e}")
-                    elif trigger_dag_name and trigger_dag_name == 'water_analysis':
+                    elif (trigger_dag_name and trigger_dag_name == 'water_analysis') or (trigger_dag_name and trigger_dag_name == 'MetashapeCartografia') :
                         try:
                             trigger = TriggerDagRunOperator(
                                 task_id=str(unique_id),
