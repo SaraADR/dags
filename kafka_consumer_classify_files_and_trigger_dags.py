@@ -219,6 +219,9 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     elif algorithm_id == 'MetashapeCartografia':
                         trigger_dag_name = 'algorithm_metashape'
                         print("Ejecutando lógica para MetaShape")
+                    elif algorithm_id == 'FlameFront':
+                        trigger_dag_name = 'algorithm_flame_front'
+                        print("Ejecutando lógica para Frente de Llamas")
 
 
                     unique_id = uuid.uuid4()
