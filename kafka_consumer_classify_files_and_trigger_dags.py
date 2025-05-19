@@ -54,7 +54,6 @@ def consumer_function(message, prefix, **kwargs):
     local_directory = 'temp'  # Cambia este path al local
     try:
         local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
-        print(local_zip_path)
         process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
     except Exception as e:
         print(f"Error al descargar desde MinIO: {e}")
