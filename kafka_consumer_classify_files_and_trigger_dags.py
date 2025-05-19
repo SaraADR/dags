@@ -314,9 +314,10 @@ consume_from_topic = ConsumeFromTopicOperator(
     topics=["intentoarchivosv2"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_batch",
+    commit_cadence="end_of_operator",
     dag=dag,
 )
+
 
 from utils.log_utils import setup_conditional_log_saving
 
