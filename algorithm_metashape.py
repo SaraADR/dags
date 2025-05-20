@@ -119,14 +119,17 @@ def process_json(**kwargs):
     uuid_key = str(uuid.uuid4())
     bucket_name = 'missions'
     json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
+    print(json_key)
+    ruta_minio = Variable.get("ruta_minIO")
 
     # Actualizamos solo en el JSON nuevo
     for resource in updated_json.get("executionResources", []):
         old_path = resource['path']
         filename = old_path.split("/")[-1]
         new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{filename}"
-        resource['path'] = new_path
-        print(f"Ruta actualizada: {old_path} -> {new_path}")
+        full_path = f"{ruta_minio.rstrip('/')}{new_path}"  # evita doble barra
+        resource['path'] = full_path
+        print(f"Ruta actualizada: {old_path} -> {full_path}")
 
     # Subimos el JSON actualizado a MinIO
     s3_client.put_object(
