@@ -164,7 +164,7 @@ def historizacion(input_data, output_data, mission_id, startTimeStamp, endTimeSt
 
             # Construir la consulta de inserción
             query = f"""
-                INSERT INTO algoritmos.algoritmo_water_analysis (
+                INSERT INTO algoritmos.algorithm_metashape (
                     sampled_feature, result_time, phenomenon_time, input_data, output_data
                 ) VALUES (
                     {datos['sampled_feature']},
