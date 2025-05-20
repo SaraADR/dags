@@ -29,7 +29,6 @@ def process_json(**kwargs):
     print("Archivos para procesar preparados")
 
     s3_client = get_minio_client()
-    archivos = []
     file_path_in_minio =  otros.replace('tmp/','')
     folder_prefix = 'sftp/'
     try:
@@ -98,8 +97,6 @@ def process_json(**kwargs):
         print(f"El archivo no es un ZIP válido: {e}")
         return
 
-    # json_content_original = kwargs['dag_run'].conf.get('json')
-
     # Clonamos el JSON para no modificar el original
     updated_json = json.loads(json.dumps(json_content_original))  # deep copy
 
@@ -130,6 +127,28 @@ def process_json(**kwargs):
         full_path = f"{ruta_minio.rstrip('/')}{new_path}"  # evita doble barra
         resource['path'] = full_path
         print(f"Ruta actualizada: {old_path} -> {full_path}")
+
+    # Subir los archivos extraídos a su ubicación final en MinIO
+    for root, dirs, files in os.walk(temp_dir):
+        for file_name in files:
+            local_path = os.path.join(root, file_name)
+            # Omitimos el algorithm_result.json
+            if file_name.lower() == 'algorithm_result.json':
+                continue
+
+            # Subruta relativa dentro del ZIP
+            relative_path = os.path.relpath(local_path, temp_dir)
+            minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
+
+            with open(local_path, 'rb') as file_data:
+                s3_client.put_object(
+                    Bucket=bucket_name,
+                    Key=minio_key,
+                    Body=file_data,
+                    ContentType='application/octet-stream'
+                )
+                print(f"Archivo subido a MinIO: {minio_key}")
+
 
     # Subimos el JSON actualizado a MinIO
     s3_client.put_object(
