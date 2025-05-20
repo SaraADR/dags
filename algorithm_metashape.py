@@ -76,7 +76,8 @@ def process_json(**kwargs):
             for resource in updated_json.get("executionResources", []):
                 old_path = resource['path']
                 filename = old_path.split("/")[-1]
-                new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{filename}"
+                relative_path = old_path.lstrip('/')  # Ej: 'resources/DEM.tif'
+                new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
                 full_path = f"{ruta_minio.rstrip('/')}{new_path}"
                 resource['path'] = full_path
                 print(f"Ruta actualizada: {old_path} -> {full_path}")
