@@ -224,7 +224,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
 
 
                     unique_id = uuid.uuid4()
-                    if trigger_dag_name and trigger_dag_name != 'water_analysis':
+                    if trigger_dag_name and trigger_dag_name != 'water_analysis' and trigger_dag_name != 'MetashapeCartografia':
                         try:
                             trigger = TriggerDagRunOperator(
                                 task_id=str(unique_id),
