@@ -83,7 +83,7 @@ def process_json(**kwargs):
                     relative_dir_path = os.path.relpath(local_dir_path, temp_dir)
                     parts = relative_dir_path.split(os.sep)
                     if parts[0].lower().startswith("metashape"):
-                        relative_dir_path = os.path.join(*parts[1:])
+                        relative_dir_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
                     dir_lookup[dir_name] = relative_dir_path
 
                 for file_name in files:
@@ -93,7 +93,7 @@ def process_json(**kwargs):
                     relative_path = os.path.relpath(local_path, temp_dir)
                     parts = relative_path.split(os.sep)
                     if parts[0].lower().startswith("metashape"):
-                        relative_path = os.path.join(*parts[1:])
+                        relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
                     file_lookup[file_name] = relative_path
 
             # Actualizar rutas en el JSON usando el índice real
@@ -123,7 +123,7 @@ def process_json(**kwargs):
                     relative_path = os.path.relpath(local_path, temp_dir)
                     parts = relative_path.split(os.sep)
                     if parts[0].lower().startswith("metashape"):
-                        relative_path = os.path.join(*parts[1:])
+                        relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
                     minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
                     try:
                         with open(local_path, 'rb') as file_data:
