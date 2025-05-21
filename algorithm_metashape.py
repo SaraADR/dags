@@ -73,20 +73,27 @@ def process_json(**kwargs):
             print(json_key)
             ruta_minio = Variable.get("ruta_minIO")
 
-            # Crear un índice de archivos extraídos
+            # Crear índices de archivos y carpetas extraídas
             file_lookup = {}
+            dir_lookup = {}
+
             for root, dirs, files in os.walk(temp_dir):
+                for dir_name in dirs:
+                    local_dir_path = os.path.join(root, dir_name)
+                    relative_dir_path = os.path.relpath(local_dir_path, temp_dir)
+                    parts = relative_dir_path.split(os.sep)
+                    if parts[0].lower().startswith("metashape"):
+                        relative_dir_path = os.path.join(*parts[1:])
+                    dir_lookup[dir_name] = relative_dir_path
+
                 for file_name in files:
                     if file_name.lower() == 'algorithm_result.json':
                         continue
                     local_path = os.path.join(root, file_name)
                     relative_path = os.path.relpath(local_path, temp_dir)
-
-                    # Eliminar el prefijo de carpeta de envoltorio si lo hay (ej: MetashapeIR_2025...)
                     parts = relative_path.split(os.sep)
                     if parts[0].lower().startswith("metashape"):
                         relative_path = os.path.join(*parts[1:])
-
                     file_lookup[file_name] = relative_path
 
             # Actualizar rutas en el JSON usando el índice real
@@ -95,26 +102,12 @@ def process_json(**kwargs):
                 file_name = os.path.basename(old_path)
                 relative_path = file_lookup.get(file_name)
 
-                # Si no se encuentra en el índice, pero es un directorio, usar el path tal cual (ajustando)
-                if os.path.basename(old_path) in [p.split('/')[0] for p in file_lookup.values() if '/' in p]:
-                    relative_path = next(
-                        p.split('/')[0] for p in file_lookup.values() if p.startswith(f"{os.path.basename(old_path)}/")
-                    )
-                    new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/resources/{relative_path}"
-                    full_path = f"{ruta_minio.rstrip('/')}{new_path}"
-                    resource['path'] = full_path
-                    print(f"Ruta de directorio actualizada: {old_path} -> {full_path}")
-                    continue
-
-                # Si no está en file_lookup, puede ser un directorio
                 if not relative_path:
-                    matching_prefixes = [p for p in file_lookup.values() if p.startswith(f"resources/{file_name}/")]
-                    if matching_prefixes:
-                        # Es un directorio, nos quedamos con el nombre del directorio como tal
-                        relative_path = f"resources/{file_name}"
-                    else:
-                        print(f"No se encontró {file_name} en el ZIP extraído.")
-                        continue
+                    relative_path = dir_lookup.get(file_name)
+
+                if not relative_path:
+                    print(f"No se encontró {file_name} en el ZIP extraído.")
+                    continue
 
                 new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
                 full_path = f"{ruta_minio.rstrip('/')}{new_path}"
@@ -128,12 +121,9 @@ def process_json(**kwargs):
                         continue
                     local_path = os.path.join(root, file_name)
                     relative_path = os.path.relpath(local_path, temp_dir)
-
-                    # Eliminar el prefijo tipo MetashapeIR_.../
                     parts = relative_path.split(os.sep)
                     if parts[0].lower().startswith("metashape"):
                         relative_path = os.path.join(*parts[1:])
-
                     minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
                     try:
                         with open(local_path, 'rb') as file_data:
@@ -158,6 +148,7 @@ def process_json(**kwargs):
 
             # Historizar
             historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
+
 
 
 #HISTORIZACION
