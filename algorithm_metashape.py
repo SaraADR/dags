@@ -73,10 +73,6 @@ def process_json(**kwargs):
             print(json_key)
             ruta_minio = Variable.get("ruta_minIO")
 
-            # Detectar carpeta raíz del ZIP
-            zip_root = os.path.commonprefix(file_list).split('/')[0]
-            print(f"Carpeta raíz detectada en el ZIP: {zip_root}")
-
             # Crear un índice de archivos extraídos
             file_lookup = {}
             for root, dirs, files in os.walk(temp_dir):
@@ -84,7 +80,13 @@ def process_json(**kwargs):
                     if file_name.lower() == 'algorithm_result.json':
                         continue
                     local_path = os.path.join(root, file_name)
-                    relative_path = os.path.relpath(local_path, os.path.join(temp_dir, zip_root))
+                    relative_path = os.path.relpath(local_path, temp_dir)
+
+                    # Eliminar el prefijo de carpeta de envoltorio si lo hay (ej: MetashapeIR_2025...)
+                    parts = relative_path.split(os.sep)
+                    if parts[0].lower().startswith("metashape"):
+                        relative_path = os.path.join(*parts[1:])
+
                     file_lookup[file_name] = relative_path
 
             # Actualizar rutas en el JSON usando el índice real
@@ -108,7 +110,13 @@ def process_json(**kwargs):
                     if file_name.lower() == 'algorithm_result.json':
                         continue
                     local_path = os.path.join(root, file_name)
-                    relative_path = os.path.relpath(local_path, os.path.join(temp_dir, zip_root))
+                    relative_path = os.path.relpath(local_path, temp_dir)
+
+                    # Eliminar el prefijo tipo MetashapeIR_.../
+                    parts = relative_path.split(os.sep)
+                    if parts[0].lower().startswith("metashape"):
+                        relative_path = os.path.join(*parts[1:])
+
                     minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
                     try:
                         with open(local_path, 'rb') as file_data:
