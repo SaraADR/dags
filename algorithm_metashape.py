@@ -106,9 +106,15 @@ def process_json(**kwargs):
                     print(f"Ruta de directorio actualizada: {old_path} -> {full_path}")
                     continue
 
+                # Si no está en file_lookup, puede ser un directorio
                 if not relative_path:
-                    print(f"No se encontró {file_name} en el ZIP extraído.")
-                    continue
+                    matching_prefixes = [p for p in file_lookup.values() if p.startswith(f"resources/{file_name}/")]
+                    if matching_prefixes:
+                        # Es un directorio, nos quedamos con el nombre del directorio como tal
+                        relative_path = f"resources/{file_name}"
+                    else:
+                        print(f"No se encontró {file_name} en el ZIP extraído.")
+                        continue
 
                 new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
                 full_path = f"{ruta_minio.rstrip('/')}{new_path}"
