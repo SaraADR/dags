@@ -95,6 +95,17 @@ def process_json(**kwargs):
                 file_name = os.path.basename(old_path)
                 relative_path = file_lookup.get(file_name)
 
+                # Si no se encuentra en el índice, pero es un directorio, usar el path tal cual (ajustando)
+                if os.path.basename(old_path) in [p.split('/')[0] for p in file_lookup.values() if '/' in p]:
+                    relative_path = next(
+                        p.split('/')[0] for p in file_lookup.values() if p.startswith(f"{os.path.basename(old_path)}/")
+                    )
+                    new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/resources/{relative_path}"
+                    full_path = f"{ruta_minio.rstrip('/')}{new_path}"
+                    resource['path'] = full_path
+                    print(f"Ruta de directorio actualizada: {old_path} -> {full_path}")
+                    continue
+
                 if not relative_path:
                     print(f"No se encontró {file_name} en el ZIP extraído.")
                     continue
