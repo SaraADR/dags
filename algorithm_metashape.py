@@ -73,51 +73,56 @@ def process_json(**kwargs):
             print(json_key)
             ruta_minio = Variable.get("ruta_minIO")
 
-        # 1. Crear un índice con la ruta relativa real de cada archivo del ZIP
-        file_lookup = {}
-        for root, dirs, files in os.walk(temp_dir):
-            for file_name in files:
-                if file_name.lower() == 'algorithm_result.json':
+            # Detectar carpeta raíz del ZIP
+            zip_root = os.path.commonprefix(file_list).split('/')[0]
+            print(f"Carpeta raíz detectada en el ZIP: {zip_root}")
+
+            # Crear un índice de archivos extraídos
+            file_lookup = {}
+            for root, dirs, files in os.walk(temp_dir):
+                for file_name in files:
+                    if file_name.lower() == 'algorithm_result.json':
+                        continue
+                    local_path = os.path.join(root, file_name)
+                    relative_path = os.path.relpath(local_path, os.path.join(temp_dir, zip_root))
+                    file_lookup[file_name] = relative_path
+
+            # Actualizar rutas en el JSON usando el índice real
+            for resource in updated_json.get("executionResources", []):
+                old_path = resource['path']
+                file_name = os.path.basename(old_path)
+                relative_path = file_lookup.get(file_name)
+
+                if not relative_path:
+                    print(f"No se encontró {file_name} en el ZIP extraído.")
                     continue
-                local_path = os.path.join(root, file_name)
-                relative_path = os.path.relpath(local_path, temp_dir)
-                file_lookup[file_name] = relative_path  # DEM.tif -> resources/DEM.tif
 
-        # 2. Actualizar rutas en el JSON según la estructura real
-        for resource in updated_json.get("executionResources", []):
-            old_path = resource['path']
-            file_name = os.path.basename(old_path)
+                new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
+                full_path = f"{ruta_minio.rstrip('/')}{new_path}"
+                resource['path'] = full_path
+                print(f"Ruta actualizada: {old_path} -> {full_path}")
 
-            relative_path = file_lookup.get(file_name)
-            if not relative_path:
-                print(f"No se encontró {file_name} en el ZIP extraído.")
-                continue
+            # Subir archivos del ZIP a MinIO
+            for root, dirs, files in os.walk(temp_dir):
+                for file_name in files:
+                    if file_name.lower() == 'algorithm_result.json':
+                        continue
+                    local_path = os.path.join(root, file_name)
+                    relative_path = os.path.relpath(local_path, os.path.join(temp_dir, zip_root))
+                    minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
+                    try:
+                        with open(local_path, 'rb') as file_data:
+                            s3_client.put_object(
+                                Bucket=bucket_name,
+                                Key=minio_key,
+                                Body=file_data,
+                                ContentType='application/octet-stream'
+                            )
+                        print(f"Archivo subido a MinIO: {minio_key}")
+                    except Exception as e:
+                        print(f"Error al subir {file_name} a MinIO: {e}")
 
-            new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
-            full_path = f"{ruta_minio.rstrip('/')}{new_path}"
-            resource['path'] = full_path
-            print(f"Ruta actualizada: {old_path} -> {full_path}")
-
-        # 3. Subir los archivos extraídos a MinIO con su ruta real
-        for root, dirs, files in os.walk(temp_dir):
-            for file_name in files:
-                if file_name.lower() == 'algorithm_result.json':
-                    continue
-                local_path = os.path.join(root, file_name)
-                relative_path = os.path.relpath(local_path, temp_dir)
-                minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
-                try:
-                    with open(local_path, 'rb') as file_data:
-                        s3_client.put_object(
-                            Bucket=bucket_name,
-                            Key=minio_key,
-                            Body=file_data,
-                            ContentType='application/octet-stream'
-                        )
-                    print(f"Archivo subido a MinIO: {minio_key}")
-                except Exception as e:
-                    print(f"Error al subir {file_name} a MinIO: {e}")
-
+            # Subir el JSON actualizado
             s3_client.put_object(
                 Bucket=bucket_name,
                 Key=json_key,
@@ -126,6 +131,7 @@ def process_json(**kwargs):
             )
             print(f'Archivo JSON actualizado subido correctamente a MinIO como {json_key}')
 
+            # Historizar
             historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
 
 
