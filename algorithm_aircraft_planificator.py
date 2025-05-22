@@ -1,6 +1,3 @@
-#@TODO IMPORTANTE: planning_id ahora ya no es sólo un número, sino varios (de varias misiones), por lo que hay que cambiar para que todo vaya bien con varios
-# pero por el momento se puede probar en front con una sola misión.
-
 # TENEMOS LA FUNCION DE PRUEBA PARA NOTIFICAR AL FRONTEND, UNA VEZ ESTE COMPLETADO EL ENVÍO Y SE REALICE CORRECTAMENTE
 # SIMPLEMENTE INTEGRARÍAMOS DENTRO DE LA FUNCION ESTE PROCESO, Y ACABAR CON RESUMEN DEL FLUJO:
 
@@ -25,8 +22,6 @@ import pytz
 from sqlalchemy import text
 from dag_utils import get_minio_client, get_db_session, minio_api
 from requests.auth import HTTPBasicAuth
-from utils.insert_end_of_execution import end_of_flow_task
-from utils.callback_utils import task_failure_callback
 
 # Constantes
 EINFOREX_ROUTE = "/atcServices/rest/ResourcePlanningAlgorithmExecutionService/save"
@@ -37,35 +32,57 @@ MINIO_BUCKET = "tmp"
 MINIO_FOLDER = "algorithm_aircraft_planificator_outputs" 
 SERVER_EXECUTIONS_DIR = "/algoritms/executions/"
 
+# Funcion de conversión de fecha a milisegundos
+def to_millis(dt):
+    return int(dt.timestamp() * 1000)
+
 
 # Definición de la función para construir el payload para EINFOREX
-def build_einforex_payload(mpd):
-    # Mapeo a resourcePlanningCriteria
-    resource_planning_criteria = [
-        {
-            "since":       int(c["dateFrom"] / 1000) * 1000,  # Eliminar milisegundos truncando el número /1000
-            "until":       int(c["dateTo"] / 1000) * 1000,
-            "aircrafts":   c["aircrafts"],
-            "waterAmount": c["capacity"],
-            "aircraftNum": c["numAircrafts"]
-        }
-        for c in mpd["criteria"]
-    ]
-    
+def build_einforex_payload(fire, vehicles, assignment_criteria):
+    now = datetime.utcnow()
+    start_dt = now.replace(minute=((now.minute // 10 + 1) * 10) % 60, second=0, microsecond=0)
+    end_dt = start_dt + timedelta(hours=4)
+
+    fire_id = fire['id']
+    matched_criteria = [c for c in assignment_criteria if c['fireId'] == fire_id]
+
+    available_aircrafts = []
+    aircrafts_for_criteria = []
+    if matched_criteria:
+        for model in matched_criteria[0]['vehicleModels']:
+            matched_vehicles = [v for v in vehicles if v['model'] == model]
+            ids = [v['id'] for v in matched_vehicles]
+            available_aircrafts.extend(ids)
+            aircrafts_for_criteria.extend(ids)
+
+    if not available_aircrafts:
+        available_aircrafts = []
+        aircrafts_for_criteria = [""]
+
+    output_interval_ms = 600_000
+
     return {
-        "startDate": int(mpd["startDate"] / 1000) * 1000,
-        "endDate":   int(mpd["endDate"] / 1000) * 1000,
-        "sinceDate": int(mpd["startDate"] / 1000) * 1000,
-        "untilDate": int(mpd["endDate"] / 1000) * 1000,
+        "startDate": to_millis(start_dt),
+        "endDate": to_millis(end_dt),
+        "sinceDate": to_millis(start_dt),
+        "untilDate": to_millis(end_dt),
         "fireLocation": {
-            "srid": 4326,
-            "x": mpd['lonLat'][0],
-            "y": mpd['lonLat'][1],
-            "z": 0
+            "srid": fire['position']['srid'],
+            "x": fire['position']['x'],
+            "y": fire['position']['y'],
+            "z": fire['position'].get('z', 0)
         },
-        "availableAircrafts": mpd['aircrafts'],
-        "outputInterval": mpd['timeInterval'],
-        "resourcePlanningCriteria": resource_planning_criteria,
+        "availableAircrafts": available_aircrafts,
+        "outputInterval": output_interval_ms,
+        "resourcePlanningCriteria": [
+            {
+                "since": to_millis(start_dt),
+                "until": to_millis(end_dt),
+                "aircrafts": aircrafts_for_criteria,
+                "waterAmount": None,
+                "aircraftNum": len([a for a in aircrafts_for_criteria if a])
+            }
+        ],
         "resourcePlanningResult": []
     }
 
@@ -113,8 +130,6 @@ def get_planning_id_from_einforex(payload):
 def prepare_and_upload_input(**context):
     raw_conf = context['dag_run'].conf
     message = raw_conf.get('message')
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
     user = message.get('from_user')
     context['ti'].xcom_push(key='user', value=user)
 
@@ -122,11 +137,55 @@ def prepare_and_upload_input(**context):
     if isinstance(input_data, str):
         input_data = json.loads(input_data)
 
-    mission_data = input_data.get('missionData', [])
-    assignment_id = input_data.get('assignmentId')
-    context['ti'].xcom_push(key='assignment_id', value=assignment_id)
+    # Este bloque es para compatibilidad con llamadas desde el recomendador
+    vehicles = input_data.get('vehicles', [])
+    fires = input_data.get('fires', [])
+    assignment_criteria = input_data.get('assignmentCriteria', [])
 
-    planning_ids = []
+    if not vehicles or not fires or not assignment_criteria:
+        mission_data = input_data.get('missionData', [])
+        assignment_id = input_data.get('assignmentId')
+        context['ti'].xcom_push(key='assignment_id', value=assignment_id)
+
+        fires = []
+        assignment_criteria = []
+        vehicles = []
+
+        for mission in mission_data:
+            fire_id = mission['missionID']
+            lon, lat = mission.get('lonLat', [-3.7, 40.4])
+            fires.append({
+                "id": fire_id,
+                "position": {"srid": 4326, "x": lon, "y": lat, "z": 0}
+            })
+            assignment_criteria.append({
+                "fireId": fire_id,
+                "vehicleModels": mission.get('aircrafts', [])
+            })
+            for ac in mission.get('aircrafts', []):
+                vehicles.append({
+                    "id": ac,
+                    "model": ac,
+                    "capacity": 0,
+                    "position": {"srid": 4326, "x": 0, "y": 0, "z": 0}
+                })
+
+    fire = fires[0]
+    payload = build_einforex_payload(fire, vehicles, assignment_criteria)
+    planning_id = get_planning_id_from_einforex(payload)
+    context['ti'].xcom_push(key='planning_id', value=planning_id)
+
+    input_content = f"""medios=a
+url1=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}
+url2=https://pre.atcservices.cirpas.gal/rest/FlightQueryService/searchByCriteria
+url3=https://pre.atcservices.cirpas.gal/rest/FlightReportService/getReport
+url4=https://pre.atcservices.cirpas.gal/rest/AircraftStatusService/getAll
+url5=https://pre.atcservices.cirpas.gal/rest/AircraftBaseService/getAll
+url6=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/update
+user=ITMATI.DES
+password=Cui_1234
+modelos_aeronave=Input/modelos_vehiculo.csv
+"""
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
@@ -161,56 +220,32 @@ def prepare_and_upload_input(**context):
         except IOError:
             print(f"[WARN] Carpetas ya existentes: {execution_path}")
 
-        for mission in mission_data:
-            payload = build_einforex_payload(mission)
-            planning_id = get_planning_id_from_einforex(payload)
-            planning_ids.append(planning_id)
+        with sftp.file(f"{execution_path}/input/{INPUT_FILENAME}", 'w') as remote_file:
+            remote_file.write(input_content)
 
-            input_content = f"""medios=a
-url1=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}
-url2=https://pre.atcservices.cirpas.gal/rest/FlightQueryService/searchByCriteria
-url3=https://pre.atcservices.cirpas.gal/rest/FlightReportService/getReport
-url4=https://pre.atcservices.cirpas.gal/rest/AircraftStatusService/getAll
-url5=https://pre.atcservices.cirpas.gal/rest/AircraftBaseService/getAll
-url6=https://pre.atcservices.cirpas.gal/rest/ResourcePlanningAlgorithmExecutionService/update
-user=ITMATI.DES
-password=Cui_1234
-modelos_aeronave=Input/modelos_vehiculo.csv
-"""
-            remote_path = f"{execution_path}/input/{planning_id}_{INPUT_FILENAME}"
-            with sftp.file(remote_path, 'w') as remote_file:
-                remote_file.write(input_content)
-                print(f"[INFO] Archivo subido para planning_id {planning_id}")
-
-    finally:
         sftp.close()
         client.close()
         bastion.close()
+        print("[INFO] Input preparado y subido correctamente.")
+    finally:
         os.remove(temp_key_path)
-        print("[INFO] Conexiones SSH cerradas y clave eliminada.")
 
-    context['ti'].xcom_push(key='planning_ids', value=planning_ids)
-    print(f"[INFO] Todos los planning_ids enviados: {planning_ids}")
 
 # Definición de la función para ejecutar el algoritmo y descargar el resultado
 def run_and_download_algorithm(**context):
     print("[INFO] Iniciando ejecución de run_and_download_algorithm...")
-
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
     print(f"[INFO] Conectando a bastión {hostname} como {username}")
     ssh_key_decoded = base64.b64decode(Variable.get("ssh_avincis_p-2")).decode("utf-8")
 
-    # obtenemos LOS planningIds de contexto
-    planning_ids = context['ti'].xcom_pull(key='planning_ids')
-
     execution_path = context['ti'].xcom_pull(key='execution_path')
     if not execution_path:
         raise Exception("[ERROR] No se encontró execution_path en XComs")
 
+    input_path = f"{execution_path}/input/{INPUT_FILENAME}"  # Este es el path real del input
+    print(f"[INFO] Usando input_path: {input_path}")
 
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file_key:
         temp_file_key.write(ssh_key_decoded)
@@ -218,13 +253,11 @@ def run_and_download_algorithm(**context):
     os.chmod(temp_key_path, 0o600)
 
     try:
-        # SSH al bastión
         bastion = paramiko.SSHClient()
         bastion.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         bastion.connect(hostname=hostname, username=username, key_filename=temp_key_path)
         print("[INFO] Conexión SSH establecida con el bastión")
 
-        # SSH interno
         jump = bastion.get_transport().open_channel(
             "direct-tcpip", dest_addr=("10.38.9.6", 22), src_addr=("127.0.0.1", 0)
         )
@@ -233,199 +266,249 @@ def run_and_download_algorithm(**context):
         client.connect(hostname="10.38.9.6", username="airflow-executor", sock=jump, key_filename=temp_key_path)
         print("[INFO] Conexión SSH establecida con el servidor interno (10.38.9.6)")
 
-        # Ejecutar algoritmo PARA CADA PLANNING_ID
-        for planning_id in planning_ids:
-            input_path = f"{execution_path}/input/{planning_id}_{INPUT_FILENAME}"
-            print(f"[INFO] Usando input_path: {input_path}")
-            cmd = f'cd /algoritms/algoritmo-recomendador-objetivo-5 && python3 call_recomendador.py {input_path}'
-            print(f"[INFO] Ejecutando comando remoto: {cmd}")
-            stdin, stdout, stderr = client.exec_command(cmd)
+        cmd = f'cd /algoritms/algoritmo-recomendador-objetivo-5 && python3 call_recomendador.py {input_path}'
+        print(f"[INFO] Ejecutando comando remoto: {cmd}")
+        stdin, stdout, stderr = client.exec_command(cmd)
 
-            print("[INFO] --- Output STDOUT del algoritmo ---")
-            for line in iter(stdout.readline, ""):
-                if line:
-                    print(f"[REMOTE STDOUT] {line.strip()}")
+        print("[INFO] --- Output STDOUT del algoritmo ---")
+        for line in iter(stdout.readline, ""):
+            if line:
+                print(f"[REMOTE STDOUT] {line.strip()}")
 
-            print("[INFO] --- Output STDERR del algoritmo ---")
-            for line in iter(stderr.readline, ""):
-                if line:
-                    print(f"[REMOTE STDERR] {line.strip()}")
+        print("[INFO] --- Output STDERR del algoritmo ---")
+        for line in iter(stderr.readline, ""):
+            if line:
+                print(f"[REMOTE STDERR] {line.strip()}")
 
-            exit_status = stdout.channel.recv_exit_status()
-            if exit_status != 0:
-                raise Exception(f"[ERROR] Algoritmo terminó con error. Exit status: {exit_status}")
+        exit_status = stdout.channel.recv_exit_status()
+        if exit_status == 0:
+            print("[INFO] Algoritmo ejecutado exitosamente.")
+        else:
+            print(f"[ERROR] Algoritmo terminó con error. Exit status: {exit_status}")
 
-            print("[INFO] Algoritmo ejecutado correctamente. No se descarga ningún JSON; se usará EINFOREX.")
+        sftp = client.open_sftp()
+        print(f"[INFO] Listando ficheros en {SERVER_OUTPUT_DIR}")
+        output_files = sftp.listdir(SERVER_OUTPUT_DIR)
+        print(f"[INFO] Ficheros encontrados: {output_files}")
+
+        json_filename = next((f for f in output_files if f.endswith('.json')), None)
+        if not json_filename:
+            raise Exception("[ERROR] No se encontró JSON de salida en el servidor.")
+
+        print(f"[INFO] JSON encontrado: {json_filename}")
+        
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as tmp_file:
+            sftp.get(SERVER_OUTPUT_DIR + json_filename, tmp_file.name)
+            tmp_file.seek(0)
+            file_content = tmp_file.read()
+
+        context['ti'].xcom_push(key='json_content', value=file_content)
+        context['ti'].xcom_push(key='json_filename', value=json_filename)
+
+        print("[INFO] Output descargado y almacenado en XComs correctamente.")
+
+        sftp.close()
+        client.close()
+        bastion.close()
+        print("[INFO] Conexiones SSH cerradas correctamente.")
 
     except Exception as e:
         print(f"[ERROR] Error durante la ejecución de run_and_download_algorithm: {e}")
         raise
 
-    finally:        
-        client.close()
-        bastion.close()
-        print("[INFO] Conexiones SSH cerradas correctamente.")
+    finally:
         if os.path.exists(temp_key_path):
             os.remove(temp_key_path)
             print(f"[INFO] Clave SSH temporal eliminada: {temp_key_path}")
 
+# Eliminar carpeta de ejecución
+
+def process_outputs(**context):
+   
+    print("[INFO] Iniciando ejecución de process_outputs...")
+    json_content = context['ti'].xcom_pull(task_ids='fetch_results_from_einforex', key='einforex_result')
+    print(f"[INFO] JSON content: {json_content}")
+    json_filename = context['ti'].xcom_pull(key='json_filename')
+    local_payload_json = context['ti'].xcom_pull(key='local_payload_json')
+    assignment_id = context['ti'].xcom_pull(key='assignment_id')
+    user = context['ti'].xcom_pull(key='user')
+
+    if not json_content:
+        raise ValueError("[ERROR] No se encontró el contenido del JSON en XCom")
+
+    s3_client = get_minio_client()
+    bucket = MINIO_BUCKET
+    folder = MINIO_FOLDER
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+
+    session = None
+    tmp_file_path = None
+    local_csv_path = None  
+
+    base_url = minio_api()
+
+    try:
+        # Guardar JSON en archivo temporal
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
+            tmp_file.write(json.dumps(json_content, ensure_ascii=False))
+            tmp_file_path = tmp_file.name
+
+        key_current = f"{folder}/jsons/{json_filename}"
+        key_historic = f"{folder}/historic/{timestamp}_{json_filename}"
+        s3_client.upload_file(tmp_file_path, bucket, key_current)
+        s3_client.upload_file(tmp_file_path, bucket, key_historic)
+
+        json_url = f"{base_url}/{bucket}/{key_current}"
+        context['ti'].xcom_push(key='json_url', value=json_url)
+
+        output_data = json_content 
+        intervals = output_data.get("resourcePlanningResult", [])
+        aircrafts = list(set(output_data.get("availableAircrafts", [])))
+
+        if not intervals or not aircrafts:
+            raise ValueError("[ERROR] El JSON no contiene intervals o aircrafts válidos")
+
+        # Formateo estético: convertir intervalos de milisegundos a HH:MM:SS
+        headers = [
+            f"{datetime.utcfromtimestamp(i['since'] / 1000).strftime('%H:%M:%S')} - "
+            f"{datetime.utcfromtimestamp(i['until'] / 1000).strftime('%H:%M:%S')}"
+            for i in intervals
+        ]
+        table_data = {aircraft: [] for aircraft in aircrafts}
+        for i in intervals:
+            active = i.get("aircrafts", [])
+            for aircraft in aircrafts:
+                table_data[aircraft].append("YES" if aircraft in active else "NO")
+
+        df = pd.DataFrame(table_data, index=headers).transpose()
+
+        # Guardar como CSV
+        csv_filename = json_filename.replace('.json', '_table.csv')
+        local_csv_path = f"/tmp/{csv_filename}"
+        df.to_csv(local_csv_path)
+
+        csv_key = f"{folder}/outputs/{csv_filename}"
+        s3_client.upload_file(local_csv_path, bucket, csv_key)
+        csv_url = f"{base_url}/{bucket}/{csv_key}"
+        context['ti'].xcom_push(key='csv_url', value=csv_url)
+
+        # Payload opcional
+        if local_payload_json and os.path.exists(local_payload_json):
+            payload_key = f"{folder}/inputs/{os.path.basename(local_payload_json)}"
+            s3_client.upload_file(local_payload_json, bucket, payload_key)
+            payload_url = f"{base_url}/{bucket}/{payload_key}"
+            context['ti'].xcom_push(key='payload_json_url', value=payload_url)
+
+        # Historial en BBDD
+        session = get_db_session()
+        madrid_tz = pytz.timezone('Europe/Madrid')
+        assignment_id = output_data.get("assignmentId")
+        sampled_feature = int(assignment_id) if assignment_id is not None else None
+
+        session.execute(text("""
+            INSERT INTO algoritmos.algoritmo_aircraft_planificator (
+                sampled_feature, result_time, phenomenon_time, input_data, output_data
+            ) VALUES (
+                :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
+            )
+        """), {
+            "sampled_feature": sampled_feature,
+            "result_time": datetime.now(madrid_tz),
+            "phenomenon_time": datetime.now(madrid_tz),
+            "input_data": json.dumps({}, ensure_ascii=False),
+            "output_data": json.dumps(output_data, ensure_ascii=False)
+        })
+        session.commit()
+
+        # Notificación al frontend
+        result = session.execute(text("""
+            INSERT INTO public.notifications (destination, "data", "date", status)
+            VALUES ('ignis', '{}', :date, NULL)
+            RETURNING id
+        """), {'date': datetime.utcnow()})
+        job_id = result.scalar()
+
+        payload = {
+            "to": user,
+            "actions": [
+                {
+                    "type": "loadChart",
+                    "data": {
+                        "url": csv_url,
+                        "button": {
+                            "key": "openPlanner",
+                            "data": json_url
+                        },
+                        "title": "Planificación de aeronaves",
+                    }
+                },
+                {
+                    "type": "notify",
+                    "data": {
+                        "message": f"Resultados del algoritmo de planificación disponibles. ID: {job_id}"
+                    }
+                }
+            ]
+        }
+
+        session.execute(text("""
+            UPDATE public.notifications SET data = :data WHERE id = :id
+        """), {"data": json.dumps(payload, ensure_ascii=False), "id": job_id})
+        session.commit()
+        print("[INFO] Notificación al frontend registrada.")
+
+    except Exception as e:
+        if session:
+            session.rollback()
+        print(f"[ERROR] Error durante el proceso de outputs: {e}")
+        raise
+
+    finally:
+        if session:
+            session.close()
+        if tmp_file_path and os.path.exists(tmp_file_path):
+            os.remove(tmp_file_path)
+        if local_payload_json and os.path.exists(local_payload_json):
+            os.remove(local_payload_json)
+        if local_csv_path and os.path.exists(local_csv_path):
+            os.remove(local_csv_path)
+
+    print("[INFO] Finalizada ejecución de process_outputs.")
 
 
-# AQUÍ TAMBIÉN GUARDAR YA DIRECTAMENTE EL JSON EN FICHERO Y AU
-# Para cada planning ID:
-#   TRAER results de BBDD, guardar el json, subir a minio el json, guardar en histórico, pasar a csv el json, notificar de vuelta
-#
+
+
 def fetch_results_from_einforex(**context):
     from requests.auth import HTTPBasicAuth
 
     print("[INFO] Iniciando fetch_results_from_einforex...")
 
 
-    planning_ids = context['ti'].xcom_pull(task_ids='prepare_and_upload_input', key='planning_ids')
-    if not planning_ids or not isinstance(planning_ids, list):
-        raise ValueError("[ERROR] No se encontraron planning_ids válidos en XCom")
+    planning_id = context['ti'].xcom_pull(task_ids='prepare_and_upload_input', key='planning_id')
+    if not planning_id:
+        raise ValueError("[ERROR] No se encontró planning_id en XCom")
     
     connection = BaseHook.get_connection('einforex_planning_url')
+    url = f"{connection.host}/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}"
     username = connection.login
     password = connection.password
-    
-    s3_client = get_minio_client()
-    base_url = minio_api()
-    user = context['ti'].xcom_pull(key='user')
 
-    csv_urls = []
-    for planning_id in planning_ids:
-        url = f"{connection.host}/rest/ResourcePlanningAlgorithmExecutionService/get?id={planning_id}"
-        print(f"[INFO] Llamando a EINFOREX para resultados con ID: {planning_id}")
-        print(f"[INFO] URL: {url}")
-
-        try:
-            response = requests.get(url, auth=HTTPBasicAuth(username, password), timeout=30)
-            response.raise_for_status()
-            json_content = response.json()
-
-            print("[INFO] Resultados del algoritmo obtenidos correctamente.")
-            print("[INFO] Ejemplo de resultado:")
-            print(json.dumps(json_content, indent=2))
-
-            #context['ti'].xcom_push(key='einforex_result', value=result_data)
-
-
-            json_filename = f"einforex_result_{planning_id}.json"
-
-            with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json') as tmp_file:
-                tmp_file.write(json.dumps(json_content, ensure_ascii=False))
-                tmp_file_path = tmp_file.name
-
-            key_current = f"{MINIO_FOLDER}/jsons/{json_filename}"
-            timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-            key_historic = f"{MINIO_FOLDER}/historic/{timestamp}_{json_filename}"
-            s3_client.upload_file(tmp_file_path, MINIO_BUCKET, key_current)
-            s3_client.upload_file(tmp_file_path, MINIO_BUCKET, key_historic)
-
-            json_url = f"{base_url}/{MINIO_BUCKET}/{key_current}"
-           # ya no hace falta context['ti'].xcom_push(key='json_url', value=json_url)
-
-            intervals = json_content.get("resourcePlanningResult", [])
-            aircrafts = list(set(json_content.get("availableAircrafts", [])))
-
-            if not intervals or not aircrafts:
-                raise ValueError("[ERROR] El JSON no contiene intervals o aircrafts válidos")
-
-            # Formateo estético: convertir intervalos de milisegundos a HH:MM:SS
-            headers = [
-                f"{datetime.utcfromtimestamp(i['since'] / 1000).strftime('%H:%M:%S')} - "
-                f"{datetime.utcfromtimestamp(i['until'] / 1000).strftime('%H:%M:%S')}"
-                for i in intervals
-            ]
-            table_data = {aircraft: [] for aircraft in aircrafts}
-            for i in intervals:
-                active = i.get("aircrafts", [])
-                for aircraft in aircrafts:
-                    table_data[aircraft].append("YES" if aircraft in active else "NO")
-
-            df = pd.DataFrame(table_data, index=headers).transpose()
-
-            # Guardar como CSV
-            csv_filename = json_filename.replace('.json', '_table.csv')
-            local_csv_path = f"/tmp/{csv_filename}"
-            df.to_csv(local_csv_path)
-
-            csv_key = f"{MINIO_FOLDER}/outputs/{csv_filename}"
-            s3_client.upload_file(local_csv_path, MINIO_BUCKET, csv_key)
-            csv_urls.append(f"{base_url}/{MINIO_BUCKET}/{csv_key}")
-
-            # Payload opcional
-            # if local_payload_json and os.path.exists(local_payload_json):
-            #     payload_key = f"{MINIO_FOLDER}/inputs/{os.path.basename(local_payload_json)}"
-            #     s3_client.upload_file(local_payload_json, bucket, payload_key)
-            #     payload_url = f"{base_url}/{bucket}/{payload_key}"
-            #     context['ti'].xcom_push(key='payload_json_url', value=payload_url)
-
-            # Historial en BBDD
-            session = get_db_session()
-            madrid_tz = pytz.timezone('Europe/Madrid')
-            assignment_id = json_content.get("assignmentId")
-            sampled_feature = int(assignment_id) if assignment_id is not None else None
-
-            session.execute(text("""
-                INSERT INTO algoritmos.algoritmo_aircraft_planificator (
-                    sampled_feature, result_time, phenomenon_time, input_data, output_data
-                ) VALUES (
-                    :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
-                )
-            """), {
-                "sampled_feature": sampled_feature,
-                "result_time": datetime.now(madrid_tz),
-                "phenomenon_time": datetime.now(madrid_tz),
-                "input_data": json.dumps({}, ensure_ascii=False),
-                "output_data": json.dumps(json_content, ensure_ascii=False)
-            })
-            session.commit()
-        except Exception as e:
-            print(f"[ERROR] Fallo al obtener resultados desde EINFOREX: {e}")
-            raise
-
-    ## fuera del bucle FOR
-
-    # Notificación al frontend
-    planning_ids_str = ', '.join(map(str, planning_ids))  # Convertir planning_ids a una cadena separada por comas
-    payload = {
-        "to": user,
-        "actions": [
-            {
-                "type": "loadChart",
-                "data": {
-                    "url": csv_urls,
-                    "button": {
-                        "key": "openPlanner",
-                        "data": json_url
-                },
-                    "title": f"Planificación de aeronaves con ids: {planning_ids_str}",
-                }
-            },
-            {
-                "type": "notify",
-                "data": {
-                    "button": "Planificación de aeronaves",
-                    "message": f"Resultados del algoritmo de planificación disponibles. IDs planificación: {planning_ids_str}"
-                }
-            }
-        ]
-    }
+    print(f"[INFO] Llamando a EINFOREX para resultados con ID: {planning_id}")
+    print(f"[INFO] URL: {url}")
 
     try:
-        result = session.execute(text("""
-            INSERT INTO public.notifications (destination, "data", "date", status)
-            VALUES ('ignis', :data, :date, NULL)
-            RETURNING id
-        """), {'date': datetime.utcnow(), 'data': json.dumps(payload, ensure_ascii=False)})
+        response = requests.get(url, auth=HTTPBasicAuth(username, password), timeout=30)
+        response.raise_for_status()
+        result_data = response.json()
 
-        session.commit()
-        print("[INFO] Notificación al frontend registrada.")
+        print("[INFO] Resultados del algoritmo obtenidos correctamente.")
+        print("[INFO] Ejemplo de resultado:")
+        print(json.dumps(result_data, indent=2))
+
+        context['ti'].xcom_push(key='einforex_result', value=result_data)
 
     except Exception as e:
-        print(f"[ERROR] Fallo al notificar: {e}")
+        print(f"[ERROR] Fallo al obtener resultados desde EINFOREX: {e}")
         raise
 
 # Definición de la función para notificar al frontend y guardar en la base de datos
@@ -441,7 +524,6 @@ default_args = {
     'start_date': days_ago(1),
     'retries': 1,
     'retry_delay': timedelta(minutes=2),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
@@ -474,11 +556,11 @@ fetch_result_task = PythonOperator(
     dag=dag
 )
 
-end_task = PythonOperator(
-    task_id='end_of_flow',
-    python_callable=end_of_flow_task,
+process_task = PythonOperator(
+    task_id='process_outputs',
+    python_callable=process_outputs,
     provide_context=True,
-    dag=dag,
+    dag=dag
 )
 
 
@@ -493,5 +575,4 @@ check_logs, save_logs = setup_conditional_log_saving(
 
 # Definir la secuencia de tareas y dependencias
 
-prepare_task >> run_task >> fetch_result_task >> check_logs >> end_task
-
+prepare_task >> run_task >> fetch_result_task >> process_task
