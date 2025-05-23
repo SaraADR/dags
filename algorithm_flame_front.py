@@ -24,7 +24,13 @@ def process_json(**kwargs):
     print("Archivos para procesar preparados")
 
     s3_client = get_minio_client()
-    file_path_in_minio = otros.replace('tmp/', '')
+    if isinstance(otros, list):
+        file_path_in_minio = otros[0].replace('tmp/', '')
+    elif isinstance(otros, str):
+        file_path_in_minio = otros.replace('tmp/', '')
+    else:
+        raise ValueError(f"Formato no válido para 'otros': {otros}")
+
     folder_prefix = 'sftp/'
 
     try:
