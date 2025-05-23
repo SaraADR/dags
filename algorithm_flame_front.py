@@ -1,4 +1,3 @@
-import base64
 import os
 import tempfile
 import zipfile
@@ -13,7 +12,7 @@ from kafka_consumer_classify_files_and_trigger_dags import download_from_minio
 import uuid
 import io
 import json
-from PIL import Image
+
 
 def process_json(**kwargs):
     otros = kwargs['dag_run'].conf.get('otros', [])
@@ -24,14 +23,8 @@ def process_json(**kwargs):
         return
     print("Archivos para procesar preparados")
 
-    if isinstance(otros, list):
-        file_path_in_minio = otros[0].replace('tmp/', '')
-    elif isinstance(otros, str):
-        file_path_in_minio = otros.replace('tmp/', '')
-    else:
-        raise ValueError(f"Formato no válido para 'otros': {otros}")
-
     s3_client = get_minio_client()
+    file_path_in_minio = otros.replace('tmp/', '')
     folder_prefix = 'sftp/'
 
     try:
@@ -79,75 +72,44 @@ def process_json(**kwargs):
             print(json_key)
             ruta_minio = Variable.get("ruta_minIO")
 
-            # Procesar thumbnail si existe
-            if 'thumbnail' in updated_json:
-                try:
-                    thumbnail_bytes = base64.b64decode(updated_json['thumbnail'])
-                    image = Image.open(io.BytesIO(thumbnail_bytes)).convert('RGB')
-                    thumbnail_buffer = io.BytesIO()
-                    image.save(thumbnail_buffer, format='PNG')
-                    thumbnail_buffer.seek(0)
-                    thumbnail_key = f"{id_mission}/{uuid_key}/resources/thumbnail.png"
-                    s3_client.put_object(
-                        Bucket=bucket_name,
-                        Key=thumbnail_key,
-                        Body=thumbnail_buffer,
-                        ContentType='image/png'
-                    )
-                    print(f"Thumbnail convertido y subido a MinIO: {thumbnail_key}")
-                except Exception as e:
-                    print(f"Error al procesar el thumbnail: {e}")
-                del updated_json['thumbnail']
-
             file_lookup = {}
-            dir_lookup = {}
-
-            for root, dirs, files in os.walk(temp_dir):
-                for dir_name in dirs:
-                    local_dir_path = os.path.join(root, dir_name)
-                    relative_dir_path = os.path.relpath(local_dir_path, temp_dir)
-                    dir_lookup[dir_name] = relative_dir_path
-
+            for root, _, files in os.walk(temp_dir):
                 for file_name in files:
                     if file_name.lower() == 'algorithm_result.json':
                         continue
                     local_path = os.path.join(root, file_name)
-                    relative_path = os.path.relpath(local_path, temp_dir)
-                    file_lookup[file_name] = relative_path
+                    file_lookup[file_name] = local_path
 
+            # Actualizar rutas en el JSON para dejar solo /missions/2054/uuid/nombre
             for resource in updated_json.get("executionResources", []):
                 old_path = resource['path']
                 file_name = os.path.basename(old_path)
-                relative_path = file_lookup.get(file_name) or dir_lookup.get(file_name)
 
-                if not relative_path:
+                if file_name not in file_lookup:
                     print(f"No se encontró {file_name} en el ZIP extraído.")
                     continue
 
-                new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
+                new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{file_name}"
                 full_path = f"{ruta_minio.rstrip('/')}{new_path}"
                 resource['path'] = full_path
                 print(f"Ruta actualizada: {old_path} -> {full_path}")
 
-            for root, dirs, files in os.walk(temp_dir):
-                for file_name in files:
-                    if file_name.lower() == 'algorithm_result.json':
-                        continue
-                    local_path = os.path.join(root, file_name)
-                    relative_path = os.path.relpath(local_path, temp_dir)
-                    minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
-                    try:
-                        with open(local_path, 'rb') as file_data:
-                            s3_client.put_object(
-                                Bucket=bucket_name,
-                                Key=minio_key,
-                                Body=file_data,
-                                ContentType='application/octet-stream'
-                            )
-                        print(f"Archivo subido a MinIO: {minio_key}")
-                    except Exception as e:
-                        print(f"Error al subir {file_name} a MinIO: {e}")
+            # Subir archivos a MinIO directamente con el nombre base
+            for file_name, local_path in file_lookup.items():
+                minio_key = f"{id_mission}/{uuid_key}/{file_name}"
+                try:
+                    with open(local_path, 'rb') as file_data:
+                        s3_client.put_object(
+                            Bucket=bucket_name,
+                            Key=minio_key,
+                            Body=file_data,
+                            ContentType='application/octet-stream'
+                        )
+                    print(f"Archivo subido a MinIO: {minio_key}")
+                except Exception as e:
+                    print(f"Error al subir {file_name} a MinIO: {e}")
 
+            # Subir el JSON actualizado
             s3_client.put_object(
                 Bucket=bucket_name,
                 Key=json_key,
@@ -156,6 +118,7 @@ def process_json(**kwargs):
             )
             print(f'Archivo JSON actualizado subido correctamente a MinIO como {json_key}')
 
+            # Historizar
             historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
 
 
