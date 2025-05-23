@@ -54,7 +54,8 @@ def process_json(**kwargs):
             file_list = zip_file.namelist()
             print("Archivos en el ZIP:", file_list)
 
-            updated_json = json.loads(json.dumps(json_content_original))
+            updated_json = generateSimplifiedCopy(json_content_original)
+
 
             id_mission = next(
                 (item['value'] for item in updated_json['metadata'] if item['name'] == 'MissionID'),
@@ -67,88 +68,104 @@ def process_json(**kwargs):
             print("startTimeStamp:", startTimeStamp)
             print("endTimeStamp:", endTimeStamp)
 
-            uuid_key = str(uuid.uuid4())
-            bucket_name = 'missions'
-            json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
-            print(json_key)
-            ruta_minio = Variable.get("ruta_minIO")
+            # uuid_key = str(uuid.uuid4())
+            # bucket_name = 'missions'
+            # json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
+            # print(json_key)
+            # ruta_minio = Variable.get("ruta_minIO")
 
-            # Crear índices de archivos y carpetas extraídas
-            file_lookup = {}
-            dir_lookup = {}
+            # # Crear índices de archivos y carpetas extraídas
+            # file_lookup = {}
+            # dir_lookup = {}
 
-            for root, dirs, files in os.walk(temp_dir):
-                for dir_name in dirs:
-                    local_dir_path = os.path.join(root, dir_name)
-                    relative_dir_path = os.path.relpath(local_dir_path, temp_dir)
-                    parts = relative_dir_path.split(os.sep)
-                    if parts[0].lower().startswith("metashape"):
-                        relative_dir_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
-                    dir_lookup[dir_name] = relative_dir_path
+            # for root, dirs, files in os.walk(temp_dir):
+            #     for dir_name in dirs:
+            #         local_dir_path = os.path.join(root, dir_name)
+            #         relative_dir_path = os.path.relpath(local_dir_path, temp_dir)
+            #         parts = relative_dir_path.split(os.sep)
+            #         if parts[0].lower().startswith("metashape"):
+            #             relative_dir_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
+            #         dir_lookup[dir_name] = relative_dir_path
 
-                for file_name in files:
-                    if file_name.lower() == 'algorithm_result.json':
-                        continue
-                    local_path = os.path.join(root, file_name)
-                    relative_path = os.path.relpath(local_path, temp_dir)
-                    parts = relative_path.split(os.sep)
-                    if parts[0].lower().startswith("metashape"):
-                        relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
-                    file_lookup[file_name] = relative_path
+            #     for file_name in files:
+            #         if file_name.lower() == 'algorithm_result.json':
+            #             continue
+            #         local_path = os.path.join(root, file_name)
+            #         relative_path = os.path.relpath(local_path, temp_dir)
+            #         parts = relative_path.split(os.sep)
+            #         if parts[0].lower().startswith("metashape"):
+            #             relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
+            #         file_lookup[file_name] = relative_path
 
-            # Actualizar rutas en el JSON usando el índice real
-            for resource in updated_json.get("executionResources", []):
-                old_path = resource['path']
-                file_name = os.path.basename(old_path)
-                relative_path = file_lookup.get(file_name)
+            # # Actualizar rutas en el JSON usando el índice real
+            # for resource in updated_json.get("executionResources", []):
+            #     old_path = resource['path']
+            #     file_name = os.path.basename(old_path)
+            #     relative_path = file_lookup.get(file_name)
 
-                if not relative_path:
-                    relative_path = dir_lookup.get(file_name)
+            #     if not relative_path:
+            #         relative_path = dir_lookup.get(file_name)
 
-                if not relative_path:
-                    print(f"No se encontró {file_name} en el ZIP extraído.")
-                    continue
+            #     if not relative_path:
+            #         print(f"No se encontró {file_name} en el ZIP extraído.")
+            #         continue
 
-                new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
-                full_path = f"{ruta_minio.rstrip('/')}{new_path}"
-                resource['path'] = full_path
-                print(f"Ruta actualizada: {old_path} -> {full_path}")
+            #     new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
+            #     full_path = f"{ruta_minio.rstrip('/')}{new_path}"
+            #     resource['path'] = full_path
+            #     print(f"Ruta actualizada: {old_path} -> {full_path}")
 
-            # Subir archivos del ZIP a MinIO
-            for root, dirs, files in os.walk(temp_dir):
-                for file_name in files:
-                    if file_name.lower() == 'algorithm_result.json':
-                        continue
-                    local_path = os.path.join(root, file_name)
-                    relative_path = os.path.relpath(local_path, temp_dir)
-                    parts = relative_path.split(os.sep)
-                    if parts[0].lower().startswith("metashape"):
-                        relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
-                    minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
-                    try:
-                        with open(local_path, 'rb') as file_data:
-                            s3_client.put_object(
-                                Bucket=bucket_name,
-                                Key=minio_key,
-                                Body=file_data,
-                                ContentType='application/octet-stream'
-                            )
-                        print(f"Archivo subido a MinIO: {minio_key}")
-                    except Exception as e:
-                        print(f"Error al subir {file_name} a MinIO: {e}")
+            # # Subir archivos del ZIP a MinIO
+            # for root, dirs, files in os.walk(temp_dir):
+            #     for file_name in files:
+            #         if file_name.lower() == 'algorithm_result.json':
+            #             continue
+            #         local_path = os.path.join(root, file_name)
+            #         relative_path = os.path.relpath(local_path, temp_dir)
+            #         parts = relative_path.split(os.sep)
+            #         if parts[0].lower().startswith("metashape"):
+            #             relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
+            #         minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
+            #         try:
+            #             with open(local_path, 'rb') as file_data:
+            #                 s3_client.put_object(
+            #                     Bucket=bucket_name,
+            #                     Key=minio_key,
+            #                     Body=file_data,
+            #                     ContentType='application/octet-stream'
+            #                 )
+            #             print(f"Archivo subido a MinIO: {minio_key}")
+            #         except Exception as e:
+            #             print(f"Error al subir {file_name} a MinIO: {e}")
 
-            # Subir el JSON actualizado
-            s3_client.put_object(
-                Bucket=bucket_name,
-                Key=json_key,
-                Body=io.BytesIO(json.dumps(updated_json).encode('utf-8')),
-                ContentType='application/json'
-            )
-            print(f'Archivo JSON actualizado subido correctamente a MinIO como {json_key}')
+            # # Subir el JSON actualizado
+            # s3_client.put_object(
+            #     Bucket=bucket_name,
+            #     Key=json_key,
+            #     Body=io.BytesIO(json.dumps(updated_json).encode('utf-8')),
+            #     ContentType='application/json'
+            # )
+            # print(f'Archivo JSON actualizado subido correctamente a MinIO como {json_key}')
 
-            # Historizar
-            historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
+            # # Historizar
+            # historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
 
+
+
+def generateSimplifiedCopy(json_content_original):      
+        updated_json = json.loads(json.dumps(json_content_original))
+        keys_a_mantener = {'identifier', 'pixelSize'}
+        for resource in updated_json.get("executionResources", []):
+            filtered_data = []
+            for item in resource.get("data", []):
+                if item["name"] in keys_a_mantener:
+                    filtered_data.append(item)
+            resource["data"] = filtered_data
+        updated_json["executionResources"] = [
+            res for res in updated_json["executionResources"] if res.get("output", False)
+        ]
+        print(updated_json)
+        return updated_json
 
 
 #HISTORIZACION
