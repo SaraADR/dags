@@ -2,38 +2,30 @@ import base64
 import os
 import tempfile
 import zipfile
+
 import pytz
 from airflow import DAG
 from datetime import datetime
 from airflow.operators.python_operator import PythonOperator
 from dag_utils import get_minio_client, execute_query
 from airflow.models import Variable
+from kafka_consumer_classify_files_and_trigger_dags import download_from_minio
 import uuid
 import io
 import json
 from PIL import Image
 
-from kafka_consumer_classify_files_and_trigger_dags import download_from_minio
-
-
 def process_json(**kwargs):
-    otros = kwargs['dag_run'].conf.get('otros')
+    otros = kwargs['dag_run'].conf.get('otros', [])
     json_content_original = kwargs['dag_run'].conf.get('json')
 
     if not json_content_original:
         print("Ha habido un error con el traspaso de los documentos")
         return
-
-    if isinstance(otros, list):
-        file_path_in_minio = otros[0].replace('tmp/', '')
-    elif isinstance(otros, str):
-        file_path_in_minio = otros.replace('tmp/', '')
-    else:
-        raise ValueError(f"Formato no válido para 'otros': {otros}")
-
-    print("Archivo ZIP a procesar desde MinIO:", file_path_in_minio)
+    print("Archivos para procesar preparados")
 
     s3_client = get_minio_client()
+    file_path_in_minio = otros.replace('tmp/', '')
     folder_prefix = 'sftp/'
 
     try:
@@ -62,7 +54,7 @@ def process_json(**kwargs):
             file_list = zip_file.namelist()
             print("Archivos en el ZIP:", file_list)
 
-            updated_json = generateSimplifiedCopy(json_content_original)
+            updated_json = json.loads(json.dumps(json_content_original))
 
             id_mission = next(
                 (item['value'] for item in updated_json['metadata'] if item['name'] == 'MissionID'),
@@ -110,7 +102,7 @@ def process_json(**kwargs):
                     local_dir_path = os.path.join(root, dir_name)
                     relative_dir_path = os.path.relpath(local_dir_path, temp_dir)
                     parts = relative_dir_path.split(os.sep)
-                    if parts[0].lower().startswith("flame"):
+                    if parts[0].lower().startswith("flamefront"):
                         relative_dir_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
                     dir_lookup[dir_name] = relative_dir_path
 
@@ -120,7 +112,7 @@ def process_json(**kwargs):
                     local_path = os.path.join(root, file_name)
                     relative_path = os.path.relpath(local_path, temp_dir)
                     parts = relative_path.split(os.sep)
-                    if parts[0].lower().startswith("flame"):
+                    if parts[0].lower().startswith("flamefront"):
                         relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
                     file_lookup[file_name] = relative_path
 
@@ -150,54 +142,43 @@ def process_json(**kwargs):
                     local_path = os.path.join(root, file_name)
                     relative_path = os.path.relpath(local_path, temp_dir)
                     parts = relative_path.split(os.sep)
-                    if parts[0].lower().startswith("flame"):
+                    if parts[0].lower().startswith("flamefront"):
                         relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
                     minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
                     try:
                         with open(local_path, 'rb') as file_data:
-                            content_type = 'image/tiff' if relative_path.endswith('.tif') else 'application/octet-stream'
                             s3_client.put_object(
                                 Bucket=bucket_name,
                                 Key=minio_key,
                                 Body=file_data,
-                                ContentType=content_type
+                                ContentType='application/octet-stream'
                             )
-                            print(f"Archivo subido a MinIO: {minio_key}")
+                        print(f"Archivo subido a MinIO: {minio_key}")
                     except Exception as e:
                         print(f"Error al subir {file_name} a MinIO: {e}")
 
-            # Subir JSON actualizado a MinIO
+            # Subir el JSON actualizado
             s3_client.put_object(
                 Bucket=bucket_name,
                 Key=json_key,
                 Body=io.BytesIO(json.dumps(updated_json).encode('utf-8')),
                 ContentType='application/json'
             )
-            print(f"Archivo JSON actualizado subido correctamente a MinIO como {json_key}")
+            print(f'Archivo JSON actualizado subido correctamente a MinIO como {json_key}')
 
             # Historizar
             historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
 
-def generateSimplifiedCopy(json_content_original):
-    updated_json = json.loads(json.dumps(json_content_original))
-    keys_a_mantener = {'identifier', 'pixelSize'}
-    updated_json.pop("executionArguments", None)
-    for resource in updated_json.get("executionResources", []):
-        filtered_data = [item for item in resource.get("data", []) if item["name"] in keys_a_mantener]
-        resource["data"] = filtered_data
-    updated_json["executionResources"] = [
-        res for res in updated_json["executionResources"] if res.get("output", False)
-    ]
-    return updated_json
 
+#HISTORIZACION
 def historizacion(input_data, output_data, mission_id, startTimeStamp, endTimeStamp):
     try:
         print("Guardamos en historización/flamefront")
         madrid_tz = pytz.timezone('Europe/Madrid')
         start_dt = datetime.strptime(startTimeStamp, "%Y%m%dT%H%M%S")
         end_dt = datetime.strptime(endTimeStamp, "%Y%m%dT%H%M%S")
-        phenomenon_time = f"[{start_dt.strftime('%Y-%m-%dT%H:%M:%S')}, {end_dt.strftime('%Y-%m-%dT%H:%M:%S')}]"
 
+        phenomenon_time = f"[{start_dt.strftime('%Y-%m-%dT%H:%M:%S')}, {end_dt.strftime('%Y-%m-%dT%H:%M:%S')}]"
         datos = {
             'sampled_feature': mission_id,
             'result_time': datetime.now(madrid_tz),
@@ -217,12 +198,13 @@ def historizacion(input_data, output_data, mission_id, startTimeStamp, endTimeSt
                 '{datos['output_data']}'
             )
         """
+
         execute_query('biobd', query)
     except Exception as e:
-        print(f"Error en el proceso: {e}")
+        print(f"Error en el proceso: {str(e)}")
 
-# DAG
 
+# Definición del DAG
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -233,16 +215,17 @@ default_args = {
 dag = DAG(
     'algorithm_flame_front',
     default_args=default_args,
-    description='DAG para analizar flame front con descompresión y thumbnail',
-    schedule_interval=None,
+    description='DAG para analizar flamefront',
+    schedule_interval=None,  # Se puede ajustar según necesidades
     catchup=False
 )
 
 process_task = PythonOperator(
     task_id='process_task_flame_front',
-    python_callable=process_json,
+    python_callable=process_json, #Importante
     provide_context=True,
     dag=dag
 )
 
+# Definir el flujo de las tareas
 process_task
