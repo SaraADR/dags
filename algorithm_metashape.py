@@ -126,28 +126,28 @@ def process_json(**kwargs):
                 resource['path'] = full_path
                 print(f"Ruta actualizada: {old_path} -> {full_path}")
 
-            # # Subir archivos del ZIP a MinIO
-            # for root, dirs, files in os.walk(temp_dir):
-            #     for file_name in files:
-            #         if file_name.lower() == 'algorithm_result.json':
-            #             continue
-            #         local_path = os.path.join(root, file_name)
-            #         relative_path = os.path.relpath(local_path, temp_dir)
-            #         parts = relative_path.split(os.sep)
-            #         if parts[0].lower().startswith("metashape"):
-            #             relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
-            #         minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
-            #         try:
-            #             with open(local_path, 'rb') as file_data:
-            #                 s3_client.put_object(
-            #                     Bucket=bucket_name,
-            #                     Key=minio_key,
-            #                     Body=file_data,
-            #                     ContentType='application/octet-stream'
-            #                 )
-            #             print(f"Archivo subido a MinIO: {minio_key}")
-            #         except Exception as e:
-            #             print(f"Error al subir {file_name} a MinIO: {e}")
+            # Subir archivos del ZIP a MinIO
+            for root, dirs, files in os.walk(temp_dir):
+                for file_name in files:
+                    if file_name.lower() == 'algorithm_result.json':
+                        continue
+                    local_path = os.path.join(root, file_name)
+                    relative_path = os.path.relpath(local_path, temp_dir)
+                    parts = relative_path.split(os.sep)
+                    if parts[0].lower().startswith("metashape"):
+                        relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
+                    minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
+                    try:
+                        with open(local_path, 'rb') as file_data:
+                            s3_client.put_object(
+                                Bucket=bucket_name,
+                                Key=minio_key,
+                                Body=file_data,
+                                ContentType='application/octet-stream'
+                            )
+                        print(f"Archivo subido a MinIO: {minio_key}")
+                    except Exception as e:
+                        print(f"Error al subir {file_name} a MinIO: {e}")
 
             # # Subir el JSON actualizado
             # s3_client.put_object(
