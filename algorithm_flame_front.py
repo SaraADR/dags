@@ -19,6 +19,17 @@ def process_json(**kwargs):
         print("Falta JSON en la configuración del DAG.")
         return
 
+    # ----- Debug: listar contenido de resources/ -----
+    root = "resources"
+    print("\nContenido de 'resources/' tras descompresión:")
+    for dirpath, dirnames, filenames in os.walk(root):
+        nivel = dirpath.replace(root, "").count(os.sep)
+        indent = "  " * nivel
+        print(f"{indent}{os.path.basename(dirpath)}/")
+        for fn in filenames:
+            print(f"{indent}  └─ {fn}")
+    print("\nFin de listado de 'resources/'\n")
+
     updated     = json.loads(json.dumps(json_in))
     id_mission  = next((m['value'] for m in updated['metadata'] if m['name'] == 'MissionID'), None)
     start_ts    = updated['startTimestamp']
@@ -36,7 +47,6 @@ def process_json(**kwargs):
     print(f"Base URL MinIO: {baseurl}")
 
     # ----- 1) Recorremos resources/ para subir cada fichero -----
-    root = "resources"
     for dirpath, _, filenames in os.walk(root):
         for fn in filenames:
             rel_dir = os.path.relpath(dirpath, root)
@@ -61,7 +71,7 @@ def process_json(**kwargs):
             nuevos_paths[rel] = url
             print(f"Subido {rel} → {url}")
 
-    # ----- 2) Actualizar executionResources & thumbnails -----
+    # ----- 2) Actualizar executionResources & subir thumbnails -----
     for resource in updated.get('executionResources', []):
         orig_path = resource.get('path', '')
         rel = orig_path.lstrip('/')
@@ -71,7 +81,7 @@ def process_json(**kwargs):
         print(f"\nProcesando resource original: {orig_path}  (rel: {rel})")
 
         if rel in nuevos_paths:
-            antes = resource['path']
+            antes   = resource['path']
             despues = nuevos_paths[rel]
             resource['path'] = despues
             print("resource['path'] actualizado:")
@@ -101,8 +111,9 @@ def process_json(**kwargs):
                 ContentType='image/png'
             )
 
-            val['thumbnail']['path'] = thumb_url
-            print(f"thumbnail.path actualizado a {thumb_url}")
+            # eliminar del JSON
+            val.pop('thumbnail', None)
+            print(f"thumbnail eliminado del JSON para {orig_path}")
 
     # ----- 3) Subir el JSON modificado -----
     json_key = f"{id_mission}/{uuidkey}/algorithm_result.json"
