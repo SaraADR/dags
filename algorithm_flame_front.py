@@ -24,8 +24,14 @@ def process_json(**kwargs):
         return
     print("Archivos para procesar preparados")
 
+    if isinstance(otros, list):
+        file_path_in_minio = otros[0].replace('tmp/', '')
+    elif isinstance(otros, str):
+        file_path_in_minio = otros.replace('tmp/', '')
+    else:
+        raise ValueError(f"Formato no válido para 'otros': {otros}")
+
     s3_client = get_minio_client()
-    file_path_in_minio = otros.replace('tmp/', '')
     folder_prefix = 'sftp/'
 
     try:
@@ -93,7 +99,6 @@ def process_json(**kwargs):
                     print(f"Error al procesar el thumbnail: {e}")
                 del updated_json['thumbnail']
 
-            # Crear índices de archivos y carpetas extraídas
             file_lookup = {}
             dir_lookup = {}
 
@@ -101,9 +106,6 @@ def process_json(**kwargs):
                 for dir_name in dirs:
                     local_dir_path = os.path.join(root, dir_name)
                     relative_dir_path = os.path.relpath(local_dir_path, temp_dir)
-                    parts = relative_dir_path.split(os.sep)
-                    if parts[0].lower().startswith("flamefront"):
-                        relative_dir_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
                     dir_lookup[dir_name] = relative_dir_path
 
                 for file_name in files:
@@ -111,19 +113,12 @@ def process_json(**kwargs):
                         continue
                     local_path = os.path.join(root, file_name)
                     relative_path = os.path.relpath(local_path, temp_dir)
-                    parts = relative_path.split(os.sep)
-                    if parts[0].lower().startswith("flamefront"):
-                        relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
                     file_lookup[file_name] = relative_path
 
-            # Actualizar rutas en el JSON usando el índice real
             for resource in updated_json.get("executionResources", []):
                 old_path = resource['path']
                 file_name = os.path.basename(old_path)
-                relative_path = file_lookup.get(file_name)
-
-                if not relative_path:
-                    relative_path = dir_lookup.get(file_name)
+                relative_path = file_lookup.get(file_name) or dir_lookup.get(file_name)
 
                 if not relative_path:
                     print(f"No se encontró {file_name} en el ZIP extraído.")
@@ -134,16 +129,12 @@ def process_json(**kwargs):
                 resource['path'] = full_path
                 print(f"Ruta actualizada: {old_path} -> {full_path}")
 
-            # Subir archivos del ZIP a MinIO
             for root, dirs, files in os.walk(temp_dir):
                 for file_name in files:
                     if file_name.lower() == 'algorithm_result.json':
                         continue
                     local_path = os.path.join(root, file_name)
                     relative_path = os.path.relpath(local_path, temp_dir)
-                    parts = relative_path.split(os.sep)
-                    if parts[0].lower().startswith("flamefront"):
-                        relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
                     minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
                     try:
                         with open(local_path, 'rb') as file_data:
@@ -157,7 +148,6 @@ def process_json(**kwargs):
                     except Exception as e:
                         print(f"Error al subir {file_name} a MinIO: {e}")
 
-            # Subir el JSON actualizado
             s3_client.put_object(
                 Bucket=bucket_name,
                 Key=json_key,
@@ -166,7 +156,6 @@ def process_json(**kwargs):
             )
             print(f'Archivo JSON actualizado subido correctamente a MinIO como {json_key}')
 
-            # Historizar
             historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
 
 
@@ -216,13 +205,13 @@ dag = DAG(
     'algorithm_flame_front',
     default_args=default_args,
     description='DAG para analizar flamefront',
-    schedule_interval=None,  # Se puede ajustar según necesidades
+    schedule_interval=None,
     catchup=False
 )
 
 process_task = PythonOperator(
     task_id='process_task_flame_front',
-    python_callable=process_json, #Importante
+    python_callable=process_json,
     provide_context=True,
     dag=dag
 )
