@@ -8,22 +8,22 @@ from datetime import datetime
 from airflow.operators.python_operator import PythonOperator
 from dag_utils import get_minio_client, execute_query
 from airflow.models import Variable
-from kafka_consumer_classify_files_and_trigger_dags import download_from_minio
 import uuid
 import io
 import json
 from PIL import Image
 
+from kafka_consumer_classify_files_and_trigger_dags import download_from_minio
+
+
 def process_json(**kwargs):
-    otros = kwargs['dag_run'].conf.get('otros', [])
+    otros = kwargs['dag_run'].conf.get('otros')
     json_content_original = kwargs['dag_run'].conf.get('json')
 
     if not json_content_original:
         print("Ha habido un error con el traspaso de los documentos")
         return
-    print("Archivos para procesar preparados")
 
-    s3_client = get_minio_client()
     if isinstance(otros, list):
         file_path_in_minio = otros[0].replace('tmp/', '')
     elif isinstance(otros, str):
@@ -31,6 +31,9 @@ def process_json(**kwargs):
     else:
         raise ValueError(f"Formato no válido para 'otros': {otros}")
 
+    print("Archivo ZIP a procesar desde MinIO:", file_path_in_minio)
+
+    s3_client = get_minio_client()
     folder_prefix = 'sftp/'
 
     try:
@@ -98,15 +101,6 @@ def process_json(**kwargs):
                     print(f"Error al procesar el thumbnail: {e}")
                 del updated_json['thumbnail']
 
-            # Subir el JSON original
-            s3_client.put_object(
-                Bucket=bucket_name,
-                Key=json_key,
-                Body=io.BytesIO(json.dumps(json_content_original).encode('utf-8')),
-                ContentType='application/json'
-            )
-            print(f'Archivo JSON original subido correctamente a MinIO como {json_key}')
-
             # Crear índices de archivos y carpetas extraídas
             file_lookup = {}
             dir_lookup = {}
@@ -172,6 +166,15 @@ def process_json(**kwargs):
                     except Exception as e:
                         print(f"Error al subir {file_name} a MinIO: {e}")
 
+            # Subir JSON actualizado a MinIO
+            s3_client.put_object(
+                Bucket=bucket_name,
+                Key=json_key,
+                Body=io.BytesIO(json.dumps(updated_json).encode('utf-8')),
+                ContentType='application/json'
+            )
+            print(f"Archivo JSON actualizado subido correctamente a MinIO como {json_key}")
+
             # Historizar
             historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
 
@@ -218,7 +221,7 @@ def historizacion(input_data, output_data, mission_id, startTimeStamp, endTimeSt
     except Exception as e:
         print(f"Error en el proceso: {e}")
 
-# Definición del DAG
+# DAG
 
 default_args = {
     'owner': 'airflow',
@@ -230,7 +233,7 @@ default_args = {
 dag = DAG(
     'algorithm_flame_front',
     default_args=default_args,
-    description='DAG para analizar flame front con thumbnail',
+    description='DAG para analizar flame front con descompresión y thumbnail',
     schedule_interval=None,
     catchup=False
 )
