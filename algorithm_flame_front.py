@@ -13,36 +13,41 @@ from dag_utils import get_minio_client, execute_query
 
 def process_json(**kwargs):
     # ----- Leer inputs -----
-    json_in = kwargs['dag_run'].conf.get('json')
-    archivos= json_in.get('archivos', [])
+    json_in   = kwargs['dag_run'].conf.get('json')
+    archivos  = json_in.get('archivos', [])
     if not json_in:
         print("Falta JSON en la configuración del DAG.")
         return
 
-    updated   = json.loads(json.dumps(json_in))
-    id_mission = next((m['value'] for m in updated['metadata'] if m['name']=='MissionID'), None)
-    start_ts   = updated['startTimestamp']
-    end_ts     = updated['endTimestamp']
+    updated     = json.loads(json.dumps(json_in))
+    id_mission  = next((m['value'] for m in updated['metadata'] if m['name']=='MissionID'), None)
+    start_ts    = updated['startTimestamp']
+    end_ts      = updated['endTimestamp']
 
     # Cliente MinIO y vars
-    s3         = get_minio_client()
-    bucket     = 'missions'
-    uuidkey    = str(uuid.uuid4())
-    baseurl    = Variable.get("ruta_minIO").rstrip('/')
+    s3          = get_minio_client()
+    bucket      = 'missions'
+    uuidkey     = str(uuid.uuid4())
+    baseurl     = Variable.get("ruta_minIO").rstrip('/')
     nuevos_paths = {}
+
+    print(f"MissionID: {id_mission}")
+    print(f"UUID generado: {uuidkey}")
+    print(f"Base URL MinIO: {baseurl}")
 
     # ----- Subir cada archivo base64 de `archivos` -----
     for arc in archivos:
-        fn = arc['file_name']
+        fn   = arc['file_name']
         data = base64.b64decode(arc['content'])
-        key = f"{id_mission}/{uuidkey}/{fn}"
+        key  = f"{id_mission}/{uuidkey}/{fn}"
+        url  = f"{baseurl}/{bucket}/{key}"
 
         # determinar ContentType
-        if fn.lower().endswith('.tif') or fn.lower().endswith('.tiff'):
+        if fn.lower().endswith(('.tif', '.tiff')):
             ctype = 'image/tiff'
         elif fn.lower().endswith('.png'):
             ctype = 'image/png'
-        elif fn.lower().endswith(('.jpg','.jpeg')):
+        elif fn.lower().endswith(('.jpg', '.jpeg')):
             ctype = 'image/jpeg'
         elif fn.lower().endswith('.csv'):
             ctype = 'text/csv'
@@ -51,54 +56,76 @@ def process_json(**kwargs):
         else:
             ctype = 'application/octet-stream'
 
+        print(f"Subiendo archivo: {fn}")
+        print(f" → Key en MinIO: {key}")
+        print(f" → Content-Type: {ctype}")
         s3.put_object(
             Bucket=bucket,
             Key=key,
             Body=io.BytesIO(data),
             ContentType=ctype
         )
-        nuevos_paths[fn] = f"{baseurl}/{bucket}/{key}"
-        print(f"{fn} subido → {bucket}/{key}")
 
-    # ----- 3) Actualizar rutas en executionResources -----
+        nuevos_paths[fn] = url
+        print(f"Subido {fn} → {url}")
+
+    # ----- Actualizar rutas en executionResources -----
     for resource in updated.get('executionResources', []):
         orig = os.path.basename(resource.get('path',''))
+        print(f"\nProcesando resource original: {orig}")
+
+        # Actualizar path principal
         if orig in nuevos_paths:
-            resource['path'] = nuevos_paths[orig]
-            print(f"Resource path actualizado: {orig} → {nuevos_paths[orig]}")
+            old = resource['path']
+            new = nuevos_paths[orig]
+            resource['path'] = new
+            print(f"resource['path'] actualizado:")
+            print(f" - Antes: {old}")
+            print(f" - Después: {new}")
+        else:
+            print(f"No hay nuevo path para {orig} en nuevos_paths.")
 
-        # actualizar thumbnails si los hay
+        # Actualizar thumbnails si los hay
         for entry in resource.get('data', []):
-            val = entry.get('value', {})
+            val       = entry.get('value', {})
             thumb_b64 = val.get('thumbnail', {}).get('thumbRef')
-            if thumb_b64:
-                # si queremos reutilizar ruta_png/etc. podríamos haber capturado rutas específicas
-                thumb_name = os.path.splitext(orig)[0] + "_thumbnail.png"
-                img = base64.b64decode(thumb_b64)
-                key_thumb = f"{id_mission}/{uuidkey}/{thumb_name}"
-                s3.put_object(
-                    Bucket=bucket,
-                    Key=key_thumb,
-                    Body=io.BytesIO(img),
-                    ContentType='image/png'
-                )
-                thumb_path = f"{baseurl}/{bucket}/{key_thumb}"
-                val['thumbnail']['path'] = thumb_path
-                print(f"Thumbnail subido y path actualizado → {thumb_path}")
+            if not thumb_b64:
+                continue
 
-    # ----- 4) Subir el JSON modificado -----
+            thumb_name = os.path.splitext(orig)[0] + "_thumbnail.png"
+            key_thumb  = f"{id_mission}/{uuidkey}/{thumb_name}"
+            thumb_url  = f"{baseurl}/{bucket}/{key_thumb}"
+            img        = base64.b64decode(thumb_b64)
+
+            print(f" Subiendo thumbnail para {orig}: {thumb_name}")
+            print(f"   - Key thumbnail: {key_thumb}")
+            s3.put_object(
+                Bucket=bucket,
+                Key=key_thumb,
+                Body=io.BytesIO(img),
+                ContentType='image/png'
+            )
+
+            val['thumbnail']['path'] = thumb_url
+            print(f"thumbnail.path actualizado:")
+            print(f" - A: {thumb_url}")
+
+    # ----- Subir el JSON modificado -----
     json_key = f"{id_mission}/{uuidkey}/algorithm_result.json"
+    json_url = f"{baseurl}/{bucket}/{json_key}"
+    print(f"\nSubiendo JSON actualizado:")
+    print(f"  → Key JSON: {json_key}")
     s3.put_object(
         Bucket=bucket,
         Key=json_key,
         Body=io.BytesIO(json.dumps(updated).encode('utf-8')),
         ContentType='application/json'
     )
-    print(f"JSON final subido → {bucket}/{json_key}")
+    print(f"JSON final subido → {json_url}")
 
-    # ----- 5) Historizar con el JSON actualizado -----
+    # ----- Historizar con el JSON actualizado -----
+    print("Llamando a historizacion() con el JSON modificado.")
     historizacion(json_in, updated, id_mission, start_ts, end_ts)
-
 
 
 # HISTORIZACION
