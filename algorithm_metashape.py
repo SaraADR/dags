@@ -68,52 +68,63 @@ def process_json(**kwargs):
             print("startTimeStamp:", startTimeStamp)
             print("endTimeStamp:", endTimeStamp)
 
-            # uuid_key = str(uuid.uuid4())
-            # bucket_name = 'missions'
-            # json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
-            # print(json_key)
-            # ruta_minio = Variable.get("ruta_minIO")
+            uuid_key = str(uuid.uuid4())
+            bucket_name = 'missions'
+            json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
+            print(json_key)
+            ruta_minio = Variable.get("ruta_minIO")
 
-            # # Crear índices de archivos y carpetas extraídas
-            # file_lookup = {}
-            # dir_lookup = {}
 
-            # for root, dirs, files in os.walk(temp_dir):
-            #     for dir_name in dirs:
-            #         local_dir_path = os.path.join(root, dir_name)
-            #         relative_dir_path = os.path.relpath(local_dir_path, temp_dir)
-            #         parts = relative_dir_path.split(os.sep)
-            #         if parts[0].lower().startswith("metashape"):
-            #             relative_dir_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
-            #         dir_lookup[dir_name] = relative_dir_path
+            # # Subir el JSON original
+            s3_client.put_object(
+                Bucket=bucket_name,
+                Key=json_key,
+                Body=io.BytesIO(json.dumps(json_content_original).encode('utf-8')),
+                ContentType='application/json'
+            )
+            print(f'Archivo JSON original subido correctamente a MinIO como {json_key}')
 
-            #     for file_name in files:
-            #         if file_name.lower() == 'algorithm_result.json':
-            #             continue
-            #         local_path = os.path.join(root, file_name)
-            #         relative_path = os.path.relpath(local_path, temp_dir)
-            #         parts = relative_path.split(os.sep)
-            #         if parts[0].lower().startswith("metashape"):
-            #             relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
-            #         file_lookup[file_name] = relative_path
 
-            # # Actualizar rutas en el JSON usando el índice real
-            # for resource in updated_json.get("executionResources", []):
-            #     old_path = resource['path']
-            #     file_name = os.path.basename(old_path)
-            #     relative_path = file_lookup.get(file_name)
+            # Crear índices de archivos y carpetas extraídas
+            file_lookup = {}
+            dir_lookup = {}
 
-            #     if not relative_path:
-            #         relative_path = dir_lookup.get(file_name)
+            for root, dirs, files in os.walk(temp_dir):
+                for dir_name in dirs:
+                    local_dir_path = os.path.join(root, dir_name)
+                    relative_dir_path = os.path.relpath(local_dir_path, temp_dir)
+                    parts = relative_dir_path.split(os.sep)
+                    if parts[0].lower().startswith("metashape"):
+                        relative_dir_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
+                    dir_lookup[dir_name] = relative_dir_path
 
-            #     if not relative_path:
-            #         print(f"No se encontró {file_name} en el ZIP extraído.")
-            #         continue
+                for file_name in files:
+                    if file_name.lower() == 'algorithm_result.json':
+                        continue
+                    local_path = os.path.join(root, file_name)
+                    relative_path = os.path.relpath(local_path, temp_dir)
+                    parts = relative_path.split(os.sep)
+                    if parts[0].lower().startswith("metashape"):
+                        relative_path = os.path.join(*parts[1:]) if len(parts) > 1 else parts[0]
+                    file_lookup[file_name] = relative_path
 
-            #     new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
-            #     full_path = f"{ruta_minio.rstrip('/')}{new_path}"
-            #     resource['path'] = full_path
-            #     print(f"Ruta actualizada: {old_path} -> {full_path}")
+            # Actualizar rutas en el JSON usando el índice real
+            for resource in updated_json.get("executionResources", []):
+                old_path = resource['path']
+                file_name = os.path.basename(old_path)
+                relative_path = file_lookup.get(file_name)
+
+                if not relative_path:
+                    relative_path = dir_lookup.get(file_name)
+
+                if not relative_path:
+                    print(f"No se encontró {file_name} en el ZIP extraído.")
+                    continue
+
+                new_path = f"/{bucket_name}/{id_mission}/{uuid_key}/{relative_path}"
+                full_path = f"{ruta_minio.rstrip('/')}{new_path}"
+                resource['path'] = full_path
+                print(f"Ruta actualizada: {old_path} -> {full_path}")
 
             # # Subir archivos del ZIP a MinIO
             # for root, dirs, files in os.walk(temp_dir):
