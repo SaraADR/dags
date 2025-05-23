@@ -139,13 +139,22 @@ def process_json(**kwargs):
                     minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
                     try:
                         with open(local_path, 'rb') as file_data:
-                            s3_client.put_object(
-                                Bucket=bucket_name,
-                                Key=minio_key,
-                                Body=file_data,
-                                ContentType='application/octet-stream'
-                            )
-                        print(f"Archivo subido a MinIO: {minio_key}")
+                            
+                            if(relative_path.endswith('.tif')):
+                                s3_client.put_object(
+                                    Bucket=bucket_name,
+                                    Key=minio_key,
+                                    Body=file_data,
+                                    ContentType="image/tiff"
+                                )
+                            else:
+                                s3_client.put_object(
+                                    Bucket=bucket_name,
+                                    Key=minio_key,
+                                    Body=file_data,
+                                    ContentType='application/octet-stream'
+                                )
+                            print(f"Archivo subido a MinIO: {minio_key}")
                     except Exception as e:
                         print(f"Error al subir {file_name} a MinIO: {e}")
 
