@@ -3,7 +3,6 @@ import os
 import base64
 import io
 import uuid
-import mimetypes
 import pytz
 from datetime import datetime
 from airflow import DAG
@@ -13,77 +12,91 @@ from dag_utils import get_minio_client, execute_query
 
 
 def process_json(**kwargs):
-    # ----- Lectura de inputs -----
-    json_in  = kwargs['dag_run'].conf.get('json')
-    file_list = kwargs['ti'].xcom_pull(key='file_list', task_ids='list_files')
-    if not json_in or not file_list:
-        print("Faltan JSON o file_list.")
+    # ----- Leer inputs -----
+    json_in = kwargs['dag_run'].conf.get('json')
+    archivos= json_in.get('archivos', [])
+    if not json_in:
+        print("Falta JSON en la configuración del DAG.")
         return
 
-    updated = json.loads(json.dumps(json_in))
-
+    updated   = json.loads(json.dumps(json_in))
     id_mission = next((m['value'] for m in updated['metadata'] if m['name']=='MissionID'), None)
     start_ts   = updated['startTimestamp']
     end_ts     = updated['endTimestamp']
 
     # Cliente MinIO y vars
-    s3      = get_minio_client()
-    bucket  = 'missions'
-    uuidkey = str(uuid.uuid4())
-    baseurl = Variable.get("ruta_minIO").rstrip('/')
+    s3         = get_minio_client()
+    bucket     = 'missions'
+    uuidkey    = str(uuid.uuid4())
+    baseurl    = Variable.get("ruta_minIO").rstrip('/')
+    nuevos_paths = {}
 
-    # ---- Procesar cada recurso ----
-    for resource in updated.get("executionResources", []):
-        old_path = resource.get('path','')
-        fname    = os.path.basename(old_path)
+    # ----- Subir cada archivo base64 de `archivos` -----
+    for arc in archivos:
+        fn = arc['file_name']
+        data = base64.b64decode(arc['content'])
+        key = f"{id_mission}/{uuidkey}/{fn}"
 
-        # 1) localiza en file_list
-        rel = next((f for f in file_list if f.endswith(fname)), None)
-        if not rel:
-            print(f"No hallé {fname} en file_list.")
-            continue
+        # determinar ContentType
+        if fn.lower().endswith('.tif') or fn.lower().endswith('.tiff'):
+            ctype = 'image/tiff'
+        elif fn.lower().endswith('.png'):
+            ctype = 'image/png'
+        elif fn.lower().endswith(('.jpg','.jpeg')):
+            ctype = 'image/jpeg'
+        elif fn.lower().endswith('.csv'):
+            ctype = 'text/csv'
+        elif fn.lower().endswith('.pdf'):
+            ctype = 'application/pdf'
+        else:
+            ctype = 'application/octet-stream'
 
-        # 2) se sube el TIFF (u otro) original
-        local = os.path.join('resources', rel)
-        with open(local,'rb') as f: blob = f.read()
-        key_orig = f"{id_mission}/{uuidkey}/{rel}"
-        ctype = mimetypes.guess_type(local)[0] or 'application/octet-stream'
-        s3.put_object(Bucket=bucket, Key=key_orig, Body=blob, ContentType=ctype)
-        resource['path'] = f"{baseurl}/{bucket}/{key_orig}"
-        print(f"Subido {local} → {bucket}/{key_orig}")
+        s3.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=io.BytesIO(data),
+            ContentType=ctype
+        )
+        nuevos_paths[fn] = f"{baseurl}/{bucket}/{key}"
+        print(f"{fn} subido → {bucket}/{key}")
 
-        # 3) busca thumbnail en cada entrada de data[]
+    # ----- 3) Actualizar rutas en executionResources -----
+    for resource in updated.get('executionResources', []):
+        orig = os.path.basename(resource.get('path',''))
+        if orig in nuevos_paths:
+            resource['path'] = nuevos_paths[orig]
+            print(f"Resource path actualizado: {orig} → {nuevos_paths[orig]}")
+
+        # actualizar thumbnails si los hay
         for entry in resource.get('data', []):
             val = entry.get('value', {})
             thumb_b64 = val.get('thumbnail', {}).get('thumbRef')
-            if not thumb_b64:
-                continue
+            if thumb_b64:
+                # si queremos reutilizar ruta_png/etc. podríamos haber capturado rutas específicas
+                thumb_name = os.path.splitext(orig)[0] + "_thumbnail.png"
+                img = base64.b64decode(thumb_b64)
+                key_thumb = f"{id_mission}/{uuidkey}/{thumb_name}"
+                s3.put_object(
+                    Bucket=bucket,
+                    Key=key_thumb,
+                    Body=io.BytesIO(img),
+                    ContentType='image/png'
+                )
+                thumb_path = f"{baseurl}/{bucket}/{key_thumb}"
+                val['thumbnail']['path'] = thumb_path
+                print(f"Thumbnail subido y path actualizado → {thumb_path}")
 
-            # se decodifica y se sube PNG
-            img = base64.b64decode(thumb_b64)
-            thumb_name = os.path.splitext(fname)[0] + "_thumbnail.png"
-            key_thumb  = f"{id_mission}/{uuidkey}/{thumb_name}"
-            s3.put_object(
-                Bucket=bucket,
-                Key=key_thumb,
-                Body=io.BytesIO(img),
-                ContentType='image/png'
-            )
-            # actualizar JSON
-            val['thumbnail']['path'] = f"{baseurl}/{bucket}/{key_thumb}"
-            print(f"Thumbnail subido → {bucket}/{key_thumb}")
-
-    # ---- por último se sube el JSON modificado ----
-    key_json = f"{id_mission}/{uuidkey}/algorithm_result.json"
+    # ----- 4) Subir el JSON modificado -----
+    json_key = f"{id_mission}/{uuidkey}/algorithm_result.json"
     s3.put_object(
         Bucket=bucket,
-        Key=key_json,
+        Key=json_key,
         Body=io.BytesIO(json.dumps(updated).encode('utf-8')),
         ContentType='application/json'
     )
-    print(f"JSON final subido → {bucket}/{key_json}")
+    print(f"JSON final subido → {bucket}/{json_key}")
 
-    # historización (tu función igual que antes)
+    # ----- 5) Historizar con el JSON actualizado -----
     historizacion(json_in, updated, id_mission, start_ts, end_ts)
 
 
