@@ -155,6 +155,7 @@ def process_json(**kwargs):
 def generateSimplifiedCopy(json_content_original):      
         updated_json = json.loads(json.dumps(json_content_original))
         keys_a_mantener = {'identifier', 'pixelSize'}
+        updated_json.pop("executionArguments", None)
         for resource in updated_json.get("executionResources", []):
             filtered_data = []
             for item in resource.get("data", []):
