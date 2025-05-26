@@ -82,38 +82,42 @@ def process_json(**kwargs):
                     local_path = os.path.join(root, file_name)
                     file_lookup[file_name] = local_path
 
-            # Convertir y reemplazar el thumbnail
+            # Procesar thumbnails embebidos
             for resource in updated_json.get("executionResources", []):
                 for item in resource.get("data", []):
                     value = item.get("value", {})
-                    if isinstance(value, dict) and "thumbRef" in value:
-                        print("Procesando thumbnail base64...")
+                    if isinstance(value, dict) and "thumbnail" in value:
+                        thumb_dict = value["thumbnail"]
+                        if "thumbRef" in thumb_dict:
+                            print("[DEBUG] Procesando thumbnail...")
 
-                        try:
-                            # Decodificar base64
-                            thumbnail_bytes = base64.b64decode(value["thumbRef"])
-                            image = Image.open(io.BytesIO(thumbnail_bytes)).convert("RGB")
+                            try:
+                                # Decodificar base64
+                                thumbnail_bytes = base64.b64decode(thumb_dict["thumbRef"])
+                                image = Image.open(io.BytesIO(thumbnail_bytes)).convert("RGB")
 
-                            # Guardar temporalmente como PNG
-                            buffer = io.BytesIO()
-                            image.save(buffer, format="PNG")
-                            buffer.seek(0)
+                                # Guardar en buffer como PNG
+                                buffer = io.BytesIO()
+                                image.save(buffer, format="PNG")
+                                buffer.seek(0)
 
-                            # Subir a MinIO
-                            thumbnail_key = f"{id_mission}/{uuid_key}/thumbnail.png"
-                            s3_client.put_object(
-                                Bucket=bucket_name,
-                                Key=thumbnail_key,
-                                Body=buffer,
-                                ContentType='image/png'
-                            )
+                                # Subir a MinIO
+                                thumbnail_key = f"{id_mission}/{uuid_key}/thumbnail.png"
+                                s3_client.put_object(
+                                    Bucket=bucket_name,
+                                    Key=thumbnail_key,
+                                    Body=buffer,
+                                    ContentType='image/png'
+                                )
 
-                            full_path = f"{ruta_minio.rstrip('/')}/missions/{thumbnail_key}"
-                            value["thumbRef"] = full_path
-                            print(f"Thumbnail subido correctamente a: {full_path}")
+                                # Reemplazar thumbRef por URL
+                                minio_url = f"{ruta_minio.rstrip('/')}/missions/{thumbnail_key}"
+                                value["thumbnail"]["thumbRef"] = minio_url
 
-                        except Exception as e:
-                            print(f"Error procesando thumbnail: {e}")
+                                print(f"[DEBUG] Thumbnail convertido y subido a: {minio_url}")
+
+                            except Exception as e:
+                                print(f"[ERROR] Error al convertir thumbnail: {e}")
 
             # Actualizar rutas en el JSON para dejar solo /missions/2054/uuid/nombre
             for resource in updated_json.get("executionResources", []):
