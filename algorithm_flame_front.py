@@ -84,8 +84,10 @@ def process_json(**kwargs):
                     try:
                         print("[DEBUG] Procesando thumbnail base64 para subirlo como PNG...")
 
+                        cleaned_base64 = thumb_ref.replace('\n', '').replace('\r', '')
+
                         # Decodificar base64 a bytes
-                        img_bytes = base64.b64decode(thumb_ref)
+                        img_bytes = base64.b64decode(cleaned_base64)
 
                         # Crear nombre del archivo PNG a partir del recurso principal
                         main_file_name = os.path.basename(resource['path'])
