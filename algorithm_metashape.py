@@ -146,7 +146,7 @@ def process_json(**kwargs):
                                 Bucket=bucket_name,
                                 Key=minio_key,
                                 Body=io.BytesIO(file_bytes),
-                                ContentType="image/tiff" if relative_path.endswith('.tif' , '.tiff') else 'application/octet-stream'
+                                ContentType="image/tiff" if relative_path.endswith(('.tif', '.tiff')) else 'application/octet-stream'
                             )
 
                             print(f"Archivo subido a MinIO: {minio_key}")                           
