@@ -88,6 +88,7 @@ def process_json(**kwargs):
             file_lookup = {}
             dir_lookup = {}
             publish_files = []
+            images_files = []
 
             for root, dirs, files in os.walk(temp_dir):
                 for dir_name in dirs:
@@ -157,6 +158,13 @@ def process_json(**kwargs):
                             "file_name": file_name,
                             "content": base64.b64encode(file_bytes).decode('utf-8')
                         })
+                        if file_name.lower().endswith(('.png', '.jpg', '.jpeg')):
+                            ruta_minio_archivo = f"{ruta_minio}/{bucket_name}/{minio_key}"
+                            print(f"Ruta MinIO para imagen: {ruta_minio_archivo}")
+                            images_files.append({
+                               "file_name": file_name,
+                               "content": ruta_minio_archivo
+                            })
 
             # Subir el JSON original
             json_key_actualizado = f"{id_mission}/{uuid_key}/algorithm_result_actualizado.json"
@@ -178,7 +186,7 @@ def process_json(**kwargs):
             print(bbox)
 
             #integramos con geonetwork
-            xml_data = generate_dynamic_xml(updated_json, bbox, uuid_key, id_mission, wms_layers_info)
+            xml_data = generate_dynamic_xml(updated_json, bbox, uuid_key, id_mission, wms_layers_info, images_files)
             resources_id = upload_to_geonetwork_xml([xml_data])
             print(resources_id)
 
@@ -313,6 +321,7 @@ def publish_to_geoserver(archivos, **context):
             temp_file.write(archivo_content)
 
         temp_files.append((archivo_file_name, temp_file_path))
+   
 
     #Seleccionamos los tiff
     tiff_files = [path for name, path in temp_files if name.lower().endswith(".tif")]
@@ -419,7 +428,7 @@ def upload_to_geonetwork_xml(xml_data_array):
             raise
 
 
-def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers_info):
+def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers_info, images_files):
 
     fecha_completa = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
     fecha = fecha_completa.date()
@@ -429,6 +438,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
 
     #Mete ruta de minIO
     ruta_png: 0
+    graphic_overview_xml = generar_graphic_overview(images_files)
     gmd_online_resources = generar_gmd_online(wms_layers_info)
 
 
@@ -541,15 +551,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                     </gmd:CI_Citation>
                 </gmd:citation>
 
-              <gmd:graphicOverview>
-                <gmd:MD_BrowseGraphic>
-                    <gmd:fileName>
-                    <gco:CharacterString>
-                        {ruta_png}
-                    </gco:CharacterString>
-                    </gmd:fileName>
-                </gmd:MD_BrowseGraphic>
-                </gmd:graphicOverview>
+                {graphic_overview_xml}
 
                 <gmd:abstract>
                     <gco:CharacterString>{descripcion}</gco:CharacterString>
@@ -712,7 +714,6 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                 <gmd:transferOptions>
                     <gmd:MD_DigitalTransferOptions>
                       {gmd_online_resources}
-
                     </gmd:MD_DigitalTransferOptions>
                 </gmd:transferOptions>
 
@@ -794,6 +795,22 @@ def generar_gmd_online(wms_layers_info):
             </gmd:onLine>
         """
     return online_blocks
+
+def generar_graphic_overview(images_files):
+    bloques = []
+    for image in images_files:
+        ruta_png = image["content"]
+        bloque = f"""
+        <gmd:graphicOverview>
+            <gmd:MD_BrowseGraphic>
+                <gmd:fileName>
+                    <gco:CharacterString>{ruta_png}</gco:CharacterString>
+                </gmd:fileName>
+            </gmd:MD_BrowseGraphic>
+        </gmd:graphicOverview>
+        """
+        bloques.append(bloque)
+    return "\n".join(bloques)
 
 
 # Definición del DAG
