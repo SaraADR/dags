@@ -74,45 +74,47 @@ def process_json(**kwargs):
             print(json_key)
             ruta_minio = Variable.get("ruta_minIO")
 
-            # Procesar thumbnail si existe
+            from PIL import Image, UnidentifiedImageError
+
+            # Procesar thumbnail PNG desde json_content_original
             try:
+                print("[DEBUG] Buscando thumbnail base64 dentro del JSON...")
+                thumb_base64 = None
                 for resource in updated_json.get("executionResources", []):
                     for item in resource.get("data", []):
-                        value = item.get("value", {})
-                        if "thumbnail" in value and "thumbRef" in value["thumbnail"]:
-                            print("[DEBUG] Procesando thumbnail base64 para convertir a imagen...")
+                        if "thumbnail" in item.get("value", {}):
+                            thumb_base64 = item["value"]["thumbnail"]["thumbRef"]
+                            thumb_json_obj = item["value"]["thumbnail"]
+                            break
 
-                            thumb_base64 = value["thumbnail"]["thumbRef"]
-                            thumb_bytes = base64.b64decode(thumb_base64)
-                            buffer = io.BytesIO(thumb_bytes)
+                if not thumb_base64:
+                    print("[INFO] No se encontró campo 'thumbnail.thumbRef' en el JSON.")
+                else:
+                    print("[DEBUG] Procesando thumbnail base64 para convertir a PNG...")
+                    thumb_bytes = base64.b64decode(thumb_base64)
+                    image = Image.open(io.BytesIO(thumb_bytes)).convert("RGBA")
 
-                            # Intentar abrir como imagen
-                            image = Image.open(buffer)
-                            image_format = image.format or "PNG"
-                            print(f"[DEBUG] Formato detectado: {image_format}")
+                    output_buffer = io.BytesIO()
+                    image.save(output_buffer, format='PNG')
+                    output_buffer.seek(0)
 
-                            # Reconvertimos a PNG para normalizar
-                            buffer_output = io.BytesIO()
-                            image.convert("RGB").save(buffer_output, format="PNG")
-                            buffer_output.seek(0)
+                    thumbnail_key = f"{id_mission}/{uuid_key}/thumbnail.png"
+                    s3_client.put_object(
+                        Bucket=bucket_name,
+                        Key=thumbnail_key,
+                        Body=output_buffer,
+                        ContentType='image/png'
+                    )
 
-                            thumbnail_key = f"{id_mission}/{uuid_key}/thumbnail.png"
-                            s3_client.put_object(
-                                Bucket=bucket_name,
-                                Key=thumbnail_key,
-                                Body=buffer_output,
-                                ContentType="image/png"
-                            )
+                    minio_url = f"{ruta_minio.rstrip('/')}/missions/{thumbnail_key}"
+                    thumb_json_obj["thumbRef"] = minio_url
+                    print(f"[DEBUG] Thumbnail PNG generado y subido correctamente a: {minio_url}")
 
-                            ruta_thumb = f"{ruta_minio.rstrip('/')}/missions/{thumbnail_key}"
-                            print(f"[DEBUG] Thumbnail subido y disponible en: {ruta_thumb}")
-
-                            # Reemplazar thumbRef en el JSON actualizado
-                            value["thumbnail"]["thumbRef"] = ruta_thumb
-            except UnidentifiedImageError:
-                print("[ERROR] El campo 'thumbRef' no contiene una imagen válida.")
+            except UnidentifiedImageError as e:
+                print(f"[ERROR] El contenido no es una imagen PNG válida: {e}")
             except Exception as e:
-                print(f"[ERROR] Fallo al procesar thumbnail: {e}")
+                print(f"[ERROR] Error procesando thumbnail: {e}")
+
 
             file_lookup = {}
             for root, _, files in os.walk(temp_dir):
