@@ -74,46 +74,42 @@ def process_json(**kwargs):
             print(json_key)
             ruta_minio = Variable.get("ruta_minIO")
 
-            from PIL import Image, UnidentifiedImageError
+            # Procesar thumbnail en formato base64 y subirlo como imagen PNG a MinIO
+            for resource in updated_json.get("executionResources", []):
+                for data_entry in resource.get("data", []):
+                    thumb_ref = data_entry.get('value', {}).get('thumbnail', {}).get('thumbRef')
+                    if not thumb_ref:
+                        continue
 
-            # Procesar thumbnail PNG desde json_content_original
-            try:
-                print("[DEBUG] Buscando thumbnail base64 dentro del JSON...")
-                thumb_base64 = None
-                for resource in updated_json.get("executionResources", []):
-                    for item in resource.get("data", []):
-                        if "thumbnail" in item.get("value", {}):
-                            thumb_base64 = item["value"]["thumbnail"]["thumbRef"]
-                            thumb_json_obj = item["value"]["thumbnail"]
-                            break
+                    try:
+                        print("[DEBUG] Procesando thumbnail base64 para subirlo como PNG...")
 
-                if not thumb_base64:
-                    print("[INFO] No se encontró campo 'thumbnail.thumbRef' en el JSON.")
-                else:
-                    print("[DEBUG] Procesando thumbnail base64 para convertir a PNG...")
-                    thumb_bytes = base64.b64decode(thumb_base64)
-                    image = Image.open(io.BytesIO(thumb_bytes)).convert("RGBA")
+                        # Decodificar base64 a bytes
+                        img_bytes = base64.b64decode(thumb_ref)
 
-                    output_buffer = io.BytesIO()
-                    image.save(output_buffer, format='PNG')
-                    output_buffer.seek(0)
+                        # Crear nombre del archivo PNG a partir del recurso principal
+                        main_file_name = os.path.basename(resource['path'])
+                        thumb_filename = os.path.splitext(main_file_name)[0] + "_thumbnail.png"
+                        thumb_key = f"{id_mission}/{uuid_key}/{thumb_filename}"
 
-                    thumbnail_key = f"{id_mission}/{uuid_key}/thumbnail.png"
-                    s3_client.put_object(
-                        Bucket=bucket_name,
-                        Key=thumbnail_key,
-                        Body=output_buffer,
-                        ContentType='image/png'
-                    )
+                        # Subir a MinIO
+                        s3_client.put_object(
+                            Bucket=bucket_name,
+                            Key=thumb_key,
+                            Body=io.BytesIO(img_bytes),
+                            ContentType='image/png'
+                        )
 
-                    minio_url = f"{ruta_minio.rstrip('/')}/missions/{thumbnail_key}"
-                    thumb_json_obj["thumbRef"] = minio_url
-                    print(f"[DEBUG] Thumbnail PNG generado y subido correctamente a: {minio_url}")
+                        # Actualizar la ruta en el JSON
+                        thumb_path = f"{ruta_minio.rstrip('/')}/{bucket_name}/{thumb_key}"
+                        data_entry['value']['thumbnail']['path'] = thumb_path
+                        print(f"[DEBUG] Thumbnail subido y actualizado en JSON: {thumb_path}")
 
-            except UnidentifiedImageError as e:
-                print(f"[ERROR] El contenido no es una imagen PNG válida: {e}")
-            except Exception as e:
-                print(f"[ERROR] Error procesando thumbnail: {e}")
+                        # Opcional: eliminar los bytes base64
+                        del data_entry['value']['thumbnail']['thumbRef']
+
+                    except Exception as e:
+                        print(f"[ERROR] Error procesando el thumbnail: {e}")
 
 
             file_lookup = {}
