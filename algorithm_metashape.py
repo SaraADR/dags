@@ -767,7 +767,8 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
             </gmd:applicationSchemaInfo>
         </gmd:MD_Metadata>
 """
-
+    xml_encoded = base64.b64encode(xml.encode('utf-8')).decode('utf-8')
+    return xml_encoded
 
 def generar_gmd_online(wms_layers_info):
     online_blocks = ""
