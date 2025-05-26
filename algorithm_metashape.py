@@ -171,11 +171,7 @@ def process_json(**kwargs):
             # Historizar
             historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
 
-            print(f"archivos para publicar:")
-            for f in publish_files:
-                print(f"- {f['file_name']}")
-
-            #wms_layers_info = publish_to_geoserver(publish_files)
+            wms_layers_info = publish_to_geoserver(publish_files)
             #print(wms_layers_info)
 
             bbox = extract_bbox_from_json(json_content_original)
