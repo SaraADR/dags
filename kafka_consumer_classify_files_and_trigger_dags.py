@@ -91,7 +91,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
     
 
     try:
-        with ((zipfile.ZipFile(local_zip_path, 'r') as zip_file)):
+        with (zipfile.ZipFile(local_zip_path, 'r') as zip_file):
             # Procesar el archivo ZIP en un directorio temporal
             with tempfile.TemporaryDirectory() as temp_dir:
                 print(f"Directorio temporal creado: {temp_dir}")
