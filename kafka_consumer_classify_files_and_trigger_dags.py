@@ -91,7 +91,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
     
 
     try:
-        with zipfile.ZipFile(local_zip_path, 'r') as zip_file:
+        with ((zipfile.ZipFile(local_zip_path, 'r') as zip_file)):
             # Procesar el archivo ZIP en un directorio temporal
             with tempfile.TemporaryDirectory() as temp_dir:
                 print(f"Directorio temporal creado: {temp_dir}")
@@ -169,7 +169,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
 
 
                     unique_id = uuid.uuid4()
-                    if trigger_dag_name and trigger_dag_name != 'water_analysis' and trigger_dag_name != 'algorithm_metashape':
+                    if trigger_dag_name and trigger_dag_name != 'water_analysis' and trigger_dag_name != 'algorithm_metashape' and trigger_dag_name != 'algorithm_flame_front':
                         try:
                             trigger = TriggerDagRunOperator(
                                 task_id=str(unique_id),
@@ -181,7 +181,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                             trigger.execute(context=kwargs)
                         except Exception as e:
                             print(f"Error al desencadenar el DAG: {e}")
-                    elif (trigger_dag_name and trigger_dag_name == 'water_analysis') or (trigger_dag_name and trigger_dag_name == 'algorithm_metashape') :
+                    elif (trigger_dag_name and trigger_dag_name == 'water_analysis') or (trigger_dag_name and trigger_dag_name == 'algorithm_metashape') or (trigger_dag_name and trigger_dag_name == 'algorithm_flame_front'):
                         try:
                             trigger = TriggerDagRunOperator(
                                 task_id=str(unique_id),

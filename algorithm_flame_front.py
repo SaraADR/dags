@@ -16,6 +16,25 @@ import json
 
 def process_json(**kwargs):
     otros = kwargs['dag_run'].conf.get('otros', [])
+
+
+    # # DEBUG: mostrar el tipo y valor de 'otros'
+    # print(f"[DEBUG] Valor recibido en 'otros': {otros}")
+    # print(f"[DEBUG] Tipo de 'otros': {type(otros)}")
+    #
+    # if isinstance(otros, list):
+    #     if not otros:
+    #         print("La lista 'otros' está vacía.")
+    #         return
+    #     file_path_in_minio = otros[0].replace('tmp/', '')
+    # elif isinstance(otros, str):
+    #     file_path_in_minio = otros.replace('tmp/', '')
+    # else:
+    #     raise ValueError(f"Formato inesperado para 'otros': {type(otros)}")
+    #
+    # print(f"[DEBUG] file_path_in_minio resultante: {file_path_in_minio}")
+
+
     json_content_original = kwargs['dag_run'].conf.get('json')
 
     if not json_content_original:
