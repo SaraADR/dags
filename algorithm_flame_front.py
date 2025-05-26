@@ -1,3 +1,4 @@
+import base64
 import os
 import tempfile
 import zipfile
@@ -12,28 +13,10 @@ from kafka_consumer_classify_files_and_trigger_dags import download_from_minio
 import uuid
 import io
 import json
-
+from PIL import Image
 
 def process_json(**kwargs):
     otros = kwargs['dag_run'].conf.get('otros', [])
-
-
-    # # DEBUG: mostrar el tipo y valor de 'otros'
-    # print(f"[DEBUG] Valor recibido en 'otros': {otros}")
-    # print(f"[DEBUG] Tipo de 'otros': {type(otros)}")
-    #
-    # if isinstance(otros, list):
-    #     if not otros:
-    #         print("La lista 'otros' está vacía.")
-    #         return
-    #     file_path_in_minio = otros[0].replace('tmp/', '')
-    # elif isinstance(otros, str):
-    #     file_path_in_minio = otros.replace('tmp/', '')
-    # else:
-    #     raise ValueError(f"Formato inesperado para 'otros': {type(otros)}")
-    #
-    # print(f"[DEBUG] file_path_in_minio resultante: {file_path_in_minio}")
-
 
     json_content_original = kwargs['dag_run'].conf.get('json')
 
@@ -98,6 +81,39 @@ def process_json(**kwargs):
                         continue
                     local_path = os.path.join(root, file_name)
                     file_lookup[file_name] = local_path
+
+            # Convertir y reemplazar el thumbnail
+            for resource in updated_json.get("executionResources", []):
+                for item in resource.get("data", []):
+                    value = item.get("value", {})
+                    if isinstance(value, dict) and "thumbRef" in value:
+                        print("Procesando thumbnail base64...")
+
+                        try:
+                            # Decodificar base64
+                            thumbnail_bytes = base64.b64decode(value["thumbRef"])
+                            image = Image.open(io.BytesIO(thumbnail_bytes)).convert("RGB")
+
+                            # Guardar temporalmente como PNG
+                            buffer = io.BytesIO()
+                            image.save(buffer, format="PNG")
+                            buffer.seek(0)
+
+                            # Subir a MinIO
+                            thumbnail_key = f"{id_mission}/{uuid_key}/thumbnail.png"
+                            s3_client.put_object(
+                                Bucket=bucket_name,
+                                Key=thumbnail_key,
+                                Body=buffer,
+                                ContentType='image/png'
+                            )
+
+                            full_path = f"{ruta_minio.rstrip('/')}/missions/{thumbnail_key}"
+                            value["thumbRef"] = full_path
+                            print(f"Thumbnail subido correctamente a: {full_path}")
+
+                        except Exception as e:
+                            print(f"Error procesando thumbnail: {e}")
 
             # Actualizar rutas en el JSON para dejar solo /missions/2054/uuid/nombre
             for resource in updated_json.get("executionResources", []):
