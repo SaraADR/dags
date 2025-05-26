@@ -324,7 +324,7 @@ def publish_to_geoserver(archivos, **context):
    
 
     #Seleccionamos los tiff
-    tiff_files = [path for name, path in temp_files if name.lower().endswith('.tif' , '.tiff')]
+    tiff_files = [path for name, path in temp_files if name.lower().endswith(('.tif', '.tiff'))]
     wms_layers_info = []
     wms_server_tiff = None
     wms_layer_tiff = None
