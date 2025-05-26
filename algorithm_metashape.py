@@ -56,7 +56,7 @@ def process_json(**kwargs):
             print("Archivos en el ZIP:", file_list)
 
             updated_json = generateSimplifiedCopy(json_content_original)
-            archivos_para_publicar = []
+            
 
             id_mission = next(
                 (item['value'] for item in updated_json['metadata'] if item['name'] == 'MissionID'),
@@ -87,6 +87,7 @@ def process_json(**kwargs):
             # Crear índices de archivos y carpetas extraídas
             file_lookup = {}
             dir_lookup = {}
+            publish_files = []
 
             for root, dirs, files in os.walk(temp_dir):
                 for dir_name in dirs:
@@ -147,14 +148,15 @@ def process_json(**kwargs):
                                 ContentType="image/tiff" if relative_path.endswith('.tif') else 'application/octet-stream'
                             )
 
-                            print(f"Archivo subido a MinIO: {minio_key}")
-                            archivos_para_publicar.append({
-                                "file_name": file_name,
-                                "content": base64.b64encode(file_bytes).decode('utf-8')
-                            })
-                            
+                            print(f"Archivo subido a MinIO: {minio_key}")                           
                     except Exception as e:
                         print(f"Error al subir {file_name} a MinIO: {e}")
+
+                    if len(parts) == 2 and parts[0].lower() == 'resources':
+                        publish_files.append({
+                            "file_name": file_name,
+                            "content": base64.b64encode(file_bytes).decode('utf-8')
+                        })
 
             # Subir el JSON original
             json_key_actualizado = f"{id_mission}/{uuid_key}/algorithm_result_actualizado.json"
@@ -169,8 +171,9 @@ def process_json(**kwargs):
             # Historizar
             historizacion(json_content_original, updated_json, id_mission, startTimeStamp, endTimeStamp)
 
-            print(archivos_para_publicar)
-            #wms_layers_info = publish_to_geoserver(archivos_para_publicar)
+            print(f"archivos para publicar: {publish_files}")
+
+            #wms_layers_info = publish_to_geoserver(publish_files)
             #print(wms_layers_info)
 
             bbox = extract_bbox_from_json(json_content_original)
