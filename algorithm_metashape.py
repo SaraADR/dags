@@ -146,7 +146,7 @@ def process_json(**kwargs):
                                 Bucket=bucket_name,
                                 Key=minio_key,
                                 Body=io.BytesIO(file_bytes),
-                                ContentType="image/tiff" if relative_path.endswith('.tif') else 'application/octet-stream'
+                                ContentType="image/tiff" if relative_path.endswith('.tif' , '.tiff') else 'application/octet-stream'
                             )
 
                             print(f"Archivo subido a MinIO: {minio_key}")                           
@@ -324,7 +324,7 @@ def publish_to_geoserver(archivos, **context):
    
 
     #Seleccionamos los tiff
-    tiff_files = [path for name, path in temp_files if name.lower().endswith(".tif")]
+    tiff_files = [path for name, path in temp_files if name.lower().endswith('.tif' , '.tiff')]
     wms_layers_info = []
     wms_server_tiff = None
     wms_layer_tiff = None
