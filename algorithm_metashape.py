@@ -7,9 +7,8 @@ import pytz
 from airflow import DAG
 from datetime import datetime
 from airflow.operators.python_operator import PythonOperator
-from dag_utils import get_minio_client, execute_query, get_geoserver_connection
+from dag_utils import get_minio_client, execute_query, get_geoserver_connection, download_from_minio
 from airflow.models import Variable
-from kafka_consumer_classify_files_and_trigger_dags import download_from_minio
 import uuid
 import io
 import json
@@ -139,25 +138,19 @@ def process_json(**kwargs):
                     minio_key = f"{id_mission}/{uuid_key}/{relative_path}"
                     try:
                         with open(local_path, 'rb') as file_data:
+                            file_bytes = file_data.read()
                             
-                            if(relative_path.endswith('.tif')):
-                                s3_client.put_object(
-                                    Bucket=bucket_name,
-                                    Key=minio_key,
-                                    Body=file_data,
-                                    ContentType="image/tiff"
-                                )
-                            else:
-                                s3_client.put_object(
-                                    Bucket=bucket_name,
-                                    Key=minio_key,
-                                    Body=file_data,
-                                    ContentType='application/octet-stream'
-                                )
+                            s3_client.put_object(
+                                Bucket=bucket_name,
+                                Key=minio_key,
+                                Body=io.BytesIO(file_bytes),
+                                ContentType="image/tiff" if relative_path.endswith('.tif') else 'application/octet-stream'
+                            )
+
                             print(f"Archivo subido a MinIO: {minio_key}")
                             archivos_para_publicar.append({
                                 "file_name": file_name,
-                                "content": base64.b64encode(file_data).decode('utf-8')
+                                "content": base64.b64encode(file_bytes).decode('utf-8')
                             })
                             
                     except Exception as e:
