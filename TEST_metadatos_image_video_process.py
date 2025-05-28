@@ -37,10 +37,13 @@ def poll_kafka_messages(**context):
 
 
 default_args = {
-    'owner': 'airflow',
+    'owner': 'sadr',
+    'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
     'retries': 1,
-    'retry_delay': timedelta(minutes=1)
+    'retry_delay': timedelta(minutes=1),
+    'email_on_failure': False,
+    'email_on_retry': False,
 }
 
 dag = DAG(
@@ -58,7 +61,8 @@ dag = DAG(
 poll_task = PythonOperator(
         task_id='poll_kafka',
         python_callable=poll_kafka_messages,
-        provide_context=True
+        provide_context=True,
+        dag=dag
 )
 
 poll_task
