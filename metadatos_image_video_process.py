@@ -266,7 +266,7 @@ def process_ts_job(output, message, local_zip_path):
 
 
 ##--------------------------- PROCEDIMIENTO DE RAFAGAS ------------------------------------------------
-def is_rafaga(output, message):
+def is_rafaga(output, message, version):
     print("No se ha implementado el sistema de rafagas todavia")
     return
 
