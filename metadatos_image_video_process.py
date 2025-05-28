@@ -28,7 +28,7 @@ mensaje_final = {
     }
 }
 
-def poll_kafka_messages(**context):
+def poll_kafka_messages(**kwargs):
     conf = {
         'bootstrap.servers': '10.96.180.179:9092',
         'group.id': '1',
