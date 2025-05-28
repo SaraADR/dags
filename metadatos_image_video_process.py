@@ -42,7 +42,7 @@ def poll_kafka_messages(**kwargs):
 
     try:
         while True:
-            msg = consumer.poll(timeout=5.0)
+            msg = consumer.poll(timeout=10.0)
             if msg is None:
                 print("No hay más mensajes que leer en el topic")
                 break  
@@ -56,7 +56,7 @@ def poll_kafka_messages(**kwargs):
         
         if messages:
             print(f"Total messages received: {len(messages)}")
-            # consumer.commit()
+            consumer.commit()
 
             s3_client = get_minio_client()
 
@@ -65,7 +65,7 @@ def poll_kafka_messages(**kwargs):
             folder_prefix = 'metadatos/'
             local_directory = 'tmp'  
             for msg_value in messages:
-                file_path_in_minio =  msg_value.replace('/tmp/', '')
+                file_path_in_minio =  msg_value.replace('tmp/', '')
                 try:
                     local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
                     print(local_zip_path)
