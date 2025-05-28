@@ -18,6 +18,7 @@ from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOpera
 from dag_utils import get_db_session, delete_file_sftp
 from airflow.models import Variable
 from confluent_kafka import Consumer, KafkaException
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 
 mensaje_final = {
     "key": "ImagenMetadatos",
@@ -174,7 +175,19 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
     idRafaga = output_json.get("IdentificadorRafaga", '0')
     if(idRafaga != '0' and idRafaga != '' and idRafaga != None):
         #Es una rafaga
-        is_rafaga(output, output_json , version)
+        # is_rafaga(output, output_json , version)
+        trigger_dag = TriggerDagRunOperator(
+            task_id='process_rafagas_and_metadatos',
+            trigger_dag_id='process_rafagas_and_metadatos',
+            conf={
+                'output': output,
+                'output_json': output_json,
+                'version': version
+            },
+            dag=kwargs['dag']
+        )
+        trigger_dag.execute(context=kwargs)
+        print(f"Ráfaga con ID {idRafaga} procesada.")
 
 
 
