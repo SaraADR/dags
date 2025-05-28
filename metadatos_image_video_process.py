@@ -42,7 +42,7 @@ def poll_kafka_messages(**kwargs):
 
     try:
         while True:
-            msg = consumer.poll(timeout=1.0)
+            msg = consumer.poll(timeout=5.0)
             if msg is None:
                 print("No hay más mensajes que leer en el topic")
                 break  
