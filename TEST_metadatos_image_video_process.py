@@ -42,7 +42,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id='kafka_polling_dag',
+    dag_id='TEST_metadatos_image_video_process',
     default_args=default_args,
     schedule_interval='*/1 * * * *',  # Cada minuto
     catchup=False,
