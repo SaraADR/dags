@@ -64,9 +64,8 @@ def poll_kafka_messages(**kwargs):
             bucket_name = 'tmp'
             folder_prefix = 'metadatos/'
             local_directory = 'tmp'  
-            file_path_in_minio = file_path_in_minio.replace('/tmp/', '')
             for msg_value in messages:
-                file_path_in_minio =  msg_value  
+                file_path_in_minio =  msg_value.replace('/tmp/', '')
                 try:
                     local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
                     print(local_zip_path)
