@@ -34,6 +34,8 @@ def poll_kafka_messages(**context):
     finally:
         consumer.close()
 
+
+
 default_args = {
     'owner': 'airflow',
     'start_date': datetime(2024, 1, 1),
@@ -41,15 +43,22 @@ default_args = {
     'retry_delay': timedelta(minutes=1)
 }
 
-with DAG(
-    dag_id='TEST_metadatos_image_video_process',
+dag = DAG(
+    'TEST_metadatos_image_video_process',
     default_args=default_args,
-    schedule_interval='*/1 * * * *',  # Cada minuto
+    description='DAG ',
+    schedule_interval='*/1 * * * *',
     catchup=False,
-) as dag:
+    max_active_runs=1,
+    concurrency=1
+    
+)
 
-    poll_task = PythonOperator(
+
+poll_task = PythonOperator(
         task_id='poll_kafka',
         python_callable=poll_kafka_messages,
         provide_context=True
-    )
+)
+
+poll_task
