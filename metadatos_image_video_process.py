@@ -266,9 +266,27 @@ def process_ts_job(output, message, local_zip_path):
 
 
 ##--------------------------- PROCEDIMIENTO DE RAFAGAS ------------------------------------------------
-def is_rafaga(output, message, version):
-    print("No se ha implementado el sistema de rafagas todavia")
-    return
+def is_rafaga(output, output_json, version, **kwargs):
+    """Dispara el DAG de ráfagas si se detecta una ráfaga."""
+
+    print("Ráfaga detectada. Lanzando DAG 'process_rafagas_and_metadatos'")
+
+    try:
+        TriggerDagRunOperator(
+            task_id=f"trigger_rafagas_{uuid.uuid4()}",
+            trigger_dag_id='process_rafagas_and_metadatos',
+            conf={
+                'output': output,
+                'output_json': output_json,
+                'version': version
+            },
+            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+            dag=kwargs['dag']  # obligatorio para que funcione correctamente
+        ).execute(context=kwargs)
+
+        print("DAG de ráfagas lanzado correctamente.")
+    except Exception as e:
+        print(f"Error al lanzar el DAG de ráfagas: {e}")
 
 
 
