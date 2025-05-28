@@ -173,9 +173,8 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
 
     idRafaga = output_json.get("IdentificadorRafaga", '0')
-    if(idRafaga != '0' and idRafaga != '' and idRafaga != None):
-        #Es una rafaga
-        is_rafaga(output, output_json , version)
+    if idRafaga not in ['0', '', None]:
+        is_rafaga(output, output_json, version, **kwargs)
 
 
     #SON VIDEOS
