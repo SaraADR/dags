@@ -56,7 +56,7 @@ def poll_kafka_messages(**kwargs):
         
         if messages:
             print(f"Total messages received: {len(messages)}")
-            consumer.commit()
+            # consumer.commit()
 
             s3_client = get_minio_client()
 
