@@ -776,9 +776,10 @@ consume_from_topic = ConsumeFromTopicOperator(
     topics=["metadata11"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_batch",
+    commit_cadence="end_of_operator",
     dag=dag,
 )
+
 
 produce_task = ProduceToTopicOperator(
     task_id="produce_to_kafka",
