@@ -13,13 +13,13 @@ def poll_kafka_messages(**context):
 
     consumer = Consumer(conf)
     consumer.subscribe(['metadata11'])
-
+    messages = []
     try:
-        messages = []
         while True:
             msg = consumer.poll(timeout=1.0)
             if msg is None:
-                break  # No más mensajes
+                print("No hay mensajes nuevos que leer en el topic")
+                break  
             if msg.error():
                 raise KafkaException(msg.error())
             else:
@@ -27,9 +27,10 @@ def poll_kafka_messages(**context):
                 print(f"Received message: {decoded_msg}")
                 messages.append(decoded_msg)
 
-        # Procesa los mensajes aquí si quieres
+        
         if messages:
             print(f"Total messages received: {len(messages)}")
+            consumer.commit()
 
     finally:
         consumer.close()
