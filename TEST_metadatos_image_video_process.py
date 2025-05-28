@@ -18,7 +18,7 @@ def poll_kafka_messages(**context):
         while True:
             msg = consumer.poll(timeout=1.0)
             if msg is None:
-                print("No hay mensajes nuevos que leer en el topic")
+                print("No hay más mensajes que leer en el topic")
                 break  
             if msg.error():
                 raise KafkaException(msg.error())
