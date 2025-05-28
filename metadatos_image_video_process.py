@@ -64,6 +64,7 @@ def poll_kafka_messages(**kwargs):
             bucket_name = 'tmp'
             folder_prefix = 'metadatos/'
             local_directory = 'tmp'  
+            file_path_in_minio = file_path_in_minio.replace('/tmp/', '')
             for msg_value in messages:
                 file_path_in_minio =  msg_value  
                 try:
