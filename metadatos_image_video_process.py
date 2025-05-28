@@ -57,21 +57,23 @@ def poll_kafka_messages(**kwargs):
         if messages:
             print(f"Total messages received: {len(messages)}")
             consumer.commit()
-            file_path_in_minio =  msg_value  
+
             s3_client = get_minio_client()
+
             # Nombre del bucket donde está almacenado el archivo/carpeta
             bucket_name = 'tmp'
             folder_prefix = 'metadatos/'
             local_directory = 'tmp'  
-
-            try:
-                local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
-                print(local_zip_path)
-                process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
-                delete_file_sftp(msg_value)
-            except Exception as e:
-                print(f"Error al descargar desde MinIO: {e}")
-                raise 
+            for msg_value in messages:
+                file_path_in_minio =  msg_value  
+                try:
+                    local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
+                    print(local_zip_path)
+                    process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
+                    delete_file_sftp(msg_value)
+                except Exception as e:
+                    print(f"Error al descargar desde MinIO: {e}")
+                    raise 
 
     finally:
         consumer.close()
