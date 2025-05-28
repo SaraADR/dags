@@ -770,7 +770,6 @@ dag = DAG(
     concurrency=1,
 )
 
-
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic_minio",
@@ -780,7 +779,6 @@ consume_from_topic = ConsumeFromTopicOperator(
     commit_cadence="end_of_batch",
     dag=dag,
 )
-
 
 produce_task = ProduceToTopicOperator(
     task_id="produce_to_kafka",
@@ -796,6 +794,5 @@ delete_global_task = PythonOperator(
     provide_context=True,
     dag=dag,
 )
-
 
 consume_from_topic >> produce_task >> delete_global_task
