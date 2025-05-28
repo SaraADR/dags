@@ -17,6 +17,7 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from dag_utils import get_db_session, delete_file_sftp
 from airflow.models import Variable
+from confluent_kafka import Consumer, KafkaException
 
 mensaje_final = {
     "key": "ImagenMetadatos",
@@ -27,34 +28,53 @@ mensaje_final = {
     }
 }
 
+def poll_kafka_messages(**context):
+    conf = {
+        'bootstrap.servers': '10.96.180.179:9092',
+        'group.id': '1',
+        'auto.offset.reset': 'earliest',
+        'enable.auto.commit': False
+    }
 
-def consumer_function(message, prefix, **kwargs):
-    print(f"Mensaje crudo: {message}")
+    consumer = Consumer(conf)
+    consumer.subscribe(['metadata11'])
+    messages = []
+
     try:
-        msg_value = message.value().decode('utf-8')
-        print("Mensaje procesado: ", msg_value)
-    except Exception as e:
-        print(f"Error al procesar el mensaje: {e}")
+        while True:
+            msg = consumer.poll(timeout=1.0)
+            if msg is None:
+                print("No hay más mensajes que leer en el topic")
+                break  
+            if msg.error():
+                raise KafkaException(msg.error())
+            else:
+                msg_value = msg.value().decode('utf-8')
+                print("Mensaje procesado: ", msg_value)
+                messages.append(msg_value)
 
-    file_path_in_minio =  msg_value  
         
-    s3_client = get_minio_client()
+        if messages:
+            print(f"Total messages received: {len(messages)}")
+            consumer.commit()
+            file_path_in_minio =  msg_value  
+            s3_client = get_minio_client()
+            # Nombre del bucket donde está almacenado el archivo/carpeta
+            bucket_name = 'tmp'
+            folder_prefix = 'metadatos/'
+            local_directory = 'tmp'  
 
+            try:
+                local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
+                print(local_zip_path)
+                process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
+                delete_file_sftp(msg_value)
+            except Exception as e:
+                print(f"Error al descargar desde MinIO: {e}")
+                raise 
 
-    # Nombre del bucket donde está almacenado el archivo/carpeta
-    bucket_name = 'tmp'
-    folder_prefix = 'metadatos/'
-    local_directory = 'tmp'  
-
-    try:
-        local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
-        print(local_zip_path)
-        process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
-        delete_file_sftp(msg_value)
-    except Exception as e:
-        print(f"Error al descargar desde MinIO: {e}")
-        raise 
-
+    finally:
+        consumer.close()
 
 
 #HACE LECTURA DE METADATOS Y CONTROLA EL TIPO ENCONTRADO
@@ -770,15 +790,13 @@ dag = DAG(
     concurrency=1,
 )
 
-consume_from_topic = ConsumeFromTopicOperator(
-    kafka_config_id="kafka_connection",
-    task_id="consume_from_topic_minio",
-    topics=["metadata11"],
-    apply_function=consumer_function,
-    apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_operator",
-    dag=dag,
+poll_task = PythonOperator(
+        task_id='poll_kafka',
+        python_callable=poll_kafka_messages,
+        provide_context=True,
+        dag=dag
 )
+
 
 
 produce_task = ProduceToTopicOperator(
@@ -796,4 +814,4 @@ delete_global_task = PythonOperator(
     dag=dag,
 )
 
-consume_from_topic >> produce_task >> delete_global_task
+poll_task >> produce_task >> delete_global_task
