@@ -40,18 +40,11 @@ def process_rafagas(**kwargs):
         return
 
     conf = dag_run.conf or {}
-    output = conf.get('output')
     output_json = conf.get('output_json')
-    version = conf.get('version')
-
     if not output_json:
         print("No se recibió información de ráfaga en conf, abortando.")
         return
 
-    print(f"Procesando ráfaga con versión: {version}")
-    print(f"Output JSON recibido: {output_json}")
-
-    # Adaptar la extracción de archivos según la estructura que envíes
     files_list = output_json.get('files_list', [])
     if not files_list:
         print("No hay lista de archivos para procesar ráfaga, terminando.")
@@ -61,6 +54,7 @@ def process_rafagas(**kwargs):
     session = get_db_session()
 
     rafagas = extract_rafaga_parts(files_list)
+    mission_id = output_json.get('MissionID', 'MISION_DESCONOCIDA')
 
     for base, parts in rafagas.items():
         start_file = parts['start']
@@ -71,35 +65,55 @@ def process_rafagas(**kwargs):
             print(f"Ráfaga incompleta para base {base}, se omite")
             continue
 
-        # Simulación de fechas, puedes extraer fechas reales si tienes metadatos
+        # Simulación de fechas, puede adaptarse para extraer reales
         start_time = datetime.now()
         end_time = start_time + timedelta(minutes=5)
 
         print(f"Procesando ráfaga {base}: inicio {start_time}, fin {end_time}, total archivos: {len(inter_files)+2}")
 
-        mission_id = output_json.get('MissionID', 'MISION_DESCONOCIDA')
-        all_files = [start_file] + inter_files + [end_file]
+        # Buscar ráfaga existente en BD
+        query = """
+            SELECT minio_path FROM missions
+            WHERE mission_id = :mission_id
+              AND rafaga_base = :rafaga_base
+              AND tsrange(start_time, end_time, '[)') @> :fecha
+            LIMIT 1
+        """
+        result = session.execute(query, {
+            'mission_id': mission_id,
+            'rafaga_base': base,
+            'fecha': start_time
+        }).fetchone()
 
+        if result:
+            minio_path = result['minio_path']
+            print(f"Ráfaga existente encontrada con path {minio_path}")
+        else:
+            minio_path = f"{mission_id}/{str(uuid.uuid4())}"
+            insert_query = """
+                INSERT INTO missions (mission_id, rafaga_base, start_time, end_time, minio_path)
+                VALUES (:mission_id, :rafaga_base, :start, :end, :minio_path)
+            """
+            session.execute(insert_query, {
+                'mission_id': mission_id,
+                'rafaga_base': base,
+                'start': start_time,
+                'end': end_time,
+                'minio_path': minio_path
+            })
+            session.commit()
+            print(f"Ráfaga nueva creada con path {minio_path}")
+
+        # Subir archivos a MinIO en ruta minio_path
+        all_files = [start_file] + inter_files + [end_file]
         for f in all_files:
             key = str(uuid.uuid4())
+            local_path = f"/tmp/{f}"  # Ajustar con ruta real local de los archivos
             try:
-                print(f"Subiendo {f} a missions/{mission_id}/{key}")
-                # Aquí tu código para subir a MinIO si tienes el path local
-                # upload_to_minio_path('minio_conn', 'missions', f"{mission_id}/{key}/{f}", local_path)
+                upload_to_minio_path('minio_conn', 'missions', f"{minio_path}/{key}/{f}", local_path)
+                print(f"Archivo {f} subido a {minio_path}/{key}")
             except Exception as e:
                 print(f"Error subiendo {f}: {e}")
-
-        try:
-            insert_query = """
-                INSERT INTO missions (mission_id, rafaga_base, start_time, end_time)
-                VALUES (:mission_id, :base, :start, :end)
-            """
-            session.execute(insert_query, {'mission_id': mission_id, 'base': base, 'start': start_time, 'end': end_time})
-            session.commit()
-            print(f"Metadatos insertados para ráfaga {base}")
-        except Exception as e:
-            session.rollback()
-            print(f"Error insertando en BD: {e}")
 
     session.close()
 
