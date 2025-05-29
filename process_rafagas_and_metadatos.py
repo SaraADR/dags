@@ -35,15 +35,21 @@ def process_rafagas(**kwargs):
 
     conf = dag_run.conf or {}
     output_json = conf.get('output_json')
-    print("Conf loaded successfully")
-    print(f"Output JSON: {output_json}")    
-    if not output_json:
-        print("No output_json in conf, aborting.")
-        return
+    output = conf.get('output')
+    version = conf.get('version')
 
-    files_list = output_json.get('files_list', [])
+    print("=== process_rafagas START ===")
+    print(f"Version recibida: {version}")
+    print(f"Output completo: {output}")
+    print("Output_json completo:")
+    import json
+    print(json.dumps(output_json, indent=4, ensure_ascii=False))
+
+    files_list = output_json.get('files_list')
+    print(f"files_list: {files_list}")
+
     if not files_list:
-        print("No files_list in output_json, finishing.")
+        print("No hay 'files_list' en output_json, el procesamiento de ráfagas queda abortado.")
         return
 
     session = get_db_session()
