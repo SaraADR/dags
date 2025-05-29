@@ -5,6 +5,10 @@ import uuid
 import re
 from dag_utils import get_minio_client, get_db_session, upload_to_minio_path
 
+print("Starting process_rafagas_and_metadatos DAG")
+print("Importing necessary modules...")
+print("Modules imported successfully")
+
 def extract_rafaga_parts(files_list):
     rafagas = {}
     regex = re.compile(r'([PT]\w+)([19])$')
@@ -31,6 +35,8 @@ def process_rafagas(**kwargs):
 
     conf = dag_run.conf or {}
     output_json = conf.get('output_json')
+    print("Conf loaded successfully")
+    print(f"Output JSON: {output_json}")    
     if not output_json:
         print("No output_json in conf, aborting.")
         return
