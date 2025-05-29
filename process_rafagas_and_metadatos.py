@@ -16,9 +16,7 @@ def insert_rafaga_and_observation(**kwargs):
     output_json = conf['output_json']
     if isinstance(output_json, str):
         output_json = json.loads(output_json)
-
-
-    print(f"Datos recibidos: {output_json}")
+    
     print(f"Procesando ráfaga con Identificador: {output_json.get('IdentificadorRafaga')}")
     
     session = get_db_session()
@@ -42,13 +40,12 @@ def insert_rafaga_and_observation(**kwargs):
         print(f"Tabla captura: {tabla_captura}")
         print(f"Tabla observación: {tabla_observacion}")
 
-        # Insertar en tabla captura_rafaga
         insert_rafaga_sql = f"""
             INSERT INTO {tabla_captura} (
                 valid_time, payload_id, multisim_id, ground_control_station_id,
                 pc_embarcado_id, operator_name, pilot_name, sensor, platform
             ) VALUES (
-                now(), :payload_id, :multisim_id, :ground_control_station_id,
+                tsrange(now(), now() + interval '1 minute'), :payload_id, :multisim_id, :ground_control_station_id,
                 :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform
             ) RETURNING fid
         """
@@ -68,7 +65,6 @@ def insert_rafaga_and_observation(**kwargs):
         fid = result.scalar()
         print(f"Insertado en {tabla_captura} con fid: {fid}")
 
-        # Generar shape WKT simple (punto GPS)
         lat_str = output_json.get("GPSLatitude", "0").split()[0]
         lon_str = output_json.get("GPSLongitude", "0").split()[0]
         try:
@@ -79,7 +75,6 @@ def insert_rafaga_and_observation(**kwargs):
             shape_wkt = "POINT(0 0)"
             print("Error al parsear coordenadas GPS, usando POINT(0 0)")
 
-        # Insertar en tabla observation_captura_rafaga
         insert_obs_sql = f"""
             INSERT INTO {tabla_observacion} (
                 procedure, sampled_feature, shape, result_time, phenomenon_time, identificador_rafaga, temporal_subsamples
