@@ -81,9 +81,12 @@ def insert_rafaga_and_observation(**kwargs):
             INSERT INTO {tabla_observacion} (
                 procedure, sampled_feature, shape, result_time, phenomenon_time, identificador_rafaga, temporal_subsamples
             ) VALUES (
-                :procedure, :sampled_feature, ST_GeomFromText(:shape, 4326), now(), now(), :identificador_rafaga, '{{}}'
+                :procedure, :sampled_feature, ST_GeomFromText(:shape, 4326), now(), 
+                tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp), 
+                :identificador_rafaga, '{{}}'
             )
         """
+
 
         obs_params = {
             "procedure": int(output_json.get("SensorID", 0)),
