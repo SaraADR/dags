@@ -72,10 +72,19 @@ def insert_rafaga_and_observation(**kwargs):
         try:
             lat = float(lat_str)
             lon = float(lon_str)
-            shape_wkt = f"POINT({lon} {lat})"
+            offset = 0.0001  # pequeño desplazamiento en grados
+
+            # Crear polígono cuadrado en WKT (cerrado)
+            shape_wkt = (
+                f"POLYGON(({lon - offset} {lat - offset}, "
+                f"{lon - offset} {lat + offset}, "
+                f"{lon + offset} {lat + offset}, "
+                f"{lon + offset} {lat - offset}, "
+                f"{lon - offset} {lat - offset}))"
+            )
         except Exception:
-            shape_wkt = "POINT(0 0)"
-            print("Error al parsear coordenadas GPS, usando POINT(0 0)")
+            shape_wkt = "POLYGON((0 0,0 0,0 0,0 0,0 0))"
+            print("Error al parsear coordenadas GPS, usando polígono 0")
 
         insert_obs_sql = f"""
             INSERT INTO {tabla_observacion} (
@@ -86,7 +95,6 @@ def insert_rafaga_and_observation(**kwargs):
                 :identificador_rafaga, '{{}}'
             )
         """
-
 
         obs_params = {
             "procedure": int(output_json.get("SensorID", 0)),
