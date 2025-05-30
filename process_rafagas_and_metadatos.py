@@ -10,26 +10,33 @@ from dag_utils import get_db_session, get_minio_client, minio_api, upload_to_min
 
 
 def insert_rafaga_and_observation(**kwargs):
+    print("[INFO] Iniciando procesamiento de ráfaga")
     conf = kwargs.get('dag_run').conf
     if not conf or 'output_json' not in conf:
-        print("No se recibió 'output_json', abortando.")
+        print("[ERROR] No se recibió 'output_json', abortando.")
         return
 
     output_json = conf['output_json']
     if isinstance(output_json, str):
         output_json = json.loads(output_json)
+    print(f"[DEBUG] output_json recibido: {output_json}")
 
     visible_img = conf.get("visible_image", None)
     thermic_img = conf.get("thermic_image", None)
     multispectral_img = conf.get("multispectral_image", None)
+    print(f"[DEBUG] visible_img presente: {visible_img is not None}")
+    print(f"[DEBUG] thermic_img presente: {thermic_img is not None}")
+    print(f"[DEBUG] multispectral_img presente: {multispectral_img is not None}")
 
     session = get_db_session()
     s3_client = get_minio_client()
     bucket = 'tmp'
     minio_base_url = minio_api()
+    print(f"[INFO] Conexión a MinIO establecida con endpoint: {minio_base_url}")
 
     try:
         model = output_json.get("Model", "").lower()
+        print(f"[INFO] Modelo detectado: {model}")
         if "infra" in model:
             tipo = "infrarroja"
             img_data = thermic_img
@@ -39,13 +46,16 @@ def insert_rafaga_and_observation(**kwargs):
         else:
             tipo = "visible"
             img_data = visible_img
+        print(f"[INFO] Tipo de ráfaga determinado: {tipo}")
 
         tabla_captura = f"observacion_aerea.captura_rafaga_{tipo}"
         tabla_observacion = f"observacion_aerea.observation_captura_rafaga_{tipo}"
         tabla_temporal_subsample = f"observacion_aerea.observation_captura_rafaga_{tipo}_temporal_subsample"
+        print(f"[INFO] Tablas seleccionadas: {tabla_captura}, {tabla_observacion}, {tabla_temporal_subsample}")
 
         rafaga_base = output_json.get("IdentificadorRafaga")
         mission_id = output_json.get("MissionID")
+        print(f"[INFO] Identificador ráfaga: {rafaga_base}, MissionID: {mission_id}")
 
         if tipo == "visible":
             exposure_time = output_json.get("exposureTime", None)
@@ -129,10 +139,10 @@ def insert_rafaga_and_observation(**kwargs):
                 'exposure2': exposure2
             }
 
-        # Insert captura_rafaga
+        print(f"[INFO] Ejecutando inserción en tabla captura: {tabla_captura}")
         result = session.execute(text(insert_rafaga_sql), params)
         fid_captura = result.scalar()
-        print(f"Insertado en {tabla_captura} con fid: {fid_captura}")
+        print(f"[INFO] Insertado en {tabla_captura} con fid: {fid_captura}")
 
         valid_time_start = datetime.utcnow()
         valid_time_end = valid_time_start + timedelta(minutes=1)
@@ -150,9 +160,10 @@ def insert_rafaga_and_observation(**kwargs):
                 f"{lon + offset} {lat - offset}, "
                 f"{lon - offset} {lat - offset}))"
             )
-        except Exception:
+            print(f"[INFO] Geometría WKT generada: {shape_wkt}")
+        except Exception as e:
             shape_wkt = "POLYGON((0 0,0 0,0 0,0 0,0 0))"
-            print("Error al parsear coordenadas GPS, usando polígono 0")
+            print(f"[ERROR] Error al parsear coordenadas GPS: {e}. Usando polígono 0")
 
         insert_obs_sql = f"""
             INSERT INTO {tabla_observacion} (
@@ -173,16 +184,21 @@ def insert_rafaga_and_observation(**kwargs):
             "valid_time_end": valid_time_end,
             "identificador_rafaga": rafaga_base
         }
+        print(f"[INFO] Ejecutando inserción en tabla observación: {tabla_observacion}")
         result_obs = session.execute(text(insert_obs_sql), obs_params)
         fid_observacion = result_obs.scalar()
-        print(f"Insertada observación en {tabla_observacion} con fid: {fid_observacion}")
+        print(f"[INFO] Insertada observación en {tabla_observacion} con fid: {fid_observacion}")
 
         image_url = None
         if img_data:
             prefix = f"rafagas/{tipo}/"
             key = f"{prefix}{uuid.uuid4()}.jpg"
+            print(f"[INFO] Subiendo imagen a MinIO en {bucket}/{key}")
             upload_to_minio('minio_conn', bucket, key, img_data)
             image_url = f"{minio_base_url}/{bucket}/{key}"
+            print(f"[INFO] Imagen subida. URL: {image_url}")
+        else:
+            print("[INFO] No se proporcionó imagen para subir a MinIO.")
 
         if image_url:
             insert_subsample_sql = f"""
@@ -196,18 +212,21 @@ def insert_rafaga_and_observation(**kwargs):
                 "phenomenon_time": valid_time_start,
                 "image_url": image_url
             }
+            print(f"[INFO] Insertando subsample temporal en tabla: {tabla_temporal_subsample}")
             session.execute(text(insert_subsample_sql), subsample_params)
-            print(f"Insertado subsample temporal en {tabla_temporal_subsample}")
+            print(f"[INFO] Insertado subsample temporal en {tabla_temporal_subsample}")
         else:
-            print("No se encontró imagen para subsample temporal, se omite inserción.")
+            print("[INFO] No se encontró imagen para subsample temporal, se omite inserción.")
 
         session.commit()
+        print("[INFO] Transacción confirmada en base de datos")
 
     except Exception as e:
         session.rollback()
-        print(f"Error en inserción a BD: {e}")
+        print(f"[ERROR] Error en inserción a BD: {e}")
     finally:
         session.close()
+        print("[INFO] Sesión de base de datos cerrada")
 
 
 default_args = {
