@@ -265,37 +265,25 @@ def process_ts_job(output, message, local_zip_path):
 
 
 ##--------------------------- PROCEDIMIENTO DE RAFAGAS ------------------------------------------------
-def is_rafaga(output, output_json, version, visible_img=None, thermic_img=None, multispectral_img=None, **kwargs):
-    """Dispara el DAG de ráfagas si se detecta una ráfaga."""
-
+def is_rafaga(output, output_json, version, ruta_imagen=None, **kwargs):
     print("Ráfaga detectada. Lanzando DAG 'process_rafagas_and_metadatos'")
 
-    try:
-        # Construimos el dict de conf incluyendo las imágenes si se pasan
-        conf_dict = {
-            'output': output,
-            'output_json': output_json,
-            'version': version
-        }
+    conf_dict = {
+        'output': output,
+        'output_json': output_json,
+        'version': version,
+    }
+    if ruta_imagen:
+        conf_dict['RutaImagen'] = ruta_imagen  # Aquí le pasas la ruta de MinIO
 
-        if visible_img:
-            conf_dict['visible_image'] = visible_img
-        if thermic_img:
-            conf_dict['thermic_image'] = thermic_img
-        if multispectral_img:
-            conf_dict['multispectral_image'] = multispectral_img
+    TriggerDagRunOperator(
+        task_id=f"trigger_rafagas_{uuid.uuid4()}",
+        trigger_dag_id='process_rafagas_and_metadatos',
+        conf=conf_dict,
+        execution_date=datetime.now().replace(tzinfo=timezone.utc),
+        dag=kwargs['dag']
+    ).execute(context=kwargs)
 
-        TriggerDagRunOperator(
-            task_id=f"trigger_rafagas_{uuid.uuid4()}",
-            trigger_dag_id='process_rafagas_and_metadatos',
-            conf=conf_dict,
-            execution_date=datetime.now().replace(tzinfo=timezone.utc),
-            dag=kwargs['dag']  # obligatorio para que funcione correctamente
-        ).execute(context=kwargs)
-
-        print("DAG de ráfagas lanzado correctamente.")
-    except Exception as e:
-        print(f"Error al lanzar el DAG de ráfagas: {e}")
 
 
 
