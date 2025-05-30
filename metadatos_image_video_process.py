@@ -265,7 +265,7 @@ def process_ts_job(output, message, local_zip_path):
 
 
 ##--------------------------- PROCEDIMIENTO DE RAFAGAS ------------------------------------------------
-def is_rafaga(output, output_json, version, ruta_imagen=None, **kwargs):
+def is_rafaga(output, output_json, version, ruta_imagen, **kwargs):
     print("Ráfaga detectada. Lanzando DAG 'process_rafagas_and_metadatos'")
 
     conf_dict = {
@@ -274,7 +274,7 @@ def is_rafaga(output, output_json, version, ruta_imagen=None, **kwargs):
         'version': version,
     }
     if ruta_imagen:
-        conf_dict['RutaImagen'] = ruta_imagen  # Aquí le pasas la ruta de MinIO
+        conf_dict['RutaImagen'] = ruta_imagen  
 
     TriggerDagRunOperator(
         task_id=f"trigger_rafagas_{uuid.uuid4()}",
