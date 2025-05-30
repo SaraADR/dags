@@ -166,18 +166,19 @@ def insert_rafaga_and_observation(**kwargs):
                 procedure, sampled_feature, shape, result_time, phenomenon_time, identificador_rafaga, temporal_subsamples
             ) VALUES (
                 :procedure, :sampled_feature, ST_GeomFromText(:shape, 4326), :result_time,
-                tsrange(:valid_time_start::timestamp, :valid_time_end::timestamp),
+                tsrange(:valid_time_start, :valid_time_end),
                 :identificador_rafaga, '{{}}'
             )
             RETURNING fid
         """
+
         obs_params = {
             "procedure": int(output_json.get("SensorID", 0)),
             "sampled_feature": mission_id,
             "shape": shape_wkt,
             "result_time": valid_time_start,
-            "valid_time_start": valid_time_start.isoformat(),
-            "valid_time_end": valid_time_end.isoformat(),
+            "valid_time_start": valid_time_start,
+            "valid_time_end": valid_time_end,
             "identificador_rafaga": rafaga_base
         }
 
