@@ -265,16 +265,14 @@ def process_ts_job(output, message, local_zip_path):
 
 
 ##--------------------------- PROCEDIMIENTO DE RAFAGAS ------------------------------------------------
-def is_rafaga(output, output_json, version, ruta_imagen, **kwargs):
-    print("Ráfaga detectada. Lanzando DAG 'process_rafagas_and_metadatos'")
-
+def is_rafaga(output, output_json, version, ruta_imagen=None, **kwargs):
     conf_dict = {
         'output': output,
         'output_json': output_json,
         'version': version,
     }
     if ruta_imagen:
-        conf_dict['RutaImagen'] = ruta_imagen  
+        conf_dict['RutaImagen'] = ruta_imagen
 
     TriggerDagRunOperator(
         task_id=f"trigger_rafagas_{uuid.uuid4()}",
@@ -283,8 +281,6 @@ def is_rafaga(output, output_json, version, ruta_imagen, **kwargs):
         execution_date=datetime.now().replace(tzinfo=timezone.utc),
         dag=kwargs['dag']
     ).execute(context=kwargs)
-
-
 
 
 ##--------------------------- PROCEDIMIENTO DE IMAGENES Y VIDEOS ---------------------------------------
