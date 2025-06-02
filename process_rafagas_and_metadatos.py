@@ -64,21 +64,7 @@ def insert_rafaga_and_observation(**kwargs):
         # Insertar en tabla de captura
         print("[INFO] Preparando inserción en tabla de captura...")
 
-        exposure_time = output_json.get("exposureTime", None)
-
-        insert_rafaga_sql = f"""
-            INSERT INTO {tabla_captura} (
-                valid_time, payload_id, multisim_id, ground_control_station_id,
-                pc_embarcado_id, operator_name, pilot_name, sensor, platform,
-                exposuretime
-            ) VALUES (
-                tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp),
-                :payload_id, :multisim_id, :ground_control_station_id,
-                :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform,
-                :exposure_time
-            ) RETURNING fid
-        """
-        params = {
+        base_params = {
             'payload_id': output_json.get('PayloadSN'),
             'multisim_id': output_json.get('MultisimSN'),
             'ground_control_station_id': output_json.get('GroundControlStationSN'),
@@ -87,12 +73,42 @@ def insert_rafaga_and_observation(**kwargs):
             'pilot_name': output_json.get('PilotName'),
             'sensor': output_json.get('Model'),
             'platform': output_json.get('AircraftNumberPlate'),
-            'exposure_time': exposure_time
         }
-        print(f"[DEBUG] Parámetros de inserción captura: {params}")
-        result = session.execute(text(insert_rafaga_sql), params)
+
+        if tipo == "visible":
+            exposure_time = output_json.get("ExposureTime", None)
+            base_params['exposure_time'] = exposure_time
+            insert_rafaga_sql = f"""
+                INSERT INTO {tabla_captura} (
+                    valid_time, payload_id, multisim_id, ground_control_station_id,
+                    pc_embarcado_id, operator_name, pilot_name, sensor, platform,
+                    exposuretime
+                ) VALUES (
+                    tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp),
+                    :payload_id, :multisim_id, :ground_control_station_id,
+                    :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform,
+                    :exposure_time
+                ) RETURNING fid
+            """
+        else:
+            insert_rafaga_sql = f"""
+                INSERT INTO {tabla_captura} (
+                    valid_time, payload_id, multisim_id, ground_control_station_id,
+                    pc_embarcado_id, operator_name, pilot_name, sensor, platform
+                ) VALUES (
+                    tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp),
+                    :payload_id, :multisim_id, :ground_control_station_id,
+                    :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform
+                ) RETURNING fid
+            """
+
+        print(f"[DEBUG] SQL preparado para tabla {tabla_captura}:\n{insert_rafaga_sql}")
+        print(f"[DEBUG] Parámetros:\n{base_params}")
+
+        result = session.execute(text(insert_rafaga_sql), base_params)
         captura_fid = result.fetchone()[0] if result.returns_rows else None
         print(f"[OK] Fila de captura insertada con fid: {captura_fid}")
+
 
         # Fechas y geometría
         valid_time_start = datetime.utcnow()
