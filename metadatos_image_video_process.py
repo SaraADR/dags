@@ -265,12 +265,11 @@ def process_ts_job(output, message, local_zip_path):
 
 
 ##--------------------------- PROCEDIMIENTO DE RAFAGAS ------------------------------------------------
-def is_rafaga(output, output_json, version, FileName, ruta_imagen=None, **kwargs):
+def is_rafaga(output, output_json, version, ruta_imagen=None, **kwargs):
     conf_dict = {
         'output': output,
         'output_json': output_json,
         'version': version,
-        'FileName': FileName,
     }
     if ruta_imagen:
         conf_dict['RutaImagen'] = ruta_imagen
