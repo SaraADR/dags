@@ -5,7 +5,7 @@ from sqlalchemy import text
 import json
 from dag_utils import get_db_session, minio_api
 
-def insert_rafaga_and_observation(**kwargs):
+def insert_rafaga_and_observation(nombre_archivo: str, **kwargs) -> str:
     print("\n[INFO] Iniciando procesamiento de ráfaga")
 
     conf = kwargs.get('dag_run').conf
@@ -29,21 +29,25 @@ def insert_rafaga_and_observation(**kwargs):
     minio_base_url = minio_api()
     print(f"[INFO] Conexión a MinIO: {minio_base_url}")
 
+    
+
     try:
-        model = output_json.get("Model", "").lower()
-        print(f"[DEBUG] Modelo detectado: {model}")
-
-        if not model:
-            print("[ERROR] Campo 'Model' vacío. Abortando.")
-            return
-
-        if "infra" in model:
+        nombre = nombre_archivo.lower()
+    
+        if nombre.endswith("-ter.tiff"):
+            print("[INFO] Ráfaga detectada como INFRARROJA por sufijo '-ter.tiff'")
             tipo = "infrarroja"
-        elif "multi" in model:
+        elif "-mul-" in nombre or "-band_" in nombre:
+            print("[INFO] Ráfaga detectada como MULTIESPECTRAL por sufijo '-mul-' o '-band_'")
             tipo = "multiespectral"
-        else:
+        elif "-harrier.tiff" in nombre or "-basler.tiff" in nombre:
+            print("[INFO] Ráfaga detectada como VISIBLE por sufijo '-harrier.tiff' o '-basler.tiff'")
             tipo = "visible"
-        print(f"[INFO] Tipo de ráfaga: {tipo}")
+        else:
+            print(f"[WARNING] No se pudo determinar tipo desde nombre: '{nombre_archivo}'")
+
+
+        print(f"[INFO] Tipo de ráfaga determinado: {tipo}")
 
         tabla_captura = f"observacion_aerea.captura_rafaga_{tipo}"
         tabla_observacion = f"observacion_aerea.observation_captura_rafaga_{tipo}"
