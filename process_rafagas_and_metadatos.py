@@ -102,9 +102,6 @@ def insert_rafaga_and_observation(**kwargs):
                 ) RETURNING fid
             """
 
-        print(f"[DEBUG] SQL preparado para tabla {tabla_captura}:\n{insert_rafaga_sql}")
-        print(f"[DEBUG] Parámetros:\n{base_params}")
-
         result = session.execute(text(insert_rafaga_sql), base_params)
         captura_fid = result.fetchone()[0] if result.returns_rows else None
         print(f"[OK] Fila de captura insertada con fid: {captura_fid}")
