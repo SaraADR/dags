@@ -69,7 +69,7 @@ def insert_rafaga_and_observation(**kwargs):
                     pc_embarcado_id, operator_name, pilot_name, sensor, platform,
                     exposuretime
                 ) VALUES (
-                    tsrange(now(), now() + interval '1 minute'),
+                    tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp),
                     :payload_id, :multisim_id, :ground_control_station_id,
                     :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform,
                     :exposure_time
@@ -92,7 +92,7 @@ def insert_rafaga_and_observation(**kwargs):
                     valid_time, payload_id, multisim_id, ground_control_station_id,
                     pc_embarcado_id, operator_name, pilot_name, sensor, platform
                 ) VALUES (
-                    tsrange(now(), now() + interval '1 minute'),
+                    tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp),
                     :payload_id, :multisim_id, :ground_control_station_id,
                     :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform
                 ) RETURNING fid
