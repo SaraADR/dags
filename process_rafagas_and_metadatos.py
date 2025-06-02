@@ -5,7 +5,7 @@ from sqlalchemy import text
 import json
 from dag_utils import get_db_session, minio_api
 
-def insert_rafaga_and_observation(nombre_archivo: str, **kwargs) -> str:
+def insert_rafaga_and_observation(FileName: str, **kwargs) -> str:
     print("\n[INFO] Iniciando procesamiento de ráfaga")
 
     conf = kwargs.get('dag_run').conf
@@ -32,7 +32,7 @@ def insert_rafaga_and_observation(nombre_archivo: str, **kwargs) -> str:
     
 
     try:
-        nombre = nombre_archivo.lower()
+        nombre = FileName.lower()
     
         if nombre.endswith("-ter.tiff"):
             print("[INFO] Ráfaga detectada como INFRARROJA por sufijo '-ter.tiff'")
@@ -44,7 +44,7 @@ def insert_rafaga_and_observation(nombre_archivo: str, **kwargs) -> str:
             print("[INFO] Ráfaga detectada como VISIBLE por sufijo '-harrier.tiff' o '-basler.tiff'")
             tipo = "visible"
         else:
-            print(f"[WARNING] No se pudo determinar tipo desde nombre: '{nombre_archivo}'")
+            print(f"[WARNING] No se pudo determinar tipo desde nombre: '{FileName}'")
 
 
         print(f"[INFO] Tipo de ráfaga determinado: {tipo}")
