@@ -110,7 +110,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
     if local_zip_path is None:
         print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
         return
-    
+
 
     try:
         if not os.path.exists(local_zip_path):
@@ -125,10 +125,56 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
     except zipfile.BadZipFile:
         print("El archivo no es un ZIP válido antes del procesamiento.")
         return
-    
+
 
     try:
-        with (zipfile.ZipFile(local_zip_path, 'r') as zip_file):
+        algorithm_id = None
+
+        with zipfile.ZipFile(local_zip_path, 'r') as zip_file:
+            if 'algorithm_result.json' in zip_file.namelist():
+                with zip_file.open('algorithm_result.json') as f:
+                    json_content = json.load(f)
+                    json_content_metadata = json_content.get('metadata', [])
+                    
+                    # Buscar el campo 'AlgorithmID'
+                    for metadata in json_content_metadata:
+                        if metadata.get('name') == 'AlgorithmID':
+                            algorithm_id = metadata.get('value')
+                print(f"AlgorithmID encontrado: {algorithm_id}")
+                if(algorithm_id == 'WaterAnalysis' or algorithm_id == 'MetashapeCartografia'):
+                    trigger_dag_name = 'water_analysis' if algorithm_id == 'WaterAnalysis' else 'algorithm_metashape'
+                    try:
+                        trigger = TriggerDagRunOperator(
+                            task_id=str(unique_id),
+                            trigger_dag_id=trigger_dag_name,
+                            conf={'json': json_content, 'otros': message, 'trace_id': trace_id},
+                            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                                ag=kwargs.get('dag'),
+                        )
+                        trigger.execute(context=kwargs)
+                        return
+                    except Exception as e:
+                        print(f"Error al desencadenar el DAG: {e}")
+
+            else:
+                print("El archivo 'algorithm_result.json' no se encuentra en el ZIP.")
+                unique_id = uuid.uuid4()
+                trigger_dag_name = 'zips_no_algoritmos'
+                try:
+                    trigger = TriggerDagRunOperator(
+                        task_id=str(unique_id),
+                        trigger_dag_id=trigger_dag_name,
+                        conf={'minio': message, 'trace_id': trace_id},
+                        execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                        dag=kwargs.get('dag'),
+                    )
+                    trigger.execute(context=kwargs)
+                except Exception as e:
+                    print(f"Error al desencadenar el DAG: {e}")
+                return
+
+
+            
             # Procesar el archivo ZIP en un directorio temporal
             with tempfile.TemporaryDirectory() as temp_dir:
                 print(f"Directorio temporal creado: {temp_dir}")
@@ -180,7 +226,6 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                             otros.append({'file_name': file_name, 'content': encoded_content})
 
                 print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
-                # print("Archivos adicionales procesados:", otros)
                 print("Archivos adicionales procesados:", [item['file_name'] for item in otros])
 
                 # Realiza el procesamiento basado en el AlgorithmID
@@ -200,64 +245,31 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     elif algorithm_id == 'MetashapeCartografia':
                         trigger_dag_name = 'algorithm_metashape'
                         print("Ejecutando lógica para MetaShape")
-                    elif algorithm_id == 'FlameFront':
-                        trigger_dag_name = 'algorithm_flame_front'
-                        print("Ejecutando lógica para Frente de Llamas")
-
 
                     unique_id = uuid.uuid4()
-                    if trigger_dag_name and trigger_dag_name != 'water_analysis' and trigger_dag_name != 'algorithm_metashape' and trigger_dag_name != 'algorithm_flame_front':
-                        try:
-                            trigger = TriggerDagRunOperator(
-                                task_id=str(unique_id),
-                                trigger_dag_id=trigger_dag_name,
-                                conf={'json': json_content, 'otros': otros},
-                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                                dag=kwargs.get('dag'),
-                            )
-                            trigger.execute(context=kwargs)
-                        except Exception as e:
-                            print(f"Error al desencadenar el DAG: {e}")
-                    elif (trigger_dag_name and trigger_dag_name == 'water_analysis') or (trigger_dag_name and trigger_dag_name == 'algorithm_metashape') or (trigger_dag_name and trigger_dag_name == 'algorithm_flame_front'):
-                        try:
-                            trigger = TriggerDagRunOperator(
-                                task_id=str(unique_id),
-                                trigger_dag_id=trigger_dag_name,
-                                conf={'json': json_content, 'otros': message},
-                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                                dag=kwargs.get('dag'),
-                            )
-                            trigger.execute(context=kwargs)
-                        except Exception as e:
-                            print(f"Error al desencadenar el DAG: {e}")
-                else:
-                    unique_id = uuid.uuid4()
-                    trigger_dag_name = 'zips_no_algoritmos'
-                    if trigger_dag_name:
-                        try:
-                            trigger = TriggerDagRunOperator(
-                                task_id=str(unique_id),
-                                trigger_dag_id=trigger_dag_name,
-                                conf={'minio': message},
-                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                                dag=kwargs.get('dag'),
-                            )
-                            trigger.execute(context=kwargs)
-                        except Exception as e:
-                            print(f"Error al desencadenar el DAG: {e}")
-                    print("Advertencia: No se encontró AlgorithmID en el archivo ZIP.")
-                    return
+                    try:
+                        trigger = TriggerDagRunOperator(
+                            task_id=str(unique_id),
+                            trigger_dag_id=trigger_dag_name,
+                            conf={'json': json_content, 'otros': otros, 'trace_id': trace_id},
+                            execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                            dag=kwargs.get('dag'),
+                        )
+                        trigger.execute(context=kwargs)
+                    except Exception as e:
+                        print(f"Error al desencadenar el DAG: {e}")
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido: {e}")
         return
-    
+
+
 def there_was_kafka_message(**context):
     dag_id = context['dag'].dag_id
     run_id = context['run_id']
     task_id = 'consume_from_topic_minio'
     log_base = "/opt/airflow/logs"
     log_path = f"{log_base}/dag_id={dag_id}/run_id={run_id}/task_id={task_id}"
-    
+
     # Search for the latest log file
     try:
         latest_log = max(
@@ -269,6 +281,7 @@ def there_was_kafka_message(**context):
             return f"{KAFKA_RAW_MESSAGE_PREFIX} <cimpl.Message object at" in content
     except (ValueError, FileNotFoundError):
         return False
+
 
 default_args = {
     'owner': 'sadr',
