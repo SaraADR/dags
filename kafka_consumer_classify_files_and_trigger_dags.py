@@ -159,7 +159,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                             trigger_dag_id=trigger_dag_name,
                             conf={'json': json_content, 'otros': message},
                             execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                                ag=kwargs.get('dag'),
+                            dag=kwargs.get('dag'),
                         )
                         trigger.execute(context=kwargs)
                         return
