@@ -73,6 +73,7 @@ def poll_kafka_messages(**kwargs):
                             print(f"Error al descargar desde MinIO: {e}")
                             raise 
     finally:
+        delete_file_sftp(msg_value)
         consumer.close()
 
 
