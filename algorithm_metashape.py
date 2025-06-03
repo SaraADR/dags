@@ -682,8 +682,8 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                             <gmd:MD_MaintenanceFrequencyCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_MaintenanceFrequencyCode"
                                                             codeListValue="notPlanned">Sin planificar</gmd:MD_MaintenanceFrequencyCode>
                         </gmd:maintenanceAndUpdateFrequency>
-                </gmd:MD_MaintenanceInformation>
-
+                    </gmd:MD_MaintenanceInformation>
+                </gmd:resourceMaintenance>
 
                 <gmd:descriptiveKeywords>
                     <gmd:MD_Keywords>
