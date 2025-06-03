@@ -454,6 +454,8 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
     fecha_completa = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
     fecha = fecha_completa.date()
 
+    publication_date = datetime.now().strftime("%Y-%m-%d")
+
     titulo = "Metashape: " + datetime.now().strftime('%Y%m%d_%H%M%S')
     descripcion = "Descripción del metashape //TODO"
 
@@ -476,21 +478,23 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
     metadata_dict = {item['name']: item['value'] for item in orto_data['data']}
     tags = orto_data['tag'].split(',')
 
+    topic_category = next(
+        (item["value"] for item in orto_data["data"] if item["name"] == "TopicCategoryCode"),
+        None
+    )
+
+    inspire_themes = next(
+        (item["value"] for item in orto_data["data"] if item["name"] == "InspireThemes"),
+        None
+    )
+
     reference_system = next((item['value'] for item in json_modificado['metadata']
                             if item['name'] == "ReferenceSystem"), "EPSG:4326")
+    
+    
     print(f"Reference System: {reference_system}")
-
-    inspire_themes = [item['value'] for resource in json_modificado['executionResources']
-                  for item in resource['data'] if item['name'] == "InspireThemes"]
-
-    print(f"Inspire Themes: {', '.join(inspire_themes)}")
-
-    topic_categories = [item['value'] for resource in json_modificado['executionResources']
-                        for item in resource['data'] if item['name'] == "TopicCategoryCode"]
-
-    print(f"Categoría: {', '.join(topic_categories)}")
-
-
+    print(f"Categoría: {topic_category}")
+    print(f"Inspire Themes: {inspire_themes}")
 
 
     tipo_representacion = metadata_dict.get("SpatialRepresentationTypeCode", "grid")
@@ -699,7 +703,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                 </gmd:language>
 
                 <gmd:topicCategory>
-                    {"".join(f'<gmd:MD_TopicCategoryCode>{category.strip()}</gmd:MD_TopicCategoryCode>' for category in topic_categories)}
+                    {"".join(f'<gmd:MD_TopicCategoryCode>{category.strip()}</gmd:MD_TopicCategoryCode>' for category in topic_category)}
                 </gmd:topicCategory>
 
                 <gmd:spatialRepresentationType>
