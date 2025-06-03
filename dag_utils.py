@@ -146,17 +146,12 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
     if not os.path.exists(local_directory):
         os.makedirs(local_directory)
 
-    files = list_files_in_minio_folder(s3_client, bucket_name, folder_prefix)
-    if not files:
-        print(f"No se encontraron archivos para descargar en la carpeta: {folder_prefix}")
-        return
-    print(files)
-
     local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
     print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
     
     relative_path = file_path_in_minio.replace('tmp/', '')
     print("RELATIVE PATH:" + relative_path)
+    
     try:
         # Verificar si el archivo existe antes de intentar descargarlo
         response = s3_client.get_object(Bucket=bucket_name, Key=relative_path)

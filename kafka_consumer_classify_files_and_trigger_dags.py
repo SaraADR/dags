@@ -66,7 +66,6 @@ def poll_kafka_messages(**kwargs):
                         file_path_in_minio =  msg_value
                         try:
                             local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
-                            print(local_zip_path)
                             process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
                             delete_file_sftp(msg_value)
                         except Exception as e:
@@ -141,6 +140,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                         if metadata.get('name') == 'AlgorithmID':
                             algorithm_id = metadata.get('value')
                 print(f"AlgorithmID encontrado: {algorithm_id}")
+                
                 if(algorithm_id == 'WaterAnalysis' or algorithm_id == 'MetashapeCartografia' or algorithm_id == 'FlameFront'):
                     dag_names = {
                         'WaterAnalysis': 'water_analysis',
