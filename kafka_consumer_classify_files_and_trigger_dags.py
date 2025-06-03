@@ -141,13 +141,18 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                         if metadata.get('name') == 'AlgorithmID':
                             algorithm_id = metadata.get('value')
                 print(f"AlgorithmID encontrado: {algorithm_id}")
-                if(algorithm_id == 'WaterAnalysis' or algorithm_id == 'MetashapeCartografia'):
-                    trigger_dag_name = 'water_analysis' if algorithm_id == 'WaterAnalysis' else 'algorithm_metashape'
+                if(algorithm_id == 'WaterAnalysis' or algorithm_id == 'MetashapeCartografia' or algorithm_id == 'FlameFront'):
+                    dag_names = {
+                        'WaterAnalysis': 'water_analysis',
+                        'MetashapeCartografia': 'algorithm_metashape',
+                        'FlameFront': 'algorithm_flame_front'
+                    }
+                    trigger_dag_name = dag_names.get(algorithm_id)
                     try:
                         trigger = TriggerDagRunOperator(
                             task_id=str(unique_id),
                             trigger_dag_id=trigger_dag_name,
-                            conf={'json': json_content, 'otros': message, 'trace_id': trace_id},
+                            conf={'json': json_content, 'otros': message},
                             execution_date=datetime.now().replace(tzinfo=timezone.utc),
                                 ag=kwargs.get('dag'),
                         )
@@ -164,7 +169,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     trigger = TriggerDagRunOperator(
                         task_id=str(unique_id),
                         trigger_dag_id=trigger_dag_name,
-                        conf={'minio': message, 'trace_id': trace_id},
+                        conf={'minio': message},
                         execution_date=datetime.now().replace(tzinfo=timezone.utc),
                         dag=kwargs.get('dag'),
                     )
