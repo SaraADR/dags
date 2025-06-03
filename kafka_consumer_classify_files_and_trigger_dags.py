@@ -3,7 +3,6 @@ import base64
 import io
 import json
 import os
-import shutil
 import uuid
 import zipfile
 from airflow import DAG
@@ -11,61 +10,99 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
-from airflow.exceptions import AirflowSkipException
 import tempfile
-from airflow.hooks.base_hook import BaseHook
-import boto3
-from botocore.client import Config
-from airflow import settings
 from function_save_logs_to_minio import save_logs_to_minio
-from airflow.operators.python import BranchPythonOperator
 from utils.log_utils import setup_conditional_log_saving
 from utils.kafka_headers import extract_trace_id
+from confluent_kafka import Consumer, KafkaException
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+import paramiko
+from dag_utils import get_minio_client,download_from_minio
+from airflow.hooks.base import BaseHook
 
-from dag_utils import get_minio_client, delete_file_sftp,download_from_minio
+
 KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
+def poll_kafka_messages(**kwargs):
+    conf = {
+        'bootstrap.servers': '10.96.180.179:9092',
+        'group.id': '1',
+        'auto.offset.reset': 'earliest',
+        'enable.auto.commit': False
+    }
 
-def consumer_function(message, prefix, **kwargs):
-    print(f"{KAFKA_RAW_MESSAGE_PREFIX} {message}")
-
-    trace_id, log_msg = extract_trace_id(message)
-    print(log_msg)
+    consumer = Consumer(conf)
+    consumer.subscribe(['intentoarchivosv2'])
+    messages = []
 
     try:
-        msg_value = message.value().decode('utf-8')
-        print("Mensaje procesado: ", msg_value)
-    except Exception as e:
-        print(f"Error al procesar el mensaje: {e}")
-    # delete_file_sftp(msg_value)
-    
-    file_path_in_minio = msg_value
-        
-    # Establecer conexión con MinIO
-    s3_client = get_minio_client()
+        while True:
+            msg = consumer.poll(timeout=10.0)
+            if msg is None:
+                print("No hay más mensajes que leer en el topic")
+                break  
+            if msg.error():
+                raise KafkaException(msg.error())
+            else:
+                msg_value = msg.value().decode('utf-8')
+                print("Mensaje procesado: ", msg_value)
+                messages.append(msg_value)
+
+        if messages:
+                    print(f"Total messages received: {len(messages)}")
+                    consumer.commit()
+
+                    s3_client = get_minio_client()
+
+                    # Nombre del bucket donde está almacenado el archivo/carpeta
+                    bucket_name = 'tmp'
+                    folder_prefix = 'sftp/'
+
+                    local_directory = 'temp'  
+                    for msg_value in messages:
+                        print(f"{KAFKA_RAW_MESSAGE_PREFIX} {msg_value}")
+                        trace_id, log_msg = extract_trace_id(msg_value)
+                        print(log_msg)
+
+                        file_path_in_minio =  msg_value
+                        try:
+                            local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
+                            print(local_zip_path)
+                            process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
+                            delete_file_sftp(msg_value)
+                        except Exception as e:
+                            print(f"Error al descargar desde MinIO: {e}")
+                            raise 
+    finally:
+        consumer.close()
 
 
 
-    # Nombre del bucket donde está almacenado el archivo/carpeta
-    bucket_name = 'tmp'
-    folder_prefix = 'sftp/'
 
-    # Descargar el archivo desde MinIO
-    local_directory = 'temp'  # Cambia este path al local
+
+def delete_file_sftp(url):
+
+    filename = os.path.basename(url)
     try:
-        local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
-        process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
+        conn = BaseHook.get_connection('SFTP')
+        host = conn.host
+        port = conn.port 
+        username = conn.login
+        password = conn.password
+
+
+        transport = paramiko.Transport((host, port))
+        transport.connect(username=username, password=password)
+        sftp = paramiko.SFTPClient.from_transport(transport)
+
+        sftp.remove(filename)
+        print(f"Archivo '{filename}' eliminado exitosamente.")
+
+        # Cerrar conexiones
+        sftp.close()
+        transport.close()
+
     except Exception as e:
-        print(f"Error al descargar desde MinIO: {e}")
-        raise
-    if msg_value:
-        print("Mensaje procesado correctamente", msg_value)
-        return True
-    else:
-        print("No se pudo procesar el mensaje")
-        return False
-
-
-
+        print(f"Error al eliminar el archivo: {e}")
 
 
 def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
@@ -263,6 +300,13 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
+poll_task = PythonOperator(
+        task_id='poll_kafka',
+        python_callable=poll_kafka_messages,
+        provide_context=True,
+        dag=dag
+)
+
 
 from utils.log_utils import setup_conditional_log_saving
 
@@ -273,4 +317,4 @@ check_logs, save_logs = setup_conditional_log_saving(
     condition_function=there_was_kafka_message
 )
 
-consume_from_topic >> check_logs
+poll_task >> check_logs
