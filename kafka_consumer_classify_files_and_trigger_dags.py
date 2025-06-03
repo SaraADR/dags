@@ -94,7 +94,7 @@ def delete_file_sftp(url):
         transport.connect(username=username, password=password)
         sftp = paramiko.SFTPClient.from_transport(transport)
 
-        sftp.remove(filename)
+        sftp.remove('upload/' + filename)
         print(f"Archivo '{filename}' eliminado exitosamente.")
 
         # Cerrar conexiones
@@ -143,12 +143,14 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                 print(f"AlgorithmID encontrado: {algorithm_id}")
 
                 if(algorithm_id == 'WaterAnalysis' or algorithm_id == 'MetashapeCartografia' or algorithm_id == 'FlameFront'):
+                    print("Se ejecuta algoritmo de zip largo")
                     dag_names = {
                         'WaterAnalysis': 'water_analysis',
                         'MetashapeCartografia': 'algorithm_metashape',
                         'FlameFront': 'algorithm_flame_front'
                     }
                     trigger_dag_name = dag_names.get(algorithm_id)
+                    unique_id = uuid.uuid4()
                     try:
                         trigger = TriggerDagRunOperator(
                             task_id=str(unique_id),
@@ -257,7 +259,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                         trigger = TriggerDagRunOperator(
                             task_id=str(unique_id),
                             trigger_dag_id=trigger_dag_name,
-                            conf={'json': json_content, 'otros': otros, 'trace_id': trace_id},
+                            conf={'json': json_content, 'otros': otros},
                             execution_date=datetime.now().replace(tzinfo=timezone.utc),
                             dag=kwargs.get('dag'),
                         )
