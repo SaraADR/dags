@@ -207,7 +207,7 @@ def process_json(**kwargs):
             print(bbox)
 
             #integramos con geonetwork
-            xml_data = generate_dynamic_xml(updated_json, bbox, uuid_key, id_mission, wms_layers_info, images_files)
+            xml_data = generate_dynamic_xml(updated_json, bbox, uuid_key, id_mission, wms_layers_info, images_files, json_content_original)
             resources_id = upload_to_geonetwork_xml([xml_data])
             print(resources_id)
 
@@ -449,7 +449,7 @@ def upload_to_geonetwork_xml(xml_data_array):
             raise
 
 
-def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers_info, images_files):
+def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers_info, images_files, json_original):
 
     fecha_completa = datetime.strptime(json_modificado['endTimestamp'], "%Y%m%dT%H%M%S")
     fecha = fecha_completa.date()
@@ -466,7 +466,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
 
     # Obtener recurso principal
     orto_data = next(
-    (res for res in json_modificado['executionResources']
+    (res for res in json_original['executionResources']
         if 'ortomosaico' in res['path'].lower()),
     None
     )
@@ -666,7 +666,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                     </gmd:role>
                     </gmd:CI_ResponsibleParty>
                 </gmd:pointOfContact>
-                <gmd:resourceMaintenance/>
+
 
                 <gmd:dateStamp>
                     <gco:Date>{publication_date}</gco:Date>
