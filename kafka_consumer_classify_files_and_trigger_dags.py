@@ -290,15 +290,6 @@ dag = DAG(
     concurrency=1
 )
 
-consume_from_topic = ConsumeFromTopicOperator(
-    kafka_config_id="kafka_connection",
-    task_id="consume_from_topic_minio",
-    topics=["intentoarchivosv2"],
-    apply_function=consumer_function,
-    apply_function_kwargs={"prefix": "consumed:::"},
-    commit_cadence="end_of_operator",
-    dag=dag,
-)
 
 poll_task = PythonOperator(
         task_id='poll_kafka',
