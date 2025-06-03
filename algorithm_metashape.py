@@ -457,7 +457,6 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
     publication_date = datetime.now().strftime("%Y-%m-%d")
 
     titulo = "Metashape: " + datetime.now().strftime('%Y%m%d_%H%M%S')
-    descripcion = "Descripción del metashape //TODO"
 
     #Mete ruta de minIO
     ruta_png: 0
@@ -485,6 +484,11 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
 
     inspire_themes = next(
         (item["value"] for item in orto_data["data"] if item["name"] == "InspireThemes"),
+        None
+    )
+
+    descripcion = next(
+        (item["value"] for item in orto_data["data"] if item["name"] == "specificUsage"),
         None
     )
 
