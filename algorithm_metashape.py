@@ -443,8 +443,12 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
 
 
     # Obtener recurso principal
-    orto_data = next((res for res in json_modificado['executionResources']
-                      if res['path'] == '/resources/Ortomosaico_Temp.tif'), None)
+    orto_data = next(
+    (res for res in json_modificado['executionResources']
+     if res['path'].lower().endswith(('ortomosaico_temp.tif', 'ortomosaico_temp.tiff'))),
+    None
+    )
+    
     if not orto_data:
         raise ValueError("No se encontró el recurso Ortomosaico_Temp.tif en el JSON.")
     
