@@ -457,7 +457,21 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
 
     reference_system = next((item['value'] for item in json_modificado['metadata']
                             if item['name'] == "ReferenceSystem"), "EPSG:4326")
-    
+    print(f"Reference System: {reference_system}")
+
+    inspire_themes = [item['value'] for resource in json_modificado['executionResources']
+                  for item in resource['data'] if item['name'] == "InspireThemes"]
+
+    print(f"Inspire Themes: {', '.join(inspire_themes)}")
+
+    topic_categories = [item['value'] for resource in json_modificado['executionResources']
+                        for item in resource['data'] if item['name'] == "TopicCategoryCode"]
+
+    print(f"Categoría: {', '.join(topic_categories)}")
+
+
+
+
     tipo_representacion = metadata_dict.get("SpatialRepresentationTypeCode", "grid")
 
 
@@ -622,15 +636,21 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                 </gmd:pointOfContact>
                 <gmd:resourceMaintenance/>
 
-                
+                <gmd:dateStamp>
+                    <gco:Date>{publication_date}</gco:Date>
+                </gmd:dateStamp>
+
                 <gmd:resourceMaintenance>
                     <gmd:MD_MaintenanceInformation>
                         <gmd:maintenanceAndUpdateFrequency>
                             <gmd:MD_MaintenanceFrequencyCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_MaintenanceFrequencyCode"
                                                             codeListValue="continual">Continualmente</gmd:MD_MaintenanceFrequencyCode>
                         </gmd:maintenanceAndUpdateFrequency>
-                    </gmd:MD_MaintenanceInformation>
-                </gmd:resourceMaintenance>
+                        <gmd:maintenanceAndUpdateFrequency>
+                            <gmd:MD_MaintenanceFrequencyCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_MaintenanceFrequencyCode"
+                                                            codeListValue="notPlanned">Sin planificar</gmd:MD_MaintenanceFrequencyCode>
+                        </gmd:maintenanceAndUpdateFrequency>
+                </gmd:MD_MaintenanceInformation>
 
 
                 <gmd:descriptiveKeywords>
@@ -648,7 +668,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                                 </gmd:title>
                             </gmd:CI_Citation>
                         </gmd:thesaurusName>
-                        {"".join(f'<gmd:keyword><gco:CharacterString>{theme.strip()}</gco:CharacterString></gmd:keyword>' for theme in metadata_dict.get("InspireThemes", "").split(","))}
+                                <gco:CharacterString>{inspire_themes}</gco:CharacterString>
                     </gmd:MD_Keywords>
                 </gmd:descriptiveKeywords>
 
@@ -658,7 +678,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                 </gmd:language>
 
                 <gmd:topicCategory>
-                    <gmd:MD_TopicCategoryCode>{metadata_dict.get("TopicCategoryCode", "")}</gmd:MD_TopicCategoryCode>
+                    {"".join(f'<gmd:MD_TopicCategoryCode>{category.strip()}</gmd:MD_TopicCategoryCode>' for category in topic_categories)}
                 </gmd:topicCategory>
 
                 <gmd:spatialRepresentationType>
@@ -681,7 +701,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                         <gmd:referenceSystemIdentifier>
                             <gmd:RS_Identifier>
                                 <gmd:code>
-                                    <gco:CharacterString>{reference_system.replace("::", ":")}</gco:CharacterString>
+                                    <gco:CharacterString>{reference_system}</gco:CharacterString>
                                 </gmd:code>
                             </gmd:RS_Identifier>
                         </gmd:referenceSystemIdentifier>
