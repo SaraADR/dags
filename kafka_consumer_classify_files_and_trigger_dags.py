@@ -81,7 +81,8 @@ def poll_kafka_messages(**kwargs):
 def delete_file_sftp(url):
 
     filename = os.path.basename(url)
-    print(f"INTENTANDO BORRAR DEL SFTP: {filename}")
+    filename = "/upload/" + filename
+    print(f"Filename para borrar: {filename}" )
     try:
         conn = BaseHook.get_connection('SFTP')
         host = conn.host
@@ -94,7 +95,7 @@ def delete_file_sftp(url):
         transport.connect(username=username, password=password)
         sftp = paramiko.SFTPClient.from_transport(transport)
 
-        sftp.remove('upload/' + filename)
+        sftp.remove(filename)
         print(f"Archivo '{filename}' eliminado exitosamente.")
 
         # Cerrar conexiones
@@ -103,6 +104,7 @@ def delete_file_sftp(url):
 
     except Exception as e:
         print(f"Error al eliminar el archivo: {e}")
+
 
 
 def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
