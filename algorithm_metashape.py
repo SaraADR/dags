@@ -64,6 +64,27 @@ def process_json(**kwargs):
             )
             print("ID de misión encontrado:", id_mission)
 
+            # Pasamos el data capture a metadata
+            orto_resource = next(
+                (resource for resource in updated_json["executionResources"]
+                if "ortomosaico" in resource["path"].lower()),
+                None
+            )
+            if orto_resource:
+                data_capture_value = next(
+                    (item["value"] for item in orto_resource["data"] if item["name"] == "dataCapture"),
+                    None
+                )
+                if data_capture_value:
+                    updated_json["metadata"].append({
+                        "name": "dataCapture",
+                        "type": "String",
+                        "value": data_capture_value
+                    })
+                print(f"Data Capture encontrado y modificado en metadata: {data_capture_value}")
+
+
+
             startTimeStamp = updated_json['startTimestamp']
             endTimeStamp = updated_json['endTimestamp']
             print("startTimeStamp:", startTimeStamp)
