@@ -467,7 +467,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
     # Obtener recurso principal
     orto_data = next(
     (res for res in json_modificado['executionResources']
-     if res['path'].lower().endswith(('ortomosaico_temp.tif', 'ortomosaico_temp.tiff'))),
+        if 'ortomosaico' in res['path'].lower()),
     None
     )
     
@@ -477,9 +477,12 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
     metadata_dict = {item['name']: item['value'] for item in orto_data['data']}
     tags = orto_data['tag'].split(',')
 
+    print("ORTO DATA")
+    print(orto_data)
+
     topic_category = next(
         (item["value"] for item in orto_data["data"] if item["name"] == "TopicCategoryCode"),
-        None
+        ""
     )
 
     inspire_themes = next(
@@ -707,7 +710,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                 </gmd:language>
 
                 <gmd:topicCategory>
-                    {"".join(f'<gmd:MD_TopicCategoryCode>{category.strip()}</gmd:MD_TopicCategoryCode>' for category in topic_category)}
+                    <gco:CharacterString>{topic_category}</gco:CharacterString>
                 </gmd:topicCategory>
 
                 <gmd:spatialRepresentationType>
