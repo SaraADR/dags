@@ -686,7 +686,7 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                             </gmd:RS_Identifier>
                         </gmd:referenceSystemIdentifier>
                     </gmd:MD_ReferenceSystem>
-                /gmd:referenceSystemInfo>
+                </gmd:referenceSystemInfo>
 
                 <srv:serviceType>
                     <gco:LocalName codeSpace="www.w3c.org">OGC:WMS</gco:LocalName>
