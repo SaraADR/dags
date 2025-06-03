@@ -442,6 +442,21 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
     gmd_online_resources = generar_gmd_online(wms_layers_info)
 
 
+    # Obtener recurso principal
+    orto_data = next((res for res in json_modificado['executionResources']
+                      if res['path'] == '/resources/Ortomosaico_Temp.tif'), None)
+    if not orto_data:
+        raise ValueError("No se encontró el recurso Ortomosaico_Temp.tif en el JSON.")
+    
+    metadata_dict = {item['name']: item['value'] for item in orto_data['data']}
+    tags = orto_data['tag'].split(',')
+
+    reference_system = next((item['value'] for item in json_modificado['metadata']
+                            if item['name'] == "ReferenceSystem"), "EPSG:4326")
+    
+    tipo_representacion = metadata_dict.get("SpatialRepresentationTypeCode", "grid")
+
+
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
     <gmd:MD_Metadata 
         xmlns:gmd="http://www.isotc211.org/2005/gmd"
@@ -603,25 +618,73 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                 </gmd:pointOfContact>
                 <gmd:resourceMaintenance/>
 
+                
+                <gmd:resourceMaintenance>
+                    <gmd:MD_MaintenanceInformation>
+                        <gmd:maintenanceAndUpdateFrequency>
+                            <gmd:MD_MaintenanceFrequencyCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_MaintenanceFrequencyCode"
+                                                            codeListValue="continual">Continualmente</gmd:MD_MaintenanceFrequencyCode>
+                        </gmd:maintenanceAndUpdateFrequency>
+                    </gmd:MD_MaintenanceInformation>
+                </gmd:resourceMaintenance>
+
+
                 <gmd:descriptiveKeywords>
                     <gmd:MD_Keywords>
-                    <gmd:keyword>
-                        <gco:CharacterString>WMS</gco:CharacterString>
-                    </gmd:keyword>
-                    <gmd:keyword>
-                        <gco:CharacterString>WFS</gco:CharacterString>
-                    </gmd:keyword>
-                    <gmd:keyword>
-                        <gco:CharacterString>Biodiversidad</gco:CharacterString>
-                    </gmd:keyword>
-                    <gmd:keyword>
-                        <gco:CharacterString>Inspección acuática</gco:CharacterString>
-                    </gmd:keyword>
-                    <gmd:keyword>
-                        <gco:CharacterString>USV</gco:CharacterString>
-                    </gmd:keyword>
+                        {"".join(f'<gmd:keyword><gco:CharacterString>{tag.strip()}</gco:CharacterString></gmd:keyword>' for tag in tags)}
                     </gmd:MD_Keywords>
                 </gmd:descriptiveKeywords>
+                
+                <gmd:descriptiveKeywords>
+                    <gmd:MD_Keywords>
+                        <gmd:thesaurusName>
+                            <gmd:CI_Citation>
+                                <gmd:title>
+                                    <gco:CharacterString>Temas INSPIRE</gco:CharacterString>
+                                </gmd:title>
+                            </gmd:CI_Citation>
+                        </gmd:thesaurusName>
+                        {"".join(f'<gmd:keyword><gco:CharacterString>{theme.strip()}</gco:CharacterString></gmd:keyword>' for theme in metadata_dict.get("InspireThemes", "").split(","))}
+                    </gmd:MD_Keywords>
+                </gmd:descriptiveKeywords>
+
+                <gmd:language>
+                    <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" 
+                                    codeListValue="spa">spa</gmd:LanguageCode>
+                </gmd:language>
+
+                <gmd:topicCategory>
+                    <gmd:MD_TopicCategoryCode>{metadata_dict.get("TopicCategoryCode", "")}</gmd:MD_TopicCategoryCode>
+                </gmd:topicCategory>
+
+                <gmd:spatialRepresentationType>
+                    <gmd:MD_SpatialRepresentationTypeCode 
+                        codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_SpatialRepresentationTypeCode"
+                        codeListValue="{tipo_representacion}">{tipo_representacion}</gmd:MD_SpatialRepresentationTypeCode>
+                </gmd:spatialRepresentationType>
+
+                <gmd:spatialResolution>
+                    <gmd:MD_Resolution>
+                        <gmd:distance>
+                         <gco:Distance uom="m">{metadata_dict.get("pixelSize", "0.0")}</gco:Distance>
+                        </gmd:distance>
+                    </gmd:MD_Resolution>
+                </gmd:spatialResolution>
+
+
+                <gmd:referenceSystemInfo>
+                    <gmd:MD_ReferenceSystem>
+                        <gmd:referenceSystemIdentifier>
+                            <gmd:RS_Identifier>
+                                <gmd:code>
+                                    <gco:CharacterString>{reference_system.replace("::", ":")}</gco:CharacterString>
+                                </gmd:code>
+                            </gmd:RS_Identifier>
+                        </gmd:referenceSystemIdentifier>
+                    </gmd:MD_ReferenceSystem>
+
+
+
                 <srv:serviceType>
                     <gco:LocalName codeSpace="www.w3c.org">OGC:WMS</gco:LocalName>
                 </srv:serviceType>
