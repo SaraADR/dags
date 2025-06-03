@@ -81,6 +81,7 @@ def poll_kafka_messages(**kwargs):
 def delete_file_sftp(url):
 
     filename = os.path.basename(url)
+    print(f"INTENTANDO BORRAR DEL SFTP: {filename}")
     try:
         conn = BaseHook.get_connection('SFTP')
         host = conn.host
@@ -140,7 +141,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                         if metadata.get('name') == 'AlgorithmID':
                             algorithm_id = metadata.get('value')
                 print(f"AlgorithmID encontrado: {algorithm_id}")
-                
+
                 if(algorithm_id == 'WaterAnalysis' or algorithm_id == 'MetashapeCartografia' or algorithm_id == 'FlameFront'):
                     dag_names = {
                         'WaterAnalysis': 'water_analysis',
