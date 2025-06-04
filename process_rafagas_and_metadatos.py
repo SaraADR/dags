@@ -131,10 +131,13 @@ def insert_rafaga_and_observation(**kwargs):
         base_name = os.path.splitext(os.path.basename(file_name))[0]
         thumbnail_key = f"thumbs/{base_name}_thumb.jpg"
 
-        # Agregar al JSON de metadatos
-        temporal_subsample_data = dict(output_json)
-        temporal_subsample_data["image_url"] = f"{minio_base_url}/tmp/{thumbnail_key}"
+        # Asegurarte de agregar la URL completa del MinIO al metadato
+        image_url = f"{minio_base_url}/tmp/{thumbnail_key}"
 
+        # Agregar el campo image_url al output_json (para imagen individual) y temporal_subsample_data (para observación)
+        output_json["image_url"] = image_url
+        temporal_subsample_data = dict(output_json)  # copia para temporal_subsamples
+                
         # Inserción en observación ráfaga
         print("[INFO] Insertando en observación ráfaga...")
         insert_obs_sql = f"""
