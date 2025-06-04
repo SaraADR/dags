@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import os
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
 from sqlalchemy import text
@@ -47,13 +48,11 @@ def insert_rafaga_and_observation(**kwargs):
 
         tabla_captura = f"observacion_aerea.captura_rafaga_{tipo}"
         tabla_observacion = f"observacion_aerea.observation_captura_rafaga_{tipo}"
-        tabla_temporal_subsample = f"{tabla_observacion}_temporal_subsample"
         tabla_imagen = f"observacion_aerea.observation_captura_imagen_{tipo}"
 
         print(f"[INFO] Tablas utilizadas:")
         print(f" - Captura: {tabla_captura}")
         print(f" - Observación: {tabla_observacion}")
-        print(f" - Subsample temporal: {tabla_temporal_subsample}")
         print(f" - Imagen individual: {tabla_imagen}")
 
         rafaga_id = output_json.get("IdentificadorRafaga")
@@ -127,6 +126,15 @@ def insert_rafaga_and_observation(**kwargs):
             shape_wkt = "POLYGON((0 0,0 0,0 0,0 0,0 0))"
             print(f"[WARN] Error generando geometría: {e}. Usando geometría nula.")
 
+        # Armar la ruta del thumbnail basándonos en FileName
+        file_name = output_json.get("FileName", "")
+        base_name = os.path.splitext(os.path.basename(file_name))[0]
+        thumbnail_key = f"thumbs/{base_name}_thumb.jpg"
+
+        # Agregar al JSON de metadatos
+        temporal_subsample_data = dict(output_json)
+        temporal_subsample_data["image_url"] = thumbnail_key
+
         # Inserción en observación ráfaga
         print("[INFO] Insertando en observación ráfaga...")
         insert_obs_sql = f"""
@@ -134,9 +142,10 @@ def insert_rafaga_and_observation(**kwargs):
                 procedure, sampled_feature, shape, result_time, phenomenon_time, identificador_rafaga, temporal_subsamples
             ) VALUES (
                 :procedure, :sampled_feature, ST_GeomFromText(:shape, 4326), :result_time,
-                tsrange(:valid_time_start, :valid_time_end), :identificador_rafaga, '{{}}'
+                tsrange(:valid_time_start, :valid_time_end), :identificador_rafaga, :temporal_subsamples
             )
         """
+
         obs_params = {
             "procedure": int(output_json.get("SensorID", 0)),
             "sampled_feature": mission_id,
@@ -144,29 +153,14 @@ def insert_rafaga_and_observation(**kwargs):
             "result_time": valid_time_start,
             "valid_time_start": valid_time_start,
             "valid_time_end": valid_time_end,
-            "identificador_rafaga": rafaga_id
+            "identificador_rafaga": rafaga_id,
+            "temporal_subsamples": json.dumps(temporal_subsample_data, ensure_ascii=False)
         }
+
         print(f"[DEBUG] Parámetros observación: {obs_params}")
         session.execute(text(insert_obs_sql), obs_params)
         print("[OK] Observación de ráfaga insertada.")
 
-        # Subsample temporal si hay URL
-        if minio_img_url:
-            print("[INFO] Insertando en subsample temporal...")
-            insert_subsample_sql = f"""
-                INSERT INTO {tabla_temporal_subsample} (
-                    phenomenon_time, image_url
-                ) VALUES (
-                    :phenomenon_time, :image_url
-                )
-            """
-            session.execute(text(insert_subsample_sql), {
-                "phenomenon_time": valid_time_start,
-                "image_url": minio_img_url
-            })
-            print("[OK] Subsample temporal insertado.")
-        else:
-            print("[INFO] No se proporcionó URL de imagen para subsample temporal.")
 
         # Observación imagen individual
         print("[INFO] Insertando imagen individual...")
