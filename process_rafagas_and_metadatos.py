@@ -120,7 +120,7 @@ def insert_rafaga_and_observation(**kwargs):
                     pc_embarcado_id, operator_name, pilot_name, sensor, platform
                     {", exposuretime" if exposure_time is not None else ""}
                 ) VALUES (
-                    tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp)
+                    tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp),
                     :payload_id, :multisim_id, :ground_control_station_id,
                     :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform
                     {", :exposure_time" if exposure_time is not None else ""}
