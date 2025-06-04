@@ -133,7 +133,7 @@ def insert_rafaga_and_observation(**kwargs):
 
         # Agregar al JSON de metadatos
         temporal_subsample_data = dict(output_json)
-        temporal_subsample_data["image_url"] = thumbnail_key
+        temporal_subsample_data["image_url"] = f"{minio_base_url}/tmp/{thumbnail_key}"
 
         # Inserción en observación ráfaga
         print("[INFO] Insertando en observación ráfaga...")
