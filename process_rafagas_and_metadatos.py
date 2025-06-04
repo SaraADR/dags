@@ -57,7 +57,7 @@ def insert_rafaga_and_observation(**kwargs):
 
         # Buscar primer DateTimeOriginal de esta ráfaga
         query_dt_sql = text(f"""
-            SELECT (temporal_subsamples->>'DateTimeOriginal')::timestamptz AS fecha
+            SELECT TO_TIMESTAMP(REGEXP_REPLACE(temporal_subsamples->>'DateTimeOriginal', '^(\d{4}):(\d{2}):(\d{2})', '\1-\2-\3'), 'YYYY-MM-DD HH24:MI:SS.MS"Z"') AS fecha
             FROM {tabla_observacion}
             WHERE identificador_rafaga = :rafaga_id
             ORDER BY fecha ASC
