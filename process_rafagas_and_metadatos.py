@@ -104,7 +104,7 @@ def insert_rafaga_and_observation(**kwargs):
             print(f"[INFO] Ráfaga existente con fid: {captura_fid}, actualizando tiempo.")
             update_sql = f"""
                 UPDATE {tabla_captura}
-                SET valid_time = tsrange(lower(valid_time), now() + interval '1 minute')
+                SET valid_time = tsrange(lower(valid_time), (now() + interval '1 minute')::timestamp)
                 {", exposuretime = :exposure_time" if exposure_time is not None else ""}
                 WHERE fid = :fid
             """
