@@ -76,11 +76,7 @@ def process_json(**kwargs):
                     None
                 )
                 if data_capture_value:
-                    updated_json["metadata"].append({
-                        "name": "dataCapture",
-                        "type": "String",
-                        "value": data_capture_value
-                    })
+                    updated_json["dataCapture"] = data_capture_value
                 print(f"Data Capture encontrado y modificado en metadata: {data_capture_value}")
 
 
@@ -693,16 +689,18 @@ def generate_dynamic_xml(json_modificado, bbox, uuid_key, id_mission, wms_layers
                 
                 <gmd:descriptiveKeywords>
                     <gmd:MD_Keywords>
+                        <gmd:keyword>
+                        <gco:CharacterString>{inspire_themes}</gco:CharacterString>
+                        </gmd:keyword>
                         <gmd:thesaurusName>
-                            <gmd:CI_Citation>
-                                <gmd:title>
-                                    <gco:CharacterString>Temas INSPIRE</gco:CharacterString>
-                                </gmd:title>
-                            </gmd:CI_Citation>
+                        <gmd:CI_Citation>
+                            <gmd:title>
+                            <gco:CharacterString>Temas INSPIRE</gco:CharacterString>
+                            </gmd:title>
+                        </gmd:CI_Citation>
                         </gmd:thesaurusName>
-                                <gco:CharacterString>{inspire_themes}</gco:CharacterString>
                     </gmd:MD_Keywords>
-                </gmd:descriptiveKeywords>
+        </gmd:descriptiveKeywords>
 
                 <gmd:language>
                     <gmd:LanguageCode codeList="http://www.loc.gov/standards/iso639-2/" 
