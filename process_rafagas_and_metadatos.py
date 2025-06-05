@@ -55,7 +55,8 @@ def insert_rafaga_and_observation(**kwargs):
         # DateTimeOriginal actual
         dt_actual = parse_date(output_json.get("DateTimeOriginal"))
 
-            # Obtener todas las fechas de esta ráfaga, ordenadas
+                # Buscar primer DateTimeOriginal de esta ráfaga
+                # Obtener todas las fechas de esta ráfaga, ordenadas
         query_dt_sql = text(f"""
             SELECT TO_TIMESTAMP(
                 REGEXP_REPLACE(temporal_subsamples->>'DateTimeOriginal', '^(\d{{4}}):(\d{{2}}):(\d{{2}})', '\\1-\\2-\\3'),
@@ -89,15 +90,6 @@ def insert_rafaga_and_observation(**kwargs):
         else:
             print("[INFO] Primer imagen o sin fechas válidas; no se puede calcular exposure_time todavía.")
 
-
-        # Calcular exposure_time como duración de la ráfaga
-        exposure_time = None
-        if dt_row and dt_row.fecha:
-            dt_inicio = dt_row.fecha
-            exposure_time = (dt_actual - dt_inicio).total_seconds()
-            print(f"[INFO] Calculado exposure_time (segundos): {exposure_time}")
-        else:
-            print("[INFO] Primer imagen de la ráfaga, no se calcula exposure_time todavía.")
 
         base_params = {
             'payload_id': output_json.get('PayloadSN'),
