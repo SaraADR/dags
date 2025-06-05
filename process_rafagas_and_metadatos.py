@@ -53,26 +53,34 @@ def insert_rafaga_and_observation(**kwargs):
         mission_id = output_json.get("MissionID")
 
         # DateTimeOriginal actual
-        dt_actual = parse_date(output_json.get("DateTimeOriginal"))
+        try:
+            dt_actual = parse_date(output_json.get("DateTimeOriginal"))
+        except Exception as e:
+            raise Exception(f"[ERROR] Fecha DateTimeOriginal inválida: {output_json.get('DateTimeOriginal')} - {e}")
 
-        # Buscar primer DateTimeOriginal de esta ráfaga
+        # Buscar todas las fechas de esta ráfaga
         query_dt_sql = text(f"""
-            SELECT TO_TIMESTAMP(REGEXP_REPLACE(temporal_subsamples->>'DateTimeOriginal', '^(\d{4}):(\d{2}):(\d{2})', '\1-\2-\3'), 'YYYY-MM-DD HH24:MI:SS.MS"Z"') AS fecha
+            SELECT TO_TIMESTAMP(
+                REGEXP_REPLACE(temporal_subsamples->>'DateTimeOriginal', '^(\d{{4}}):(\d{{2}}):(\d{{2}})', '\\1-\\2-\\3'),
+                'YYYY-MM-DD HH24:MI:SS.MS"Z"'
+            ) AS fecha
             FROM {tabla_observacion}
             WHERE identificador_rafaga = :rafaga_id
+            AND temporal_subsamples->>'DateTimeOriginal' IS NOT NULL
             ORDER BY fecha ASC
-            LIMIT 1
         """)
-        dt_row = session.execute(query_dt_sql, {"rafaga_id": rafaga_id}).fetchone()
+        rows = session.execute(query_dt_sql, {"rafaga_id": rafaga_id}).fetchall()
 
-        # Calcular exposure_time como duración de la ráfaga
+        # Calcular exposure_time
         exposure_time = None
-        if dt_row and dt_row.fecha:
-            dt_inicio = dt_row.fecha
+        if rows and len(rows) > 1:
+            dt_inicio = rows[0].fecha
             exposure_time = (dt_actual - dt_inicio).total_seconds()
-            print(f"[INFO] Calculado exposure_time (segundos): {exposure_time}")
+            print(f"[INFO] Calculado exposure_time (segundos): {exposure_time:.3f}")
+        elif rows:
+            print("[INFO] Primera imagen de la ráfaga, exposure_time no calculado todavía.")
         else:
-            print("[INFO] Primer imagen de la ráfaga, no se calcula exposure_time todavía.")
+            print(f"[WARN] No se encontraron fechas válidas para IdentificadorRafaga {rafaga_id}.")
 
         base_params = {
             'payload_id': output_json.get('PayloadSN'),
@@ -83,23 +91,27 @@ def insert_rafaga_and_observation(**kwargs):
             'pilot_name': output_json.get('PilotName'),
             'sensor': output_json.get('Model'),
             'platform': output_json.get('AircraftNumberPlate'),
-            'exposure_time': exposure_time
         }
+        if exposure_time is not None:
+            base_params["exposure_time"] = exposure_time
 
-        # Insertar o actualizar ráfaga (grupo por matrícula)
-        print("[INFO] Buscando si ya existe ráfaga reciente con la misma matrícula...")
         matricula = output_json.get("AircraftNumberPlate")
+        print("[INFO] Buscando ráfaga existente reciente con mismo IdentificadorRafaga y matrícula...")
         check_sql = text(f"""
             SELECT fid
             FROM {tabla_captura}
             WHERE platform = :matricula
             AND upper(valid_time) > now() - interval '5 seconds'
+            AND EXISTS (
+                SELECT 1 FROM {tabla_observacion}
+                WHERE identificador_rafaga = :rafaga_id
+            )
             ORDER BY fid DESC
             LIMIT 1
         """)
-        existente = session.execute(check_sql, {"matricula": matricula}).fetchone()
+        existente = session.execute(check_sql, {"matricula": matricula, "rafaga_id": rafaga_id}).fetchone()
 
-        if existente:
+        if existente and existente.fid is not None:
             captura_fid = existente.fid
             print(f"[INFO] Ráfaga existente con fid: {captura_fid}, actualizando tiempo.")
             update_sql = f"""
@@ -112,6 +124,7 @@ def insert_rafaga_and_observation(**kwargs):
             if exposure_time is not None:
                 update_params["exposure_time"] = exposure_time
             session.execute(text(update_sql), update_params)
+
         else:
             print("[INFO] Insertando nueva ráfaga...")
             insert_sql = f"""
@@ -127,8 +140,14 @@ def insert_rafaga_and_observation(**kwargs):
                 ) RETURNING fid
             """
             result = session.execute(text(insert_sql), base_params)
-            captura_fid = result.fetchone()[0]
-            print(f"[OK] Ráfaga insertada con fid: {captura_fid}")
+            row = result.fetchone()
+            if row and row[0] is not None:
+                captura_fid = row[0]
+                print(f"[OK] Ráfaga insertada con fid: {captura_fid}")
+            else:
+                raise Exception("[ERROR] No se pudo recuperar el fid de la ráfaga insertada.")
+            
+            print(f"[DEBUG] Final - fid ráfaga: {captura_fid}, exposure_time: {exposure_time}")
 
         # Geometría
         try:
