@@ -57,27 +57,22 @@ def insert_rafaga_and_observation(**kwargs):
 
         # Buscar primer DateTimeOriginal de esta ráfaga
         query_dt_sql = text(f"""
-            SELECT TO_TIMESTAMP(
-                REGEXP_REPLACE(temporal_subsamples->>'DateTimeOriginal', '^(\d{{4}}):(\d{{2}}):(\d{{2}})', '\\1-\\2-\\3'),
-                'YYYY-MM-DD HH24:MI:SS.MS"Z"'
-            ) AS fecha
+            SELECT TO_TIMESTAMP(REGEXP_REPLACE(temporal_subsamples->>'DateTimeOriginal', '^(\d{4}):(\d{2}):(\d{2})', '\1-\2-\3'), 'YYYY-MM-DD HH24:MI:SS.MS"Z"') AS fecha
             FROM {tabla_observacion}
             WHERE identificador_rafaga = :rafaga_id
-            AND temporal_subsamples->>'DateTimeOriginal' IS NOT NULL
             ORDER BY fecha ASC
+            LIMIT 1
         """)
-        rows = session.execute(query_dt_sql, {"rafaga_id": rafaga_id}).fetchall()
+        dt_row = session.execute(query_dt_sql, {"rafaga_id": rafaga_id}).fetchone()
 
-        fechas = [r.fecha for r in rows if r.fecha]
+        # Calcular exposure_time como duración de la ráfaga
         exposure_time = None
-        if len(fechas) >= 2:
-            dt_inicio = fechas[0]
-            dt_final = fechas[-1]
-            exposure_time = (dt_final - dt_inicio).total_seconds()
+        if dt_row and dt_row.fecha:
+            dt_inicio = dt_row.fecha
+            exposure_time = (dt_actual - dt_inicio).total_seconds()
             print(f"[INFO] Calculado exposure_time (segundos): {exposure_time}")
         else:
-            print("[INFO] Primeras imágenes de la ráfaga, aún no se puede calcular exposure_time.")
-
+            print("[INFO] Primer imagen de la ráfaga, no se calcula exposure_time todavía.")
 
         base_params = {
             'payload_id': output_json.get('PayloadSN'),
