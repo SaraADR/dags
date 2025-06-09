@@ -207,7 +207,8 @@ def insert_rafaga_and_observation(**kwargs):
         session.close()
         print("[INFO] Sesión de base de datos cerrada.")
 
-# DAG
+
+# DAG   
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
