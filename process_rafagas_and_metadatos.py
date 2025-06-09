@@ -54,6 +54,8 @@ def insert_rafaga_and_observation(**kwargs):
 
         # DateTimeOriginal actual
         dt_actual = parse_date(output_json.get("DateTimeOriginal"))
+        valid_time_start = dt_actual
+        valid_time_end = dt_actual + timedelta(minutes=1)
 
         # Buscar primer DateTimeOriginal de esta ráfaga
         query_dt_sql = text(f"""
@@ -83,7 +85,9 @@ def insert_rafaga_and_observation(**kwargs):
             'pilot_name': output_json.get('PilotName'),
             'sensor': output_json.get('Model'),
             'platform': output_json.get('AircraftNumberPlate'),
-            'exposure_time': exposure_time
+            'exposure_time': exposure_time,
+            'start_time': valid_time_start,
+            'end_time': valid_time_end
         }
 
         # Insertar o actualizar ráfaga (grupo por matrícula)
@@ -104,11 +108,11 @@ def insert_rafaga_and_observation(**kwargs):
             print(f"[INFO] Ráfaga existente con fid: {captura_fid}, actualizando tiempo.")
             update_sql = f"""
                 UPDATE {tabla_captura}
-                SET valid_time = tsrange(lower(valid_time), (now() + interval '1 minute')::timestamp)
+                SET valid_time = tsrange(lower(valid_time), :end_time)
                 {", exposuretime = :exposure_time" if exposure_time is not None else ""}
                 WHERE fid = :fid
             """
-            update_params = {"fid": captura_fid}
+            update_params = {"fid": captura_fid, "end_time": valid_time_end}
             if exposure_time is not None:
                 update_params["exposure_time"] = exposure_time
             session.execute(text(update_sql), update_params)
@@ -120,7 +124,7 @@ def insert_rafaga_and_observation(**kwargs):
                     pc_embarcado_id, operator_name, pilot_name, sensor, platform
                     {", exposuretime" if exposure_time is not None else ""}
                 ) VALUES (
-                    tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp),
+                    tsrange(:start_time, :end_time),
                     :payload_id, :multisim_id, :ground_control_station_id,
                     :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform
                     {", :exposure_time" if exposure_time is not None else ""}
@@ -153,8 +157,6 @@ def insert_rafaga_and_observation(**kwargs):
         output_json["image_url"] = image_url
 
         # Inserción observación ráfaga
-        valid_time_start = datetime.utcnow()
-        valid_time_end = valid_time_start + timedelta(minutes=1)
         temporal_subsample_data = dict(output_json)
 
         insert_obs_sql = f"""
