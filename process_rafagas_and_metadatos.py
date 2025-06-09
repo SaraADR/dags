@@ -48,12 +48,31 @@ def insert_rafaga_and_observation(**kwargs):
         tabla_captura = f"observacion_aerea.captura_rafaga_{tipo}"
         tabla_observacion = f"observacion_aerea.observation_captura_rafaga_{tipo}"
         tabla_imagen = f"observacion_aerea.observation_captura_imagen_{tipo}"
-        print(f"[DEBUG] Tablas utilizadas: {tabla_captura}, {tabla_observacion}, {tabla_imagen}")
 
         rafaga_id = output_json.get("IdentificadorRafaga")
         mission_id = output_json.get("MissionID")
+
+        # DateTimeOriginal actual
         dt_actual = parse_date(output_json.get("DateTimeOriginal"))
-        print(f"[INFO] Fecha original de la imagen: {dt_actual}")
+
+        # Buscar primer DateTimeOriginal de esta ráfaga
+        query_dt_sql = text(f"""
+            SELECT TO_TIMESTAMP(REGEXP_REPLACE(temporal_subsamples->>'DateTimeOriginal', '^(\d{4}):(\d{2}):(\d{2})', '\1-\2-\3'), 'YYYY-MM-DD HH24:MI:SS.MS"Z"') AS fecha
+            FROM {tabla_observacion}
+            WHERE identificador_rafaga = :rafaga_id
+            ORDER BY fecha ASC
+            LIMIT 1
+        """)
+        dt_row = session.execute(query_dt_sql, {"rafaga_id": rafaga_id}).fetchone()
+
+        # Calcular exposure_time como duración de la ráfaga
+        exposure_time = None
+        if dt_row and dt_row.fecha:
+            dt_inicio = dt_row.fecha
+            exposure_time = (dt_actual - dt_inicio).total_seconds()
+            print(f"[INFO] Calculado exposure_time (segundos): {exposure_time}")
+        else:
+            print("[INFO] Primer imagen de la ráfaga, no se calcula exposure_time todavía.")
 
         base_params = {
             'payload_id': output_json.get('PayloadSN'),
@@ -64,62 +83,54 @@ def insert_rafaga_and_observation(**kwargs):
             'pilot_name': output_json.get('PilotName'),
             'sensor': output_json.get('Model'),
             'platform': output_json.get('AircraftNumberPlate'),
+            'exposure_time': exposure_time
         }
-        print(f"[DEBUG] Parámetros base para captura: {base_params}")
 
-        print(f"[INFO] Buscando ráfaga existente con ID: {rafaga_id}")
+        # Insertar o actualizar ráfaga (grupo por matrícula)
+        print("[INFO] Buscando si ya existe ráfaga reciente con la misma matrícula...")
+        matricula = output_json.get("AircraftNumberPlate")
         check_sql = text(f"""
-            SELECT fid, lower(valid_time) AS inicio, upper(valid_time) AS fin
+            SELECT fid
             FROM {tabla_captura}
-            WHERE identificador_rafaga = :rafaga_id
+            WHERE platform = :matricula
+            AND upper(valid_time) > now() - interval '5 seconds'
             ORDER BY fid DESC
             LIMIT 1
         """)
-        existente = session.execute(check_sql, {"rafaga_id": rafaga_id}).fetchone()
+        existente = session.execute(check_sql, {"matricula": matricula}).fetchone()
 
         if existente:
             captura_fid = existente.fid
-            inicio = existente.inicio
-            fin = existente.fin
-            print(f"[INFO] Ráfaga existente encontrada. fid={captura_fid}, inicio={inicio}, fin={fin}")
-
-            nuevo_inicio = min(inicio, dt_actual)
-            nuevo_fin = max(fin, dt_actual + timedelta(seconds=1))
-            print(f"[INFO] Nuevo rango valid_time: {nuevo_inicio} → {nuevo_fin}")
-
+            print(f"[INFO] Ráfaga existente con fid: {captura_fid}, actualizando tiempo.")
             update_sql = f"""
                 UPDATE {tabla_captura}
-                SET valid_time = tsrange(:nuevo_inicio, :nuevo_fin)
+                SET valid_time = tsrange(lower(valid_time), (now() + interval '1 minute')::timestamp)
+                {", exposuretime = :exposure_time" if exposure_time is not None else ""}
                 WHERE fid = :fid
             """
-            session.execute(text(update_sql), {
-                "nuevo_inicio": nuevo_inicio,
-                "nuevo_fin": nuevo_fin,
-                "fid": captura_fid
-            })
+            update_params = {"fid": captura_fid}
+            if exposure_time is not None:
+                update_params["exposure_time"] = exposure_time
+            session.execute(text(update_sql), update_params)
         else:
             print("[INFO] Insertando nueva ráfaga...")
-            nuevo_inicio = dt_actual
-            nuevo_fin = dt_actual + timedelta(seconds=1)
             insert_sql = f"""
                 INSERT INTO {tabla_captura} (
                     valid_time, payload_id, multisim_id, ground_control_station_id,
-                    pc_embarcado_id, operator_name, pilot_name, sensor, platform, identificador_rafaga
+                    pc_embarcado_id, operator_name, pilot_name, sensor, platform
+                    {", exposuretime" if exposure_time is not None else ""}
                 ) VALUES (
-                    tsrange(:inicio, :fin),
+                    tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp),
                     :payload_id, :multisim_id, :ground_control_station_id,
-                    :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform, :rafaga_id
+                    :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform
+                    {", :exposure_time" if exposure_time is not None else ""}
                 ) RETURNING fid
             """
-            result = session.execute(text(insert_sql), {
-                **base_params,
-                "inicio": nuevo_inicio,
-                "fin": nuevo_fin,
-                "rafaga_id": rafaga_id
-            })
+            result = session.execute(text(insert_sql), base_params)
             captura_fid = result.fetchone()[0]
             print(f"[OK] Ráfaga insertada con fid: {captura_fid}")
 
+        # Geometría
         try:
             lat = float(output_json.get("GPSLatitude", "0").split()[0])
             lon = float(output_json.get("GPSLongitude", "0").split()[0])
@@ -131,23 +142,21 @@ def insert_rafaga_and_observation(**kwargs):
                 f"{lon + offset} {lat - offset}, "
                 f"{lon - offset} {lat - offset}))"
             )
-            print(f"[DEBUG] Geometría generada: {shape_wkt}")
-        except Exception as e:
-            print(f"[WARN] Error generando geometría: {e}")
+        except:
             shape_wkt = "POLYGON((0 0,0 0,0 0,0 0,0 0))"
 
+        # Ruta imagen (thumbnail)
         file_name = output_json.get("FileName", "")
         base_name = os.path.splitext(os.path.basename(file_name))[0]
         thumbnail_key = f"thumbs/{base_name}_thumb.jpg"
         image_url = f"{minio_base_url}/tmp/{thumbnail_key}"
         output_json["image_url"] = image_url
-        print(f"[INFO] URL de miniatura construida: {image_url}")
 
-        valid_time_start = dt_actual
-        valid_time_end = dt_actual + timedelta(seconds=1)
+        # Inserción observación ráfaga
+        valid_time_start = datetime.utcnow()
+        valid_time_end = valid_time_start + timedelta(minutes=1)
         temporal_subsample_data = dict(output_json)
 
-        print("[INFO] Insertando observación de ráfaga...")
         insert_obs_sql = f"""
             INSERT INTO {tabla_observacion} (
                 procedure, sampled_feature, shape, result_time, phenomenon_time,
@@ -169,7 +178,7 @@ def insert_rafaga_and_observation(**kwargs):
             "temporal_subsamples": json.dumps(temporal_subsample_data, ensure_ascii=False)
         })
 
-        print("[INFO] Insertando imagen individual...")
+        # Imagen individual
         output_json["ReadedFromVersion"] = conf.get("version", "desconocida")
         insert_img_sql = f"""
             INSERT INTO {tabla_imagen} (
