@@ -108,7 +108,7 @@ def insert_rafaga_and_observation(**kwargs):
             print(f"[INFO] Ráfaga existente con fid: {captura_fid}, actualizando tiempo.")
             update_sql = f"""
                 UPDATE {tabla_captura}
-                SET valid_time = tsrange(lower(valid_time), :end_time)
+                SET valid_time = tsrange(lower(valid_time), :end_time::timestamp)
                 {", exposuretime = :exposure_time" if exposure_time is not None else ""}
                 WHERE fid = :fid
             """
@@ -124,7 +124,7 @@ def insert_rafaga_and_observation(**kwargs):
                     pc_embarcado_id, operator_name, pilot_name, sensor, platform
                     {", exposuretime" if exposure_time is not None else ""}
                 ) VALUES (
-                    tsrange(:start_time, :end_time),
+                    tsrange(:start_time::timestamp, :end_time::timestamp),
                     :payload_id, :multisim_id, :ground_control_station_id,
                     :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform
                     {", :exposure_time" if exposure_time is not None else ""}
