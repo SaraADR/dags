@@ -68,13 +68,17 @@ def insert_rafaga_and_observation(**kwargs):
         dt_row = session.execute(query_dt_sql, {"rafaga_id": rafaga_id}).fetchone()
 
         # Calcular exposure_time como duración de la ráfaga
+        # Calcular exposure_time como duración de la ráfaga
         exposure_time = None
         if dt_row and dt_row.fecha:
             dt_inicio = dt_row.fecha
+            if dt_inicio.tzinfo is not None:
+                dt_inicio = dt_inicio.replace(tzinfo=None)
             exposure_time = (dt_actual - dt_inicio).total_seconds()
             print(f"[INFO] Calculado exposure_time (segundos): {exposure_time}")
         else:
             print("[INFO] Primer imagen de la ráfaga, no se calcula exposure_time todavía.")
+
 
         base_params = {
             'payload_id': output_json.get('PayloadSN'),
