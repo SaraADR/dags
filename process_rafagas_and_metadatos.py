@@ -52,11 +52,12 @@ def insert_rafaga_and_observation(**kwargs):
         rafaga_id = output_json.get("IdentificadorRafaga")
         mission_id = output_json.get("MissionID")
 
+        # DateTimeOriginal actual
         dt_actual = parse_date(output_json.get("DateTimeOriginal"))
-        print(f"[INFO] Fecha de captura (DateTimeOriginal): {dt_actual}")
 
+        # Buscar primer DateTimeOriginal de esta ráfaga
         query_dt_sql = text(f"""
-            SELECT TO_TIMESTAMP(REGEXP_REPLACE(temporal_subsamples->>'DateTimeOriginal', '^(\d{{4}}):(\d{{2}}):(\d{{2}})', '\\1-\\2-\\3'), 'YYYY-MM-DD HH24:MI:SS.MS"Z"') AS fecha
+            SELECT TO_TIMESTAMP(REGEXP_REPLACE(temporal_subsamples->>'DateTimeOriginal', '^(\d{4}):(\d{2}):(\d{2})', '\1-\2-\3'), 'YYYY-MM-DD HH24:MI:SS.MS"Z"') AS fecha
             FROM {tabla_observacion}
             WHERE identificador_rafaga = :rafaga_id
             ORDER BY fecha ASC
@@ -64,6 +65,7 @@ def insert_rafaga_and_observation(**kwargs):
         """)
         dt_row = session.execute(query_dt_sql, {"rafaga_id": rafaga_id}).fetchone()
 
+        # Calcular exposure_time como duración de la ráfaga
         exposure_time = None
         if dt_row and dt_row.fecha:
             dt_inicio = dt_row.fecha
@@ -71,9 +73,6 @@ def insert_rafaga_and_observation(**kwargs):
             print(f"[INFO] Calculado exposure_time (segundos): {exposure_time}")
         else:
             print("[INFO] Primer imagen de la ráfaga, no se calcula exposure_time todavía.")
-
-        start_dt = dt_actual.replace(tzinfo=None)
-        end_dt = start_dt + timedelta(seconds=1)
 
         base_params = {
             'payload_id': output_json.get('PayloadSN'),
@@ -84,47 +83,44 @@ def insert_rafaga_and_observation(**kwargs):
             'pilot_name': output_json.get('PilotName'),
             'sensor': output_json.get('Model'),
             'platform': output_json.get('AircraftNumberPlate'),
-            'start_dt': start_dt,
-            'end_dt': end_dt
+            'exposure_time': exposure_time
         }
-        if exposure_time is not None:
-            base_params['exposure_time'] = exposure_time
 
-        print("[INFO] Buscando si ya existe ráfaga activa en tiempo real...")
+        # Insertar o actualizar ráfaga (grupo por matrícula)
+        print("[INFO] Buscando si ya existe ráfaga reciente con la misma matrícula...")
         matricula = output_json.get("AircraftNumberPlate")
         check_sql = text(f"""
             SELECT fid
             FROM {tabla_captura}
             WHERE platform = :matricula
-            AND :dt_actual BETWEEN lower(valid_time) AND upper(valid_time)
+            AND upper(valid_time) > now() - interval '5 seconds'
             ORDER BY fid DESC
             LIMIT 1
         """)
-        existente = session.execute(check_sql, {"matricula": matricula, "dt_actual": dt_actual}).fetchone()
+        existente = session.execute(check_sql, {"matricula": matricula}).fetchone()
 
         if existente:
             captura_fid = existente.fid
             print(f"[INFO] Ráfaga existente con fid: {captura_fid}, actualizando tiempo.")
             update_sql = f"""
                 UPDATE {tabla_captura}
-                SET valid_time = tsrange(lower(valid_time), GREATEST(upper(valid_time), :end_dt))
+                SET valid_time = tsrange(lower(valid_time), (now() + interval '1 minute')::timestamp)
                 {", exposuretime = :exposure_time" if exposure_time is not None else ""}
                 WHERE fid = :fid
             """
-            update_params = {'fid': captura_fid, 'end_dt': end_dt}
+            update_params = {"fid": captura_fid}
             if exposure_time is not None:
                 update_params["exposure_time"] = exposure_time
             session.execute(text(update_sql), update_params)
         else:
             print("[INFO] Insertando nueva ráfaga...")
-            print(f"[DEBUG] Nueva valid_time: [{start_dt}, {end_dt}]")
             insert_sql = f"""
                 INSERT INTO {tabla_captura} (
                     valid_time, payload_id, multisim_id, ground_control_station_id,
                     pc_embarcado_id, operator_name, pilot_name, sensor, platform
                     {", exposuretime" if exposure_time is not None else ""}
                 ) VALUES (
-                    tsrange(:start_dt, :end_dt),
+                    tsrange(now()::timestamp, (now() + interval '1 minute')::timestamp),
                     :payload_id, :multisim_id, :ground_control_station_id,
                     :pc_embarcado_id, :operator_name, :pilot_name, :sensor, :platform
                     {", :exposure_time" if exposure_time is not None else ""}
@@ -149,16 +145,19 @@ def insert_rafaga_and_observation(**kwargs):
         except:
             shape_wkt = "POLYGON((0 0,0 0,0 0,0 0,0 0))"
 
-        # Imagen
+        # Ruta imagen (thumbnail)
         file_name = output_json.get("FileName", "")
         base_name = os.path.splitext(os.path.basename(file_name))[0]
         thumbnail_key = f"thumbs/{base_name}_thumb.jpg"
         image_url = f"{minio_base_url}/tmp/{thumbnail_key}"
         output_json["image_url"] = image_url
 
-        # Observación ráfaga
+        # Inserción observación ráfaga
+        valid_time_start = datetime.utcnow()
+        valid_time_end = valid_time_start + timedelta(minutes=1)
         temporal_subsample_data = dict(output_json)
-        session.execute(text(f"""
+
+        insert_obs_sql = f"""
             INSERT INTO {tabla_observacion} (
                 procedure, sampled_feature, shape, result_time, phenomenon_time,
                 identificador_rafaga, temporal_subsamples
@@ -167,38 +166,39 @@ def insert_rafaga_and_observation(**kwargs):
                 :result_time, tsrange(:start, :end),
                 :identificador_rafaga, :temporal_subsamples
             )
-        """), {
+        """
+        session.execute(text(insert_obs_sql), {
             "procedure": int(output_json.get("SensorID", 0)),
             "sampled_feature": mission_id,
             "shape": shape_wkt,
-            "result_time": dt_actual,
-            "start": start_dt,
-            "end": end_dt,
+            "result_time": valid_time_start,
+            "start": valid_time_start,
+            "end": valid_time_end,
             "identificador_rafaga": rafaga_id,
             "temporal_subsamples": json.dumps(temporal_subsample_data, ensure_ascii=False)
         })
 
         # Imagen individual
         output_json["ReadedFromVersion"] = conf.get("version", "desconocida")
-        session.execute(text(f"""
+        insert_img_sql = f"""
             INSERT INTO {tabla_imagen} (
                 shape, sampled_feature, procedure, result_time, phenomenon_time, imagen
             ) VALUES (
                 ST_GeomFromText(:shape, 4326), :sampled_feature, :procedure,
                 :result_time, :phenomenon_time, :imagen
             )
-        """), {
+        """
+        session.execute(text(insert_img_sql), {
             "shape": shape_wkt,
             "sampled_feature": mission_id,
             "procedure": int(output_json.get("SensorID", 0)),
-            "result_time": dt_actual,
-            "phenomenon_time": dt_actual,
+            "result_time": valid_time_start,
+            "phenomenon_time": valid_time_start,
             "imagen": json.dumps(output_json, ensure_ascii=False)
         })
 
         session.commit()
         print("[SUCCESS] Todos los datos guardados correctamente.")
-        print(f"[SUMMARY] Imagen '{output_json.get('FileName')}' | Matrícula: {matricula} | Ráfaga: {rafaga_id} | DT: {dt_actual} | FID: {captura_fid} | Exposure: {exposure_time}s")
 
     except Exception as e:
         session.rollback()
