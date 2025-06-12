@@ -23,8 +23,6 @@ import rasterio
 from xml.sax.saxutils import escape
 from pyproj import Transformer
 from botocore.exceptions import ClientError
-from utils.insert_end_of_execution import end_of_flow_task
-from utils.callback_utils import task_failure_callback
 import shutil
 from water_analysis.utils.xml_generator import generate_dynamic_xml
 from water_analysis.utils.geoserver_publicator import publish_to_geoserver
@@ -35,7 +33,7 @@ from water_analysis.utils.geonetwork_publicator import upload_to_geonetwork_xml,
 def process_extracted_files(**kwargs):
     otros = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
-    
+
     if not json_content:
         print("Ha habido un error con el traspaso de los documentos")
         return
