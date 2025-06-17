@@ -1,3 +1,4 @@
+import tempfile
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -124,7 +125,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 "service_account" : Variable.get("dNBR_path_serviceAccount", default_var=None), 
                 "credenciales" : '/share_data/input/algoritmos-bio-b40e24394020.json',
                 "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
-                "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)),
+                "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)), 
                 "dia_fin": (datetime.datetime.now() - datetime.timedelta(int(Variable.get("dNBR_diasFinIncendio", default_var=30)),)).strftime("%Y-%m-%d"),
                 "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif") 
             }
@@ -138,6 +139,21 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
 
                 path = f'/share_data/input/ejecucion_{fire_id}_{fecha}.json' 
                 runId = f'{fire_id}_{fecha}'
+
+                print(f"Esperando a que el archivo esté disponible en {path}...")
+                check_cmd = f"test -f {archivo_params} && echo OK || echo MISSING"
+                max_retries = 10
+                for intento in range(max_retries):
+                    stdin, stdout, stderr = ssh_client.exec_command(check_cmd)
+                    result = stdout.read().decode().strip()
+                    time.sleep(3)
+                    if result == "OK":
+                        print(f"Archivo encontrado en intento {intento + 1}.")
+                        break
+                else:
+                    print(f"ERROR: Archivo {path} no disponible después de esperar {max_retries} segundos.")
+                    return  
+                
                 stdin, stdout, stderr = ssh_client.exec_command(
                     f'cd /home/admin3/algoritmo_dNBR/scripts && '
                     f'export CONFIGURATION_PATH={path} && '
@@ -146,7 +162,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 )
                 output = stdout.read().decode()
                 error_output = stderr.read().decode()
-                output_data = {}
+
                 print("Salida de run.sh:")
                 print(output)
                 for line in output.split("\n"):
@@ -160,37 +176,38 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     
                 # raise Exception(f"Error en la ejecución del script remoto: {error_output}")
                 output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
-                local_output_directory = f'/tmp'
-                sftp.chdir(output_directory)
-                print(f"Cambiando al directorio de salida: {output_directory}")
-                downloaded_files = []
-                for filename in sftp.listdir():
-                        remote_file_path = os.path.join(output_directory, filename)
-                        local_file_path = os.path.join(local_output_directory, filename)
 
-                        # Descargar el archivo
-                        sftp.get(remote_file_path, local_file_path)
-                        print(f"Archivo {filename} descargado a {local_file_path}")
-                        downloaded_files.append(local_file_path)
+
+                with tempfile.TemporaryDirectory() as lod:
+                    sftp.chdir(output_directory)
+                    print(f"Cambiando al directorio de salida: {lod}")
+                    downloaded_files = []
+
+                    for filename in sftp.listdir():
+                            remote_file_path = os.path.join(output_directory, filename)
+                            local_file_path = os.path.join(lod, filename)
+                            sftp.get(remote_file_path, local_file_path)
+                            print(f"Archivo {filename} descargado a {local_file_path}")
+                            downloaded_files.append(local_file_path)
         
-                sftp.close()
-                print_directory_contents(local_output_directory)
-                local_output_directory = f'/tmp'
-                archivos_en_tmp = os.listdir(local_output_directory)
-                
-                key = uuid.uuid4()
-                for archivo in archivos_en_tmp:
-                    archivo_path = os.path.join(local_output_directory, archivo)
-                    if not os.path.isfile(archivo_path):
-                        print(f"Skipping upload: {local_file_path} is not a file.")
-                    else:
-                        print(archivo)
-                        local_file_path = f"{mission_id}/{str(key)}"
-                        upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
-                        output_data[archivo] = local_file_path + '/' + archivo
-                        
-                output_data["estado"] = "FINISHED"
-                historizacion(output_data, fire_id, mission_id )
+                    sftp.close()
+                    archivos_en_tmp = os.listdir(lod)
+                    key = uuid.uuid4()
+
+                    for archivo in archivos_en_tmp:
+                        archivo_path = os.path.join(lod, archivo)
+                        if not os.path.isfile(archivo_path):
+                            print(f"Skipping upload: {local_file_path} is not a file.")
+                        else:
+                            local_file_path = f"{mission_id}/{str(key)}"
+                            upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
+                            output_data[archivo] = local_file_path + '/' + archivo
+
+                    output_data["estado"] = "FINISHED"
+                    print("----------- FINALIZACION DEL PROCESO PARA ESE INCENDIO  -------------------")
+                    print(output_data)
+                    print("-------------------------------------------")
+                    historizacion(output_data, fire_id, mission_id )
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
         output_data = {"estado": "ERROR", "comentario": str(e)}

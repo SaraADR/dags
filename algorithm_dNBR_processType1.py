@@ -1,5 +1,6 @@
 import datetime
 import os
+import tempfile
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -92,7 +93,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 "dias_pre" :  int(Variable.get("dNBR_diasPre", default_var=10)),
                 "dias_post" : int(Variable.get("dNBR_diasPost", default_var=10)),
                 "combustibles" : Variable.get("dNBR_pathCombustible", default_var="/share_data/input/galicia_mod_com_filt.tif"),
-                "buffer": 500
+                "buffer":  int(Variable.get("dNBR_buffer", default_var=1200))
             }
 
             print(params)
@@ -128,35 +129,41 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                
                
                 output_directory = f'/home/admin3/algoritmo_dNBR/output/' + str(fire_id) + "_" + str(fecha) 
-                local_output_directory = '/tmp'
-                sftp.chdir(output_directory)
-                print(f"Cambiando al directorio de salida: {output_directory}")
-                downloaded_files = []
-                for filename in sftp.listdir():
+                with tempfile.TemporaryDirectory() as lod:                  
+                    sftp.chdir(output_directory)
+                    print(f"Cambiando al directorio de salida: {lod}")
+                    downloaded_files = []
+                    for filename in sftp.listdir():
                         remote_file_path = os.path.join(output_directory, filename)
-                        local_file_path = os.path.join(local_output_directory, filename)
+                        local_file_path = os.path.join(lod, filename)
 
                         # Descargar el archivo
                         sftp.get(remote_file_path, local_file_path)
                         print(f"Archivo {filename} descargado a {local_file_path}")
                         downloaded_files.append(local_file_path)
             
-            sftp.close()
-            print_directory_contents(local_output_directory)
-            local_output_directory = '/tmp'
-            archivos_en_tmp = os.listdir(local_output_directory)
-            key = uuid.uuid4()
-            for archivo in archivos_en_tmp:
-                archivo_path = os.path.join(local_output_directory, archivo)
-                if not os.path.isfile(archivo_path):
-                    print(f"Skipping upload: {local_file_path} is not a file.")
-                else:
-                    local_file_path = f"{mission_id}/{str(key)}"
-                    upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
-                    output_data[archivo] = local_file_path + '/' + archivo
-            
-            output_data["estado"] = "FINISHED"
-            historizacion(output_data, fire_id, mission_id, )
+                    sftp.close()
+                    archivos_en_tmp = os.listdir(lod)
+                    output_data = {}
+                    key = uuid.uuid4()
+
+                    for archivo in archivos_en_tmp:
+                        archivo_path = os.path.join(lod, archivo)
+                        if not os.path.isfile(archivo_path):
+                            print(f"Skipping upload: {local_file_path} is not a file.")
+                        else:
+                            local_file_path = f"{mission_id}/{str(key)}"
+                            upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
+                            output_data[archivo] = local_file_path + '/' + archivo
+
+
+                    
+                    output_data["estado"] = "FINISHED"
+                    print("----------- FINALIZACION DEL PROCESO PARA ESE INCENDIO  -------------------")
+                    print(output_data)
+                    print("-------------------------------------------")
+                    historizacion(output_data, fire_id, mission_id )
+
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
         output_data = {"estado": "ERROR", "comentario": str(e)}
