@@ -1,3 +1,4 @@
+import base64
 import datetime
 import os
 import tempfile
@@ -12,6 +13,7 @@ from dag_utils import execute_query
 from sqlalchemy import text
 import requests
 from dag_utils import  upload_to_minio_path, print_directory_contents
+from dag_utils_geo_eiiob import publish_to_geoserver, generate_dynamic_xml, obtener_coordenadas_tif, upload_to_geonetwork_xml
 import uuid
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
@@ -133,6 +135,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     sftp.chdir(output_directory)
                     print(f"Cambiando al directorio de salida: {lod}")
                     downloaded_files = []
+                    publish_files = [] 
                     for filename in sftp.listdir():
                         remote_file_path = os.path.join(output_directory, filename)
                         local_file_path = os.path.join(lod, filename)
@@ -155,6 +158,13 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                             local_file_path = f"{mission_id}/{str(key)}"
                             upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
                             output_data[archivo] = local_file_path + '/' + archivo
+                            
+                            with open(archivo_path, "rb") as f:
+                                file_bytes = f.read()
+                                publish_files.append({
+                                    "file_name": archivo,
+                                    "content": base64.b64encode(file_bytes).decode('utf-8')
+                                })
 
 
                     
@@ -163,6 +173,42 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     print(output_data)
                     print("-------------------------------------------")
                     historizacion(output_data, fire_id, mission_id )
+
+                    # SUBIR A GEOSEVER
+                    WORKSPACE = "Dnbr"
+                    GENERIC_LAYER = "algoritm_dnbr"
+                    wms_layers_info = publish_to_geoserver(publish_files, WORKSPACE, GENERIC_LAYER )
+                    
+                    # SUBIR A GEONETWORK
+
+                    nombre_incendio = json_Incendio.get('name', 'Nombre no disponible')
+                    fecha_str = json_Incendio.get('start', None)
+                    if fecha_str:
+                        fecha_inicio_mision = datetime.fromisoformat(fecha_str.replace('Z', '').replace('+0000', '')).strftime('%Y-%m-%d')
+                    else:
+                        fecha_inicio_mision = 'No disponible'
+
+                    #info general
+                    eiiob_titulo =  {f"PostIncendio {nombre_incendio} {fecha_inicio_mision}"}
+                    eiiob_descripcion = "Conjunto de datos geoespaciales generados a partir del análisis de áreas afectadas por incendios forestales. Este conjunto puede incluir capas como el índice de severidad de incendio (dNBR), estimaciones del riesgo potencial de erosión y mapas de aptitud o potencial de revegetación natural. Los datos permiten evaluar el impacto del fuego sobre la vegetación y el suelo, y son útiles para apoyar la restauración ambiental, la planificación post-incendio y la gestión del territorio"
+                    #info tecnica
+                    eiiob_inspire = "Zonas de riesgos naturales, Cubierta terrestre"
+                    eiiob_categoria = "Cobertura de la Tierra con mapas básicos e imágenes Medio ambiente"
+                    eiiob_pkey = "dNBR, Riesgo de erosión, Revegetación, Recuperación post-incendio, Degradación del suelo,Impacto ambiental"
+                    eiiob_idioma = "Español"
+                    eiiob_representacion = "Malla"
+                    eiiob_referencia = "EPSG:4326"
+                    #bbox
+                    bbox = None
+                    for item in publish_files:
+                        if item["file_name"] == "fire.dNBR.tif":
+                            content_bytes = base64.b64decode(item["content"])
+                            bbox = obtener_coordenadas_tif(item["file_name"], content_bytes)
+                            break  
+                    xml_data = generate_dynamic_xml(eiiob_titulo, eiiob_descripcion, eiiob_inspire, eiiob_categoria,eiiob_pkey,eiiob_idioma,eiiob_representacion, eiiob_referencia, bbox, wms_layers_info, None)
+                    resources_id = upload_to_geonetwork_xml([xml_data])
+
+
 
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
