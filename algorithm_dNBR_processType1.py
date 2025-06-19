@@ -12,8 +12,7 @@ from airflow.models import Variable
 from dag_utils import execute_query
 from sqlalchemy import text
 import requests
-from dag_utils import  upload_to_minio_path, print_directory_contents, generate_thumbnail
-from dag_utils_geo_eiiob import publish_to_geoserver, generate_dynamic_xml, obtener_coordenadas_tif, upload_to_geonetwork_xml
+from dag_utils import  upload_to_minio_path, print_directory_contents, generate_thumbnail, publish_to_geoserver, generate_dynamic_xml, obtener_coordenadas_tif, upload_to_geonetwork_xml
 import uuid
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
