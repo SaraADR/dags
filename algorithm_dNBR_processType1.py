@@ -12,7 +12,7 @@ from airflow.models import Variable
 from dag_utils import execute_query
 from sqlalchemy import text
 import requests
-from dag_utils import  upload_to_minio_path, print_directory_contents
+from dag_utils import  upload_to_minio_path, print_directory_contents, generate_thumbnail
 from dag_utils_geo_eiiob import publish_to_geoserver, generate_dynamic_xml, obtener_coordenadas_tif, upload_to_geonetwork_xml
 import uuid
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
@@ -198,13 +198,15 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     eiiob_idioma = "Español"
                     eiiob_representacion = "Malla"
                     eiiob_referencia = "EPSG:4326"
-                    #bbox
+                    #bbox y thumbnail
                     bbox = None
                     for item in publish_files:
                         if item["file_name"] == "fire.dNBR.tif":
+                            content_thumbnail, name_tumbnail = generate_thumbnail(item["content"], item["file_name"])
                             content_bytes = base64.b64decode(item["content"])
                             bbox = obtener_coordenadas_tif(item["file_name"], content_bytes)
                             break  
+
                     xml_data = generate_dynamic_xml(eiiob_titulo, eiiob_descripcion, eiiob_inspire, eiiob_categoria,eiiob_pkey,eiiob_idioma,eiiob_representacion, eiiob_referencia, bbox, wms_layers_info, None)
                     resources_id = upload_to_geonetwork_xml([xml_data])
 

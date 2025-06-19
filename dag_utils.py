@@ -1,4 +1,5 @@
 import json
+import tempfile
 from botocore.client import Config
 from jinja2 import Template
 from airflow.operators.email import EmailOperator
@@ -16,6 +17,7 @@ from airflow.hooks.base import BaseHook
 import paramiko
 from requests.auth import HTTPBasicAuth
 from botocore.exceptions import ClientError
+from moviepy import VideoFileClip, ImageClip
 
 # Función para enviar notificaciones a la BD
 
@@ -621,3 +623,40 @@ def upload_logs_to_s3(context):
         print(f"🪵 Callback ejecutado correctamente, se creó: {marker_path}")
     except Exception as e:
         print(f"❌ Error en el callback: {e}")
+
+
+
+def generate_thumbnail(image, image_name):
+    """Genera miniaturas a partir de un fichero"""
+    if not image:
+        return
+
+    temp_dir = tempfile.mkdtemp()
+    original_ext = os.path.splitext(image_name)[-1].lower()
+    image_path = os.path.join(temp_dir, f"original{original_ext}")
+    thumbnail_path = os.path.join(temp_dir, f"{os.path.splitext(image_name)[0]}_thumb.jpg")
+    thumbnail_name = f"{os.path.splitext(image_name)[0]}_thumb.jpg"
+
+    try:
+        with open(image_path, "wb") as f:
+            f.write(image)
+
+
+        clip = ImageClip(image_path)
+        clip = clip.resize(height=256)  
+        clip.save_frame(thumbnail_path)
+
+        with open(thumbnail_path, "rb") as f:
+            thumbnail_content = f.read()
+
+        return thumbnail_content, thumbnail_name
+    
+    except Exception as e:
+        print(f"Error procesando {image_name}: {e}")
+        return None, None
+    finally:
+        # Limpieza de archivos temporales
+        os.remove(image_path) if os.path.exists(image_path) else None
+        os.remove(thumbnail_path) if os.path.exists(thumbnail_path) else None
+        os.rmdir(temp_dir)
+
