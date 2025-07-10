@@ -13,8 +13,6 @@ from sqlalchemy import text
 import requests
 from dag_utils import upload_to_minio_path, upload_to_geonetwork_xml,generate_dynamic_xml, publish_to_geoserver, generate_thumbnail, obtener_coordenadas_tif, execute_query
 import uuid
-from utils.insert_start_of_execution import start_of_flow_task
-from utils.callback_utils import task_failure_callback
 from dateutil import parser
 
 def process_element(**context):
@@ -358,7 +356,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

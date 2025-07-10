@@ -12,7 +12,6 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import text
 from dag_utils import get_minio_client, get_db_session, minio_api, obtener_id_mision
 from pytz import timezone
-from utils.callback_utils import task_failure_callback
 
 madrid_tz = timezone('Europe/Madrid')
 now = datetime.now(madrid_tz)
@@ -314,7 +313,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

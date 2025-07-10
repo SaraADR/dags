@@ -25,7 +25,6 @@ import pytz
 from sqlalchemy import text
 from dag_utils import get_minio_client, get_db_session, minio_api
 from requests.auth import HTTPBasicAuth
-from utils.callback_utils import task_failure_callback
 
 # Constantes
 EINFOREX_ROUTE = "/atcServices/rest/ResourcePlanningAlgorithmExecutionService/save"
@@ -436,7 +435,6 @@ default_args = {
     'start_date': days_ago(1),
     'retries': 1,
     'retry_delay': timedelta(minutes=2),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

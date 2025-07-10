@@ -16,8 +16,6 @@ import requests
 from dag_utils import upload_to_minio_path,generate_dynamic_xml, upload_to_geonetwork_xml, publish_to_geoserver, generate_thumbnail, obtener_coordenadas_tif, execute_query
 import uuid
 import os
-from utils.insert_start_of_execution import start_of_flow_task
-from utils.callback_utils import task_failure_callback
 from dateutil import parser
 
 
@@ -45,7 +43,6 @@ def process_element(**context):
     trace_id = str(uuid.uuid4())
     context['task_instance'].xcom_push(key='trace_id', value=trace_id)
 
-    start_of_flow_task(trace_id, source='cron')
 
     madrid_tz = pytz.timezone('Europe/Madrid')
     fechaHoraActual = datetime.datetime.now(madrid_tz)  # Fecha y hora con zona horaria
@@ -414,7 +411,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

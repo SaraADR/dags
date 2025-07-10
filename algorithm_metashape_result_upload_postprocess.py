@@ -20,7 +20,6 @@ from botocore.config import Config
 from airflow.hooks.base_hook import BaseHook
 from PIL import Image
 import io
-from utils.callback_utils import task_failure_callback
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
@@ -970,7 +969,6 @@ default_args = {
     'depends_on_past': False,
     'start_date': datetime(2024, 10, 1),
     'retries': 1,
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
