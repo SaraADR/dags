@@ -21,7 +21,6 @@ from sqlalchemy import text
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 import pytz
-from utils.callback_utils import task_failure_callback
 
 
 def process_escape_routes_data(**context):
@@ -568,7 +567,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
