@@ -9,32 +9,29 @@ from dag_utils import get_db_session, minio_api
 
 def insert_rafaga_and_observation(**kwargs):
     print("\n[INFO] Iniciando procesamiento de ráfaga")
+    print("[INFO] Verificando configuración de ejecución...")
+    
 
     conf = kwargs.get('dag_run').conf
-    print(f"[DEBUG] Conf recibida: {conf}")
-    
+    print(f"[INFO] Configuración recibida: {conf}")
     if not conf or 'output_json' not in conf:
         print("[ERROR] No se recibió 'output_json', abortando ejecución.")
         return
 
     output_json = conf['output_json']
+    print(f"[INFO] output_json recibido: {output_json}")
     if isinstance(output_json, str):
         output_json = json.loads(output_json)
-    print(f"[DEBUG] output_json recibido:\n{json.dumps(output_json, indent=2)}")
 
-    minio_img_url = conf.get("RutaImagen", None)
-    print(f"[INFO] URL de imagen (MinIO): {minio_img_url}")
-
+    ruta_imagen = conf.get("RutaImagen", "")
+    print(f"[INFO] Ruta de imagen: {ruta_imagen}")
     session = get_db_session()
-    print("[INFO] Sesión de base de datos abierta correctamente.")
-
     minio_base_url = minio_api()
-    print(f"[INFO] Conexión a MinIO: {minio_base_url}")
+    print(f"[INFO] URL base de MinIO: {minio_base_url}")
 
     try:
         model = output_json.get("FileName", "").lower()
-        print(f"[DEBUG] Modelo detectado: {model}")
-
+        print(f"[INFO] Modelo de archivo: {model}")
         if model.endswith("-ter.tiff"):
             tipo = "infrarroja"
         elif "-mul-" in model or "-band_" in model:
@@ -43,7 +40,8 @@ def insert_rafaga_and_observation(**kwargs):
             tipo = "visible"
         else:
             tipo = "visible"
-        print(f"[INFO] Tipo de ráfaga detectado: {tipo}")
+
+        print(f"[INFO] Tipo de ráfaga determinado: {tipo}")
 
         tabla_captura = f"observacion_aerea.captura_rafaga_{tipo}"
         tabla_observacion = f"observacion_aerea.observation_captura_rafaga_{tipo}"
@@ -52,9 +50,32 @@ def insert_rafaga_and_observation(**kwargs):
         rafaga_id = output_json.get("IdentificadorRafaga")
         mission_id = output_json.get("MissionID")
 
-        dt_actual = parse_date(output_json.get("DateTimeOriginal")).replace(tzinfo=None)
+        # # Verificación para evitar duplicados de ráfaga ya procesada
+        # if not rafaga_id:
+        #     print("[ERROR] No se encontró 'IdentificadorRafaga'. Abortando.")
+        #     return
+
+        # check_existing_rafaga = text(f"""
+        #     SELECT 1 FROM {tabla_observacion}
+        #     WHERE identificador_rafaga = :rafaga_id
+        #     LIMIT 1
+        # """)
+        # ya_insertada = session.execute(check_existing_rafaga, {"rafaga_id": rafaga_id}).fetchone()
+        # if ya_insertada:
+        #     print(f"[INFO] La ráfaga con ID '{rafaga_id}' ya ha sido procesada anteriormente. Abortando inserción.")
+        #     return
+
+
+        date_fields = ["DateTimeOriginal", "FileModifyDate", "FileAccessDate", "FileInodeChangeDate"]
+        date_str = next((output_json.get(field) for field in date_fields if output_json.get(field)), None)
+        if not date_str:
+            raise ValueError("No se encontró ninguna fecha válida.")
+        dt_actual = parse_date(date_str).replace(tzinfo=None)
+
         valid_time_start = dt_actual
         valid_time_end = dt_actual + timedelta(minutes=1)
+
+        print(f"[INFO] Tiempo de validez: {valid_time_start} a {valid_time_end}")
 
         base_params = {
             'payload_id': output_json.get('PayloadSN'),
@@ -69,29 +90,27 @@ def insert_rafaga_and_observation(**kwargs):
             'end_time': valid_time_end
         }
 
-        print("[INFO] Buscando si ya existe ráfaga reciente con la misma matrícula...")
+        print(f"[INFO] Parámetros base para inserción: {base_params}")
+
         matricula = output_json.get("AircraftNumberPlate")
         check_sql = text(f"""
-            SELECT fid
-            FROM {tabla_captura}
+            SELECT fid FROM {tabla_captura}
             WHERE platform = :matricula
-            AND upper(valid_time) > now() - interval '5 seconds'
-            ORDER BY fid DESC
-            LIMIT 1
+            AND upper(valid_time) > now() - interval '3 minutes'
+            ORDER BY fid DESC LIMIT 1
         """)
         existente = session.execute(check_sql, {"matricula": matricula}).fetchone()
 
+        print(f"[INFO] Captura existente: {existente}")
+
         if existente:
             captura_fid = existente.fid
-            print(f"[INFO] Ráfaga existente con fid: {captura_fid}, actualizando tiempo.")
-            update_sql = f"""
+            session.execute(text(f"""
                 UPDATE {tabla_captura}
                 SET valid_time = tsrange(lower(valid_time), :end_time)
                 WHERE fid = :fid
-            """
-            session.execute(text(update_sql), {"fid": captura_fid, "end_time": valid_time_end})
+            """), {"fid": captura_fid, "end_time": valid_time_end})
         else:
-            print("[INFO] Insertando nueva ráfaga...")
             insert_sql = f"""
                 INSERT INTO {tabla_captura} (
                     valid_time, payload_id, multisim_id, ground_control_station_id,
@@ -104,38 +123,83 @@ def insert_rafaga_and_observation(**kwargs):
             """
             result = session.execute(text(insert_sql), base_params)
             captura_fid = result.fetchone()[0]
-            print(f"[OK] Ráfaga insertada con fid: {captura_fid}")
+            print(f"[INFO] Nueva captura insertada con fid: {captura_fid}")
 
         try:
             lat = float(output_json.get("GPSLatitude", "0").split()[0])
             lon = float(output_json.get("GPSLongitude", "0").split()[0])
             offset = 0.0001
             shape_wkt = (
-                f"POLYGON(({lon - offset} {lat - offset}, "
-                f"{lon - offset} {lat + offset}, "
-                f"{lon + offset} {lat + offset}, "
-                f"{lon + offset} {lat - offset}, "
+                f"POLYGON(({lon - offset} {lat - offset}, {lon - offset} {lat + offset}, "
+                f"{lon + offset} {lat + offset}, {lon + offset} {lat - offset}, "
                 f"{lon - offset} {lat - offset}))"
             )
         except:
             shape_wkt = "POLYGON((0 0,0 0,0 0,0 0,0 0))"
+            
+            print("[WARNING] No se pudo determinar la ubicación GPS, usando POLYGON(0 0,0 0,0 0,0 0,0 0)")
 
         file_name = output_json.get("FileName", "")
         base_name = os.path.splitext(os.path.basename(file_name))[0]
         thumbnail_key = f"thumbs/{base_name}_thumb.jpg"
         image_url = f"{minio_base_url}/tmp/{thumbnail_key}"
-        output_json["image_url"] = image_url
+        original_url = f"{minio_base_url}/tmp/{ruta_imagen}"
 
-        temporal_subsample_data = dict(output_json)
+        print(f"[INFO] URL de imagen original: {ruta_imagen}")
+        print(f"[INFO] URL de imagen original: {original_url}")
+        print(f"[INFO] URL de imagen con miniatura: {image_url}")
+      
+
+        key_translation = {
+            "PN": "PilotName", "NT": "OperatorName", "PSN": "PayloadSN", "MSN": "MultisimSN",
+            "GCS": "GroundControlStationSN", "PCE": "PCEmbarcadoSN", "ANP": "AircraftNumberPlate",
+            "MD": "Model", "SID": "SensorID", "MID": "MissionID", "BNP": "BateaNumberPlate",
+            "VNP": "VesselNumberPlate", "LAT": "GPSLatitude", "LON": "GPSLongitude",
+            "ALT": "GPSAltitude", "GPSLAT": "GPSLatitude", "GPSLON": "GPSLongitude",
+            "GALT": "GPSAltitude", "POS": "GPSPosition", "DTL": "DistanceDetectLaser",
+            "LDL": "LatitudeDetectLaser", "LODL": "LongitudeDetectLaser", "ADL": "AltitudeDetectLaser",
+            "IAM": "InfraredAmbientTemp", "IME": "InfraredMinTemperature",
+            "IMA": "InfraredMaxTemperature", "IAV": "InfraredAverageTemperature",
+            "IDE": "InfraredDeviationTemperature", "IEC": "InfraredEmissivity",
+            "ICP": "InfraredCalibrationId", "ICD": "InfraredCalibrationDescription",
+            "ICRMIN": "InfraredCalibrationRangeMin", "ICRMAX": "InfraredCalibrationRangeMax",
+            "AP": "AircraftPitch", "AR": "AircraftRoll", "AY": "AircraftYaw",
+            "IP": "ImagePitch", "IR": "ImageRoll", "IY": "ImageYaw",
+            "IQ0": "ImageQuaternion0", "IQ1": "ImageQuaternion1",
+            "IQ2": "ImageQuaternion2", "IQ3": "ImageQuaternion3",
+            "VTX": "ImageVectorToX", "VTY": "ImageVectorToY", "VTZ": "ImageVectorToZ",
+            "VUX": "ImageVectorUpX", "VUY": "ImageVectorUpY", "VUZ": "ImageVectorUpZ",
+            "GP": "GimbalPan", "GT": "GimbalTilt", "TAGR": "TagR", "TAGB": "TagB",
+            "TAGF": "TagF", "TAGO": "TagO", "J1": "J1", "J0": "J0", "OINT": "OInt",
+            "GS": "GroundSamplingDistance", "KNC": "KnotsCount", "TMPRES": "TemperatureResolution",
+            "EXTTEMP": "ExtOpticsTemp", "EXTTR": "TransmissionExtOptics",
+            "REFTEMP": "ReflectedTemperature", "WINTEMP": "WindowTemperature"
+        }
+
+        print("[INFO] Procesando metadatos de ráfaga e imagen...")
+        print(f"[INFO] Parámetros de imagen: {output_json.get('ImageParameters', {})}")
+
+        imagen_metadatos = {
+            "type": tipo,
+            "original": original_url,
+            "url": image_url,
+            "version": conf.get("version", "desconocida")
+        }
+
+        for k, v in output_json.items():
+            translated_key = key_translation.get(k, k)
+            imagen_metadatos[translated_key] = v
+
+        # output_json["imagen"] = imagen_metadatos
 
         insert_obs_sql = f"""
             INSERT INTO {tabla_observacion} (
                 procedure, sampled_feature, shape, result_time, phenomenon_time,
-                identificador_rafaga, temporal_subsamples
+                identificador_rafaga, imagen
             ) VALUES (
                 :procedure, :sampled_feature, ST_GeomFromText(:shape, 4326),
                 :result_time, tsrange(:start, :end),
-                :identificador_rafaga, :temporal_subsamples
+                :identificador_rafaga, :imagen
             )
         """
         session.execute(text(insert_obs_sql), {
@@ -146,10 +210,9 @@ def insert_rafaga_and_observation(**kwargs):
             "start": valid_time_start,
             "end": valid_time_end,
             "identificador_rafaga": rafaga_id,
-            "temporal_subsamples": json.dumps(temporal_subsample_data, ensure_ascii=False)
+            "imagen": json.dumps(imagen_metadatos, ensure_ascii=False)
         })
 
-        output_json["ReadedFromVersion"] = conf.get("version", "desconocida")
         insert_img_sql = f"""
             INSERT INTO {tabla_imagen} (
                 shape, sampled_feature, procedure, result_time, phenomenon_time, imagen
@@ -164,7 +227,7 @@ def insert_rafaga_and_observation(**kwargs):
             "procedure": int(output_json.get("SensorID", 0)),
             "result_time": valid_time_start,
             "phenomenon_time": valid_time_start,
-            "imagen": json.dumps(output_json, ensure_ascii=False)
+            "imagen": json.dumps(imagen_metadatos, ensure_ascii=False)
         })
 
         session.commit()
@@ -175,10 +238,7 @@ def insert_rafaga_and_observation(**kwargs):
         print(f"[ERROR] Excepción durante el procesamiento: {e}")
     finally:
         session.close()
-        print("[INFO] Sesión de base de datos cerrada.")
 
-
-# DAG   
 default_args = {
     'owner': 'oscar',
     'depends_on_past': False,

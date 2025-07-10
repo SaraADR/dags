@@ -2,6 +2,8 @@ import json
 import os
 import shutil
 import uuid
+
+from click import get_current_context
 import boto3
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
@@ -12,7 +14,7 @@ from airflow.operators.python_operator import PythonOperator
 from botocore.exceptions import ClientError
 from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
-from dag_utils import dms_to_decimal, duration_to_seconds, get_minio_client, parse_output_to_json, upload_to_minio, upload_to_minio_path, send_email
+from dag_utils import dms_to_decimal, duration_to_seconds, get_minio_client, minio_api, parse_output_to_json, upload_to_minio, upload_to_minio_path, send_email
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from dag_utils import get_db_session, delete_file_sftp
@@ -284,7 +286,7 @@ def is_rafaga(output, output_json, version, ruta_imagen=None, **kwargs):
 
 
 ##--------------------------- PROCEDIMIENTO DE IMAGENES Y VIDEOS ---------------------------------------
-def is_visible_or_ter(message, local_zip_path, output, output_json, type, versionConfigExiftool):
+def is_visible_or_ter(message, local_zip_path, output, output_json, type, versionConfigExiftool, **kwargs):
 
     #Recogemos el sensor
     sensor_key = "SensorID" if type != 2 else "SensorId"
@@ -307,6 +309,9 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type, versio
             SensorId = output_json.get("general", {}).get("SM", None)  
             if(SensorId != None):
                 print("Estamos ante un video de tipo 2, en estos momentos esta comentada su funcionalidad")
+                trigger_video_dag(output_json, message, versionConfigExiftool, **kwargs)
+                print("Se ha activado el trigger de video tipo 2")
+                
                 return
                 #Normalizamos el json de general para que coincida con los tipo videos
                 #output_json = generalizacionDatosMetadatos(output_json, output)
@@ -357,8 +362,12 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type, versio
                 try:
                     date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S%z")
                 except ValueError:
-                    date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+                    try:
+                        date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S")
+                    except ValueError:
+                        date_time_original = datetime.strptime(date_time_str, "%Y:%m:%d %H:%M:%S.%fZ")
                 timestamp_naive = date_time_original.replace(tzinfo=None)
+                
             elif(type == -1): #Video
                 date_time_str = output_json.get("xmp:dateTimeOriginal")
                 timestamp_naive = datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
@@ -384,13 +393,13 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type, versio
                 if timestamp_naive < valid_time.lower:  # Fecha antes del inicio del rango
                     diferencia = valid_time.lower - timestamp_naive
                     print(f"Fecha dada {timestamp_naive} está antes del inicio ({valid_time.lower}) en {diferencia} (h:m:s), se actualiza el inicio del rango.")
-                    update_column, update_value = "lower(valid_time)", "new_start"
+                    update_column, update_value = "lower(valid_time)", ":new_start"
                     query_param = {"new_start": timestamp_naive}
 
                 elif timestamp_naive > valid_time.upper: # Fecha despues del inicio del rango
                     diferencia = timestamp_naive - valid_time.upper
                     print(f"Fecha dada {timestamp_naive} está después del final ({valid_time.upper}) en {diferencia} (h:m:s), se actualiza el final del rango.")
-                    update_column, update_value = "upper(valid_time)", "new_end"
+                    update_column, update_value = "upper(valid_time)", ":new_end"
                     query_param = {"new_end": timestamp_naive}
                 else:
                     # Si la fecha está dentro del rango, no se necesita actualización
@@ -479,9 +488,22 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type, versio
         
         outputt , outputcomment = parse_output_to_json(output)
 
+        mensaje_final_str = Variable.get("mensaje_final", "{}")  # obtiene string JSON
+        mensaje_final = json.loads(mensaje_final_str)             # convierte a dict
+        ruta_imagen = mensaje_final.get("value", {}).get("RutaImagen", "")
+    
+        file_name = output_json.get("FileName", "")
+        base_name = os.path.splitext(os.path.basename(file_name))[0]
+        thumbnail_key = f"thumbs/{base_name}_thumb.jpg"
+
         #Le añadimos la version
         metadata_dict = json.loads(outputt)
-        metadata_dict["ReadedFromVersion"] = versionConfigExiftool  
+        metadata_dict["ReadedFromVersion"] = versionConfigExiftool
+        metadata_dict["original"] = f"{minio_api()}/{ruta_imagen}"
+        metadata_dict["url"] = f"{minio_api()}/tmp/{thumbnail_key}"
+        print(metadata_dict)
+
+
         outputt = json.dumps(metadata_dict, ensure_ascii=False, indent=4)
 
 
@@ -561,6 +583,7 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type, versio
         except Exception as e:
             print(f"Error al subir el archivo a MinIO: {str(e)}")
         return
+
 
 
 def resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session):
@@ -763,6 +786,23 @@ def set_mensaje_final(ruta_imagen, id_de_tabla, tabla_guardada):
     Variable.set("mensaje_final", json.dumps(mensaje_final))
     print(mensaje_final)
 
+
+def trigger_video_dag(output_json, ruta_video, version, **kwargs):
+    conf_dict = {
+        'output_json': output_json,
+        'RutaVideo': ruta_video,
+        'version': version
+    }
+    context = get_current_context()
+    dag = context['dag']
+
+    TriggerDagRunOperator(
+        task_id=f"trigger_video_process_{uuid.uuid4()}",
+        trigger_dag_id='process_video_and_metadatos',
+        conf=conf_dict,
+        execution_date=datetime.now().replace(tzinfo=timezone.utc),
+        dag=dag
+    ).execute(context=context)
 
 
 def my_producer_function():
