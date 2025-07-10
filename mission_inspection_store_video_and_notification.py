@@ -14,11 +14,16 @@ from dag_utils import get_db_session, get_minio_client
 from moviepy import VideoFileClip
 import tempfile
 import os
+from utils.callback_utils import task_failure_callback
+from power_line.utils.powerline_geonetwork import update_or_create_powerline_geonetwork
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
     video = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
+
+    trace_id = kwargs['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
 
     if not json_content:
         print("Ha habido un error con el traspaso de los documentos")
@@ -26,13 +31,13 @@ def process_extracted_files(**kwargs):
 
     print("Archivos para procesar preparados")
 
-    id_mission = None
+    mission_id = None
     for metadata in json_content['metadata']:
         if metadata['name'] == 'MissionID':
-            id_mission = metadata['value']
+            mission_id = metadata['value']
             break
 
-    print(f"MissionID: {id_mission}")
+    print(f"MissionID: {mission_id}")
 
     try:
         session = get_db_session()
@@ -43,7 +48,7 @@ def process_extracted_files(**kwargs):
             FROM missions.mss_mission_inspection
             WHERE mission_id = :search_id
         """)
-        result = session.execute(query, {'search_id': id_mission})
+        result = session.execute(query, {'search_id': mission_id})
         row = result.fetchone()
         mission_inspection_id = row[0] if row else None
 
@@ -67,8 +72,7 @@ def process_extracted_files(**kwargs):
 
 
         bucket_name = 'missions'
-        video_key = f"{id_mission}/{uuid_key}/{video_file_name}"
-
+        video_key = f"{mission_id}/{uuid_key}/{video_file_name}"
 
         s3_client.put_object(
             Bucket=bucket_name,
@@ -78,7 +82,7 @@ def process_extracted_files(**kwargs):
         print(f'{video_file_name} subido correctamente a MinIO.')
 
     json_str = json.dumps(json_content).encode('utf-8')
-    json_key = f"{id_mission}/{uuid_key}/algorithm_result.json"
+    json_key = f"{mission_id}/{uuid_key}/algorithm_result.json"
 
     s3_client.put_object(
         Bucket='missions',
@@ -100,6 +104,9 @@ def process_extracted_files(**kwargs):
         session.execute(query, {'id_resource': id_resource_uuid, 'id_video': mission_inspection_id})
         session.commit()
         print(f"Video {video_key} registrado en la inspección {mission_inspection_id}")
+
+        update_or_create_powerline_geonetwork(mission_id, json_content)
+        # print("Saltando GeoNetwork temporalmente")
     except Exception as e:
         session.rollback()
         print(f"Error al insertar video en mss_inspection_video: {str(e)}")
@@ -159,13 +166,13 @@ def convert_ts_files(**kwargs):
 # Función para generar notificación
 def generate_notify_job(**context):
     json_content = context['dag_run'].conf.get('json')
-    id_mission = None
+    mission_id = None
     for metadata in json_content['metadata']:
         if metadata['name'] == 'MissionID':
-            id_mission = metadata['value']
+            mission_id = metadata['value']
             break
 
-    if id_mission:
+    if mission_id:
         try:
             session = get_db_session()
 
@@ -173,7 +180,7 @@ def generate_notify_job(**context):
                 "to": "all_users",
                 "actions": [{
                     "type": "reloadMission",
-                    "data": {"missionId": id_mission}
+                    "data": {"missionId": mission_id}
                 }]
             })
             time = datetime.now().replace(tzinfo=timezone.utc)
@@ -204,6 +211,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
+    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
@@ -236,4 +244,4 @@ generate_notify = PythonOperator(
 )
 
 # Flujo del DAG
-process_extracted_files_task >> convert_videos_task >> generate_notify
+process_extracted_files_task >> generate_notify 

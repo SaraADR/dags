@@ -14,12 +14,16 @@ from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 from collections import defaultdict
 from dag_utils import get_db_session, get_minio_client
+from utils.callback_utils import task_failure_callback
+from power_line.utils.powerline_geonetwork import update_or_create_powerline_geonetwork
 
 
 def process_extracted_files(**kwargs):
     # Obtenemos los archivos y el contenido JSON
     otros = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
+    trace_id = kwargs['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
 
     if not json_content:
         print("Ha habido un error con el traspaso de los documentos")
@@ -233,6 +237,7 @@ def process_extracted_files(**kwargs):
         print(f"Error al insertar video en mss_inspection_vegetation_child: {str(e)}")
     finally:
         session.close()
+        update_or_create_powerline_geonetwork(mission_id, json_content)
         print("Conexión a la base de datos cerrada correctamente")
 
 
@@ -388,6 +393,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
+    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

@@ -11,6 +11,7 @@ import pytz
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
 from dag_utils import update_job_status, throw_job_error,get_db_session
+from utils.callback_utils import task_failure_callback
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -27,6 +28,9 @@ def create_mission(**context):
     input_data = json.loads(input_data_str)
     print(input_data)
     job_id = message['message']['id']  # Extracting job_id from the message
+
+    trace_id = context['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
 
     try:
         session = get_db_session()
@@ -244,6 +248,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
+    'on_failure_callback': task_failure_callback
 }
 
 # Definición del DAG
@@ -270,15 +275,6 @@ create_mission_task = PythonOperator(
     dag=dag,
 )
 
-from utils.log_utils import setup_conditional_log_saving
-
-check_logs, save_logs = setup_conditional_log_saving(
-    dag=dag,
-    task_id='save_logs_to_minio',
-    task_id_to_save='create_mission',
-    condition_function=always_save_logs
-)
-
 
 # Modifica la secuencia de tareas
-print_message_task >> create_mission_task >> check_logs
+print_message_task >> create_mission_task

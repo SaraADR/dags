@@ -1,4 +1,3 @@
-
 import json
 from airflow.operators.python import PythonOperator
 from airflow.sensors.python import PythonSensor
@@ -8,11 +7,15 @@ import datetime
 from airflow import DAG
 from sqlalchemy import create_engine, Table, MetaData, text
 from dag_utils import get_db_session
+from utils.callback_utils import task_failure_callback
 
 
 def check_jobs_status(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
+
+    trace_id = context['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
 
     # Convertir la cadena de input_data en un diccionario
     input_data = json.loads(input_data_str)
@@ -167,6 +170,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=1),
+    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
@@ -210,15 +214,7 @@ generate_notify = PythonOperator(
     dag=dag,
 )
 
-from utils.log_utils import setup_conditional_log_saving
-
-check_logs, save_logs = setup_conditional_log_saving(
-    dag=dag,
-    task_id='save_logs_to_minio',
-    task_id_to_save='update_video_status',
-    condition_function=always_save_logs
-)
 
 
 # Definir dependencias
-wait_for_jobs_sensor >> update_video_task >> change_state_task >> generate_notify >> check_logs
+wait_for_jobs_sensor >> update_video_task >> change_state_task >> generate_notify

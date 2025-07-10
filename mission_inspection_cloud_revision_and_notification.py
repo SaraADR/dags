@@ -15,10 +15,14 @@ from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
 from dag_utils import get_db_session, get_minio_client
+from utils.callback_utils import task_failure_callback
 
 def process_element(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
+
+    trace_id = context['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
     
     # Convertir la cadena de input_data en un diccionario
     input_data = json.loads(input_data_str)
@@ -248,6 +252,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
+    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
@@ -282,14 +287,6 @@ generate_notify = PythonOperator(
     dag=dag,
 )
 
-from utils.log_utils import setup_conditional_log_saving
-
-check_logs, save_logs = setup_conditional_log_saving(
-    dag=dag,
-    task_id='save_logs_to_minio',
-    task_id_to_save='process_message',
-    condition_function=always_save_logs
-)
 
 
-process_element_task >> change_state_task >> generate_notify >> check_logs
+process_element_task >> change_state_task >> generate_notify
