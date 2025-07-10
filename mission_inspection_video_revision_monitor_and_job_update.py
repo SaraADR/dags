@@ -7,7 +7,6 @@ import datetime
 from airflow import DAG
 from sqlalchemy import create_engine, Table, MetaData, text
 from dag_utils import get_db_session
-from utils.callback_utils import task_failure_callback
 
 
 def check_jobs_status(**context):
@@ -170,7 +169,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

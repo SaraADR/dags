@@ -13,8 +13,6 @@ from zoneinfo import ZoneInfo
 from function_save_logs_to_minio import save_logs_to_minio
 from utils.log_utils import setup_conditional_log_saving
 from utils.kafka_headers import extract_trace_id
-from utils.insert_start_of_execution import start_of_flow_task
-from utils.callback_utils import task_failure_callback
 import os
 
 KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
@@ -46,8 +44,6 @@ def process_message(msg_value, trace_id=None, **kwargs):
             job = msg_json.get('job')
             id_sesion = msg_json.get('id')
 
-            if trace_id:
-                start_of_flow_task(trace_id, 'jobs')
 
             update_job_status(id_sesion, 'IN PROGRESS' , None , datetime.now(ZoneInfo("Europe/Madrid")))
             conf = {'message': msg_json, 'trace_id': trace_id}
@@ -119,7 +115,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

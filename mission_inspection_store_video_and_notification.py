@@ -14,7 +14,6 @@ from dag_utils import get_db_session, get_minio_client
 from moviepy import VideoFileClip
 import tempfile
 import os
-from utils.callback_utils import task_failure_callback
 from power_line.utils.powerline_geonetwork import update_or_create_powerline_geonetwork
 
 # Función para procesar archivos extraídos
@@ -211,7 +210,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

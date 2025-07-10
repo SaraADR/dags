@@ -15,7 +15,6 @@ from sqlalchemy.orm import sessionmaker
 import boto3
 from botocore.client import Config
 from dag_utils import get_db_session, get_minio_client
-from utils.callback_utils import task_failure_callback
 
 def process_element(**context):
     message = context['dag_run'].conf
@@ -252,7 +251,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

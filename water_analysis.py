@@ -23,7 +23,6 @@ import rasterio
 from xml.sax.saxutils import escape
 from pyproj import Transformer
 from botocore.exceptions import ClientError
-from utils.callback_utils import task_failure_callback
 import shutil
 from water_analysis.utils.xml_generator import generate_dynamic_xml
 from water_analysis.utils.geoserver_publicator import publish_to_geoserver
@@ -359,7 +358,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

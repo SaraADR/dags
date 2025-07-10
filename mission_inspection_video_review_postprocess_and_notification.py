@@ -11,7 +11,6 @@ import boto3
 from botocore.client import Config
 import datetime
 from dag_utils import get_db_session, get_minio_client
-from utils.callback_utils import task_failure_callback
 
 
 def process_element(**context):
@@ -219,7 +218,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

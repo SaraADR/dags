@@ -20,7 +20,6 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 from dag_utils import get_minio_client, update_job_status, throw_job_error
 from dag_utils import get_db_session
-from utils.callback_utils import task_failure_callback
 
 def process_heatmap_data(**context):
 
@@ -456,7 +455,6 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
     'type': 'incendios',
-    'on_failure_callback': task_failure_callback
 }
 
 

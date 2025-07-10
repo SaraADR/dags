@@ -11,7 +11,6 @@ import pytz
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
 from dag_utils import update_job_status, throw_job_error,get_db_session
-from utils.callback_utils import task_failure_callback
 
 
 # Función para imprimir un mensaje desde la configuración del DAG
@@ -248,7 +247,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 # Definición del DAG

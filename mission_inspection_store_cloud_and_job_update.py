@@ -14,7 +14,6 @@ from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 from collections import defaultdict
 from dag_utils import get_db_session, get_minio_client
-from utils.callback_utils import task_failure_callback
 from power_line.utils.powerline_geonetwork import update_or_create_powerline_geonetwork
 
 
@@ -393,7 +392,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
