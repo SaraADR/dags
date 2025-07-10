@@ -12,7 +12,6 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy import text
 from dag_utils import get_minio_client, get_db_session, minio_api, obtener_id_mision
 from pytz import timezone
-from utils.insert_end_of_execution import end_of_flow_task
 from utils.callback_utils import task_failure_callback
 
 madrid_tz = timezone('Europe/Madrid')

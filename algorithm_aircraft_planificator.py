@@ -25,7 +25,6 @@ import pytz
 from sqlalchemy import text
 from dag_utils import get_minio_client, get_db_session, minio_api
 from requests.auth import HTTPBasicAuth
-from utils.insert_end_of_execution import end_of_flow_task
 from utils.callback_utils import task_failure_callback
 
 # Constantes
