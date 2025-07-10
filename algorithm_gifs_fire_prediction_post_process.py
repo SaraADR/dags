@@ -5,7 +5,7 @@ from sqlalchemy import text
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
-
+import time
 from dag_utils import get_db_session, obtener_id_mision
 
 def execute_docker_process(**context):
@@ -22,7 +22,6 @@ def execute_docker_process(**context):
     event_name = conf.get("eventName", "UnknownEvent")
     data_str = conf.get("data", {})
 
-    
     if isinstance(data_str, str):
         try:
             data = json.loads(data_str)  # Convertir de string JSON a estructura Python
@@ -32,15 +31,36 @@ def execute_docker_process(**context):
     else:
         data = data_str
 
-    
     if isinstance(data, dict):
         data = [data]  
+
     elif not isinstance(data, list):
         print("Error: 'data' no es una lista ni un diccionario válido")
         return
 
     print(f"Evento: {event_name}")
     print(f"Datos ajustados para Docker: {json.dumps(data, indent=4)}")
+    id_value = data[0].get("id")
+
+    # Validamos que ya exista una misión asociada al fire_id antes de continuar
+    session = get_db_session()
+    result = session.execute(text("""
+        SELECT 1
+        FROM missions.mss_mission_fire
+        WHERE fire_id = :fire_id
+        LIMIT 1
+    """), {"fire_id": id_value}).fetchone()
+
+    if not result:
+        print(f"fire_id {id_value} aún no tiene misión en BD. Lanzando reintento...")
+        raise Exception("fire_id no disponible aún en BD")
+
+    #Buscamos en bd si existe fireId ( 0 es false y 1 es true)
+    #fireId = 0
+
+    #if fireId == 0:
+    #    print("fireId no encontrado en BD. Reintentando.")
+    #    raise Exception("fireId no disponible, se requiere reintento")
 
     if not data:
         print("Advertencia: No hay datos válidos para procesar.")
@@ -88,6 +108,8 @@ def execute_docker_process(**context):
         print(f"Error en la ejecución: {str(e)}")
         raise
 
+
+
 def obtener_mission_id_task(**context):
     """Accede al servidor vía SSH, descarga output.json, y obtiene mission_id utilizando fire_id."""
     remote_output_path = "/home/admin3/grandes-incendios-forestales/share_data_host/expected/output.json"
@@ -103,7 +125,6 @@ def obtener_mission_id_task(**context):
 
         with open(local_output_path, "r") as file:
             resultado_json = json.load(file)
-
         fire_id = resultado_json[0]["id"]
         mission_id = obtener_id_mision(fire_id)
 
@@ -233,7 +254,7 @@ default_args = {
     'owner': 'oscar',
     'depends_on_past': False,
     'start_date': datetime.datetime(2024, 8, 8),
-    'retries': 1,
+    'retries': 5,
     'retry_delay': datetime.timedelta(minutes=1),
 }
 

@@ -20,9 +20,7 @@ from botocore.config import Config
 from airflow.hooks.base_hook import BaseHook
 from PIL import Image
 import io
-from airflow.hooks.base import BaseHook
-
-
+from utils.callback_utils import task_failure_callback
 
 # Configurar el logging
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +31,6 @@ def convertir_coords(epsg_input,south, west, north, east):
     logging.info(f"Convirtiendo coordenadas de EPSG:{epsg_input} a EPSG:4326.")
     logging.info(f"Coordenadas antes de la conversión: sur={south}, oeste={west}, norte={north}, este={east}")
     
-
     # Crear objetos Proj para las proyecciones
     # Proyección de origen basada en la cadena EPSG "32629"
     crs_from = CRS.from_string(f"EPSG:{epsg_input}")
@@ -77,7 +74,7 @@ def up_to_minio(temp_dir, filename):
             print(f"Archivo {filename} subido correctamente a MinIO.")
             
             # Generar la URL del archivo subido
-            file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{filename}"
+            file_url = f"http://minio.swarm-training.biodiversidad.einforex.net/{bucket_name}/{filename}"
             print(f"URL: {file_url}")
             return file_url
 
@@ -128,6 +125,9 @@ def upload_miniature(**kwargs):
     files = kwargs['dag_run'].conf.get('otros', [])
     array_files = []
 
+    trace_id = kwargs['dag_run'].conf['trace_id']
+    logging.info(f"Processing with trace_id: {trace_id}")
+
     # Obtener JSON de la misma manera que en generate_xml
     algoritm_result = kwargs['dag_run'].conf.get('json')
     
@@ -155,30 +155,40 @@ def upload_miniature(**kwargs):
     # Procesar archivos TIFF
     with tempfile.TemporaryDirectory() as temp_dir:
         for file in files:
-            file_name = file['file_name']
-
-            if not (file_name.endswith('.tif') or file_name.endswith('.tiff')):
+            logging.info(f"Procesando archivo: {file}")
+            
+            # Verificar si `file` es un diccionario (esperado) o solo un nombre de archivo (string)
+            if isinstance(file, dict) and 'file_name' in file:
+                file_name = file['file_name']
+                file_content = base64.b64decode(file['content'])
+            elif isinstance(file, str):  # Si es un nombre de archivo, lo tratamos como string
+                file_name = file
+                file_content = None  # Si es solo un nombre de archivo, no tenemos contenido base64
+            else:
+                logging.warning(f"El archivo {file} no es un diccionario con 'file_name' o un string válido.")
                 continue
 
-            file_content = base64.b64decode(file['content'])
-            logging.info(file_name)
-
+            # Guardar el archivo temporalmente
             temp_file_path = os.path.join(temp_dir, file_name)
             os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
 
-            with open(temp_file_path, 'wb') as temp_file:
-                temp_file.write(file_content)
+            if file_content:
+                with open(temp_file_path, 'wb') as temp_file:
+                    temp_file.write(file_content)
+                logging.info(f"Archivo guardado temporalmente en: {temp_file_path}")
+            else:
+                logging.warning(f"Archivo {file_name} no tiene contenido base64, no se guardará.")
 
-            logging.info(f"Archivo guardado temporalmente en: {temp_file_path}")
+            # Convertir TIFF a JPG
+            if file_name.endswith('.tif') or file_name.endswith('.tiff'):
+                unique_key = str(uuid.uuid4())
+                file_jpg_name = f"{unique_key}.jpg"
+                temp_jpg_path = os.path.join(temp_dir, file_jpg_name)
 
-            unique_key = str(uuid.uuid4())
-            file_jpg_name = f"{unique_key}.jpg"
-            temp_jpg_path = os.path.join(temp_dir, file_jpg_name)
+                tiff_to_jpg(temp_file_path, temp_jpg_path)
+                file_url = up_to_minio(temp_dir, file_jpg_name)
 
-            tiff_to_jpg(temp_file_path, temp_jpg_path)
-            file_url = up_to_minio(temp_dir, file_jpg_name)
-
-            array_files.append({'name': os.path.basename(file_name), 'url': file_url})
+                array_files.append({'name': os.path.basename(file_name), 'url': file_url})
 
     return array_files
 
@@ -188,6 +198,9 @@ def upload_miniature(**kwargs):
 # Función para generar el XML
 def generate_xml(**kwargs):
     logging.info("Iniciando la generación del XML.")
+
+    trace_id = kwargs['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
 
     xml_encoded = []
     
@@ -349,6 +362,9 @@ def get_geonetwork_credentials():
 # Función para subir el XML utilizando las credenciales obtenidas de la conexión de Airflow
 # Función para subir el XML y devolver el ID del recurso
 def upload_to_geonetwork(**context):
+    trace_id = context['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
+    
     try:
         connection = BaseHook.get_connection("geonetwork_connection")
         upload_url = f"{connection.schema}{connection.host}/geonetwork/srv/api/records"
@@ -471,11 +487,6 @@ def creador_xml_metadata(file_identifier, specificUsage, wmsLayer, miniature_url
     gmd_MD_DigitalTransferOptions = ET.SubElement(gmd_transferOptions, "gmd:MD_DigitalTransferOptions")
     gmd_onLine = ET.SubElement(gmd_MD_DigitalTransferOptions, "gmd:onLine")
     gmd_CI_OnlineResource = ET.SubElement(gmd_onLine, "gmd:CI_OnlineResource")
-    linkage = ET.SubElement(gmd_CI_OnlineResource, "gmd:linkage")
-    linkageUrl = ET.SubElement(linkage, "gmd:URL")
-
-    #TODO EXTRA AIRFLOW
-    linkageUrl.text = "https://geoserver.swarm-training.biodiversidad.einforex.net/geoserver/test_geonetwork/wms"
 
     protocol = ET.SubElement(gmd_CI_OnlineResource, "gmd:protocol")
     protocolCharacterString = ET.SubElement(protocol, "gco:CharacterString")
@@ -893,6 +904,9 @@ def get_geonetwork_user_group(mission_id):
 
 
 def assign_owner_to_resource(**context):
+    trace_id = context['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
+
     """Asigna un propietario al recurso en GeoNetwork usando MissionID dinámico"""
     try:
         logging.info("INICIANDO ASIGNACIÓN DE PROPIETARIO...")
@@ -950,13 +964,13 @@ def assign_owner_to_resource(**context):
         raise
 
 
-
 # Definición del DAG
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2024, 10, 1),
     'retries': 1,
+    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
@@ -964,7 +978,9 @@ dag = DAG(
     default_args=default_args,
     description='DAG para generar metadatos XML y subirlos a GeoNetwork',
     schedule_interval=None,  # Se puede ajustar según necesidades
-    catchup=False
+    catchup=False,
+    max_active_runs=3,
+    concurrency=6
 )
 
 # # Tarea 0: Obtener el usuario de la configuración del DAG
@@ -1009,4 +1025,3 @@ assign_owner_task = PythonOperator(
 
 # Definir el flujo de las tareas
 upload_miniature_task >> generate_xml_task >> upload_xml_task >>  assign_owner_task
-# get_user_task >>

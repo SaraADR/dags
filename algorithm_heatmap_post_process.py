@@ -20,11 +20,14 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 from dag_utils import get_minio_client, update_job_status, throw_job_error
 from dag_utils import get_db_session
+from utils.callback_utils import task_failure_callback
 
 def process_heatmap_data(**context):
 
     # Obtener el valor de 'type' de default_args a través del contexto
     message = context['dag_run'].conf
+    trace_id = context['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
     task_type = message['message']['job']
@@ -269,7 +272,7 @@ def up_to_minio(local_output_directory, from_user, isIncendio, temp_dir,context)
                 # Generar la URL del archivo subido           
 
                 if filename.lower().endswith(('tiff_procesado.tif')):
-                    file_url = f"https://minioapi.avincis.cuatrodigital.com/{bucket_name}/{file_key}"
+                    file_url = f"https://minio.swarm-training.biodiversidad.einforex.net/{bucket_name}/{file_key}"
                     print(f" URL: {file_url}")
                     
     except Exception as e:
@@ -442,8 +445,6 @@ def create_json(params):
     print(input_data)
     return input_data
 
-def always_save_logs(**context):
-    return True
 
 # Configuración del DAG
 default_args = {
@@ -455,6 +456,7 @@ default_args = {
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
     'type': 'incendios',
+    'on_failure_callback': task_failure_callback
 }
 
 
@@ -483,14 +485,6 @@ change_state_task = PythonOperator(
     provide_context=True,
     dag=dag,
 )
-from utils.log_utils import setup_conditional_log_saving
-
-check_logs, save_logs = setup_conditional_log_saving(
-    dag=dag,
-    task_id='save_logs_to_minio',
-    task_id_to_save='process_heatmap_incendios',
-    condition_function=always_save_logs
-)
 
 # Ejecución de la tarea en el DAG
-process_heatmap_task >> change_state_task >> check_logs
+process_heatmap_task >> change_state_task
