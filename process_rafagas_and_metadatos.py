@@ -40,10 +40,6 @@ def insert_rafaga_and_observation(**kwargs):
             tipo = "visible"
         else:
             tipo = "visible"
-<<<<<<< HEAD
-
-=======
->>>>>>> 37e3defad925d60fbeaf3ad401b196e946d6584d
         print(f"[INFO] Tipo de ráfaga determinado: {tipo}")
 
         tabla_captura = f"observacion_aerea.captura_rafaga_{tipo}"
