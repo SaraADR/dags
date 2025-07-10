@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import base64
 import os
 import tempfile
@@ -13,9 +12,87 @@ from kafka_consumer_classify_files_and_trigger_dags import download_from_minio
 import uuid
 import io
 import json
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError, ImageDraw
 import geopandas as gpd
 from shapely.geometry import Point, LineString
+
+
+def extract_detections(algorithm_result):
+    detections_by_image = {}
+
+    for resource in algorithm_result.get("executionResources", []):
+        image_path = resource.get("path")
+        data_entries = resource.get("data", [])
+
+        for data_entry in data_entries:
+            detections = data_entry.get("value", {}).get("detections", [])
+
+            if detections:
+                image_name = os.path.basename(image_path)
+                if image_name not in detections_by_image:
+                    detections_by_image[image_name] = {"Hotspot": [], "Frontflame": []}
+
+                for detection in detections:
+                    detection_type = detection.get("classification")
+                    if detection_type in ["Hotspot", "Frontflame"]:
+                        detections_by_image[image_name][detection_type].append(detection)
+
+    print(f"[DEBUG] Detections extracted: {len(detections_by_image)} images with detections")
+    return detections_by_image
+    
+
+
+def generate_shapefiles_from_detections(detections_info, temp_dir):
+    shapefile_paths = []
+
+    for image_path, detections in detections_info.items():
+        geometries = []
+        
+        for detection in detections["Hotspot"]:
+            world_coords = detection.get('worldCoordinates')
+            if world_coords and len(world_coords) == 2:
+                point = Point(world_coords[0], world_coords[1])
+                geometries.append(point)
+        
+        for detection in detections["Frontflame"]:
+            world_coords = detection.get('worldCoordinates')
+            if world_coords and len(world_coords) > 1:
+                line_coords = [(coord[0], coord[1]) for coord in world_coords]
+                line = LineString(line_coords)
+                geometries.append(line)
+
+        if geometries:
+            gdf = gpd.GeoDataFrame(geometry=geometries, crs="EPSG:4326")
+            shapefile_name = f"{os.path.splitext(image_path)[0]}_detections.shp"
+            shapefile_path = os.path.join(temp_dir, shapefile_name)
+            gdf.to_file(shapefile_path)
+            shapefile_paths.append(shapefile_path)
+
+    print(f"[DEBUG] Generated shapefiles: {len(shapefile_paths)} files")
+    return shapefile_paths
+
+
+def overlay_geometries_on_image(image_path, geometries):
+    try:
+        image = Image.open(image_path)
+        draw = ImageDraw.Draw(image)
+        
+        for geom in geometries:
+            if isinstance(geom, Point):
+                draw.ellipse((geom.x-3, geom.y-3, geom.x+3, geom.y+3), fill='red')
+            elif isinstance(geom, LineString):
+                for i in range(len(geom.coords)-1):
+                    start = geom.coords[i]
+                    end = geom.coords[i+1]
+                    draw.line([start[0], start[1], end[0], end[1]], fill='blue', width=2)
+
+        buffered = io.BytesIO()
+        image.save(buffered, format="PNG")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+        return img_base64
+    except Exception as e:
+        print(f"Error overlaying geometries: {e}")
+        return None
 
 
 def crear_y_subir_shapefiles(detections, image_name, temp_dir, s3_client, bucket_name, minio_base_path):
@@ -64,7 +141,8 @@ def crear_y_subir_shapefiles(detections, image_name, temp_dir, s3_client, bucket
                 full_path = f"{Variable.get('ruta_minIO').rstrip('/')}/{bucket_name}/{minio_key}"
                 shp_paths.append(full_path)
                 print(f"[DEBUG] SHP subido: {full_path}")
-
+                
+    print(f"[DEBUG] Total SHP files generated: {len(shp_paths)}")
     return shp_paths
 
 

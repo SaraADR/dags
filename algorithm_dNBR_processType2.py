@@ -1,4 +1,7 @@
+import base64
+import logging
 import tempfile
+import time
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -10,9 +13,12 @@ from sqlalchemy import text
 import datetime
 import calendar
 import requests
-from dag_utils import upload_to_minio_path, execute_query, print_directory_contents
+from dag_utils import upload_to_minio_path,generate_dynamic_xml, upload_to_geonetwork_xml, publish_to_geoserver, generate_thumbnail, obtener_coordenadas_tif, execute_query
 import uuid
 import os
+from utils.insert_start_of_execution import start_of_flow_task
+from utils.callback_utils import task_failure_callback
+from dateutil import parser
 
 
 class FechaProxima:
@@ -36,6 +42,10 @@ class FechaProxima:
 
 
 def process_element(**context):
+    trace_id = str(uuid.uuid4())
+    context['task_instance'].xcom_push(key='trace_id', value=trace_id)
+
+    start_of_flow_task(trace_id, source='cron')
 
     madrid_tz = pytz.timezone('Europe/Madrid')
     fechaHoraActual = datetime.datetime.now(madrid_tz)  # Fecha y hora con zona horaria
@@ -131,6 +141,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
             }
             print(params)
             output_data = {}
+            local_output_directory = '/tmp'
             if params is not None:                                    
                 archivo_params = f"/home/admin3/algoritmo_dNBR/input/ejecucion_{fire_id}_{fecha}.json"
                 with sftp.file(archivo_params, 'w') as json_file:
@@ -163,6 +174,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                 output = stdout.read().decode()
                 error_output = stderr.read().decode()
 
+
                 print("Salida de run.sh:")
                 print(output)
                 for line in output.split("\n"):
@@ -182,7 +194,7 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                     sftp.chdir(output_directory)
                     print(f"Cambiando al directorio de salida: {lod}")
                     downloaded_files = []
-
+                    publish_files = [] 
                     for filename in sftp.listdir():
                             remote_file_path = os.path.join(output_directory, filename)
                             local_file_path = os.path.join(lod, filename)
@@ -203,14 +215,91 @@ def ejecutar_algoritmo(datos, fechaHoraActual):
                             upload_to_minio_path('minio_conn', 'missions', local_file_path, archivo_path)
                             output_data[archivo] = local_file_path + '/' + archivo
 
+                            with open(archivo_path, "rb") as f:
+                                file_bytes = f.read()
+                                publish_files.append({
+                                    "file_name": archivo,
+                                    "content": base64.b64encode(file_bytes).decode('utf-8')
+                                })
+
                     output_data["estado"] = "FINISHED"
                     print("----------- FINALIZACION DEL PROCESO PARA ESE INCENDIO  -------------------")
                     print(output_data)
                     print("-------------------------------------------")
                     historizacion(output_data, fire_id, mission_id )
+
+                    #SUBIDA GEOSERVER
+                    WORKSPACE = "Dnbr"
+                    GENERIC_LAYER = "algoritm_dnbr"
+                    wms_layers_info = publish_to_geoserver(publish_files, WORKSPACE, GENERIC_LAYER )
+                    for wms in wms_layers_info:
+                        filename = wms['filename']
+                        if 'dNBR' in filename:
+                            description = "Indice_DNBR. Capa ráster que representa el índice DNBR (Delta Normalized Burn Ratio), utilizado para evaluar la severidad de incendios mediante la comparación de imágenes multiespectrales pre y post incendio"
+                        elif 'NDWI' in filename:
+                            description = "Índice de agua normalizado"
+                        elif 'clasificado' in filename:
+                            description = "Clasificación de severidad de incendio"
+                        elif 'erosion' in filename:
+                            description = "Riesgo Erosion. Capa geoespacial que representa el riesgo potencial de erosión del suelo, basado en diversos factores"
+                        elif 'perimetro' in filename:
+                            description = "Perímetro. Capa vectorial que representa el perímetro del incendio calculado a partir del indice DNBR."
+                        else:
+                            description = f"Capa WMS para {filename}"
+                        wms['description'] = description
+
+                    print(wms_layers_info)
+
+                    #SUBIDA GEONETWORK
+
+                    nombre_incendio = json_Incendio.get('name', 'Nombre no disponible')
+                    fecha_str = json_Incendio.get('start', None)
+                    if fecha_str:
+                        fecha_inicio_mision = parser.parse(fecha_str).strftime('%Y-%m-%d')
+                    else:
+                        fecha_inicio_mision = 'No disponible'
+
+                    #info general
+                    eiiob_titulo =  f"PostIncendio {nombre_incendio} {fecha_inicio_mision}"
+                    eiiob_descripcion = "Conjunto de datos geoespaciales generados a partir del análisis de áreas afectadas por incendios forestales. Este conjunto puede incluir capas como el índice de severidad de incendio (dNBR), estimaciones del riesgo potencial de erosión y mapas de aptitud o potencial de revegetación natural. Los datos permiten evaluar el impacto del fuego sobre la vegetación y el suelo, y son útiles para apoyar la restauración ambiental, la planificación post-incendio y la gestión del territorio"
+                    
+                    #info tecnica
+                    eiiob_inspire = "Zonas de riesgos naturales, Cubierta terrestre"
+                    eiiob_categoria = "Cobertura de la Tierra con mapas básicos e imágenes Medio ambiente"
+                    eiiob_pkey = "dNBR, Riesgo de erosión, Revegetación, Recuperación post-incendio, Degradación del suelo, Impacto ambiental"
+                    eiiob_idioma = "Es"
+                    eiiob_representacion = "Malla"
+                    eiiob_referencia = "EPSG:4326"
+
+                    bbox = None
+                    images_files = []
+                    for item in publish_files:
+                        if item["file_name"] == "fire.dNBR.tif":
+                            content_bytes = base64.b64decode(item["content"]) 
+                            content_thumbnail, name_tumbnail = generate_thumbnail(content_bytes, item["file_name"])
+                            bbox = obtener_coordenadas_tif(item["file_name"], content_bytes)
+                            images_files.append({
+                                "content": content_thumbnail, 
+                                "file_name": name_tumbnail
+                            })
+                            break  
+                    for item in publish_files:
+                        if item["file_name"].lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                            images_files.append({
+                                "content": item["content"],  
+                                "file_name": item["file_name"]
+                        })
+
+
+                    xml_data = generate_dynamic_xml(eiiob_titulo, eiiob_descripcion, eiiob_inspire, eiiob_categoria,eiiob_pkey,eiiob_idioma,eiiob_representacion, eiiob_referencia, bbox, wms_layers_info, images_files, mission_id)
+                    print(xml_data)
+                    resources_id = upload_to_geonetwork_xml(xml_data)
+
     except Exception as e:
         print(f"Error en el proceso: {str(e)}")    
         output_data = {"estado": "ERROR", "comentario": str(e)}
+
+    return None
 
 
 def historizacion(output_data, fire_id, mission_id):
@@ -276,9 +365,13 @@ def busqueda_datos_perimetro(idIncendio):
             response = requests.get(url, auth=auth)
 
             if response.status_code == 200:
-                print("Perimetros del incendio encontrados con exito.")
+
                 fire_data = response.json()
-                most_recent_obj = max(fire_data, key=lambda x: x["timestamp"])
+                valid_fire_data = [x for x in fire_data if x["timestamp"] is not None]
+                if not valid_fire_data:
+                    raise Exception("No hay perimetros válidos con timestamp definido.")
+                most_recent_obj = max(valid_fire_data, key=lambda x: x["timestamp"])
+                print("Perimetros del incendio encontrados con exito.")
                 return most_recent_obj
             else:
                 print(f"Error en la busqueda del incendio: {response.status_code}")
@@ -321,6 +414,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=1),
+    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(

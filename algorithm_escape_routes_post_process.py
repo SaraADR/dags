@@ -21,7 +21,7 @@ from sqlalchemy import text
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 import numpy as np
 import pytz
-from function_save_logs_to_minio import save_logs_to_minio
+from utils.callback_utils import task_failure_callback
 
 
 def process_escape_routes_data(**context):
@@ -32,7 +32,8 @@ def process_escape_routes_data(**context):
     from_user = message['message']['from_user']
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
-
+    trace_id = context['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
 
     #Obtener urls de los path del algoritmo
     url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-paths"  
@@ -300,7 +301,6 @@ def process_escape_routes_data(**context):
 
 
             #Cerramos el algoritmo, leemos el resultado
-            print_directory_contents(local_output_directory)
 
             local_output_directory = '/tmp'
             shapefile_path = os.path.join(local_output_directory, "ruta_escape.shp")
@@ -313,14 +313,14 @@ def process_escape_routes_data(**context):
             if(shapefile_path is not None):
 
                 mission_id = input_data.get('mission_id', 'unknown_mission') 
-
+                
                 try:
                     outputZip = os.path.join(local_output_directory, "ruta_escape.zip")
                     crear_zip_si_existen("ruta_escape", local_output_directory, [".shp", ".prj", ".shx", ".dbf"])
                     key = f"{uuid.uuid4()}"
                     file_key = f'{mission_id}/escape_routes/{key}'
                     upload_to_minio_path('minio_conn', 'missions', file_key, outputZip)
-                    file_url = f"https://minioapi.avincis.cuatrodigital.com/missions/{file_key}/ruta_escape.zip"
+                    file_url = f"https://minio.swarm-training.biodiversidad.einforex.net/missions/{file_key}/ruta_escape.zip"
                     print(f" URL: {file_url}")
                 except Exception as e:
                     print(f"Error al subir archivos a MinIO: {str(e)}")
@@ -375,35 +375,35 @@ def process_escape_routes_data(**context):
 
             # Y guardamos en la tabla de historico
             madrid_tz = pytz.timezone('Europe/Madrid')
-            
+            missionId = input_data.get('mission_id')
+            if not missionId:
+                print("El 'mission_id' no exite en input_data.")
+            else:
+                datos = {
+                    'sampled_feature': input_data['mission_id'] ,  
+                    'result_time': datetime.now(madrid_tz),
+                    'phenomenon_time': datetime.now(madrid_tz),
+                    'input_data': json.dumps(params),  
+                    'output_data': json.dumps({"estado": "FINISHED", "zip_ficheros": file_url}),    
+                }
 
 
+                
+                # Construir la consulta de inserción
+                query = f"""
+                    INSERT INTO algoritmos.algoritmo_escape_routes (
+                        sampled_feature, result_time, phenomenon_time, input_data, output_data
+                    ) VALUES (
+                        {datos['sampled_feature']},
+                        '{datos['result_time']}',
+                        '{datos['phenomenon_time']}',
+                        '{datos['input_data']}',
+                        '{datos['output_data']}'
+                    )
+                """
 
-            datos = {
-                'sampled_feature': input_data['mission_id'] ,  
-                'result_time': datetime.now(madrid_tz),
-                'phenomenon_time': datetime.now(madrid_tz),
-                'input_data': json.dumps(params),  
-                'output_data': json.dumps({"estado": "FINISHED", "zip_ficheros": file_url}),   
-            }
-
-
-            
-            # Construir la consulta de inserción
-            query = f"""
-                INSERT INTO algoritmos.algoritmo_escape_routes (
-                    sampled_feature, result_time, phenomenon_time, input_data, output_data
-                ) VALUES (
-                     {datos['sampled_feature']},
-                    '{datos['result_time']}',
-                    '{datos['phenomenon_time']}',
-                    '{datos['input_data']}',
-                    '{datos['output_data']}'
-                )
-            """
-
-            # Ejecutar la consulta
-            execute_query('biobd', query)
+                # Ejecutar la consulta
+                execute_query('biobd', query)
 
 
 
@@ -558,9 +558,6 @@ def create_json(params):
     }
     return input_data
 
-def always_save_logs(**context):
-    return True
-
 
 # Configuración del DAG
 default_args = {
@@ -571,6 +568,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
+    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
@@ -590,14 +588,7 @@ process_escape_routes_task = PythonOperator(
     dag=dag,
 )
 
-from utils.log_utils import setup_conditional_log_saving
-
-check_logs, save_logs = setup_conditional_log_saving(
-    dag=dag,
-    task_id='save_logs_to_minio',
-    task_id_to_save='process_escape_routes',
-    condition_function=always_save_logs
-)
 
 
-process_escape_routes_task >> check_logs
+
+process_escape_routes_task
