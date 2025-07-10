@@ -13,10 +13,16 @@ from airflow.hooks.base import BaseHook
 from sqlalchemy.orm import sessionmaker
 import json
 from dag_utils import get_db_session
+from utils.insert_end_of_execution import end_of_flow_task
+from utils.callback_utils import task_failure_callback
 
 
 def process_element(**context):
     message = context['dag_run'].conf
+
+    trace_id = context['dag_run'].conf['trace_id']
+    print(f"Processing with trace_id: {trace_id}")
+
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)
 
@@ -256,8 +262,6 @@ def change_state_job(**context):
     except Exception as e:
         session.rollback()
         print(f"Error durante el guardado del estado del job: {str(e)}")
-
- 
  
 default_args = {
     'owner': 'sadr',
@@ -267,6 +271,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': datetime.timedelta(minutes=1),
+    'on_failure_callback': task_failure_callback
 
 }
 

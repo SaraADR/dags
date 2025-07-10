@@ -429,11 +429,6 @@ def fetch_results_from_einforex(**context):
         print(f"[ERROR] Fallo al notificar: {e}")
         raise
 
-# Definición de la función para notificar al frontend y guardar en la base de datos
-
-def always_save_logs(**context):
-    print("[INFO] always_save_logs ejecutado.")
-    return True
 
 # Definición DAG
 
