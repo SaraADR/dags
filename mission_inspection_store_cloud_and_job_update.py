@@ -14,7 +14,6 @@ from sqlalchemy import create_engine, text, MetaData, Table
 from sqlalchemy.orm import sessionmaker
 from collections import defaultdict
 from dag_utils import get_db_session, get_minio_client
-from power_line.utils.powerline_geonetwork import update_or_create_powerline_geonetwork
 
 
 def process_extracted_files(**kwargs):
@@ -236,7 +235,6 @@ def process_extracted_files(**kwargs):
         print(f"Error al insertar video en mss_inspection_vegetation_child: {str(e)}")
     finally:
         session.close()
-        update_or_create_powerline_geonetwork(mission_id, json_content)
         print("Conexión a la base de datos cerrada correctamente")
 
 

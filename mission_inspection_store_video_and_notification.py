@@ -14,7 +14,6 @@ from dag_utils import get_db_session, get_minio_client
 from moviepy import VideoFileClip
 import tempfile
 import os
-from power_line.utils.powerline_geonetwork import update_or_create_powerline_geonetwork
 
 # Función para procesar archivos extraídos
 def process_extracted_files(**kwargs):
@@ -104,7 +103,6 @@ def process_extracted_files(**kwargs):
         session.commit()
         print(f"Video {video_key} registrado en la inspección {mission_inspection_id}")
 
-        update_or_create_powerline_geonetwork(mission_id, json_content)
         # print("Saltando GeoNetwork temporalmente")
     except Exception as e:
         session.rollback()

@@ -23,8 +23,6 @@ import rasterio
 from xml.sax.saxutils import escape
 from pyproj import Transformer
 from botocore.exceptions import ClientError
-from utils.insert_end_of_execution import end_of_flow_task
-from utils.callback_utils import task_failure_callback
 import shutil
 from water_analysis.utils.xml_generator import generate_dynamic_xml
 from water_analysis.utils.geoserver_publicator import publish_to_geoserver
@@ -360,7 +358,6 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
-    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
@@ -378,14 +375,6 @@ process_extracted_files_task = PythonOperator(
     provide_context=True,
     dag=dag,
 )
-
-end_task = PythonOperator(
-    task_id='end_of_flow',
-    python_callable=end_of_flow_task,
-    provide_context=True,
-    dag=dag,
-)
-
 
 # Flujo del DAG 
 process_extracted_files_task
