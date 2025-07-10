@@ -8,7 +8,7 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.hooks.base import BaseHook
 from sqlalchemy import text
 from dag_utils import get_db_session, get_minio_client
-
+from airflow.models import Variable
 
 def process_thumbnail_message(message, **kwargs):
     """Procesa el mensaje del tópico `thumbs`."""
@@ -79,6 +79,8 @@ def process_thumbnail_message(message, **kwargs):
 
         # Conectar a la base de datos
         session = get_db_session()
+        rutaminio = Variable.get("ruta_minIO")
+
 
         # Determinar la acción según el tipo de evento (tabla)
         if tabla_guardada == "observacion_aerea.observation_captura_video":
@@ -87,7 +89,7 @@ def process_thumbnail_message(message, **kwargs):
                 SET video = video || :video
                 WHERE fid = :fid
             """)
-            video_metadata = json.dumps({"thumbnail": bucket_destino +'/' + nueva_ruta_thumbnail , "original": ruta_imagen_original})
+            video_metadata = json.dumps({"url": rutaminio + '/' + bucket_destino +'/' + nueva_ruta_thumbnail , "original": rutaminio + '/' + ruta_imagen_original})
             session.execute(update_query, {"video": video_metadata, "fid": id_tabla})
 
         elif tabla_guardada in [
@@ -100,7 +102,7 @@ def process_thumbnail_message(message, **kwargs):
                 SET imagen = imagen || :imagen
                 WHERE fid = :fid
             """)
-            imagen_metadata = json.dumps({"thumbnail": bucket_destino +'/' + nueva_ruta_thumbnail , "original": ruta_imagen_original})
+            imagen_metadata = json.dumps({"url": rutaminio + '/' + bucket_destino +'/' + nueva_ruta_thumbnail , "original": rutaminio + '/' + ruta_imagen_original})
             session.execute(update_query, {"imagen": imagen_metadata, "fid": id_tabla})
 
         elif tabla_guardada in [
@@ -113,7 +115,7 @@ def process_thumbnail_message(message, **kwargs):
                 SET temporal_subsamples = temporal_subsamples || :temporal_subsamples
                 WHERE fid = :fid
             """)
-            temporal_metadata = json.dumps({"thumbnail": bucket_destino +'/' + nueva_ruta_thumbnail , "original": ruta_imagen_original})
+            temporal_metadata = json.dumps({"url": rutaminio + '/' + bucket_destino +'/' + nueva_ruta_thumbnail , "original": rutaminio + '/' + ruta_imagen_original})
             session.execute(update_query, {"temporal_subsamples": temporal_metadata, "fid": id_tabla})
 
         else:
