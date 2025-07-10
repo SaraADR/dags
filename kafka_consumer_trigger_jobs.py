@@ -13,6 +13,8 @@ from zoneinfo import ZoneInfo
 from function_save_logs_to_minio import save_logs_to_minio
 from utils.log_utils import setup_conditional_log_saving
 from utils.kafka_headers import extract_trace_id
+from utils.insert_start_of_execution import start_of_flow_task
+from utils.callback_utils import task_failure_callback
 import os
 
 KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
@@ -23,19 +25,19 @@ def consumer_function(message, prefix, **kwargs):
         print(f"{KAFKA_RAW_MESSAGE_PREFIX} {message}")
         print("Esto es el mensaje")
         print(f"{msg_value}")
-
+        
         trace_id, log_msg = extract_trace_id(message)
         print(log_msg)
 
         if msg_value:
-            process_message(msg_value)
+            process_message(msg_value, trace_id=trace_id)
             return True
         else:
             print("Empty message received")      
             return None
     return False
-
-def process_message(msg_value, **kwargs):
+    
+def process_message(msg_value, trace_id=None, **kwargs):
     if msg_value is not None and msg_value != 'null':
         try:
             msg_json = json.loads(msg_value)
@@ -43,8 +45,12 @@ def process_message(msg_value, **kwargs):
             
             job = msg_json.get('job')
             id_sesion = msg_json.get('id')
+
+            if trace_id:
+                start_of_flow_task(trace_id, 'jobs')
+
             update_job_status(id_sesion, 'IN PROGRESS' , None , datetime.now(ZoneInfo("Europe/Madrid")))
-            conf = {'message': msg_json}
+            conf = {'message': msg_json, 'trace_id': trace_id}
             
             if job == 'automaps':
                 dag_to_trigger = 'algorithm_automaps_docker_store_and_notify'
@@ -54,22 +60,21 @@ def process_message(msg_value, **kwargs):
                 dag_to_trigger = 'algorithm_escape_routes_post_process' 
             elif job == 'create_fire':
                 dag_to_trigger = 'mission_fire_creation_and_notify'
-            elif job == 'vegetation-review-incidence':
-                dag_to_trigger = 'mission_inspection_cloud_revision_and_notification'
-            elif job == 'create-video-detection':
-                dag_to_trigger = 'mission_inspection_video_review_postprocess_and_notification'
-            elif job == 'listen-detections-finished':
-                dag_to_trigger = 'mission_inspection_video_revision_monitor_and_job_update'
+            # elif job == 'vegetation-review-incidence':
+            #     dag_to_trigger = 'mission_inspection_cloud_revision_and_notification'
+            # elif job == 'create-video-detection':
+            #     dag_to_trigger = 'mission_inspection_video_review_postprocess_and_notification'
+            # elif job == 'listen-detections-finished':
+            #     dag_to_trigger = 'mission_inspection_video_revision_monitor_and_job_update'
             elif job == 'convert-ts-to-mp4':
                 dag_to_trigger = 'convert_ts_to_mp4_dag'
             elif job == 'cma-recommender':
                 dag_to_trigger = 'algorithm_aircraft_recommendation'
             elif job == 'cma-planner':
-                dag_to_trigger = 'algorithm_aircraft_planificator'
+                dag_to_trigger = 'algorithm_aircraft_planificator'    
             else:
                 print(f"Unrecognized job type: {job}")
                 raise AirflowSkipException(f"Unrecognized job type: {job}")
-
 
 
             trigger_dag_run = TriggerDagRunOperator(
@@ -114,6 +119,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=1),
+    'on_failure_callback': task_failure_callback
 }
 
 dag = DAG(
@@ -130,7 +136,7 @@ dag = DAG(
 consume_from_topic = ConsumeFromTopicOperator(
     kafka_config_id="kafka_connection",
     task_id="consume_from_topic",
-    topics=["intentojobsv2"],
+    topics=["debezium.public.jobs"],
     apply_function=consumer_function,
     apply_function_kwargs={"prefix": "consumed:::"},
     commit_cadence="end_of_batch",
