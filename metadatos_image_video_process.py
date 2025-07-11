@@ -42,7 +42,7 @@ def poll_kafka_messages(**kwargs):
     }
 
     consumer = Consumer(conf)
-    consumer.subscribe(['metadata'])
+    consumer.subscribe(['metadata11'])
     messages = []
 
     try:
