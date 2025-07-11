@@ -2,8 +2,6 @@ import json
 import os
 import shutil
 import uuid
-
-from click import get_current_context
 import boto3
 from datetime import datetime, timedelta, timezone
 from airflow import DAG
@@ -21,6 +19,10 @@ from dag_utils import get_db_session, delete_file_sftp
 from airflow.models import Variable
 from confluent_kafka import Consumer, KafkaException
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.operators.python import get_current_context
+from utils.kafka_headers import extract_trace_id
+
+KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
 
 mensaje_final = {
     "key": "ImagenMetadatos",
@@ -35,12 +37,12 @@ def poll_kafka_messages(**kwargs):
     conf = {
         'bootstrap.servers': '10.96.180.179:9092',
         'group.id': '1',
-        'auto.offset.reset': 'earliest',
-        'enable.auto.commit': False
+        'auto.offset.reset': 'latest',
+        'enable.auto.commit': True
     }
 
     consumer = Consumer(conf)
-    consumer.subscribe(['metadata11'])
+    consumer.subscribe(['metadata'])
     messages = []
 
     try:
@@ -52,6 +54,19 @@ def poll_kafka_messages(**kwargs):
             if msg.error():
                 raise KafkaException(msg.error())
             else:
+                print(f"{KAFKA_RAW_MESSAGE_PREFIX} {msg}")
+                
+                trace_id, log_msg = extract_trace_id(msg)
+                print(log_msg)
+
+                try:
+                    context = get_current_context()
+                    if context and 'task_instance' in context:
+                        context['task_instance'].xcom_push(key='trace_id', value=trace_id)
+                        print(f"trace_id guardado en XCom: {trace_id}")
+                except Exception as e:
+                    print(f"Error al guardar trace_id en XCom: {e}")
+
                 msg_value = msg.value().decode('utf-8')
                 print("Mensaje procesado: ", msg_value)
                 messages.append(msg_value)
@@ -176,7 +191,7 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
 
     idRafaga = output_json.get("IdentificadorRafaga", '0')
     if idRafaga not in ['0', '', None]:
-        is_rafaga(output, output_json, version, **kwargs)
+        is_rafaga(output, output_json, version,ruta_imagen=file_path, **kwargs)
 
 
     #SON VIDEOS
@@ -206,7 +221,15 @@ def process_zip_file(local_zip_path, file_path, message, **kwargs):
         else:
             is_visible_or_ter(message,local_zip_path, output_json_noload,output_json, 0, version)
             print("No se reconoce el tipo de imagen o video aportado")
-        return 
+        return
+    
+    try:
+        if os.path.exists(local_zip_path):
+            os.remove(local_zip_path)
+            print(f"Archivo local eliminado: {local_zip_path}")
+    except Exception as e:
+        print(f"Error eliminando archivo local: {e}")
+        
     return
 
 
@@ -272,9 +295,8 @@ def is_rafaga(output, output_json, version, ruta_imagen=None, **kwargs):
         'output': output,
         'output_json': output_json,
         'version': version,
+        'RutaImagen': ruta_imagen  # <-- AÑADIDO: pasa la ruta aquí explícitamente
     }
-    if ruta_imagen:
-        conf_dict['RutaImagen'] = ruta_imagen
 
     TriggerDagRunOperator(
         task_id=f"trigger_rafagas_{uuid.uuid4()}",
@@ -585,7 +607,6 @@ def is_visible_or_ter(message, local_zip_path, output, output_json, type, versio
         return
 
 
-
 def resultByType(type, message, output, output_json, query, SensorId, timestamp_naive, session):
 
 
@@ -678,6 +699,22 @@ def generar_shape_con_offsets(data):
     shape = f"SRID=4326;POLYGON (({vertices_str}))"
     return shape
 
+def trigger_video_dag(output_json, ruta_video, version, **kwargs):
+    conf_dict = {
+        'output_json': output_json,
+        'RutaVideo': ruta_video,
+        'version': version
+    }
+    context = get_current_context()
+    dag = context['dag']
+
+    TriggerDagRunOperator(
+        task_id=f"trigger_video_process_{uuid.uuid4()}",
+        trigger_dag_id='process_video_and_metadatos',
+        conf=conf_dict,
+        execution_date=datetime.now().replace(tzinfo=timezone.utc),
+        dag=dag
+    ).execute(context=context)
 
 
 def generar_shape(data):
@@ -728,7 +765,7 @@ def generar_shape(data):
 #DESCARGA CADA UNO DE LOS FICHEROS DE MANERA INDIVIDUAL
 def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
     """
-    Función para descargar archivos o carpetas desde MinIO.
+    Función para descargar archivos desde MinIO usando chunks para reducir uso de memoria.
     """
     if not os.path.exists(local_directory):
         os.makedirs(local_directory)
@@ -738,20 +775,28 @@ def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_direct
     relative_path = file_path_in_minio.replace('/temp/', '')
 
     try:
-        # # Verificar si el archivo existe antes de intentar descargarlo
+        # Obtener objeto sin cargar contenido completo en memoria
         response = s3_client.get_object(Bucket=bucket_name, Key=relative_path)
+        
+        # Escribir en chunks de 8KB para minimizar uso de memoria
+        CHUNK_SIZE = 8192  # 8KB chunks
+        
         with open(local_file, 'wb') as f:
-            f.write(response['Body'].read())
+            while True:
+                chunk = response['Body'].read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                f.write(chunk)
 
         print(f"Archivo descargado correctamente: {local_file}")
-
         return local_file
+        
     except ClientError as e:
         if e.response['Error']['Code'] == '404':
             print(f"Error 404: El archivo no fue encontrado en MinIO: {file_path_in_minio}")
         else:
             print(f"Error en el proceso: {str(e)}")
-        return None  # Devolver None si hay un error
+        return None
 
 def generalizacionDatosMetadatos(output_json, output):
     output_load = json.loads(output)
@@ -787,23 +832,6 @@ def set_mensaje_final(ruta_imagen, id_de_tabla, tabla_guardada):
     print(mensaje_final)
 
 
-def trigger_video_dag(output_json, ruta_video, version, **kwargs):
-    conf_dict = {
-        'output_json': output_json,
-        'RutaVideo': ruta_video,
-        'version': version
-    }
-    context = get_current_context()
-    dag = context['dag']
-
-    TriggerDagRunOperator(
-        task_id=f"trigger_video_process_{uuid.uuid4()}",
-        trigger_dag_id='process_video_and_metadatos',
-        conf=conf_dict,
-        execution_date=datetime.now().replace(tzinfo=timezone.utc),
-        dag=dag
-    ).execute(context=context)
-
 
 def my_producer_function():
     global mensaje_final
@@ -821,6 +849,25 @@ def my_producer_function():
 def delete_variable_global(**kwargs):
     global mensaje_final
     Variable.set("mensaje_final", {})
+
+def there_was_kafka_message(**context):
+    dag_id = context['dag'].dag_id
+    run_id = context['run_id']
+    task_id = 'poll_kafka'
+    log_base = "/opt/airflow/logs"
+    log_path = f"{log_base}/dag_id={dag_id}/run_id={run_id}/task_id={task_id}"
+    
+    # Search for the latest log file
+    try:
+        latest_log = max(
+            (os.path.join(root, f) for root, _, files in os.walk(log_path) for f in files),
+            key=os.path.getctime
+        )
+        with open(latest_log, 'r') as f:
+            content = f.read()
+            return f"{KAFKA_RAW_MESSAGE_PREFIX} <cimpl.Message object at" in content
+    except (ValueError, FileNotFoundError):
+        return False
 
 
 default_args = {
@@ -840,7 +887,7 @@ dag = DAG(
     schedule_interval='*/1 * * * *',
     catchup=False,
     max_active_runs=1,
-    concurrency=1,
+    concurrency=5,
 )
 
 poll_task = PythonOperator(
@@ -849,8 +896,6 @@ poll_task = PythonOperator(
         provide_context=True,
         dag=dag
 )
-
-
 
 produce_task = ProduceToTopicOperator(
     task_id="produce_to_kafka",
