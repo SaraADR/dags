@@ -3,7 +3,6 @@ from datetime import datetime, timedelta, timezone
 import geopandas as gpd
 from xml.sax.saxutils import escape
 from pyproj import Transformer
-from water_analysis.utils.insert_end_of_execution import end_of_flow_task
 
 
 def generate_dynamic_xml(json_modificado, layer_name, workspace, base_url,uuid_key, coordenadas_tif, wms_server_tiff, wms_layer_tiff, wms_description_tiff, id_mission, url_new,  ruta_png, ruta_pdf, ruta_csv, ruta_tiff, zip_file_save, wms_wfs):

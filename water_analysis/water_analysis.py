@@ -24,7 +24,6 @@ from xml.sax.saxutils import escape
 from pyproj import Transformer
 from botocore.exceptions import ClientError
 import shutil
-from water_analysis.utils.xml_generator import generate_dynamic_xml
 from water_analysis.utils.geoserver_publicator import publish_to_geoserver
 from water_analysis.utils.minio_utils import download_from_minio
 from water_analysis.utils.geonetwork_publicator import upload_to_geonetwork_xml, upload_tiff_attachment
@@ -228,13 +227,6 @@ def process_extracted_files(**kwargs):
 
     #Subimos a Geoserver el tif y ambos shapes
     layer_name, workspace, base_url, wms_server_tiff, wms_layer_tiff, wms_description_tiff,url_new, wms_wfs = publish_to_geoserver(archivos)
-
-
-    #integramos con geonetwork
-    xml_data = generate_dynamic_xml(json_content, layer_name, workspace, base_url, uuid_key, coordenadas_tif, wms_server_tiff, wms_layer_tiff, wms_description_tiff, id_mission, url_new,  ruta_png, ruta_pdf, ruta_csv, ruta_tiff, zip_file_save, wms_wfs)
-
-    resources_id = upload_to_geonetwork_xml([xml_data])
-    upload_tiff_attachment(resources_id, xml_data, archivos)
 
     archivo_pdf = next((a for a in archivos if a["file_name"].lower().endswith(".pdf")), None)
     if not archivo_pdf:
