@@ -56,6 +56,8 @@ def process_message(msg_value, trace_id=None, **kwargs):
                 dag_to_trigger = 'algorithm_escape_routes_post_process' 
             elif job == 'create_fire':
                 dag_to_trigger = 'mission_fire_creation_and_notify'
+            elif job == 'thermal-perimeter':
+                dag_to_trigger = 'algorithm_thermal_perimeter_generation'
             # elif job == 'vegetation-review-incidence':
             #     dag_to_trigger = 'mission_inspection_cloud_revision_and_notification'
             # elif job == 'create-video-detection':
