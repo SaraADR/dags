@@ -354,5 +354,4 @@ receive_data_process = PythonOperator(
     dag=dag,
 )
 
-
 receive_data_process
