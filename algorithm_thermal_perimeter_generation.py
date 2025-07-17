@@ -42,16 +42,18 @@ def execute_thermal_perimeter_process(**context):
     if not selected_bursts:
         throw_job_error(job_id, "No se seleccionaron ráfagas")
         return
-    
+
+
+
+# Función que cambia el estado del job a FINISHED cuando se completa el proceso
 def change_job_status(**context):
-    """Cambia el estado del job a FINISHED."""
     message = context['dag_run'].conf['message']
     job_id = message['id']
     update_job_status(job_id, 'FINISHED')
 
 # Configuración del DAG
 default_args = {
-    'owner': 'sadr',
+    'owner': 'sergio',
     'depends_on_past': False,
     'start_date': datetime(2024, 7, 16),
     'email_on_failure': False,
@@ -60,7 +62,7 @@ default_args = {
     'retry_delay': timedelta(minutes=2),
 }
 
-
+# Definición del DAG
 dag = DAG(
     'algorithm_thermal_perimeter_generation',
     default_args=default_args,
