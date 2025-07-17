@@ -175,6 +175,43 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         
         print("Docker ejecutado correctamente")
 
+# FUNCIÓN DE PRUEBA
+def test_with_sample_data(**context):
+    """Ejecuta el algoritmo con datos de prueba para testing."""
+    
+    print("EJECUTANDO PRUEBA CON DATOS DE MUESTRA")
+    print("=" * 50)
+    
+    # Datos de prueba que simula lo que vendría del frontend
+    sample_conf = {
+        "message": {
+            "id": f"test_job_{int(datetime.now().timestamp())}",
+            "input_data": json.dumps({
+                "mission_id": 101,
+                "selected_bursts": [1, 2, 3],
+                "selected_images": [10, 11, 12, 13, 14],
+                "advanced_params": {
+                    "numberOfClusters": 4,
+                    "tresholdTemp": 3
+                }
+            })
+        },
+        "trace_id": f"test_trace_{int(datetime.now().timestamp())}"
+    }
+    
+    # Crear contexto simulado (mock del dag_run)
+    test_context = {
+        'dag_run': type('MockDagRun', (), {'conf': sample_conf})()
+    }
+    
+    print(f"Datos de prueba simulados:")
+    print(json.dumps(sample_conf, indent=2))
+    
+    # Ejecutar la función principal con datos de prueba
+    execute_thermal_perimeter_process(**test_context)
+    
+    print("Prueba completada")
+
 # Función que cambia el estado del job a FINISHED cuando se completa el proceso
 def change_job_status(**context):
     message = context['dag_run'].conf['message']
@@ -203,6 +240,13 @@ dag = DAG(
     concurrency=1
 )
 
+# NUEVA TAREA DE PRUEBA
+test_task = PythonOperator(
+    task_id='test_with_sample_data',
+    python_callable=test_with_sample_data,
+    dag=dag,
+)
+
 # Tarea principal del algoritmo
 execute_algorithm_task = PythonOperator(
     task_id='execute_thermal_perimeter_algorithm',
@@ -219,7 +263,7 @@ change_status_task = PythonOperator(
     dag=dag,
 )
 
-# Flujo del DAG
+# Flujos del DAG
 execute_algorithm_task >> change_status_task
 
 
