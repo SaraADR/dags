@@ -263,6 +263,24 @@ change_status_task = PythonOperator(
     dag=dag,
 )
 
+# DAG SEPARADO SOLO PARA PRUEBAS
+test_dag_separate = DAG(
+    'test_thermal_perimeter_only',  # Nombre diferente
+    default_args=default_args,
+    description='DAG de prueba SOLO para perímetros térmicos',
+    schedule_interval=None,
+    catchup=False,
+    max_active_runs=1,
+    concurrency=1
+)
+
+# Solo la tarea de prueba
+test_only_task = PythonOperator(
+    task_id='run_test',
+    python_callable=test_with_sample_data,
+    dag=test_dag_separate,
+)
+
 # Flujos del DAG
 execute_algorithm_task >> change_status_task
 
