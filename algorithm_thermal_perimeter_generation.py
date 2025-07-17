@@ -1,6 +1,8 @@
 import json
-
-from dag_utils import throw_job_error
+from airflow.operators.python import PythonOperator
+import datetime
+from dag_utils import throw_job_error, update_job_status
+from airflow import DAG
 
 
 
@@ -40,6 +42,52 @@ def execute_thermal_perimeter_process(**context):
     if not selected_bursts:
         throw_job_error(job_id, "No se seleccionaron ráfagas")
         return
+    
+# Configuración del DAG
+default_args = {
+    'owner': 'sadr',
+    'depends_on_past': False,
+    'start_date': datetime(2024, 7, 16),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 2,
+    'retry_delay': datetime.timedelta(minutes=2),
+}
+
+def change_job_status(**context):
+    """Cambia el estado del job a FINISHED."""
+    message = context['dag_run'].conf['message']
+    job_id = message['id']
+    update_job_status(job_id, 'FINISHED')
+
+dag = DAG(
+    'algorithm_thermal_perimeter_generation',
+    default_args=default_args,
+    description='DAG para generar perímetros de incendios a partir de imágenes termográficas seleccionadas en la interfaz',
+    schedule_interval=None,  # Triggered by Kafka
+    catchup=False,
+    max_active_runs=1,
+    concurrency=1
+)
+
+# Tarea principal del algoritmo
+execute_algorithm_task = PythonOperator(
+    task_id='execute_thermal_perimeter_algorithm',
+    python_callable=execute_thermal_perimeter_process,
+    provide_context=True,
+    dag=dag,
+)
+
+# Cambiar estado a finalizado
+change_status_task = PythonOperator(
+    task_id='change_job_status_to_finished',
+    python_callable=change_job_status,
+    provide_context=True,
+    dag=dag,
+)
+
+# Flujo del DAG
+execute_algorithm_task >> change_status_task
 
 
     
