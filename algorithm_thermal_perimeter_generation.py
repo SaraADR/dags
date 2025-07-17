@@ -1,13 +1,18 @@
 import json
+import os
+import time
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta 
 from dag_utils import throw_job_error, update_job_status
 from airflow import DAG
+from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
 
+
+# Función que ejecuta el algoritmo de generación de perímetros térmicos utilizando los datos recibidos desde la interfaz.
 def execute_thermal_perimeter_process(**context):
-    """Ejecuta el algoritmo de perímetros térmicos utilizando los datos recibidos desde la interfaz."""
+    """Recibe los datos de la interfaz y ejecuta el algoritmo Docker."""
 
     conf = context.get("dag_run").conf
     if not conf:
@@ -31,9 +36,11 @@ def execute_thermal_perimeter_process(**context):
         throw_job_error(job_id, "Invalid JSON in input_data")
         return
 
-    # Extraer datos de la interfaz
+    # Extraer datos básicos de la interfaz
     mission_id = input_data.get('mission_id')
-    selected_bursts = input_data.get('selected_bursts', [])  # IDs de ráfagas seleccionadas
+    selected_bursts = input_data.get('selected_bursts', [])
+    selected_images = input_data.get('selected_images', [])
+    advanced_params = input_data.get('advanced_params', {})
     
     if not mission_id:
         throw_job_error(job_id, "No se especificó ID de misión")
@@ -43,7 +50,131 @@ def execute_thermal_perimeter_process(**context):
         throw_job_error(job_id, "No se seleccionaron ráfagas")
         return
 
+    print("Datos extraídos correctamente:")
+    print(f"Mission ID: {mission_id}")
+    print(f"Selected bursts: {selected_bursts}")
+    print(f"Selected images: {len(selected_images) if selected_images else 'todas'}")
+    print(f"Advanced params: {advanced_params}")
+    
+    # Crear configuración básica para el algoritmo
+    algorithm_config = create_basic_config(mission_id, selected_bursts, advanced_params, job_id)
+    
+    # Ejecutar Docker
+    try:
+        execute_docker_algorithm(algorithm_config, job_id)
+        print("Algoritmo Docker ejecutado correctamente")
+    except Exception as e:
+        print(f"Error ejecutando algoritmo: {str(e)}")
+        throw_job_error(job_id, str(e))
+        raise
 
+def create_basic_config(mission_id, selected_bursts, advanced_params, job_id):
+    """Crea configuración básica para el algoritmo R."""
+    
+    # Parámetros avanzados con valores por defecto
+    n_clusters = advanced_params.get('numberOfClusters', 3)
+    threshold_temp = advanced_params.get('tresholdTemp', 2)
+    
+    # Configuración según especificación del algoritmo
+    config = {
+        "fireId": mission_id,
+        "criteria": {
+            "numberOfClusters": n_clusters,
+            "tresholdTemp": threshold_temp
+        },
+        "infraredBursts": [
+            {
+                "path": f"/share_data/input/burst_{burst_id}",
+                "id": str(burst_id),
+                "timestamp": "2024-07-16T12:00:00", 
+                "sensorId": "thermal_sensor",
+                "imageCount": 5
+            }
+            for burst_id in selected_bursts
+        ]
+    }
+    
+    return config
+
+def execute_docker_algorithm(config, job_id):
+    """Ejecuta el algoritmo usando Docker en el servidor remoto."""
+    
+    print("Iniciando ejecución Docker...")
+    
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    
+    with ssh_hook.get_conn() as ssh_client:
+        sftp = ssh_client.open_sftp()
+        
+        # Rutas en el servidor remoto
+        remote_base_dir = '/home/admin3/thermal-perimeter-algorithm'
+        config_file = f'{remote_base_dir}/share_data/input/config_{job_id}.json'
+        launch_dir = f'{remote_base_dir}/launch'
+        
+        print(f"Preparando archivos en {remote_base_dir}")
+        
+        # Crear directorios necesarios
+        try:
+            sftp.mkdir(f'{remote_base_dir}/share_data')
+            sftp.mkdir(f'{remote_base_dir}/share_data/input')
+            sftp.mkdir(f'{remote_base_dir}/share_data/output')
+        except:
+            pass  # Directorios ya existen
+        
+        # Guardar configuración JSON para el algoritmo R
+        with sftp.file(config_file, 'w') as remote_file:
+            json.dump(config, remote_file, indent=4)
+        print(f"✅ Configuración guardada: {config_file}")
+        
+        # Crear archivo .env dinámico
+        env_content = f"""VOLUME_PATH=..
+ALG_DIR=.
+CONFIGURATION_PATH=share_data/input/config_{job_id}.json
+OUTDIR=share_data/output
+OUTPUT=true
+CONTAINER_NAME=thermal_perimeter_{job_id}
+"""
+        with sftp.file(f'{launch_dir}/.env', 'w') as env_file:
+            env_file.write(env_content)
+        print("Archivo .env creado")
+        
+        sftp.close()
+        
+        # Ejecutar Docker Compose
+        print("Limpiando contenedores anteriores...")
+        ssh_client.exec_command(f'cd {launch_dir} && docker compose down --volumes')
+        time.sleep(2)
+        
+        print("Ejecutando algoritmo de perímetros térmicos...")
+        stdin, stdout, stderr = ssh_client.exec_command(
+            f'cd {launch_dir} && docker compose up --build'
+        )
+        
+        # Leer salida del algoritmo
+        output = stdout.read().decode()
+        error_output = stderr.read().decode()
+        exit_status = stdout.channel.recv_exit_status()
+        
+        print("SALIDA DEL ALGORITMO")
+        print(output)
+        
+        if error_output:
+            print("ERRORES")
+            print(error_output)
+        
+        # Verificar resultado
+        if exit_status != 0:
+            raise Exception(f"Docker falló con código {exit_status}: {error_output}")
+        
+        # Verificar códigos de estado específicos del algoritmo R
+        if "Status 1:" in output:
+            raise Exception("No se encontraron imágenes en las rutas especificadas")
+        elif "Status -100:" in output:
+            raise Exception("Error desconocido en el algoritmo")
+        elif "Status 0:" in output:
+            print("Algoritmo completado exitosamente (Status 0)")
+        
+        print("Docker ejecutado correctamente")
 
 # Función que cambia el estado del job a FINISHED cuando se completa el proceso
 def change_job_status(**context):
