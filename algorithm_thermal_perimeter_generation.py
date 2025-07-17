@@ -1,6 +1,6 @@
 import json
 from airflow.operators.python import PythonOperator
-import datetime
+from datetime import datetime, timedelta 
 from dag_utils import throw_job_error, update_job_status
 from airflow import DAG
 
@@ -43,6 +43,12 @@ def execute_thermal_perimeter_process(**context):
         throw_job_error(job_id, "No se seleccionaron ráfagas")
         return
     
+def change_job_status(**context):
+    """Cambia el estado del job a FINISHED."""
+    message = context['dag_run'].conf['message']
+    job_id = message['id']
+    update_job_status(job_id, 'FINISHED')
+
 # Configuración del DAG
 default_args = {
     'owner': 'sadr',
@@ -51,14 +57,9 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 2,
-    'retry_delay': datetime.timedelta(minutes=2),
+    'retry_delay': timedelta(minutes=2),
 }
 
-def change_job_status(**context):
-    """Cambia el estado del job a FINISHED."""
-    message = context['dag_run'].conf['message']
-    job_id = message['id']
-    update_job_status(job_id, 'FINISHED')
 
 dag = DAG(
     'algorithm_thermal_perimeter_generation',
