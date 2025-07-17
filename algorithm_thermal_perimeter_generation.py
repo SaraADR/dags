@@ -10,9 +10,8 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
 
-# Función que ejecuta el algoritmo de generación de perímetros térmicos utilizando los datos recibidos desde la interfaz.
+# Función que ejecuta el algoritmo de generación de perímetros térmicos utilizando los datos recibidos desde la interfaz y ejecuta el Docker.
 def execute_thermal_perimeter_process(**context):
-    """Recibe los datos de la interfaz y ejecuta el algoritmo Docker."""
 
     conf = context.get("dag_run").conf
     if not conf:
@@ -68,8 +67,8 @@ def execute_thermal_perimeter_process(**context):
         throw_job_error(job_id, str(e))
         raise
 
+# Crea la configuración básica para el algoritmo R según los parámetros recibidos.
 def create_basic_config(mission_id, selected_bursts, advanced_params, job_id):
-    """Crea configuración básica para el algoritmo R."""
     
     # Parámetros avanzados con valores por defecto
     n_clusters = advanced_params.get('numberOfClusters', 3)
@@ -96,8 +95,8 @@ def create_basic_config(mission_id, selected_bursts, advanced_params, job_id):
     
     return config
 
+# Ejecuta el algoritmo de perímetros térmicos usando Docker en el servidor remoto.
 def execute_docker_algorithm(config, job_id):
-    """Ejecuta el algoritmo usando Docker en el servidor remoto."""
     
     print("Iniciando ejecución Docker...")
     
