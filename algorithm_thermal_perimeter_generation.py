@@ -110,6 +110,9 @@ def execute_docker_algorithm(config, job_id):
         config_file = f'{remote_base_dir}/share_data/input/config_{job_id}.json'
         launch_dir = f'{remote_base_dir}/launch'
         
+        # Extraer mission_id del config para el directorio de salida
+        mission_id = config.get('fireId', 'default')
+        
         print(f"Preparando archivos en {remote_base_dir}")
         
         # Crear directorios necesarios
@@ -117,6 +120,7 @@ def execute_docker_algorithm(config, job_id):
             sftp.mkdir(f'{remote_base_dir}/share_data')
             sftp.mkdir(f'{remote_base_dir}/share_data/input')
             sftp.mkdir(f'{remote_base_dir}/share_data/output')
+            sftp.mkdir(f'{remote_base_dir}/share_data/output/incendio{mission_id}')
         except:
             pass  # Directorios ya existen
         
@@ -128,8 +132,8 @@ def execute_docker_algorithm(config, job_id):
         # Crear archivo .env dinámico
         env_content = f"""VOLUME_PATH=..
 ALG_DIR=.
-CONFIGURATION_PATH=share_data/input/config_{job_id}.json
-OUTDIR=share_data/output
+CONFIGURATION_PATH=/share_data/input/config_{job_id}.json
+OUTDIR=/share_data/output/incendio{mission_id}
 OUTPUT=true
 CONTAINER_NAME=thermal_perimeter_{job_id}
 """
@@ -139,9 +143,16 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         
         sftp.close()
         
+        # Dar permisos de ejecución al script
+        print("Configurando permisos del script...")
+        ssh_client.exec_command(f'chmod +x {remote_base_dir}/launch/install_geospatial.sh')
+        time.sleep(1)
+        
         # Ejecutar Docker Compose
         print("Limpiando contenedores anteriores...")
-        ssh_client.exec_command(f'cd {launch_dir} && docker compose down --volumes')
+        cleanup_command = f'cd {launch_dir} && docker compose down --volumes'
+        stdin, stdout, stderr = ssh_client.exec_command(cleanup_command)
+        stdout.channel.recv_exit_status()  # Esperar que termine
         time.sleep(2)
         
         print("Ejecutando algoritmo de perímetros térmicos...")
@@ -149,10 +160,12 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
             f'cd {launch_dir} && docker compose up --build'
         )
         
+        # Esperar a que termine y obtener el estado de salida
+        exit_status = stdout.channel.recv_exit_status()
+        
         # Leer salida del algoritmo
         output = stdout.read().decode()
         error_output = stderr.read().decode()
-        exit_status = stdout.channel.recv_exit_status()
         
         print("SALIDA DEL ALGORITMO")
         print(output)
@@ -173,6 +186,25 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         elif "Status 0:" in output:
             print("Algoritmo completado exitosamente (Status 0)")
         
+        # Verificar que se generaron los archivos de salida esperados
+        output_dir = f'{remote_base_dir}/share_data/output/incendio{mission_id}'
+        expected_files = ['mosaico.tiff', 'output.json', 'perimetro.gpkg']
+        
+        print("Verificando archivos de salida...")
+        for file_name in expected_files:
+            file_path = f'{output_dir}/{file_name}'
+            try:
+                # Reconectar SFTP para verificar archivos
+                sftp = ssh_client.open_sftp()
+                file_stat = sftp.stat(file_path)
+                print(f"Archivo generado: {file_name} ({file_stat.st_size} bytes)")
+            except FileNotFoundError:
+                print(f"Archivo faltante: {file_name}")
+                raise Exception(f"Archivo de salida faltante: {file_name}")
+            except Exception as e:
+                print(f"Error verificando {file_name}: {str(e)}")
+        
+        sftp.close()
         print("Docker ejecutado correctamente")
 
 # FUNCIÓN DE PRUEBA
@@ -187,12 +219,12 @@ def test_with_sample_data(**context):
         "message": {
             "id": f"test_job_{int(datetime.now().timestamp())}",
             "input_data": json.dumps({
-                "mission_id": 1479,  # Usar el mismo fireId del ejemplo
-                "selected_bursts": [1, 2],  # Solo 2 ráfagas como en el ejemplo
-                "selected_images": [],  # Vacío para usar todas las imágenes
+                "mission_id": 1479,  
+                "selected_bursts": [1, 2],
+                "selected_images": [],
                 "advanced_params": {
-                    "numberOfClusters": 3,  # Mismo valor del ejemplo
-                    "tresholdTemp": 2  # Mismo valor del ejemplo
+                    "numberOfClusters": 3,
+                    "tresholdTemp": 2
                 }
             })
         },
@@ -207,10 +239,13 @@ def test_with_sample_data(**context):
     print(f"Datos de prueba simulados:")
     print(json.dumps(sample_conf, indent=2))
     
-    # Ejecutar la función principal con datos de prueba
-    execute_thermal_perimeter_process(**test_context)
-    
-    print("Prueba completada")
+    try:
+        # Ejecutar la función principal con datos de prueba
+        execute_thermal_perimeter_process(**test_context)
+        print("Prueba completada exitosamente")
+    except Exception as e:
+        print(f"Error en la prueba: {str(e)}")
+        raise
 
 # Función que cambia el estado del job a FINISHED cuando se completa el proceso
 def change_job_status(**context):
