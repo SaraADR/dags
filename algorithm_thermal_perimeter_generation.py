@@ -106,7 +106,7 @@ def execute_docker_algorithm(config, job_id):
         sftp = ssh_client.open_sftp()
         
         # Rutas en el servidor remoto
-        remote_base_dir = '/home/admin3/thermal-perimeter-algorithm'
+        remote_base_dir = '/home/admin3/algoritmo-objetivo-3-master'
         config_file = f'{remote_base_dir}/share_data/input/config_{job_id}.json'
         launch_dir = f'{remote_base_dir}/launch'
         
