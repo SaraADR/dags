@@ -83,10 +83,10 @@ def create_basic_config(mission_id, selected_bursts, advanced_params, job_id):
         },
         "infraredBursts": [
             {
-                "path": f"/share_data/input/burst_{burst_id}",
-                "id": str(burst_id),
-                "timestamp": "2024-07-16T12:00:00", 
-                "sensorId": "thermal_sensor",
+                "path": f"/share_data/input/incendio{mission_id}/{burst_id}",
+                "id": f"PO{burst_id}",
+                "timestamp": "2024-07-16T12:00:00Z",
+                "sensorId": "ThermalSensor",
                 "imageCount": 5
             }
             for burst_id in selected_bursts
@@ -106,7 +106,7 @@ def execute_docker_algorithm(config, job_id):
         sftp = ssh_client.open_sftp()
         
         # Rutas en el servidor remoto
-        remote_base_dir = '/home/admin3/algoritmo-objetivo-3-master'
+        remote_base_dir = '/home/admin3/Algoritmo_deteccion_perimetro'
         config_file = f'{remote_base_dir}/share_data/input/config_{job_id}.json'
         launch_dir = f'{remote_base_dir}/launch'
         
@@ -123,7 +123,7 @@ def execute_docker_algorithm(config, job_id):
         # Guardar configuración JSON para el algoritmo R
         with sftp.file(config_file, 'w') as remote_file:
             json.dump(config, remote_file, indent=4)
-        print(f"✅ Configuración guardada: {config_file}")
+        print(f"Configuración guardada: {config_file}")
         
         # Crear archivo .env dinámico
         env_content = f"""VOLUME_PATH=..
@@ -187,12 +187,12 @@ def test_with_sample_data(**context):
         "message": {
             "id": f"test_job_{int(datetime.now().timestamp())}",
             "input_data": json.dumps({
-                "mission_id": 101,
-                "selected_bursts": [1, 2, 3],
-                "selected_images": [10, 11, 12, 13, 14],
+                "mission_id": 1479,  # Usar el mismo fireId del ejemplo
+                "selected_bursts": [1, 2],  # Solo 2 ráfagas como en el ejemplo
+                "selected_images": [],  # Vacío para usar todas las imágenes
                 "advanced_params": {
-                    "numberOfClusters": 4,
-                    "tresholdTemp": 3
+                    "numberOfClusters": 3,  # Mismo valor del ejemplo
+                    "tresholdTemp": 2  # Mismo valor del ejemplo
                 }
             })
         },
