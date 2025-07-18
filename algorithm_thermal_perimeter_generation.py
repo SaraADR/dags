@@ -135,40 +135,47 @@ def execute_docker_algorithm(config, job_id):
             json.dump(config, remote_file, indent=4)
         print(f"Configuración guardada: {config_file}")
         
-        print("Creando imágenes ficticias para prueba...")
-        selected_bursts = [1, 2]  # Los bursts que usas en la prueba
+        print("Subiendo imágenes reales para prueba...")
         
+        # Ruta local donde tienes las imágenes reales
+        local_base = "C:/Users/Sergio/Downloads/algoritmo-objetivo-3-master/input"
+
+        # Obtener selected_bursts del config
+        selected_bursts = [burst.get("id", "").replace("PO", "") for burst in config.get("infraredBursts", [])]
+
         for burst_id in selected_bursts:
             remote_burst_dir = f'{remote_base_dir}/share_data/input/incendio{mission_id}/{burst_id}'
+            local_burst_dir = f'{local_base}/incendio1/{burst_id}'  # Usar incendio1 como ejemplo
             
             try:
-                # Crear directorio para las imágenes del burst
                 sftp.mkdir(f'{remote_base_dir}/share_data/input/incendio{mission_id}')
                 sftp.mkdir(remote_burst_dir)
                 print(f"Directorio de ráfaga creado: {remote_burst_dir}")
-            except Exception as e:
+            except:
                 print(f"Directorio ya existe: {remote_burst_dir}")
             
             # Verificar si ya hay imágenes
             try:
                 files = sftp.listdir(remote_burst_dir)
                 tif_files = [f for f in files if f.endswith('.tif')]
-                if len(tif_files) > 0:
+                if len(tif_files) >= 3:
                     print(f"Ya existen {len(tif_files)} imágenes en ráfaga {burst_id}")
                 else:
-                    # Crear imágenes ficticias
-                    print(f"Creando imágenes ficticias para ráfaga {burst_id}")
-                    for i in range(5):  # 5 imágenes por ráfaga
-                        dummy_path = f'{remote_burst_dir}/img-dummy-{i:03d}-ter_modified.tif'
-                        with sftp.file(dummy_path, 'wb') as f:
-                            # Crear un TIFF básico válido (suficiente para que el algoritmo lo detecte)
-                            tiff_header = b'II*\x00\x10\x00\x00\x00' + b'\x00' * 1000  # TIFF header + datos dummy
-                            f.write(tiff_header)
-                        print(f"  Imagen ficticia: img-dummy-{i:03d}-ter_modified.tif")
+                    # Subir algunas imágenes reales
+                    import os
+                    if os.path.exists(local_burst_dir):
+                        local_files = [f for f in os.listdir(local_burst_dir) if f.endswith('.tif')]
+                        for i, filename in enumerate(local_files[:3]):  # Solo 3 para prueba
+                            local_path = os.path.join(local_burst_dir, filename)
+                            remote_path = f'{remote_burst_dir}/{filename}'
+                            sftp.put(local_path, remote_path)
+                            print(f"  Imagen subida: {filename}")
+                    else:
+                        print(f"⚠️  Directorio local no existe: {local_burst_dir}")
             except Exception as e:
                 print(f"Error manejando imágenes en ráfaga {burst_id}: {str(e)}")
         
-        print("Imágenes ficticias creadas")
+        print("Imágenes reales subidas")
         
         # CONTINUAR CON EL CÓDIGO EXISTENTE
         # Crear archivo .env dinámico - CORREGIDO
