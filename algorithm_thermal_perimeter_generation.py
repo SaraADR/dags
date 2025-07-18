@@ -116,21 +116,27 @@ def execute_docker_algorithm(config, job_id):
         print(f"Preparando archivos en {remote_base_dir}")
         
         # Crear directorios necesarios
-        try:
-            sftp.mkdir(f'{remote_base_dir}/share_data')
-            sftp.mkdir(f'{remote_base_dir}/share_data/input')
-            sftp.mkdir(f'{remote_base_dir}/share_data/output')
-            sftp.mkdir(f'{remote_base_dir}/share_data/output/incendio{mission_id}')
-        except:
-            pass  # Directorios ya existen
+        directories_to_create = [
+            f'{remote_base_dir}/share_data',
+            f'{remote_base_dir}/share_data/input', 
+            f'{remote_base_dir}/share_data/output',
+            f'{remote_base_dir}/share_data/output/incendio{mission_id}'
+        ]
+        
+        for directory in directories_to_create:
+            try:
+                sftp.mkdir(directory)
+                print(f"Directorio creado: {directory}")
+            except Exception as e:
+                print(f"Directorio ya existe: {directory}")
         
         # Guardar configuración JSON para el algoritmo R
         with sftp.file(config_file, 'w') as remote_file:
             json.dump(config, remote_file, indent=4)
-        print(f"Configuración guardada: {config_file}")
+        print(f"✓ Configuración guardada: {config_file}")
         
-        # Crear archivo .env dinámico
-        env_content = f"""VOLUME_PATH=..
+        # Crear archivo .env dinámico - CORREGIDO
+        env_content = f"""VOLUME_PATH={remote_base_dir}/share_data
 ALG_DIR=.
 CONFIGURATION_PATH=/share_data/input/config_{job_id}.json
 OUTDIR=/share_data/output/incendio{mission_id}
@@ -140,6 +146,13 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         with sftp.file(f'{launch_dir}/.env', 'w') as env_file:
             env_file.write(env_content)
         print("Archivo .env creado")
+        
+        # Verificar que el archivo de configuración existe
+        try:
+            stat_info = sftp.stat(config_file)
+            print(f"✓ Archivo de configuración verificado: {stat_info.st_size} bytes")
+        except Exception as e:
+            raise Exception(f"Error: no se pudo verificar el archivo de configuración: {e}")
         
         sftp.close()
         
