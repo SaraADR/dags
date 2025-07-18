@@ -154,17 +154,30 @@ def execute_docker_algorithm(config, job_id):
             except:
                 print(f"Directorio ya existe: {remote_burst_dir}")
             
-            # Verificar si ya hay imágenes
+            # LIMPIAR IMÁGENES FICTICIAS PRIMERO
             try:
                 files = sftp.listdir(remote_burst_dir)
-                tif_files = [f for f in files if f.endswith('.tif')]
+                dummy_files = [f for f in files if f.startswith('img-dummy-')]
+                if dummy_files:
+                    print(f"Limpiando {len(dummy_files)} imágenes ficticias en ráfaga {burst_id}")
+                    for dummy_file in dummy_files:
+                        sftp.remove(f'{remote_burst_dir}/{dummy_file}')
+                        print(f"  Eliminado: {dummy_file}")
+            except Exception as e:
+                print(f"Error limpiando imágenes ficticias: {e}")
+            
+            # Verificar si ya hay imágenes REALES
+            try:
+                files = sftp.listdir(remote_burst_dir)
+                tif_files = [f for f in files if f.endswith('.tif') and not f.startswith('img-dummy-')]
                 if len(tif_files) >= 3:
-                    print(f"Ya existen {len(tif_files)} imágenes en ráfaga {burst_id}")
+                    print(f"Ya existen {len(tif_files)} imágenes reales en ráfaga {burst_id}")
                 else:
-                    # Subir algunas imágenes reales
+                    # Subir imágenes reales
                     import os
                     if os.path.exists(local_burst_dir):
                         local_files = [f for f in os.listdir(local_burst_dir) if f.endswith('.tif')]
+                        print(f"Subiendo {min(3, len(local_files))} imágenes reales para ráfaga {burst_id}")
                         for i, filename in enumerate(local_files[:3]):  # Solo 3 para prueba
                             local_path = os.path.join(local_burst_dir, filename)
                             remote_path = f'{remote_burst_dir}/{filename}'
@@ -172,6 +185,7 @@ def execute_docker_algorithm(config, job_id):
                             print(f"  Imagen subida: {filename}")
                     else:
                         print(f"⚠️  Directorio local no existe: {local_burst_dir}")
+                        print(f"    Buscado en: {local_burst_dir}")
             except Exception as e:
                 print(f"Error manejando imágenes en ráfaga {burst_id}: {str(e)}")
         
@@ -316,7 +330,7 @@ def test_with_sample_data(**context):
         "message": {
             "id": f"test_job_{int(datetime.now().timestamp())}",
             "input_data": json.dumps({
-                "mission_id": 1479,  
+                "mission_id": 9999,  
                 "selected_bursts": [1, 2],
                 "selected_images": [],
                 "advanced_params": {
