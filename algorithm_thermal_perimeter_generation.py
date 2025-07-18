@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from dag_utils import get_minio_client, throw_job_error, update_job_status
 from airflow import DAG
 from airflow.providers.ssh.hooks.ssh import SSHHook
+import shutil
 
 # Función que ejecuta el algoritmo de generación de perímetros térmicos utilizando los datos recibidos desde la interfaz y ejecuta el Docker.
 def execute_thermal_perimeter_process(**context):
@@ -319,37 +320,119 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         sftp.close()
         print("Algoritmo ejecutado correctamente")
 
-# def post_process_results(**context):
-#     """Procesa los archivos de salida y los sube a MinIO"""
-#     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
-    
-#     with ssh_hook.get_conn() as ssh_client:
-#         sftp = ssh_client.open_sftp()
-        
-#         # Descargar archivos del servidor
-#         output_dir = f'/home/admin3/Algoritmo_deteccion_perimetro/share_data/output/incendio{mission_id}'
-#         local_temp_dir = '/tmp/thermal_perimeter_output'
-#         os.makedirs(local_temp_dir, exist_ok=True)
-        
-#         for file_name in ['mosaico.tiff', 'output.json', 'perimetro.gpkg']:
-#             remote_path = f'{output_dir}/{file_name}'
-#             local_path = f'{local_temp_dir}/{file_name}'
-#             sftp.get(remote_path, local_path)
-            
-#         # Subir a MinIO usando get_minio_client()
-#         s3_client = get_minio_client()
-#         mission_id = context['dag_run'].conf['message']['input_data']['mission_id']
-        
-#         for file_name in os.listdir(local_temp_dir):
-#             local_file_path = os.path.join(local_temp_dir, file_name)
-#             minio_key = f"missions/{mission_id}/thermal_perimeter/{file_name}"
-#             s3_client.upload_file(local_file_path, 'missions', minio_key)
-
 # Función que cambia el estado del job a FINISHED cuando se completa el proceso
 def change_job_status(**context):
     message = context['dag_run'].conf['message']
     job_id = message['id']
     update_job_status(job_id, 'FINISHED')
+
+def post_process_and_historize(**context):
+    """Procesa archivos de salida, los sube a MinIO y los historiza en BD"""
+    
+    # Extraer datos del contexto
+    conf = context['dag_run'].conf
+    message = conf.get("message", {})
+    input_data = json.loads(message.get('input_data', '{}'))
+    
+    mission_id = input_data.get('mission_id')
+    selected_bursts = input_data.get('selected_bursts', [])
+    job_id = message.get('id')
+    
+    ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    
+    with ssh_hook.get_conn() as ssh_client:
+        sftp = ssh_client.open_sftp()
+        
+        # 1. DESCARGAR ARCHIVOS DEL SERVIDOR
+        output_dir = f'/home/admin3/Algoritmo_deteccion_perimetro/share_data/output/incendio{mission_id}'
+        local_temp_dir = f'/tmp/thermal_perimeter_{job_id}'
+        os.makedirs(local_temp_dir, exist_ok=True)
+        
+        generated_files = []
+        for file_name in ['mosaico.tiff', 'perimetro.gpkg', 'output.json']:
+            try:
+                remote_path = f'{output_dir}/{file_name}'
+                local_path = f'{local_temp_dir}/{file_name}'
+                sftp.get(remote_path, local_path)
+                generated_files.append(file_name)
+                print(f"Archivo descargado: {file_name}")
+            except Exception as e:
+                print(f"Error descargando {file_name}: {str(e)}")
+        
+        sftp.close()
+        
+        # 2. SUBIR ARCHIVOS A MINIO
+        minio_urls = {}
+        try:
+            s3_client = get_minio_client()
+            
+            for file_name in generated_files:
+                local_file_path = f'{local_temp_dir}/{file_name}'
+                minio_key = f"missions/{mission_id}/thermal_perimeter/{job_id}/{file_name}"
+                
+                # Subir archivo a MinIO
+                s3_client.upload_file(local_file_path, 'results', minio_key)
+                minio_urls[file_name] = f"minio://results/{minio_key}"
+                print(f"✓ Archivo subido a MinIO: {file_name}")
+                
+        except Exception as e:
+            print(f"Error subiendo a MinIO: {str(e)}")
+            # Continuar aunque falle MinIO
+        
+        # 3. HISTORIZAR EN BASE DE DATOS
+        try:
+            from dag_utils import execute_query
+            from datetime import datetime, timezone
+            
+            # Preparar datos para historización
+            execution_time = datetime.now(timezone.utc)
+            
+            input_data_record = {
+                "mission_id": mission_id,
+                "selected_bursts": selected_bursts,
+                "job_id": job_id,
+                "advanced_params": input_data.get('advanced_params', {})
+            }
+            
+            output_data_record = {
+                "generated_files": generated_files,
+                "minio_urls": minio_urls,
+                "execution_status": "SUCCESS",
+                "bursts_processed": len(selected_bursts)
+            }
+            
+            # Insertar en tabla de historización
+            query = """
+                INSERT INTO algoritmos.thermal_perimeter_executions 
+                (mission_id, execution_date, bursts_used, input_data, output_data, job_id)
+                VALUES (%(mission_id)s, %(execution_date)s, %(bursts_used)s, %(input_data)s, %(output_data)s, %(job_id)s)
+            """
+            
+            params = {
+                'mission_id': mission_id,
+                'execution_date': execution_time,
+                'bursts_used': json.dumps(selected_bursts),
+                'input_data': json.dumps(input_data_record),
+                'output_data': json.dumps(output_data_record),
+                'job_id': job_id
+            }
+            
+            execute_query('biobd', query, params)
+            print(f"✓ Ejecución historizada en BD para misión {mission_id}")
+            
+        except Exception as e:
+            print(f"Error en historización: {str(e)}")
+            # No fallar si la historización falla
+        
+        # 4. LIMPIAR ARCHIVOS TEMPORALES
+        
+        try:
+            shutil.rmtree(local_temp_dir)
+            print("Archivos temporales limpiados")
+        except:
+            pass
+        
+        print(f"Post-procesamiento completado para misión {mission_id}")
 
 # Configuración del DAG
 default_args = {
@@ -381,13 +464,13 @@ execute_algorithm_task = PythonOperator(
     dag=dag,
 )
 
-# Tarea de post-procesamiento
-# post_process_task = PythonOperator(
-#     task_id='post_process_thermal_perimeter_results',
-#     python_callable=post_process_results,
-#     provide_context=True,
-#     dag=dag,
-# )
+# Tarea de post-procesamiento e historización
+post_process_task = PythonOperator(
+    task_id='post_process_and_historize_results',
+    python_callable=post_process_and_historize,
+    provide_context=True,
+    dag=dag,
+)
 
 # Cambiar estado a finalizado
 change_status_task = PythonOperator(
@@ -397,6 +480,5 @@ change_status_task = PythonOperator(
     dag=dag,
 )
 
-# Flujo del DAG
-execute_algorithm_task >> change_status_task
-# execute_algorithm_task >> post_process_task >> change_status_task
+# FLUJO del DAG
+execute_algorithm_task >> post_process_task >> change_status_task
