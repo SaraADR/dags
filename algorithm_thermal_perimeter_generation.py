@@ -169,6 +169,29 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         time.sleep(2)
         
         print("Ejecutando algoritmo de perímetros térmicos...")
+        
+        # Agregar debugging antes de ejecutar Docker
+        print("Verificando archivo de configuración antes de Docker...")
+        debug_cmd = f'ls -la {remote_base_dir}/share_data/input/'
+        stdin, stdout, stderr = ssh_client.exec_command(debug_cmd)
+        stdout.channel.recv_exit_status()
+        debug_output = stdout.read().decode()
+        print(f"Contenido de input/: {debug_output}")
+        
+        # Verificar el archivo .env
+        env_debug_cmd = f'cat {launch_dir}/.env'
+        stdin, stdout, stderr = ssh_client.exec_command(env_debug_cmd)
+        stdout.channel.recv_exit_status()
+        env_content_check = stdout.read().decode()
+        print(f"Contenido del .env: {env_content_check}")
+        
+        # Verificar el docker-compose.yaml
+        compose_debug_cmd = f'cat {launch_dir}/docker-compose.yaml'
+        stdin, stdout, stderr = ssh_client.exec_command(compose_debug_cmd)
+        stdout.channel.recv_exit_status()
+        compose_content = stdout.read().decode()
+        print(f"Contenido del docker-compose.yaml: {compose_content}")
+        
         stdin, stdout, stderr = ssh_client.exec_command(
             f'cd {launch_dir} && docker compose up --build'
         )
