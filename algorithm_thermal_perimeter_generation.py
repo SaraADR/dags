@@ -7,9 +7,6 @@ from dag_utils import throw_job_error, update_job_status
 from airflow import DAG
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
-
-
-
 # Función que ejecuta el algoritmo de generación de perímetros térmicos utilizando los datos recibidos desde la interfaz y ejecuta el Docker.
 def execute_thermal_perimeter_process(**context):
 
@@ -135,17 +132,16 @@ def execute_docker_algorithm(config, job_id):
             json.dump(config, remote_file, indent=4)
         print(f"Configuración guardada: {config_file}")
         
-        print("Copiando imágenes desde el servidor...")
+        # Preparar imágenes para el algoritmo
+        print("Preparando imágenes para procesamiento...")
         
-        # Usar imágenes que ya están en el servidor (incendio1 como plantilla)
+        # Usar imágenes existentes en el servidor como plantilla
         server_template_base = f'{remote_base_dir}/input/incendio1'
-
-        # Obtener selected_bursts del config
         selected_bursts = [burst.get("id", "").replace("PO", "") for burst in config.get("infraredBursts", [])]
 
         for burst_id in selected_bursts:
             remote_burst_dir = f'{remote_base_dir}/share_data/input/incendio{mission_id}/{burst_id}'
-            server_template_dir = f'{server_template_base}/{burst_id}'  # Usar las imágenes del servidor
+            server_template_dir = f'{server_template_base}/{burst_id}'
             
             try:
                 sftp.mkdir(f'{remote_base_dir}/share_data/input/incendio{mission_id}')
@@ -154,61 +150,40 @@ def execute_docker_algorithm(config, job_id):
             except:
                 print(f"Directorio ya existe: {remote_burst_dir}")
             
-            # LIMPIAR IMÁGENES FICTICIAS PRIMERO
+            # Verificar si ya hay imágenes disponibles
             try:
                 files = sftp.listdir(remote_burst_dir)
-                dummy_files = [f for f in files if f.startswith('img-dummy-')]
-                if dummy_files:
-                    print(f"Limpiando {len(dummy_files)} imágenes ficticias en ráfaga {burst_id}")
-                    for dummy_file in dummy_files:
-                        sftp.remove(f'{remote_burst_dir}/{dummy_file}')
-                        print(f"  Eliminado: {dummy_file}")
-            except Exception as e:
-                print(f"Error limpiando imágenes ficticias: {e}")
-            
-            # Verificar si ya hay imágenes REALES
-            try:
-                files = sftp.listdir(remote_burst_dir)
-                tif_files = [f for f in files if f.endswith('.tif') and not f.startswith('img-dummy-')]
+                tif_files = [f for f in files if f.endswith('.tif')]
                 if len(tif_files) >= 3:
-                    print(f"Ya existen {len(tif_files)} imágenes reales en ráfaga {burst_id}")
+                    print(f"Encontradas {len(tif_files)} imágenes en ráfaga {burst_id}")
                 else:
-                    # Copiar imágenes desde el directorio plantilla en el servidor
+                    # Copiar imágenes desde plantilla si están disponibles
                     try:
                         template_files = sftp.listdir(server_template_dir)
                         tif_template_files = [f for f in template_files if f.endswith('.tif')]
                         
                         if len(tif_template_files) > 0:
-                            print(f"Copiando {min(3, len(tif_template_files))} imágenes desde {server_template_dir}")
-                            
-                            # Usar comando SSH para copiar archivos en el servidor
-                            copy_cmd = f'cp {server_template_dir}/*.tif {remote_burst_dir}/ 2>/dev/null | head -3'
+                            print(f"Copiando imágenes desde {server_template_dir}")
+                            copy_cmd = f'cp {server_template_dir}/*.tif {remote_burst_dir}/'
                             stdin, stdout, stderr = ssh_client.exec_command(copy_cmd)
                             stdout.channel.recv_exit_status()
-                            
-                            # Verificar que se copiaron
-                            files_after = sftp.listdir(remote_burst_dir)
-                            tif_files_after = [f for f in files_after if f.endswith('.tif')]
-                            print(f"  ✓ {len(tif_files_after)} imágenes copiadas a ráfaga {burst_id}")
-                            
+                            print(f"Imágenes copiadas para ráfaga {burst_id}")
                         else:
-                            print(f"⚠️  No hay imágenes plantilla en {server_template_dir}")
+                            print(f"No hay imágenes disponibles en {server_template_dir}")
                             
                     except Exception as e:
-                        print(f"Error copiando desde plantilla: {e}")
-                        # Como fallback, usar solo algunas imágenes específicas por comando SSH
-                        fallback_cmd = f'ls {server_template_base}/1/*.tif | head -3 | xargs -I {{}} cp {{}} {remote_burst_dir}/'
+                        print(f"Intentando copiar desde ráfaga de respaldo...")
+                        fallback_cmd = f'ls {server_template_base}/1/*.tif | head -5 | xargs -I {{}} cp {{}} {remote_burst_dir}/ 2>/dev/null || true'
                         stdin, stdout, stderr = ssh_client.exec_command(fallback_cmd)
                         stdout.channel.recv_exit_status()
-                        print(f"  Fallback: copiadas imágenes de ráfaga 1 para ráfaga {burst_id}")
+                        print(f"  Imágenes de respaldo copiadas para ráfaga {burst_id}")
                         
             except Exception as e:
-                print(f"Error manejando imágenes en ráfaga {burst_id}: {str(e)}")
+                print(f"Error procesando ráfaga {burst_id}: {str(e)}")
         
-        print("Proceso de imágenes completado")
+        print("Preparación de imágenes completada")
         
-        # CONTINUAR CON EL CÓDIGO EXISTENTE
-        # Crear archivo .env dinámico - CORREGIDO
+        # Crear archivo .env para Docker
         env_content = f"""VOLUME_PATH={remote_base_dir}/share_data
 ALG_DIR=.
 CONFIGURATION_PATH=/share_data/input/config_{job_id}.json
@@ -229,86 +204,50 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         
         sftp.close()
         
-        # Dar permisos de ejecución al script
-        print("Configurando permisos del script...")
+        # Configurar permisos del script
+        print("Configurando permisos...")
         ssh_client.exec_command(f'chmod +x {remote_base_dir}/launch/install_geospatial.sh')
         time.sleep(1)
         
-        # Ejecutar Docker Compose
+        # Limpiar contenedores anteriores
         print("Limpiando contenedores anteriores...")
         cleanup_command = f'cd {launch_dir} && docker compose down --volumes'
         stdin, stdout, stderr = ssh_client.exec_command(cleanup_command)
-        stdout.channel.recv_exit_status()  # Esperar que termine
+        stdout.channel.recv_exit_status()
         time.sleep(2)
         
+        # Ejecutar algoritmo
         print("Ejecutando algoritmo de perímetros térmicos...")
-        
-        # Agregar debugging antes de ejecutar Docker
-        print("Verificando archivo de configuración antes de Docker...")
-        debug_cmd = f'ls -la {remote_base_dir}/share_data/input/'
-        stdin, stdout, stderr = ssh_client.exec_command(debug_cmd)
-        stdout.channel.recv_exit_status()
-        debug_output = stdout.read().decode()
-        print(f"Contenido de input/: {debug_output}")
-        
-        # Verificar el archivo .env
-        env_debug_cmd = f'cat {launch_dir}/.env'
-        stdin, stdout, stderr = ssh_client.exec_command(env_debug_cmd)
-        stdout.channel.recv_exit_status()
-        env_content_check = stdout.read().decode()
-        print(f"Contenido del .env: {env_content_check}")
-        
-        # Verificar el docker-compose.yaml
-        compose_debug_cmd = f'cat {launch_dir}/docker-compose.yaml'
-        stdin, stdout, stderr = ssh_client.exec_command(compose_debug_cmd)
-        stdout.channel.recv_exit_status()
-        compose_content = stdout.read().decode()
-        print(f"Contenido del docker-compose.yaml: {compose_content}")
         
         stdin, stdout, stderr = ssh_client.exec_command(
             f'cd {launch_dir} && docker compose up --build'
         )
         
-        # Esperar a que termine y obtener el estado de salida
+        # Esperar a que termine y obtener resultados
         exit_status = stdout.channel.recv_exit_status()
-        
-        # Leer salida del algoritmo
         output = stdout.read().decode()
         error_output = stderr.read().decode()
         
-        print("SALIDA DEL ALGORITMO")
+        print("SALIDA DEL ALGORITMO:")
         print(output)
         
         if error_output:
-            print("ERRORES")
+            print("ERRORES:")
             print(error_output)
         
         # Verificar resultado
         if exit_status != 0:
             raise Exception(f"Docker falló con código {exit_status}: {error_output}")
         
-        # Verificar códigos de estado específicos del algoritmo R
+        # Verificar códigos de estado del algoritmo R
         if "Status 1:" in output or 'No se han encontrado imágenes' in output:
-            print("⚠️  El algoritmo reportó falta de imágenes")
-            # En pruebas con imágenes ficticias, verificar qué encontró
-            for burst_id in [1, 2]:
-                check_dir = f'{remote_base_dir}/share_data/input/incendio{mission_id}/{burst_id}'
-                try:
-                    files = sftp.listdir(check_dir)
-                    tif_files = [f for f in files if f.endswith('.tif')]
-                    print(f"  Ráfaga {burst_id}: {len(tif_files)} archivos .tif encontrados")
-                except Exception as e:
-                    print(f"  Error verificando ráfaga {burst_id}: {e}")
-            
-            # Para pruebas, no fallar por falta de imágenes reales
-            print("ℹ️  Continuando con verificación (modo prueba)")
-            
+            raise Exception("El algoritmo no encontró imágenes para procesar")
         elif "Status -100:" in output:
             raise Exception("Error desconocido en el algoritmo")
-        elif "Status 0:" in output:
-            print("Algoritmo completado exitosamente (Status 0)")
+        elif "Status 0:" in output or "El algoritmo se ha ejecutado correctamente" in output:
+            print("✓ Algoritmo completado exitosamente")
         
-        # Verificar archivos de salida (más flexible para pruebas)
+        # Verificar archivos de salida
         output_dir = f'{remote_base_dir}/share_data/output/incendio{mission_id}'
         expected_files = ['mosaico.tiff', 'output.json', 'perimetro.gpkg']
         
@@ -327,52 +266,12 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
                 print(f"? Error verificando {file_name}: {str(e)}")
         
         if files_found == 0:
-            print("⚠️  No se generaron archivos de salida (puede ser normal con imágenes ficticias)")
+            raise Exception("No se generaron archivos de salida")
         else:
             print(f"✓ Se generaron {files_found}/{len(expected_files)} archivos esperados")
         
         sftp.close()
-        print("Docker ejecutado correctamente")
-
-# FUNCIÓN DE PRUEBA
-def test_with_sample_data(**context):
-    """Ejecuta el algoritmo con datos de prueba para testing."""
-    
-    print("EJECUTANDO PRUEBA CON DATOS DE MUESTRA")
-    print("=" * 50)
-    
-    # Datos de prueba que simula lo que vendría del frontend
-    sample_conf = {
-        "message": {
-            "id": f"test_job_{int(datetime.now().timestamp())}",
-            "input_data": json.dumps({
-                "mission_id": 9999,  
-                "selected_bursts": [1, 2],
-                "selected_images": [],
-                "advanced_params": {
-                    "numberOfClusters": 3,
-                    "tresholdTemp": 2
-                }
-            })
-        },
-        "trace_id": f"test_trace_{int(datetime.now().timestamp())}"
-    }
-    
-    # Crear contexto simulado (mock del dag_run)
-    test_context = {
-        'dag_run': type('MockDagRun', (), {'conf': sample_conf})()
-    }
-    
-    print(f"Datos de prueba simulados:")
-    print(json.dumps(sample_conf, indent=2))
-    
-    try:
-        # Ejecutar la función principal con datos de prueba
-        execute_thermal_perimeter_process(**test_context)
-        print("Prueba completada exitosamente")
-    except Exception as e:
-        print(f"Error en la prueba: {str(e)}")
-        raise
+        print("Algoritmo ejecutado correctamente")
 
 # Función que cambia el estado del job a FINISHED cuando se completa el proceso
 def change_job_status(**context):
@@ -391,22 +290,15 @@ default_args = {
     'retry_delay': timedelta(minutes=2),
 }
 
-# Definición del DAG
+# Definición del DAG principal
 dag = DAG(
     'algorithm_thermal_perimeter_generation',
     default_args=default_args,
-    description='DAG para generar perímetros de incendios a partir de imágenes termográficas seleccionadas en la interfaz',
-    schedule_interval=None,  # Triggered by Kafka
+    description='DAG para generar perímetros de incendios a partir de imágenes termográficas',
+    schedule_interval=None,  # Triggered by frontend/Kafka
     catchup=False,
     max_active_runs=1,
     concurrency=1
-)
-
-# NUEVA TAREA DE PRUEBA
-test_task = PythonOperator(
-    task_id='test_with_sample_data',
-    python_callable=test_with_sample_data,
-    dag=dag,
 )
 
 # Tarea principal del algoritmo
@@ -425,27 +317,5 @@ change_status_task = PythonOperator(
     dag=dag,
 )
 
-# DAG SEPARADO SOLO PARA PRUEBAS
-test_dag_separate = DAG(
-    'test_thermal_perimeter_only',  # Nombre diferente
-    default_args=default_args,
-    description='DAG de prueba SOLO para perímetros térmicos',
-    schedule_interval=None,
-    catchup=False,
-    max_active_runs=1,
-    concurrency=1
-)
-
-# Solo la tarea de prueba
-test_only_task = PythonOperator(
-    task_id='run_test',
-    python_callable=test_with_sample_data,
-    dag=test_dag_separate,
-)
-
-# Flujos del DAG
+# Flujo del DAG
 execute_algorithm_task >> change_status_task
-
-
-    
-
