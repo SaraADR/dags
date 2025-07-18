@@ -55,9 +55,9 @@ def execute_thermal_perimeter_process(**context):
     # Crear configuración básica para el algoritmo
     algorithm_config = create_basic_config(mission_id, selected_bursts, advanced_params, job_id)
     
-    # Ejecutar Docker
+    # Ejecutar Docker (pasar también los datos originales para acceso a URLs)
     try:
-        execute_docker_algorithm(algorithm_config, job_id)
+        execute_docker_algorithm(algorithm_config, job_id, input_data)
         print("Algoritmo Docker ejecutado correctamente")
     except Exception as e:
         print(f"Error ejecutando algoritmo: {str(e)}")
@@ -93,7 +93,7 @@ def create_basic_config(mission_id, selected_bursts, advanced_params, job_id):
     return config
 
 # Ejecuta el algoritmo de perímetros térmicos usando Docker en el servidor remoto.
-def execute_docker_algorithm(config, job_id):
+def execute_docker_algorithm(config, job_id, input_data):
     
     print("Iniciando ejecución Docker...")
     
@@ -132,16 +132,27 @@ def execute_docker_algorithm(config, job_id):
             json.dump(config, remote_file, indent=4)
         print(f"Configuración guardada: {config_file}")
         
-        # Preparar imágenes para el algoritmo
-        print("Preparando imágenes para procesamiento...")
+        # Descargar imágenes reales desde MinIO (sin fallback)
+        print("Descargando imágenes desde MinIO...")
         
-        # Usar imágenes existentes en el servidor como plantilla
-        server_template_base = f'{remote_base_dir}/input/incendio1'
-        selected_bursts = [burst.get("id", "").replace("PO", "") for burst in config.get("infraredBursts", [])]
-
-        for burst_id in selected_bursts:
+        # Obtener datos de ráfagas del frontend
+        selected_bursts_data = input_data.get('selected_bursts', [])
+        
+        for burst_data in selected_bursts_data:
+            # Verificar si es estructura simple o completa
+            if isinstance(burst_data, dict):
+                burst_id = burst_data.get('id')
+                images_source = burst_data.get('images_source', '')
+                images_list = burst_data.get('images', [])
+            else:
+                # Estructura simple: solo números de ráfaga
+                burst_id = burst_data
+                # Construir URL base de MinIO (ajustar según tu configuración real)
+                minio_base_url = input_data.get('minio_base_url', 'http://tu-minio-url')
+                images_source = f"{minio_base_url}/missions/{mission_id}/burst{burst_id}/"
+                images_list = []  # Se descargarán todas las disponibles
+            
             remote_burst_dir = f'{remote_base_dir}/share_data/input/incendio{mission_id}/{burst_id}'
-            server_template_dir = f'{server_template_base}/{burst_id}'
             
             try:
                 sftp.mkdir(f'{remote_base_dir}/share_data/input/incendio{mission_id}')
@@ -150,38 +161,73 @@ def execute_docker_algorithm(config, job_id):
             except:
                 print(f"Directorio ya existe: {remote_burst_dir}")
             
-            # Verificar si ya hay imágenes disponibles
-            try:
-                files = sftp.listdir(remote_burst_dir)
-                tif_files = [f for f in files if f.endswith('.tif')]
-                if len(tif_files) >= 3:
-                    print(f"Encontradas {len(tif_files)} imágenes en ráfaga {burst_id}")
+            # Descargar imágenes desde MinIO
+            if images_list:
+                # Descargar imágenes específicas
+                print(f"Descargando {len(images_list)} imágenes específicas para ráfaga {burst_id}")
+                images_downloaded = 0
+                
+                for image_name in images_list:
+                    image_url = f"{images_source.rstrip('/')}/{image_name}"
+                    download_cmd = f'wget -q -O {remote_burst_dir}/{image_name} "{image_url}"'
+                    
+                    stdin, stdout, stderr = ssh_client.exec_command(download_cmd)
+                    exit_status = stdout.channel.recv_exit_status()
+                    
+                    if exit_status == 0:
+                        print(f"  ✓ Descargada: {image_name}")
+                        images_downloaded += 1
+                    else:
+                        error_msg = stderr.read().decode()
+                        print(f"  ✗ Error descargando {image_name}: {error_msg}")
+                
+                if images_downloaded == 0:
+                    raise Exception(f"No se pudo descargar ninguna imagen para ráfaga {burst_id} desde {images_source}")
+                
+            else:
+                # Descargar todas las imágenes .tif disponibles desde MinIO
+                print(f"Descargando todas las imágenes .tif para ráfaga {burst_id} desde {images_source}")
+                
+                # Comando para listar y descargar archivos .tif desde MinIO
+                download_all_cmd = f'''
+                curl -s "{images_source.rstrip('/')}" | grep -o 'href="[^"]*\.tif"' | sed 's/href="//;s/"//' | while read file; do
+                    wget -q -O {remote_burst_dir}/$file "{images_source.rstrip('/')}/$file"
+                    echo "Descargado: $file"
+                done
+                '''
+                
+                stdin, stdout, stderr = ssh_client.exec_command(download_all_cmd)
+                exit_status = stdout.channel.recv_exit_status()
+                download_output = stdout.read().decode()
+                
+                if exit_status == 0 and "Descargado:" in download_output:
+                    print(f"Imágenes descargadas desde MinIO para ráfaga {burst_id}")
+                    print(f"Output: {download_output}")
                 else:
-                    # Copiar imágenes desde plantilla si están disponibles
-                    try:
-                        template_files = sftp.listdir(server_template_dir)
-                        tif_template_files = [f for f in template_files if f.endswith('.tif')]
-                        
-                        if len(tif_template_files) > 0:
-                            print(f"Copiando imágenes desde {server_template_dir}")
-                            copy_cmd = f'cp {server_template_dir}/*.tif {remote_burst_dir}/'
-                            stdin, stdout, stderr = ssh_client.exec_command(copy_cmd)
-                            stdout.channel.recv_exit_status()
-                            print(f"Imágenes copiadas para ráfaga {burst_id}")
-                        else:
-                            print(f"No hay imágenes disponibles en {server_template_dir}")
-                            
-                    except Exception as e:
-                        print(f"Intentando copiar desde ráfaga de respaldo...")
-                        fallback_cmd = f'ls {server_template_base}/1/*.tif | head -5 | xargs -I {{}} cp {{}} {remote_burst_dir}/ 2>/dev/null || true'
-                        stdin, stdout, stderr = ssh_client.exec_command(fallback_cmd)
-                        stdout.channel.recv_exit_status()
-                        print(f"  Imágenes de respaldo copiadas para ráfaga {burst_id}")
-                        
-            except Exception as e:
-                print(f"Error procesando ráfaga {burst_id}: {str(e)}")
+                    error_output = stderr.read().decode()
+                    raise Exception(f"Error descargando desde MinIO para ráfaga {burst_id}: {error_output}")
+            
+            # Verificar que se descargaron imágenes
+            files_check = sftp.listdir(remote_burst_dir)
+            tif_files = [f for f in files_check if f.endswith('.tif')]
+            
+            if len(tif_files) > 0:
+                print(f"Se descargaron {len(tif_files)} imágenes para ráfaga {burst_id}")
+                
+                # Actualizar imageCount en la configuración
+                for burst_config in config["infraredBursts"]:
+                    if burst_config["id"] == f"PO{burst_id}":
+                        burst_config["imageCount"] = len(tif_files)
+                        break
+            else:
+                raise Exception(f"No se encontraron imágenes .tif después de la descarga para ráfaga {burst_id}. Verifique que las imágenes existan en MinIO: {images_source}")
         
-        print("Preparación de imágenes completada")
+        print("Descarga de imágenes desde MinIO completada")
+        
+        # Actualizar configuración con imageCount correcto
+        with sftp.file(config_file, 'w') as remote_file:
+            json.dump(config, remote_file, indent=4)
+        print("Configuración actualizada con conteo real de imágenes")
         
         # Crear archivo .env para Docker
         env_content = f"""VOLUME_PATH={remote_base_dir}/share_data
