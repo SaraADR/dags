@@ -3,7 +3,7 @@ import os
 import time
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta 
-from dag_utils import throw_job_error, update_job_status
+from dag_utils import get_minio_client, throw_job_error, update_job_status
 from airflow import DAG
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
@@ -319,6 +319,32 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         sftp.close()
         print("Algoritmo ejecutado correctamente")
 
+# def post_process_results(**context):
+#     """Procesa los archivos de salida y los sube a MinIO"""
+#     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
+    
+#     with ssh_hook.get_conn() as ssh_client:
+#         sftp = ssh_client.open_sftp()
+        
+#         # Descargar archivos del servidor
+#         output_dir = f'/home/admin3/Algoritmo_deteccion_perimetro/share_data/output/incendio{mission_id}'
+#         local_temp_dir = '/tmp/thermal_perimeter_output'
+#         os.makedirs(local_temp_dir, exist_ok=True)
+        
+#         for file_name in ['mosaico.tiff', 'output.json', 'perimetro.gpkg']:
+#             remote_path = f'{output_dir}/{file_name}'
+#             local_path = f'{local_temp_dir}/{file_name}'
+#             sftp.get(remote_path, local_path)
+            
+#         # Subir a MinIO usando get_minio_client()
+#         s3_client = get_minio_client()
+#         mission_id = context['dag_run'].conf['message']['input_data']['mission_id']
+        
+#         for file_name in os.listdir(local_temp_dir):
+#             local_file_path = os.path.join(local_temp_dir, file_name)
+#             minio_key = f"missions/{mission_id}/thermal_perimeter/{file_name}"
+#             s3_client.upload_file(local_file_path, 'missions', minio_key)
+
 # Función que cambia el estado del job a FINISHED cuando se completa el proceso
 def change_job_status(**context):
     message = context['dag_run'].conf['message']
@@ -355,6 +381,14 @@ execute_algorithm_task = PythonOperator(
     dag=dag,
 )
 
+# Tarea de post-procesamiento
+# post_process_task = PythonOperator(
+#     task_id='post_process_thermal_perimeter_results',
+#     python_callable=post_process_results,
+#     provide_context=True,
+#     dag=dag,
+# )
+
 # Cambiar estado a finalizado
 change_status_task = PythonOperator(
     task_id='change_job_status_to_finished',
@@ -365,3 +399,4 @@ change_status_task = PythonOperator(
 
 # Flujo del DAG
 execute_algorithm_task >> change_status_task
+# execute_algorithm_task >> post_process_task >> change_status_task
