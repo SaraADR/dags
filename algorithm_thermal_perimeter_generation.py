@@ -135,17 +135,17 @@ def execute_docker_algorithm(config, job_id):
             json.dump(config, remote_file, indent=4)
         print(f"Configuración guardada: {config_file}")
         
-        print("Subiendo imágenes reales para prueba...")
+        print("Copiando imágenes desde el servidor...")
         
-        # Ruta local donde tienes las imágenes reales
-        local_base = "C:/Users/Sergio/Downloads/algoritmo-objetivo-3-master/input"
+        # Usar imágenes que ya están en el servidor (incendio1 como plantilla)
+        server_template_base = f'{remote_base_dir}/input/incendio1'
 
         # Obtener selected_bursts del config
         selected_bursts = [burst.get("id", "").replace("PO", "") for burst in config.get("infraredBursts", [])]
 
         for burst_id in selected_bursts:
             remote_burst_dir = f'{remote_base_dir}/share_data/input/incendio{mission_id}/{burst_id}'
-            local_burst_dir = f'{local_base}/incendio1/{burst_id}'  # Usar incendio1 como ejemplo
+            server_template_dir = f'{server_template_base}/{burst_id}'  # Usar las imágenes del servidor
             
             try:
                 sftp.mkdir(f'{remote_base_dir}/share_data/input/incendio{mission_id}')
@@ -173,23 +173,39 @@ def execute_docker_algorithm(config, job_id):
                 if len(tif_files) >= 3:
                     print(f"Ya existen {len(tif_files)} imágenes reales en ráfaga {burst_id}")
                 else:
-                    # Subir imágenes reales
-                    import os
-                    if os.path.exists(local_burst_dir):
-                        local_files = [f for f in os.listdir(local_burst_dir) if f.endswith('.tif')]
-                        print(f"Subiendo {min(3, len(local_files))} imágenes reales para ráfaga {burst_id}")
-                        for i, filename in enumerate(local_files[:3]):  # Solo 3 para prueba
-                            local_path = os.path.join(local_burst_dir, filename)
-                            remote_path = f'{remote_burst_dir}/{filename}'
-                            sftp.put(local_path, remote_path)
-                            print(f"  Imagen subida: {filename}")
-                    else:
-                        print(f"⚠️  Directorio local no existe: {local_burst_dir}")
-                        print(f"    Buscado en: {local_burst_dir}")
+                    # Copiar imágenes desde el directorio plantilla en el servidor
+                    try:
+                        template_files = sftp.listdir(server_template_dir)
+                        tif_template_files = [f for f in template_files if f.endswith('.tif')]
+                        
+                        if len(tif_template_files) > 0:
+                            print(f"Copiando {min(3, len(tif_template_files))} imágenes desde {server_template_dir}")
+                            
+                            # Usar comando SSH para copiar archivos en el servidor
+                            copy_cmd = f'cp {server_template_dir}/*.tif {remote_burst_dir}/ 2>/dev/null | head -3'
+                            stdin, stdout, stderr = ssh_client.exec_command(copy_cmd)
+                            stdout.channel.recv_exit_status()
+                            
+                            # Verificar que se copiaron
+                            files_after = sftp.listdir(remote_burst_dir)
+                            tif_files_after = [f for f in files_after if f.endswith('.tif')]
+                            print(f"  ✓ {len(tif_files_after)} imágenes copiadas a ráfaga {burst_id}")
+                            
+                        else:
+                            print(f"⚠️  No hay imágenes plantilla en {server_template_dir}")
+                            
+                    except Exception as e:
+                        print(f"Error copiando desde plantilla: {e}")
+                        # Como fallback, usar solo algunas imágenes específicas por comando SSH
+                        fallback_cmd = f'ls {server_template_base}/1/*.tif | head -3 | xargs -I {{}} cp {{}} {remote_burst_dir}/'
+                        stdin, stdout, stderr = ssh_client.exec_command(fallback_cmd)
+                        stdout.channel.recv_exit_status()
+                        print(f"  Fallback: copiadas imágenes de ráfaga 1 para ráfaga {burst_id}")
+                        
             except Exception as e:
                 print(f"Error manejando imágenes en ráfaga {burst_id}: {str(e)}")
         
-        print("Imágenes reales subidas")
+        print("Proceso de imágenes completado")
         
         # CONTINUAR CON EL CÓDIGO EXISTENTE
         # Crear archivo .env dinámico - CORREGIDO
