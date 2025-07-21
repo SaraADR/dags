@@ -416,7 +416,7 @@ def post_process_and_historize(**context):
             }
             
             query = """
-                INSERT INTO algoritmos.algorithm_perimeter_detection (
+                INSERT INTO algoritmos.algoritmo_perimeter_detection (
                     sampled_feature, result_time, phenomenon_time, input_data, output_data
                 ) VALUES (
                     :sampled_feature, :result_time, :phenomenon_time, :input_data, :output_data
