@@ -455,7 +455,7 @@ default_args = {
 
 # Definición del DAG principal
 dag = DAG(
-    'algorithm_thermal_perimeter_generation',
+    'algorithm_thermal_perimeter_detection',
     default_args=default_args,
     description='DAG para generar perímetros de incendios a partir de imágenes termográficas',
     schedule_interval=None,  # Triggered by frontend/Kafka
