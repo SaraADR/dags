@@ -15,15 +15,15 @@ def execute_thermal_perimeter_process(**context):
 
     conf = context.get("dag_run").conf
     if not conf:
-        print("Error: No se recibió configuración desde el DAG.")
+        print("[ERROR] No se recibió configuración desde el DAG.")
         return
     
-    print("Datos recibidos del DAG:")
-    print(json.dumps(conf, indent=4))
+    print("[INFO] Datos recibidos del DAG:")
+    print("[INFO]", json.dumps(conf, indent=4))
 
     message = conf.get("message", {})
     trace_id = conf.get("trace_id", "no-trace")
-    print(f"Processing with trace_id: {trace_id}")
+    print(f"[INFO] Processing with trace_id: {trace_id}")
     
     job_id = message.get('id')
     input_data_str = message.get('input_data', '{}')
@@ -31,7 +31,7 @@ def execute_thermal_perimeter_process(**context):
     try:
         input_data = json.loads(input_data_str)
     except json.JSONDecodeError:
-        print("Error al decodificar 'input_data'")
+        print("[ERROR] Error al decodificar 'input_data'")
         throw_job_error(job_id, "Invalid JSON in input_data")
         return
 
@@ -42,18 +42,20 @@ def execute_thermal_perimeter_process(**context):
     advanced_params = input_data.get('advanced_params', {})
     
     if not mission_id:
+        print("[ERROR] No se especificó ID de misión")
         throw_job_error(job_id, "No se especificó ID de misión")
         return
     
     if not selected_bursts:
+        print("[ERROR] No se seleccionaron ráfagas")
         throw_job_error(job_id, "No se seleccionaron ráfagas")
         return
 
-    print("Datos extraídos correctamente:")
-    print(f"Mission ID: {mission_id}")
-    print(f"Selected bursts: {selected_bursts}")
-    print(f"Selected images: {len(selected_images) if selected_images else 'todas'}")
-    print(f"Advanced params: {advanced_params}")
+    print("[INFO] Datos extraídos correctamente:")
+    print(f"[INFO] Mission ID: {mission_id}")
+    print(f"[INFO] Selected bursts: {selected_bursts}")
+    print(f"[INFO] Selected images: {len(selected_images) if selected_images else 'todas'}")
+    print(f"[INFO] Advanced params: {advanced_params}")
     
     # Crear configuración básica para el algoritmo
     algorithm_config = create_basic_config(mission_id, selected_bursts, advanced_params, job_id)
@@ -61,9 +63,9 @@ def execute_thermal_perimeter_process(**context):
     # Ejecutar Docker (pasar también los datos originales para acceso a URLs)
     try:
         execute_docker_algorithm(algorithm_config, job_id, input_data)
-        print("Algoritmo Docker ejecutado correctamente")
+        print("[INFO] Algoritmo Docker ejecutado correctamente")
     except Exception as e:
-        print(f"Error ejecutando algoritmo: {str(e)}")
+        print(f"[ERROR] Error ejecutando algoritmo: {str(e)}")
         throw_job_error(job_id, str(e))
         raise
 
@@ -98,7 +100,7 @@ def create_basic_config(mission_id, selected_bursts, advanced_params, job_id):
 # Ejecuta el algoritmo de perímetros térmicos usando Docker en el servidor remoto.
 def execute_docker_algorithm(config, job_id, input_data):
     
-    print("Iniciando ejecución Docker...")
+    print("[INFO] Iniciando ejecución Docker...")
     
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
     
@@ -113,7 +115,7 @@ def execute_docker_algorithm(config, job_id, input_data):
         # Extraer mission_id del config para el directorio de salida
         mission_id = config.get('fireId', 'default')
         
-        print(f"Preparando archivos en {remote_base_dir}")
+        print(f"[INFO] Preparando archivos en {remote_base_dir}")
         
         # Crear directorios necesarios
         directories_to_create = [
@@ -126,17 +128,17 @@ def execute_docker_algorithm(config, job_id, input_data):
         for directory in directories_to_create:
             try:
                 sftp.mkdir(directory)
-                print(f"Directorio creado: {directory}")
+                print(f"[INFO] Directorio creado: {directory}")
             except Exception as e:
-                print(f"Directorio ya existe: {directory}")
+                print(f"[INFO] Directorio ya existe: {directory}")
         
         # Guardar configuración JSON para el algoritmo R
         with sftp.file(config_file, 'w') as remote_file:
             json.dump(config, remote_file, indent=4)
-        print(f"Configuración guardada: {config_file}")
+        print(f"[INFO] Configuración guardada: {config_file}")
         
         # Descargar imágenes reales desde MinIO (sin fallback)
-        print("Descargando imágenes desde MinIO...")
+        print("[INFO] Descargando imágenes desde MinIO...")
         
         # Obtener datos de ráfagas del frontend
         selected_bursts_data = input_data.get('selected_bursts', [])
@@ -160,14 +162,14 @@ def execute_docker_algorithm(config, job_id, input_data):
             try:
                 sftp.mkdir(f'{remote_base_dir}/share_data/input/incendio{mission_id}')
                 sftp.mkdir(remote_burst_dir)
-                print(f"Directorio de ráfaga creado: {remote_burst_dir}")
+                print(f"[INFO] Directorio de ráfaga creado: {remote_burst_dir}")
             except:
-                print(f"Directorio ya existe: {remote_burst_dir}")
+                print(f"[INFO] Directorio ya existe: {remote_burst_dir}")
             
             # Descargar imágenes desde MinIO
             if images_list:
                 # Descargar imágenes específicas
-                print(f"Descargando {len(images_list)} imágenes específicas para ráfaga {burst_id}")
+                print(f"[INFO] Descargando {len(images_list)} imágenes específicas para ráfaga {burst_id}")
                 images_downloaded = 0
                 
                 for image_name in images_list:
@@ -178,18 +180,18 @@ def execute_docker_algorithm(config, job_id, input_data):
                     exit_status = stdout.channel.recv_exit_status()
                     
                     if exit_status == 0:
-                        print(f"  ✓ Descargada: {image_name}")
+                        print(f"[INFO] Descargada: {image_name}")
                         images_downloaded += 1
                     else:
                         error_msg = stderr.read().decode()
-                        print(f"  ✗ Error descargando {image_name}: {error_msg}")
+                        print(f"[ERROR] Error descargando {image_name}: {error_msg}")
                 
                 if images_downloaded == 0:
                     raise Exception(f"No se pudo descargar ninguna imagen para ráfaga {burst_id} desde {images_source}")
                 
             else:
                 # Descargar todas las imágenes .tif disponibles desde MinIO
-                print(f"Descargando todas las imágenes .tif para ráfaga {burst_id} desde {images_source}")
+                print(f"[INFO] Descargando todas las imágenes .tif para ráfaga {burst_id} desde {images_source}")
                 
                 # Comando para listar y descargar archivos .tif desde MinIO
                 download_all_cmd = f'''
@@ -204,8 +206,8 @@ def execute_docker_algorithm(config, job_id, input_data):
                 download_output = stdout.read().decode()
                 
                 if exit_status == 0 and "Descargado:" in download_output:
-                    print(f"Imágenes descargadas desde MinIO para ráfaga {burst_id}")
-                    print(f"Output: {download_output}")
+                    print(f"[INFO] Imágenes descargadas desde MinIO para ráfaga {burst_id}")
+                    print(f"[INFO] Output: {download_output}")
                 else:
                     error_output = stderr.read().decode()
                     raise Exception(f"Error descargando desde MinIO para ráfaga {burst_id}: {error_output}")
@@ -215,7 +217,7 @@ def execute_docker_algorithm(config, job_id, input_data):
             tif_files = [f for f in files_check if f.endswith('.tif')]
             
             if len(tif_files) > 0:
-                print(f"Se descargaron {len(tif_files)} imágenes para ráfaga {burst_id}")
+                print(f"[INFO] Se descargaron {len(tif_files)} imágenes para ráfaga {burst_id}")
                 
                 # Actualizar imageCount en la configuración
                 for burst_config in config["infraredBursts"]:
@@ -225,12 +227,12 @@ def execute_docker_algorithm(config, job_id, input_data):
             else:
                 raise Exception(f"No se encontraron imágenes .tif después de la descarga para ráfaga {burst_id}. Verifique que las imágenes existan en MinIO: {images_source}")
         
-        print("Descarga de imágenes desde MinIO completada")
+        print("[INFO] Descarga de imágenes desde MinIO completada")
         
         # Actualizar configuración con imageCount correcto
         with sftp.file(config_file, 'w') as remote_file:
             json.dump(config, remote_file, indent=4)
-        print("Configuración actualizada con conteo real de imágenes")
+        print("[INFO] Configuración actualizada con conteo real de imágenes")
         
         # Crear archivo .env para Docker
         env_content = f"""VOLUME_PATH={remote_base_dir}/share_data
@@ -242,31 +244,31 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
 """
         with sftp.file(f'{launch_dir}/.env', 'w') as env_file:
             env_file.write(env_content)
-        print("Archivo .env creado")
+        print("[INFO] Archivo .env creado")
         
         # Verificar que el archivo de configuración existe
         try:
             stat_info = sftp.stat(config_file)
-            print(f"Archivo de configuración verificado: {stat_info.st_size} bytes")
+            print(f"[INFO] Archivo de configuración verificado: {stat_info.st_size} bytes")
         except Exception as e:
             raise Exception(f"Error: no se pudo verificar el archivo de configuración: {e}")
         
         sftp.close()
         
         # Configurar permisos del script
-        print("Configurando permisos...")
+        print("[INFO] Configurando permisos...")
         ssh_client.exec_command(f'chmod +x {remote_base_dir}/launch/install_geospatial.sh')
         time.sleep(1)
         
         # Limpiar contenedores anteriores
-        print("Limpiando contenedores anteriores...")
+        print("[INFO] Limpiando contenedores anteriores...")
         cleanup_command = f'cd {launch_dir} && docker compose down --volumes'
         stdin, stdout, stderr = ssh_client.exec_command(cleanup_command)
         stdout.channel.recv_exit_status()
         time.sleep(2)
         
         # Ejecutar algoritmo
-        print("Ejecutando algoritmo de perímetros térmicos...")
+        print("[INFO] Ejecutando algoritmo de perímetros térmicos...")
         
         stdin, stdout, stderr = ssh_client.exec_command(
             f'cd {launch_dir} && docker compose up --build'
@@ -277,12 +279,12 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         output = stdout.read().decode()
         error_output = stderr.read().decode()
         
-        print("SALIDA DEL ALGORITMO:")
-        print(output)
+        print("[INFO] SALIDA DEL ALGORITMO:")
+        print("[INFO]", output)
         
         if error_output:
-            print("ERRORES:")
-            print(error_output)
+            print("[ERROR] ERRORES:")
+            print("[ERROR]", error_output)
         
         # Verificar resultado
         if exit_status != 0:
@@ -294,33 +296,33 @@ CONTAINER_NAME=thermal_perimeter_{job_id}
         elif "Status -100:" in output:
             raise Exception("Error desconocido en el algoritmo")
         elif "Status 0:" in output or "El algoritmo se ha ejecutado correctamente" in output:
-            print("Algoritmo completado exitosamente")
+            print("[INFO] Algoritmo completado exitosamente")
         
         # Verificar archivos de salida
         output_dir = f'{remote_base_dir}/share_data/output/incendio{mission_id}'
         expected_files = ['mosaico.tiff', 'output.json', 'perimetro.gpkg']
         
-        print("Verificando archivos de salida...")
+        print("[INFO] Verificando archivos de salida...")
         files_found = 0
         for file_name in expected_files:
             file_path = f'{output_dir}/{file_name}'
             try:
                 sftp = ssh_client.open_sftp()
                 file_stat = sftp.stat(file_path)
-                print(f"Archivo generado: {file_name} ({file_stat.st_size} bytes)")
+                print(f"[INFO] Archivo generado: {file_name} ({file_stat.st_size} bytes)")
                 files_found += 1
             except FileNotFoundError:
-                print(f"Archivo faltante: {file_name}")
+                print(f"[ERROR] Archivo faltante: {file_name}")
             except Exception as e:
-                print(f"Error verificando {file_name}: {str(e)}")
+                print(f"[ERROR] Error verificando {file_name}: {str(e)}")
         
         if files_found == 0:
             raise Exception("No se generaron archivos de salida")
         else:
-            print(f"Se generaron {files_found}/{len(expected_files)} archivos esperados")
+            print(f"[INFO] Se generaron {files_found}/{len(expected_files)} archivos esperados")
         
         sftp.close()
-        print("Algoritmo ejecutado correctamente")
+        print("[INFO] Algoritmo ejecutado correctamente")
 
 # Función que cambia el estado del job a FINISHED cuando se completa el proceso
 def change_job_status(**context):
@@ -330,7 +332,6 @@ def change_job_status(**context):
 
 # Función que procesa los archivos generados, los sube a MinIO y los historiza en la base de datos
 def post_process_and_historize(**context):
-    """Procesa archivos de salida, los sube a MinIO y los historiza en BD"""
     
     # Extraer datos del contexto
     conf = context['dag_run'].conf
@@ -358,9 +359,9 @@ def post_process_and_historize(**context):
                 local_path = f'{local_temp_dir}/{file_name}'
                 sftp.get(remote_path, local_path)
                 generated_files.append(file_name)
-                print(f"Archivo descargado: {file_name}")
+                print(f"[INFO] Archivo descargado: {file_name}")
             except Exception as e:
-                print(f"Error descargando {file_name}: {str(e)}")
+                print(f"[ERROR] Error descargando {file_name}: {str(e)}")
         
         sftp.close()
         
@@ -376,10 +377,10 @@ def post_process_and_historize(**context):
                 # Subir archivo a MinIO
                 s3_client.upload_file(local_file_path, 'results', minio_key)
                 minio_urls[file_name] = f"minio://results/{minio_key}"
-                print(f"Archivo subido a MinIO: {file_name}")
+                print(f"[INFO] Archivo subido a MinIO: {file_name}")
                 
         except Exception as e:
-            print(f"Error subiendo a MinIO: {str(e)}")
+            print(f"[ERROR] Error subiendo a MinIO: {str(e)}")
             # Continuar aunque falle MinIO
         
        # 3. HISTORIZAR EN BASE DE DATOS
