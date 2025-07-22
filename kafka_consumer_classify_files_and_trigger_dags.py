@@ -153,11 +153,15 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     }
                     trigger_dag_name = dag_names.get(algorithm_id)
                     unique_id = uuid.uuid4()
+
+                    # Extraer el trace_id del mensaje
+                    trace_id, log_msg = extract_trace_id(message)
+
                     try:
                         trigger = TriggerDagRunOperator(
                             task_id=str(unique_id),
                             trigger_dag_id=trigger_dag_name,
-                            conf={'json': json_content, 'otros': message},
+                            conf={'json': json_content, 'otros': message, 'trace_id': trace_id},
                             execution_date=datetime.now().replace(tzinfo=timezone.utc),
                             dag=kwargs.get('dag'),
                         )
@@ -170,11 +174,15 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                 print("El archivo 'algorithm_result.json' no se encuentra en el ZIP.")
                 unique_id = uuid.uuid4()
                 trigger_dag_name = 'zips_no_algoritmos'
+
+                # Extraer el trace_id del mensaje
+                trace_id, log_msg = extract_trace_id(message)
+
                 try:
                     trigger = TriggerDagRunOperator(
                         task_id=str(unique_id),
                         trigger_dag_id=trigger_dag_name,
-                        conf={'minio': message},
+                        conf={'minio': message, 'trace_id': trace_id},
                         execution_date=datetime.now().replace(tzinfo=timezone.utc),
                         dag=kwargs.get('dag'),
                     )
@@ -257,11 +265,15 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                         print("Ejecutando lógica para MetaShape")
 
                     unique_id = uuid.uuid4()
+
+                    # Extraer el trace_id del mensaje
+                    trace_id, log_msg = extract_trace_id(message)
+
                     try:
                         trigger = TriggerDagRunOperator(
                             task_id=str(unique_id),
                             trigger_dag_id=trigger_dag_name,
-                            conf={'json': json_content, 'otros': otros},
+                            conf={'json': json_content, 'otros': otros, 'trace_id': trace_id},
                             execution_date=datetime.now().replace(tzinfo=timezone.utc),
                             dag=kwargs.get('dag'),
                         )
