@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import os
+import shutil
 import uuid
 import zipfile
 from airflow import DAG
@@ -10,101 +11,117 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
+from airflow.exceptions import AirflowSkipException
 import tempfile
+from airflow.hooks.base_hook import BaseHook
+import boto3
+from botocore.client import Config
+from botocore.exceptions import ClientError
+from airflow import settings
 from function_save_logs_to_minio import save_logs_to_minio
+from airflow.operators.python import BranchPythonOperator
 from utils.log_utils import setup_conditional_log_saving
 from utils.kafka_headers import extract_trace_id
-from confluent_kafka import Consumer, KafkaException
-from airflow.operators.dagrun_operator import TriggerDagRunOperator
-import paramiko
-from dag_utils import get_minio_client,download_from_minio
-from airflow.hooks.base import BaseHook
 
-
+from dag_utils import get_minio_client, delete_file_sftp
 KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
-def poll_kafka_messages(**kwargs):
-    conf = {
-        'bootstrap.servers': '10.96.180.179:9092',
-        'group.id': '1',
-        'auto.offset.reset': 'earliest',
-        'enable.auto.commit': False
-    }
 
-    consumer = Consumer(conf)
-    consumer.subscribe(['intentoarchivosv2'])
-    messages = []
+def consumer_function(message, prefix, **kwargs):
+    print(f"{KAFKA_RAW_MESSAGE_PREFIX} {message}")
+
+    trace_id, log_msg = extract_trace_id(message)
+    print(log_msg)
 
     try:
-        while True:
-            msg = consumer.poll(timeout=10.0)
-            if msg is None:
-                print("No hay más mensajes que leer en el topic")
-                break  
-            if msg.error():
-                raise KafkaException(msg.error())
-            else:
-                msg_value = msg.value().decode('utf-8')
-                print("Mensaje procesado: ", msg_value)
-                messages.append(msg_value)
-
-        if messages:
-                    print(f"Total messages received: {len(messages)}")
-                    consumer.commit()
-
-                    s3_client = get_minio_client()
-
-                    # Nombre del bucket donde está almacenado el archivo/carpeta
-                    bucket_name = 'tmp'
-                    folder_prefix = 'sftp/'
-
-                    local_directory = 'temp'  
-                    for msg_value in messages:
-                        print(f"{KAFKA_RAW_MESSAGE_PREFIX} {msg_value}")
-                        trace_id, log_msg = extract_trace_id(msg_value)
-                        print(log_msg)
-
-                        file_path_in_minio =  msg_value
-                        try:
-                            local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
-                            process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
-                            delete_file_sftp(msg_value)
-                        except Exception as e:
-                            print(f"Error al descargar desde MinIO: {e}")
-                            raise 
-    finally:
-        consumer.close()
-
-
-
-
-
-def delete_file_sftp(url):
-
-    filename = os.path.basename(url)
-    filename = "/upload/" + filename
-    print(f"Filename para borrar: {filename}" )
-    try:
-        conn = BaseHook.get_connection('SFTP')
-        host = conn.host
-        port = conn.port 
-        username = conn.login
-        password = conn.password
-
-
-        transport = paramiko.Transport((host, port))
-        transport.connect(username=username, password=password)
-        sftp = paramiko.SFTPClient.from_transport(transport)
-
-        sftp.remove(filename)
-        print(f"Archivo '{filename}' eliminado exitosamente.")
-
-        # Cerrar conexiones
-        sftp.close()
-        transport.close()
-
+        msg_value = message.value().decode('utf-8')
+        print("Mensaje procesado: ", msg_value)
     except Exception as e:
-        print(f"Error al eliminar el archivo: {e}")
+        print(f"Error al procesar el mensaje: {e}")
+    # delete_file_sftp(msg_value)
+    
+    file_path_in_minio = msg_value
+        
+    # Establecer conexión con MinIO
+    s3_client = get_minio_client()
 
+
+
+    # Nombre del bucket donde está almacenado el archivo/carpeta
+    bucket_name = 'tmp'
+    folder_prefix = 'sftp/'
+
+    # Descargar el archivo desde MinIO
+    local_directory = 'temp'  # Cambia este path al local
+    try:
+        local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
+        print(local_zip_path)
+        process_zip_file(local_zip_path, file_path_in_minio, msg_value,  **kwargs)
+    except Exception as e:
+        print(f"Error al descargar desde MinIO: {e}")
+        raise
+    if msg_value:
+        print("Mensaje procesado correctamente", msg_value)
+        return True
+    else:
+        print("No se pudo procesar el mensaje")
+        return False
+
+
+def list_files_in_minio_folder(s3_client, bucket_name, prefix):
+    """
+    Lista todos los archivos dentro de un prefijo (directorio) en MinIO.
+    """
+
+    print(bucket_name),
+    print(prefix)
+    try:
+        response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+        
+        if 'Contents' not in response:
+            print(f"No se encontraron archivos en la carpeta: {prefix}")
+            return []
+
+        files = [content['Key'] for content in response['Contents']]
+        return files
+
+    except ClientError as e:
+        print(f"Error al listar archivos en MinIO: {str(e)}")
+        return []
+
+
+def download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix):
+    """
+    Función para descargar archivos o carpetas desde MinIO.
+    """
+    if not os.path.exists(local_directory):
+        os.makedirs(local_directory)
+
+    files = list_files_in_minio_folder(s3_client, bucket_name, folder_prefix)
+    if not files:
+        print(f"No se encontraron archivos para descargar en la carpeta: {folder_prefix}")
+        return
+    print(files)
+
+    local_file = os.path.join(local_directory, os.path.basename(file_path_in_minio))
+    print(f"Descargando archivo desde MinIO: {file_path_in_minio} a {local_file}")
+    
+    relative_path = file_path_in_minio.replace('tmp/', '')
+    print("RELATIVE PATH:" + relative_path)
+    try:
+        # Verificar si el archivo existe antes de intentar descargarlo
+        response = s3_client.get_object(Bucket=bucket_name, Key=relative_path)
+        with open(local_file, 'wb') as f:
+            f.write(response['Body'].read())
+
+        print(f"Archivo descargado correctamente: {local_file}")
+
+        return local_file
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            print(f"Error 404: El archivo no fue encontrado en MinIO: {file_path_in_minio}")
+        else:
+            print(f"Error en el proceso: {str(e)}")
+        return None  # Devolver None si hay un error
 
 
 def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
@@ -112,7 +129,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
     if local_zip_path is None:
         print(f"No se pudo descargar el archivo desde MinIO: {local_zip_path}")
         return
-
+    
 
     try:
         if not os.path.exists(local_zip_path):
@@ -127,72 +144,10 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
     except zipfile.BadZipFile:
         print("El archivo no es un ZIP válido antes del procesamiento.")
         return
-
+    
 
     try:
-        algorithm_id = None
-
         with zipfile.ZipFile(local_zip_path, 'r') as zip_file:
-            if 'algorithm_result.json' in zip_file.namelist():
-                with zip_file.open('algorithm_result.json') as f:
-                    json_content = json.load(f)
-                    json_content_metadata = json_content.get('metadata', [])
-                    
-                    # Buscar el campo 'AlgorithmID'
-                    for metadata in json_content_metadata:
-                        if metadata.get('name') == 'AlgorithmID':
-                            algorithm_id = metadata.get('value')
-                print(f"AlgorithmID encontrado: {algorithm_id}")
-
-                if(algorithm_id == 'WaterAnalysis' or algorithm_id == 'MetashapeCartografia' or algorithm_id == 'FlameFront'):
-                    print("Se ejecuta algoritmo de zip largo")
-                    dag_names = {
-                        'WaterAnalysis': 'water_analysis',
-                        'MetashapeCartografia': 'algorithm_metashape',
-                        'FlameFront': 'algorithm_flame_front'
-                    }
-                    trigger_dag_name = dag_names.get(algorithm_id)
-                    unique_id = uuid.uuid4()
-
-                    # Extraer el trace_id del mensaje
-                    trace_id, log_msg = extract_trace_id(message)
-
-                    try:
-                        trigger = TriggerDagRunOperator(
-                            task_id=str(unique_id),
-                            trigger_dag_id=trigger_dag_name,
-                            conf={'json': json_content, 'otros': message, 'trace_id': trace_id},
-                            execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                            dag=kwargs.get('dag'),
-                        )
-                        trigger.execute(context=kwargs)
-                        return
-                    except Exception as e:
-                        print(f"Error al desencadenar el DAG: {e}")
-
-            else:
-                print("El archivo 'algorithm_result.json' no se encuentra en el ZIP.")
-                unique_id = uuid.uuid4()
-                trigger_dag_name = 'zips_no_algoritmos'
-
-                # Extraer el trace_id del mensaje
-                trace_id, log_msg = extract_trace_id(message)
-
-                try:
-                    trigger = TriggerDagRunOperator(
-                        task_id=str(unique_id),
-                        trigger_dag_id=trigger_dag_name,
-                        conf={'minio': message, 'trace_id': trace_id},
-                        execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                        dag=kwargs.get('dag'),
-                    )
-                    trigger.execute(context=kwargs)
-                except Exception as e:
-                    print(f"Error al desencadenar el DAG: {e}")
-                return
-
-
-            
             # Procesar el archivo ZIP en un directorio temporal
             with tempfile.TemporaryDirectory() as temp_dir:
                 print(f"Directorio temporal creado: {temp_dir}")
@@ -244,6 +199,7 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                             otros.append({'file_name': file_name, 'content': encoded_content})
 
                 print("Estructura de carpetas y archivos en el ZIP:", folder_structure)
+                # print("Archivos adicionales procesados:", otros)
                 print("Archivos adicionales procesados:", [item['file_name'] for item in otros])
 
                 # Realiza el procesamiento basado en el AlgorithmID
@@ -260,38 +216,48 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     elif algorithm_id == 'WaterAnalysis':
                         trigger_dag_name = 'water_analysis'
                         print("Ejecutando lógica para WaterAnalysis")
-                    elif algorithm_id == 'MetashapeCartografia':
-                        trigger_dag_name = 'algorithm_metashape'
-                        print("Ejecutando lógica para MetaShape")
 
                     unique_id = uuid.uuid4()
-
-                    # Extraer el trace_id del mensaje
-                    trace_id, log_msg = extract_trace_id(message)
-
-                    try:
-                        trigger = TriggerDagRunOperator(
-                            task_id=str(unique_id),
-                            trigger_dag_id=trigger_dag_name,
-                            conf={'json': json_content, 'otros': otros, 'trace_id': trace_id},
-                            execution_date=datetime.now().replace(tzinfo=timezone.utc),
-                            dag=kwargs.get('dag'),
-                        )
-                        trigger.execute(context=kwargs)
-                    except Exception as e:
-                        print(f"Error al desencadenar el DAG: {e}")
+                    if trigger_dag_name:
+                        try:
+                            trigger = TriggerDagRunOperator(
+                                task_id=str(unique_id),
+                                trigger_dag_id=trigger_dag_name,
+                                conf={'json': json_content, 'otros': otros},
+                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                                dag=kwargs.get('dag'),
+                            )
+                            trigger.execute(context=kwargs)
+                        except Exception as e:
+                            print(f"Error al desencadenar el DAG: {e}")
+                else:
+                    unique_id = uuid.uuid4()
+                    trigger_dag_name = 'zips_no_algoritmos'
+                    if trigger_dag_name:
+                        try:
+                            trigger = TriggerDagRunOperator(
+                                task_id=str(unique_id),
+                                trigger_dag_id=trigger_dag_name,
+                                conf={'minio': message},
+                                execution_date=datetime.now().replace(tzinfo=timezone.utc),
+                                dag=kwargs.get('dag'),
+                            )
+                            trigger.execute(context=kwargs)
+                        except Exception as e:
+                            print(f"Error al desencadenar el DAG: {e}")
+                    print("Advertencia: No se encontró AlgorithmID en el archivo ZIP.")
+                    return
     except zipfile.BadZipFile as e:
         print(f"El archivo no es un ZIP válido: {e}")
         return
-
-
+    
 def there_was_kafka_message(**context):
     dag_id = context['dag'].dag_id
     run_id = context['run_id']
     task_id = 'consume_from_topic_minio'
     log_base = "/opt/airflow/logs"
     log_path = f"{log_base}/dag_id={dag_id}/run_id={run_id}/task_id={task_id}"
-
+    
     # Search for the latest log file
     try:
         latest_log = max(
@@ -303,7 +269,6 @@ def there_was_kafka_message(**context):
             return f"{KAFKA_RAW_MESSAGE_PREFIX} <cimpl.Message object at" in content
     except (ValueError, FileNotFoundError):
         return False
-
 
 default_args = {
     'owner': 'sadr',
@@ -325,14 +290,15 @@ dag = DAG(
     concurrency=1
 )
 
-
-poll_task = PythonOperator(
-        task_id='poll_kafka',
-        python_callable=poll_kafka_messages,
-        provide_context=True,
-        dag=dag
+consume_from_topic = ConsumeFromTopicOperator(
+    kafka_config_id="kafka_connection",
+    task_id="consume_from_topic_minio",
+    topics=["files"],
+    apply_function=consumer_function,
+    apply_function_kwargs={"prefix": "consumed:::"},
+    commit_cadence="end_of_batch",
+    dag=dag,
 )
-
 
 from utils.log_utils import setup_conditional_log_saving
 
@@ -343,4 +309,4 @@ check_logs, save_logs = setup_conditional_log_saving(
     condition_function=there_was_kafka_message
 )
 
-poll_task >> check_logs
+consume_from_topic >> check_logs
