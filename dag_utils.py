@@ -75,7 +75,7 @@ def crear_zip_si_existen(nombre_fichero, directorio, extensiones):
 
 
 # Configuración global del engine para reutilizarlo
-def get_engine(connection_id: str = 'biodb'):
+def get_engine(connection_id: str = 'biobd'):
     """Crea y devuelve un engine reutilizable para la base de datos."""
     db_conn = BaseHook.get_connection(connection_id)
     db_name = db_conn.extra_dejson.get('database', 'postgres')
