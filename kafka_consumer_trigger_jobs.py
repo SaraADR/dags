@@ -137,7 +137,6 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-from utils.log_utils import setup_conditional_log_saving
 
 check_logs, save_logs = setup_conditional_log_saving(
     dag=dag,
