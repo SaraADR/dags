@@ -232,8 +232,6 @@ def insert_notification(id_mission, user):
         finally:
             session.close()
 
-def always_save_logs(**context):
-    return True
 
 
 # Configuración por defecto para el DAG

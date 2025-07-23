@@ -10,6 +10,7 @@ from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 from dag_utils import update_job_status
 from zoneinfo import ZoneInfo
+from function_save_logs_to_minio import save_logs_to_minio
 from utils.log_utils import setup_conditional_log_saving
 import os
 
@@ -42,6 +43,7 @@ def process_message(msg_value, **kwargs):
 
 
             update_job_status(id_sesion, 'IN PROGRESS' , None , datetime.now(ZoneInfo("Europe/Madrid")))
+            conf = {'message': msg_json}
             
             if job == 'automaps':
                 dag_to_trigger = 'algorithm_automaps_docker_store_and_notify'
@@ -135,4 +137,13 @@ consume_from_topic = ConsumeFromTopicOperator(
     dag=dag,
 )
 
-consume_from_topic
+from utils.log_utils import setup_conditional_log_saving
+
+check_logs, save_logs = setup_conditional_log_saving(
+    dag=dag,
+    task_id='save_logs_to_minio',
+    task_id_to_save='consume_from_topic',
+    condition_function=there_was_kafka_message
+)
+
+consume_from_topic >> check_logs

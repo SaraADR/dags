@@ -46,24 +46,7 @@ def consumer_function(message, **kwargs):
     except Exception as e:
         print(f"Error inesperado: {e}")
 
-def there_was_kafka_message(**context):
-    dag_id = context['dag'].dag_id
-    run_id = context['run_id']
-    task_id = 'consume_from_topic_minio'
-    log_base = "/opt/airflow/logs"
-    log_path = f"{log_base}/dag_id={dag_id}/run_id={run_id}/task_id={task_id}"
-    
-    # Search for the latest log file
-    try:
-        latest_log = max(
-            (os.path.join(root, f) for root, _, files in os.walk(log_path) for f in files),
-            key=os.path.getctime
-        )
-        with open(latest_log, 'r') as f:
-            content = f.read()
-            return f"{KAFKA_RAW_MESSAGE_PREFIX} <cimpl.Message object at" in content
-    except (ValueError, FileNotFoundError):
-        return False
+
 
 # Configuración del DAG
 default_args = {

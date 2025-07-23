@@ -237,8 +237,6 @@ def generate_notify_job(**context):
                 finally:
                     session.close()
 
-def always_save_logs(**context):
-    return True
 
 
 default_args = {
