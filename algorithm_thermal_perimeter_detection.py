@@ -70,27 +70,43 @@ def execute_thermal_perimeter_process(**context):
 # Crea la configuración básica para el algoritmo R según los parámetros recibidos.
 def create_basic_config(mission_id, selected_bursts, advanced_params, job_id):
     
-    # Parámetros avanzados con valores por defecto
-    n_clusters = advanced_params.get('numberOfClusters', 3)
-    threshold_temp = advanced_params.get('tresholdTemp', 2)
+    # Parámetros avanzados sin valores por defecto
+    n_clusters = advanced_params.get('numberOfClusters')
+    threshold_temp = advanced_params.get('tresholdTemp')
     
-    # Configuración según especificación del algoritmo
+    if n_clusters is None or threshold_temp is None:
+        raise Exception("Faltan parámetros avanzados numberOfClusters o tresholdTemp")
+    
+    infrared_bursts = []
+    for burst_data in selected_bursts:
+        if isinstance(burst_data, dict):
+            # Estructura con imágenes por ráfaga
+            burst_id = burst_data.get('burst_id')
+            timestamp = burst_data.get('timestamp', "2024-07-16T12:00:00Z")
+            selected_images = burst_data.get('selected_images', [])
+        else:
+            # Estructura simple
+            burst_id = burst_data
+            timestamp = "2024-07-16T12:00:00Z"
+            selected_images = []
+        
+        burst_config = {
+            "path": f"/share_data/input/incendio{mission_id}/{burst_id}",
+            "id": f"PO{burst_id}",
+            "timestamp": timestamp,
+            "sensorId": "ThermalSensor",
+            "imageCount": 5,  # Se actualiza después
+            "selected_images": selected_images  # ← Imágenes específicas de esta ráfaga
+        }
+        infrared_bursts.append(burst_config)
+    
     config = {
         "fireId": mission_id,
         "criteria": {
             "numberOfClusters": n_clusters,
             "tresholdTemp": threshold_temp
         },
-        "infraredBursts": [
-            {
-                "path": f"/share_data/input/incendio{mission_id}/{burst_id}",
-                "id": f"PO{burst_id}",
-                "timestamp": "2024-07-16T12:00:00Z",
-                "sensorId": "ThermalSensor",
-                "imageCount": 5
-            }
-            for burst_id in selected_bursts
-        ]
+        "infraredBursts": infrared_bursts
     }
     
     return config
@@ -140,23 +156,28 @@ def execute_docker_algorithm(config, job_id, input_data):
         
         # Obtener datos de ráfagas del frontend
         selected_bursts_data = input_data.get('selected_bursts', [])
+        minio_base_url = input_data.get('minio_base_url', 'http://minio:9000')
+        mission_id = config.get('fireId')
         
         for burst_data in selected_bursts_data:
-            # Verificar si es estructura simple o completa
             if isinstance(burst_data, dict):
-                burst_id = burst_data.get('id')
-                images_source = burst_data.get('images_source', '')
-                images_list = burst_data.get('images', [])
+                # Nueva estructura con imágenes específicas por ráfaga
+                burst_id = burst_data.get('burst_id')
+                burst_images = burst_data.get('selected_images', [])  #Imágenes de esta ráfaga
+                timestamp = burst_data.get('timestamp')
+                
+                print(f"[INFO] Procesando ráfaga {burst_id} con {len(burst_images) if burst_images else 'todas las'} imágenes")
             else:
-                # Estructura simple: solo números de ráfaga
+                # Estructura simple (fallback)
                 burst_id = burst_data
-                # Construir URL base de MinIO (ajustar según tu configuración real)
-                minio_base_url = input_data.get('minio_base_url', 'http://tu-minio-url')
-                images_source = f"{minio_base_url}/missions/{mission_id}/burst{burst_id}/"
-                images_list = []  # Se descargarán todas las disponibles
+                burst_images = []
+                print(f"[INFO] Procesando ráfaga {burst_id} (todas las imágenes)")
             
+            # Construir URL específica de MinIO para esta ráfaga
+            minio_url = f"{minio_base_url}/missions/{mission_id}/burst{burst_id}/"
             remote_burst_dir = f'{remote_base_dir}/share_data/input/incendio{mission_id}/{burst_id}'
             
+            # Crear directorio de ráfaga
             try:
                 sftp.mkdir(f'{remote_base_dir}/share_data/input/incendio{mission_id}')
                 sftp.mkdir(remote_burst_dir)
@@ -164,37 +185,36 @@ def execute_docker_algorithm(config, job_id, input_data):
             except:
                 print(f"[INFO] Directorio ya existe: {remote_burst_dir}")
             
-            # Descargar imágenes desde MinIO
-            if images_list:
-                # Descargar imágenes específicas
-                print(f"[INFO] Descargando {len(images_list)} imágenes específicas para ráfaga {burst_id}")
-                images_downloaded = 0
+            # Descargar imágenes específicas de esta ráfaga
+            if burst_images:
+                # CASO: Usuario seleccionó imágenes específicas para esta ráfaga
+                print(f"[INFO] Descargando {len(burst_images)} imágenes específicas para ráfaga {burst_id}")
                 
-                for image_name in images_list:
-                    image_url = f"{images_source.rstrip('/')}/{image_name}"
+                images_downloaded = 0
+                for image_name in burst_images:
+                    image_url = f"{minio_url.rstrip('/')}/{image_name}"
                     download_cmd = f'wget -q -O {remote_burst_dir}/{image_name} "{image_url}"'
                     
                     stdin, stdout, stderr = ssh_client.exec_command(download_cmd)
                     exit_status = stdout.channel.recv_exit_status()
                     
                     if exit_status == 0:
-                        print(f"[INFO] Descargada: {image_name}")
+                        print(f"[INFO] Descargada: {image_name} para ráfaga {burst_id}")
                         images_downloaded += 1
                     else:
                         error_msg = stderr.read().decode()
                         print(f"[ERROR] Error descargando {image_name}: {error_msg}")
                 
                 if images_downloaded == 0:
-                    raise Exception(f"No se pudo descargar ninguna imagen para ráfaga {burst_id} desde {images_source}")
-                
+                    raise Exception(f"No se pudo descargar ninguna imagen específica para ráfaga {burst_id}")
+                    
             else:
-                # Descargar todas las imágenes .tif disponibles desde MinIO
-                print(f"[INFO] Descargando todas las imágenes .tif para ráfaga {burst_id} desde {images_source}")
+                # CASO: Usuario quiere TODAS las imágenes de esta ráfaga
+                print(f"[INFO] Descargando todas las imágenes para ráfaga {burst_id}")
                 
-                # Comando para listar y descargar archivos .tif desde MinIO
                 download_all_cmd = f'''
-                curl -s "{images_source.rstrip('/')}" | grep -o 'href="[^"]*\.tif"' | sed 's/href="//;s/"//' | while read file; do
-                    wget -q -O {remote_burst_dir}/$file "{images_source.rstrip('/')}/$file"
+                curl -s "{minio_url.rstrip('/')}" | grep -o 'href="[^"]*\.tif"' | sed 's/href="//;s/"//' | while read file; do
+                    wget -q -O {remote_burst_dir}/$file "{minio_url.rstrip('/')}/$file"
                     echo "Descargado: $file"
                 done
                 '''
@@ -204,26 +224,25 @@ def execute_docker_algorithm(config, job_id, input_data):
                 download_output = stdout.read().decode()
                 
                 if exit_status == 0 and "Descargado:" in download_output:
-                    print(f"[INFO] Imágenes descargadas desde MinIO para ráfaga {burst_id}")
-                    print(f"[INFO] Output: {download_output}")
+                    print(f"[INFO] Todas las imágenes descargadas para ráfaga {burst_id}")
                 else:
                     error_output = stderr.read().decode()
-                    raise Exception(f"Error descargando desde MinIO para ráfaga {burst_id}: {error_output}")
+                    raise Exception(f"Error descargando todas las imágenes para ráfaga {burst_id}: {error_output}")
             
-            # Verificar que se descargaron imágenes
+            # Verificar y actualizar imageCount para esta ráfaga específica
             files_check = sftp.listdir(remote_burst_dir)
             tif_files = [f for f in files_check if f.endswith('.tif')]
             
             if len(tif_files) > 0:
                 print(f"[INFO] Se descargaron {len(tif_files)} imágenes para ráfaga {burst_id}")
                 
-                # Actualizar imageCount en la configuración
+                # Actualizar imageCount en la configuración para esta ráfaga específica
                 for burst_config in config["infraredBursts"]:
                     if burst_config["id"] == f"PO{burst_id}":
                         burst_config["imageCount"] = len(tif_files)
                         break
             else:
-                raise Exception(f"No se encontraron imágenes .tif después de la descarga para ráfaga {burst_id}. Verifique que las imágenes existan en MinIO: {images_source}")
+                raise Exception(f"No se encontraron imágenes para ráfaga {burst_id}")
         
         print("[INFO] Descarga de imágenes desde MinIO completada")
         
