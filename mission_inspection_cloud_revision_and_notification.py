@@ -98,7 +98,8 @@ def process_element(**context):
                 try:
                     session = get_db_session()
                     engine = session.get_bind()
-
+                    
+                    
                     query = text("""
                         UPDATE missions.mss_inspection_vegetation_conflict
                         SET review_status_id = :new_review_status,
