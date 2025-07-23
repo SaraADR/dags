@@ -22,8 +22,6 @@ def execute_thermal_perimeter_process(**context):
     print("[INFO]", json.dumps(conf, indent=4))
 
     message = conf.get("message", {})
-    trace_id = conf.get("trace_id", "no-trace")
-    print(f"[INFO] Processing with trace_id: {trace_id}")
     
     job_id = message.get('id')
     input_data_str = message.get('input_data', '{}')

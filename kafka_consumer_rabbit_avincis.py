@@ -6,7 +6,6 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 import os
-from utils.kafka_headers import extract_trace_id
 
 KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
 
@@ -18,8 +17,6 @@ def consumer_function(message, **kwargs):
     
     print(f"{KAFKA_RAW_MESSAGE_PREFIX} {message}")
     
-    trace_id, log_msg = extract_trace_id(message)
-    print(log_msg)
 
     msg_value = message.value().decode('utf-8')
     print(f"Mensaje consumido:\n{msg_value}")

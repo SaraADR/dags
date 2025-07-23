@@ -31,8 +31,6 @@ def process_escape_routes_data(**context):
     from_user = message['message']['from_user']
     ssh_hook = SSHHook(ssh_conn_id='my_ssh_conn')
 
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
 
     #Obtener urls de los path del algoritmo
     url = "https://actions-api.avincis.cuatrodigital.com/geo-files-locator/get-files-paths"  

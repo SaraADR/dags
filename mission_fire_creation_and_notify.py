@@ -28,8 +28,6 @@ def create_mission(**context):
     print(input_data)
     job_id = message['message']['id']  # Extracting job_id from the message
 
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
 
     try:
         session = get_db_session()

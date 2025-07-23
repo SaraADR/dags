@@ -20,7 +20,6 @@ from airflow.models import Variable
 from confluent_kafka import Consumer, KafkaException
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.operators.python import get_current_context
-from utils.kafka_headers import extract_trace_id
 
 KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
 
@@ -56,17 +55,6 @@ def poll_kafka_messages(**kwargs):
             else:
                 print(f"{KAFKA_RAW_MESSAGE_PREFIX} {msg}")
                 
-                trace_id, log_msg = extract_trace_id(msg)
-                print(log_msg)
-
-                try:
-                    context = get_current_context()
-                    if context and 'task_instance' in context:
-                        context['task_instance'].xcom_push(key='trace_id', value=trace_id)
-                        print(f"trace_id guardado en XCom: {trace_id}")
-                except Exception as e:
-                    print(f"Error al guardar trace_id en XCom: {e}")
-
                 msg_value = msg.value().decode('utf-8')
                 print("Mensaje procesado: ", msg_value)
                 messages.append(msg_value)

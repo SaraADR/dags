@@ -11,9 +11,7 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 import tempfile
-from function_save_logs_to_minio import save_logs_to_minio
 from utils.log_utils import setup_conditional_log_saving
-from utils.kafka_headers import extract_trace_id
 from confluent_kafka import Consumer, KafkaException
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 import paramiko
@@ -60,9 +58,6 @@ def poll_kafka_messages(**kwargs):
                     local_directory = 'temp'  
                     for msg_value in messages:
                         print(f"{KAFKA_RAW_MESSAGE_PREFIX} {msg_value}")
-                        trace_id, log_msg = extract_trace_id(msg_value)
-                        print(log_msg)
-
                         file_path_in_minio =  msg_value
                         try:
                             local_zip_path = download_from_minio(s3_client, bucket_name, file_path_in_minio, local_directory, folder_prefix)
@@ -154,14 +149,12 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                     trigger_dag_name = dag_names.get(algorithm_id)
                     unique_id = uuid.uuid4()
 
-                    # Extraer el trace_id del mensaje
-                    trace_id, log_msg = extract_trace_id(message)
 
                     try:
                         trigger = TriggerDagRunOperator(
                             task_id=str(unique_id),
                             trigger_dag_id=trigger_dag_name,
-                            conf={'json': json_content, 'otros': message, 'trace_id': trace_id},
+                            conf={'json': json_content, 'otros': message},
                             execution_date=datetime.now().replace(tzinfo=timezone.utc),
                             dag=kwargs.get('dag'),
                         )
@@ -175,14 +168,11 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
                 unique_id = uuid.uuid4()
                 trigger_dag_name = 'zips_no_algoritmos'
 
-                # Extraer el trace_id del mensaje
-                trace_id, log_msg = extract_trace_id(message)
-
                 try:
                     trigger = TriggerDagRunOperator(
                         task_id=str(unique_id),
                         trigger_dag_id=trigger_dag_name,
-                        conf={'minio': message, 'trace_id': trace_id},
+                        conf={'minio': message},
                         execution_date=datetime.now().replace(tzinfo=timezone.utc),
                         dag=kwargs.get('dag'),
                     )
@@ -266,14 +256,12 @@ def process_zip_file(local_zip_path, nombre_fichero, message, **kwargs):
 
                     unique_id = uuid.uuid4()
 
-                    # Extraer el trace_id del mensaje
-                    trace_id, log_msg = extract_trace_id(message)
 
                     try:
                         trigger = TriggerDagRunOperator(
                             task_id=str(unique_id),
                             trigger_dag_id=trigger_dag_name,
-                            conf={'json': json_content, 'otros': otros, 'trace_id': trace_id},
+                            conf={'json': json_content, 'otros': otros},
                             execution_date=datetime.now().replace(tzinfo=timezone.utc),
                             dag=kwargs.get('dag'),
                         )
@@ -334,13 +322,4 @@ poll_task = PythonOperator(
 )
 
 
-from utils.log_utils import setup_conditional_log_saving
-
-check_logs, save_logs = setup_conditional_log_saving(
-    dag=dag,
-    task_id='save_logs_to_minio',
-    task_id_to_save='consume_from_topic_minio',
-    condition_function=there_was_kafka_message
-)
-
-poll_task >> check_logs
+poll_task 

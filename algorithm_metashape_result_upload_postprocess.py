@@ -124,8 +124,6 @@ def upload_miniature(**kwargs):
     files = kwargs['dag_run'].conf.get('otros', [])
     array_files = []
 
-    trace_id = kwargs['dag_run'].conf['trace_id']
-    logging.info(f"Processing with trace_id: {trace_id}")
 
     # Obtener JSON de la misma manera que en generate_xml
     algoritm_result = kwargs['dag_run'].conf.get('json')
@@ -198,8 +196,7 @@ def upload_miniature(**kwargs):
 def generate_xml(**kwargs):
     logging.info("Iniciando la generación del XML.")
 
-    trace_id = kwargs['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
+
 
     xml_encoded = []
     
@@ -361,8 +358,6 @@ def get_geonetwork_credentials():
 # Función para subir el XML utilizando las credenciales obtenidas de la conexión de Airflow
 # Función para subir el XML y devolver el ID del recurso
 def upload_to_geonetwork(**context):
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
     
     try:
         connection = BaseHook.get_connection("geonetwork_connection")
@@ -903,8 +898,6 @@ def get_geonetwork_user_group(mission_id):
 
 
 def assign_owner_to_resource(**context):
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
 
     """Asigna un propietario al recurso en GeoNetwork usando MissionID dinámico"""
     try:

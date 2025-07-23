@@ -40,8 +40,7 @@ class FechaProxima:
 
 
 def process_element(**context):
-    trace_id = str(uuid.uuid4())
-    context['task_instance'].xcom_push(key='trace_id', value=trace_id)
+
 
 
     madrid_tz = pytz.timezone('Europe/Madrid')

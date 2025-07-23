@@ -16,17 +16,13 @@ import uuid
 from dateutil import parser
 
 def process_element(**context):
-    trace_id = str(uuid.uuid4())
-    context['task_instance'].xcom_push(key='trace_id', value=trace_id)
 
-    start_of_flow_task(trace_id, source='cron')
 
     madrid_tz = pytz.timezone('Europe/Madrid')
     fechaHoraActual = datetime.datetime.now(madrid_tz)  # Fecha y hora con zona horaria
 
     print(f"Este algoritmo se está ejecutando a las {fechaHoraActual.strftime('%Y-%m-%d %H:%M:%S')} en Madrid, España")
 
-    print(f"Trace ID generado para esta ejecución: {trace_id}")
 
     tipo1diasincendio = Variable.get("dNBR_diasFinIncendio", default_var="10")
     print(f"Valor de la variable tipo1diasincendio en Airflow: {tipo1diasincendio}")

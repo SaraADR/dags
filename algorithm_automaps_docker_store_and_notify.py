@@ -18,8 +18,6 @@ from dag_utils import get_db_session
 def process_element(**context):
     message = context['dag_run'].conf
 
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
 
     input_data_str = message['message']['input_data']
     input_data = json.loads(input_data_str)

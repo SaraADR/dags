@@ -13,9 +13,6 @@ def check_jobs_status(**context):
     message = context['dag_run'].conf
     input_data_str = message['message']['input_data']
 
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
-
     # Convertir la cadena de input_data en un diccionario
     input_data = json.loads(input_data_str)
     job_ids = input_data['job_ids']

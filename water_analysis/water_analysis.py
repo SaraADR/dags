@@ -34,8 +34,6 @@ def process_extracted_files(**kwargs):
     otros = kwargs['dag_run'].conf.get('otros', [])
     json_content = kwargs['dag_run'].conf.get('json')
 
-    trace_id = kwargs['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
 
     if not json_content:
         print("Ha habido un error con el traspaso de los documentos")

@@ -111,8 +111,7 @@ def get_planning_id_from_einforex(payload):
 def prepare_and_upload_input(**context):
     raw_conf = context['dag_run'].conf
     message = raw_conf.get('message')
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
+
     user = message.get('from_user')
     context['ti'].xcom_push(key='user', value=user)
 
@@ -193,8 +192,6 @@ modelos_aeronave=Input/modelos_vehiculo.csv
 def run_and_download_algorithm(**context):
     print("[INFO] Iniciando ejecución de run_and_download_algorithm...")
 
-    trace_id = context['dag_run'].conf['trace_id']
-    print(f"Processing with trace_id: {trace_id}")
 
     ssh_conn = BaseHook.get_connection("ssh_avincis_2")
     hostname, username = ssh_conn.host, ssh_conn.login
