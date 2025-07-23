@@ -11,7 +11,6 @@ from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOpe
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime, timedelta, timezone
 import tempfile
-from utils.log_utils import setup_conditional_log_saving
 from confluent_kafka import Consumer, KafkaException
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 import paramiko

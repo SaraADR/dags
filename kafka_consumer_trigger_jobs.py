@@ -10,8 +10,6 @@ from airflow.models import Variable
 from airflow.exceptions import AirflowSkipException
 from dag_utils import update_job_status
 from zoneinfo import ZoneInfo
-from function_save_logs_to_minio import save_logs_to_minio
-from utils.log_utils import setup_conditional_log_saving
 import os
 
 KAFKA_RAW_MESSAGE_PREFIX = "Mensaje crudo:"
@@ -138,11 +136,4 @@ consume_from_topic = ConsumeFromTopicOperator(
 )
 
 
-check_logs, save_logs = setup_conditional_log_saving(
-    dag=dag,
-    task_id='save_logs_to_minio',
-    task_id_to_save='consume_from_topic',
-    condition_function=there_was_kafka_message
-)
-
-consume_from_topic >> check_logs
+consume_from_topic
