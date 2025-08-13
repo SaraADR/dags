@@ -422,7 +422,6 @@ def post_process_and_historize(**context):
                 "execution_status": "FINISHED",
                 "bursts_processed": len(selected_bursts),
                 "files_count": len(generated_files),
-                "remote_paths": [f'/home/admin3/Algoritmo_deteccion_perimetro/share_data/output/incendio{mission_id}/{f}' for f in generated_files]
             }
             
             datos = {
